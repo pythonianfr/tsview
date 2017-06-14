@@ -1,0 +1,17 @@
+<form id="tsviewform" method="GET" class="form-inline">
+
+  <div class="item">
+    <label for="series">Series</label>
+    <select name="series" id="series" class="form-control" multiple>
+      {% for s in seriesvocab%}<option value="{{s}}"{% if s in series %}selected{% endif %}>{{s}}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <input type="submit" value="Apply filter"
+         class="btn btn-primary form-control">
+</form>
+
+<script>
+  init_select2_fields(['series'])
+</script>
