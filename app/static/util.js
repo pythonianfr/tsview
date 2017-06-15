@@ -2,22 +2,25 @@
 
 // init tsview form
 
-function init_tsviewform() {
+function init_form(formid, actionuri) {
     // setup click handler and do initial click
     // to fetch the plot
-    $('#tsviewform').submit(event => {
+    const $formid = $('#' + formid)
+    $formid.submit(event => {
         event.preventDefault()
-        let plotargs = $('#tsviewform').serialize()
-        fetch('tsplot?' + plotargs)
+        let plotargs = $formid.serialize()
+        fetch(actionuri + '?' + plotargs)
             .then(response => response.text())
             .then(response => {
                 let $target = $('#output')
                 $target.html(response)
-                $('.dataframe').DataTable()
+                const table = $('.dataframe').DataTable()
+                table.page.len(20);
+                table.draw();
             })
     })
     // initial call
-    $('#tsviewform').submit()
+    $formid.submit()
 }
 
 // the form contains select2 fields, to be initialised at load time
