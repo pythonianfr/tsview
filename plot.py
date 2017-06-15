@@ -5,7 +5,7 @@ from tshistory.tsio import TimeSerie
 from tsview.util import plot_to_htmldiv
 
 
-def plot(args, engine):
+def plot(args, engine, divid=None):
     tsh = TimeSerie()
     series = []
 
@@ -28,4 +28,4 @@ def plot(args, engine):
         height=900
     )
 
-    return plot_to_htmldiv(traces, layout)
+    return plot_to_htmldiv(traces, layout, divid)
