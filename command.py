@@ -10,6 +10,7 @@ from tsview.app.webapp import kickoff
 @click.command()
 @click.argument('db-uri')
 def view(db_uri):
+    """visualize time series through the web"""
     ipaddr = socket.gethostbyname(socket.gethostname())
     port = 5678
     server = Thread(name='tsview.webapp', target=kickoff,
