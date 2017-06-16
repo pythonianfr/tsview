@@ -24,5 +24,17 @@ setup(name='tsview',
       ]},
       entry_points={'tshistory.subcommands': [
           'view=tsview.command:view'
-      ]}
+      ]},
+      classifiers=[
+          'Development Status :: 4 - Alpha',
+          'Intended Audience :: Developers',
+          'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
+          'Operating System :: OS Independent',
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 3',
+          'Topic :: Database',
+          'Topic :: Scientific/Engineering',
+          'Topic :: Software Development :: Version Control',
+          'Topic :: Scientific/Engineering :: Visualization'
+      ]
 )
