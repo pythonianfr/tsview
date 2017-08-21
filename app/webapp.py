@@ -2,8 +2,6 @@ from sqlalchemy import create_engine
 import pandas as pd
 from flask import Flask, request, render_template
 
-from inireader import reader
-
 from tshistory.tsio import TimeSerie
 
 from tsview.util import argsdict as _argsdict
@@ -98,10 +96,3 @@ def kickoff(host, port, dburi):
     engine = create_engine(dburi)
     startapp(engine)
     app.run(host=host, port=port, threaded=True)
-
-
-if __name__ == '__main__':
-    import socket
-    ipaddr = socket.gethostbyname(socket.gethostname())
-    config = reader('tsview.ini')
-    kickoff(ipaddr, 5000, config['db']['uri'])

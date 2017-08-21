@@ -4,14 +4,10 @@ import webbrowser
 
 import click
 
-from tshistory import command
-
 from tsview.app.webapp import kickoff
 
-tsh = command.tsh
 
-
-@tsh.command()
+@click.command()
 @click.argument('db-uri')
 def view(db_uri):
     ipaddr = socket.gethostbyname(socket.gethostname())
@@ -23,7 +19,3 @@ def view(db_uri):
 
     webbrowser.open('http://{ipaddr}:{port}/tsview'.format(ipaddr=ipaddr, port=port))
     input()
-
-
-if __name__ == '__main__':
-    command.tsh()
