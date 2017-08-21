@@ -18,9 +18,9 @@ setup(name='tsview',
       dependency_links=[
           'hg+https://bitbucket.org/pythonian/tshistory#egg=tshistory-0'
       ],
-      package_data={'tsview': [
-          'app/static/*',
-          'app/templates/*'
+      package_data={'tsview.app': [
+          'static/*',
+          'templates/*'
       ]},
       entry_points={'tshistory.subcommands': [
           'view=tsview.command:view'
