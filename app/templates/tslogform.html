@@ -10,8 +10,8 @@
   </div>
 
   <div class=item>
-    <label for=author>Authors</label>
-    <select name=author id=author class="form-control" multiple>
+    <label for=authors>Authors</label>
+    <select name=authors id=authors class="form-control" multiple>
       {% for a in authorsvocab%}
       <option value="{{a}}"{% if a in authors %}selected{% endif %}>{{a}}</option>
       {% endfor %}
