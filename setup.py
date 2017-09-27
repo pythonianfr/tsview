@@ -7,8 +7,7 @@ setup(name='tsview',
       author_email='aurelien.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
                    'to visualize time series from a repository'),
-      packages=['tsview', 'tsview.app'],
-      package_dir={'tsview': '.'},
+      # packages=['tsview'],
       install_requires=[
           'flask',
           'plotly',
@@ -18,7 +17,7 @@ setup(name='tsview',
       dependency_links=[
           'hg+https://bitbucket.org/pythonian/tshistory#egg=tshistory-0'
       ],
-      package_data={'tsview.app': [
+      package_data={'tsview': [
           'static/*',
           'templates/*'
       ]},

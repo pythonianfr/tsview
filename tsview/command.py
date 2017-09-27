@@ -4,7 +4,7 @@ import webbrowser
 
 import click
 
-from tsview.app.webapp import kickoff
+from tsview.app import kickoff
 
 
 @click.command()

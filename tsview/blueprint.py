@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine
 import pandas as pd
-from flask import Flask, request, render_template
+from flask import Blueprint, request, render_template
 
 from tshistory.tsio import TimeSerie
 
@@ -8,7 +7,10 @@ from tsview.util import argsdict as _argsdict
 from tsview.plot import plot
 
 
-app = Flask(__name__)
+app = Blueprint('tsview', __name__,
+                template_folder='templates',
+                static_folder='static'
+)
 
 
 def serie_names(engine):
@@ -26,7 +28,7 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
-def startapp(engine):
+def complete_blueprint(engine):
 
     class viewargs(_argsdict):
         defaults = {
@@ -90,9 +92,3 @@ def startapp(engine):
             return 'No result.'
 
         return pd.DataFrame(log).to_html(index=False)
-
-
-def kickoff(host, port, dburi):
-    engine = create_engine(dburi)
-    startapp(engine)
-    app.run(host=host, port=port, threaded=True)
