@@ -7,9 +7,9 @@ from tsview.util import argsdict as _argsdict
 from tsview.plot import plot
 
 
-app = Blueprint('tsview', __name__,
-                template_folder='templates',
-                static_folder='static'
+bp = Blueprint('tsview', __name__,
+               template_folder='templates',
+               static_folder='tsview_static',
 )
 
 
@@ -28,7 +28,7 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
-def complete_blueprint(engine):
+def tsview(engine):
 
     class viewargs(_argsdict):
         defaults = {
@@ -42,13 +42,13 @@ def complete_blueprint(engine):
         }
 
 
-    @app.route('/tsview')
+    @bp.route('/tsview')
     def home():
         args = viewargs(request.args)
         return render_template('tsview.html', **args)
 
 
-    @app.route('/tsplot')
+    @bp.route('/tsplot')
     def tsplot():
         args = viewargs(request.args)
         return plot(args, engine)
@@ -73,13 +73,13 @@ def complete_blueprint(engine):
         }
 
 
-    @app.route('/tsviewlog')
+    @bp.route('/tsviewlog')
     def tsviewlog():
         args = logargs(request.args)
         return render_template('tslog.html', **args)
 
 
-    @app.route('/tslog')
+    @bp.route('/tslog')
     def tslog():
         args = logargs(request.args)
         tsh = TimeSerie()
@@ -92,3 +92,5 @@ def complete_blueprint(engine):
             return 'No result.'
 
         return pd.DataFrame(log).to_html(index=False)
+
+    return bp
