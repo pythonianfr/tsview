@@ -14,17 +14,17 @@ bp = Blueprint('tsview', __name__,
 
 
 def serie_names(engine):
-    sql = 'select name from registry order by name'
+    sql = 'select name from tsh.registry order by name'
     return [name for name, in engine.execute(sql).fetchall()]
 
 
 def author_names(engine):
-    sql = 'select distinct author from changeset order by author'
+    sql = 'select distinct author from tsh.changeset order by author'
     return [name for name, in engine.execute(sql).fetchall()]
 
 
 def maxrev(engine):
-    sql = 'select max(id) from changeset'
+    sql = 'select max(id) from tsh.changeset'
     return engine.execute(sql).scalar()
 
 
