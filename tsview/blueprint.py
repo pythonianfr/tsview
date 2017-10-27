@@ -41,18 +41,15 @@ def tsview(engine):
             'series': list
         }
 
-
     @bp.route('/tsview')
     def home():
         args = viewargs(request.args)
         return render_template('tsview.html', **args)
 
-
     @bp.route('/tsplot')
     def tsplot():
         args = viewargs(request.args)
         return plot(args, engine)
-
 
     class logargs(_argsdict):
         defaults = {
@@ -72,12 +69,10 @@ def tsview(engine):
             'torev': int
         }
 
-
     @bp.route('/tsviewlog')
     def tsviewlog():
         args = logargs(request.args)
         return render_template('tslog.html', **args)
-
 
     @bp.route('/tslog')
     def tslog():
