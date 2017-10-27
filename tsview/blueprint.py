@@ -35,7 +35,7 @@ def tsview(engine):
             'outputtype': 'plot',
             'outputtypevocab': ('plot', 'table'),
             'series': (),
-            'seriesvocab': serie_names(engine)
+            'seriesvocab': lambda: serie_names(engine)
         }
         types = {
             'series': list
@@ -58,11 +58,11 @@ def tsview(engine):
         defaults = {
             'limit': 20,
             'series': (),
-            'seriesvocab': serie_names(engine),
+            'seriesvocab': lambda: serie_names(engine),
             'authors': (),
-            'authorsvocab': author_names(engine),
+            'authorsvocab': lambda: author_names(engine),
             'fromrev': 0,
-            'torev': maxrev(engine)
+            'torev': lambda: maxrev(engine)
         }
         types = {
             'series': list,
