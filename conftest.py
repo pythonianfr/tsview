@@ -1,7 +1,14 @@
-import pytest
+from pathlib import Path
 
-# looks unused but KEEP IT THERE (it is a fixture)
-from tshistory.conftest import engine
+import pytest
+from pytest_sa_pg import fixture
+from tshistory import schema
+
+DATADIR = Path(__file__).parent / 'test/data'
+
+engine = fixture.engine_fixture(schema.meta, DATADIR, 5433,
+                                # tshistory schema builder
+                                schema.init)
 
 
 def pytest_addoption(parser):
