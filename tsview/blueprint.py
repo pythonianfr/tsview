@@ -8,7 +8,7 @@ from tsview.plot import plot
 
 
 bp = Blueprint('tsview', __name__,
-               template_folder='templates',
+               template_folder='tsview_templates',
                static_folder='tsview_static',
 )
 
