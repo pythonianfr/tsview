@@ -14,6 +14,7 @@ function init_form(formid, actionuri) {
             .then(response => {
                 let $target = $('#output')
                 $target.html(response)
+                $target.append(`<a href="tsview?${plotargs}">Permalink.</a>`)
                 const table = $('.dataframe').DataTable()
                 table.page.len(20);
                 table.draw();
