@@ -14,7 +14,10 @@ setup(name='tsview',
           'flask',
           'plotly',
           'pytest_sa_pg',
-          'tshistory'
+          'tshistory',
+          'dash',
+          'dash-renderer',
+          'dash-html-components',
       ],
       package_data={'tsview': [
           'static/*',
