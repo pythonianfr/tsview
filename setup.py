@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='tsview',
-      version='0.1.0',
+      version='0.2.0',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
@@ -16,8 +16,9 @@ setup(name='tsview',
           'pytest_sa_pg',
           'tshistory',
           'dash',
-          'dash-renderer',
-          'dash-html-components',
+          'dash-core-components==0.22.1',
+          'dash-renderer==0.12.1',
+          'dash-html-components==0.10.0'
       ],
       package_data={'tsview': [
           'static/*',
