@@ -67,9 +67,6 @@ def historic(app, engine,
     cache = Cache(dashboard.server, config=cacheconfig)
     cache.init_app(dashboard.server)
 
-    all_names = serie_names(engine)
-    formated_names = [{'label': name, 'value': name} for name in all_names]
-
     dashboard.layout = Div([
         Location(id='url', refresh=False),
         Div(Dropdown(id='ts_selector', value=None),
@@ -116,10 +113,13 @@ def historic(app, engine,
     @dashboard.callback(dash.dependencies.Output('dropdown-container', 'children'),
                         [dash.dependencies.Input('url', 'pathname')])
     def adaptable_dropdown(url_string):
+        all_names = serie_names(engine)
+        formated_names = [{'label': name, 'value': name} for name in all_names]
+
         if (url_string in (url_base_pathname, request_pathname_prefix_adv) or
             url_string is None or
             len(url_string.strip('/')) == 0):
-            initial_value = formated_names[0]['value']
+            initial_value = ''
         else:
             initial_value = url_string.split('/')[-1]
         dropdown = Dropdown(
@@ -138,7 +138,6 @@ def historic(app, engine,
             return Slider(id='insertdate_silder', value=None)
 
         fromdate, todate = unpack_dates(graphdata)
-        print('slider', fromdate, todate)
 
         idates = insertion_dates(id_serie, fromdate, todate)
         showlabel = len(idates) < 25
@@ -163,7 +162,6 @@ def historic(app, engine,
                         [dash.dependencies.Input('ts_selector', 'value')])
     def snapshot_display(id_serie):
         tsh = TimeSerie()
-        print('snap display get', id_serie)
         ts = tsh.get(engine, id_serie)
         if id_serie is None:
             return {'data': [], 'layout': {}}
@@ -197,7 +195,6 @@ def historic(app, engine,
                 'layout': {}
             }
 
-        print('classic display', graphdata)
         fromdate, todate = unpack_dates(graphdata)
         ts_final = get_serie(id_serie, fromdate, todate)
         ts_diff = get_diffs(id_serie, fromdate, todate)
@@ -280,7 +277,6 @@ def historic(app, engine,
             }
 
         date_str = hoverdata['points'][0]['text']
-        print('other display', date_str)
         if date_str is None:
             return {
                 'data': [go.Scatter()],
