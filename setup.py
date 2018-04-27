@@ -18,7 +18,8 @@ setup(name='tsview',
           'dash',
           'dash-core-components==0.22.1',
           'dash-renderer==0.12.1',
-          'dash-html-components==0.10.0'
+          'dash-html-components==0.10.0',
+          'flask_caching'
       ],
       package_data={'tsview': [
           'static/*',
