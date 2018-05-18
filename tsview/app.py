@@ -9,8 +9,8 @@ from tsview.dashboard import historic
 app = Flask('tsview')
 
 
-def kickoff(host, port, dburi):
+def kickoff(host, port, dburi, debug=False):
     engine = create_engine(dburi)
     app.register_blueprint(tsview(engine))
     historic(app, engine)
-    app.run(host=host, port=port, threaded=False)
+    app.run(host=host, port=port, debug=debug, threaded=not debug)
