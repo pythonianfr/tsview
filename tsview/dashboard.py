@@ -88,11 +88,6 @@ def historic(app, engine,
         tsh = TimeSerie()
         return tsh.get_history(engine, id_serie, diffmode=True)
 
-    def get_serie(id_serie, fromdate=None, todate=None):
-        tsh = TimeSerie()
-        print('get', id_serie, fromdate, todate)
-        return tsh.get(engine, id_serie, from_value_date=fromdate, to_value_date=todate)
-
     def get_diffs(id_serie, fromdate=None, todate=None):
         diffs = _get_diffs(id_serie)
         if fromdate is not None:
@@ -196,7 +191,10 @@ def historic(app, engine,
             }
 
         fromdate, todate = unpack_dates(graphdata)
-        ts_final = get_serie(id_serie, fromdate, todate)
+        tsh = TimeSerie()
+        ts_final = tsh.get(engine, id_serie,
+                           from_value_date=fromdate,
+                           to_value_date=todate)
         ts_diff = get_diffs(id_serie, fromdate, todate)
         list_insert_date = insertion_dates(id_serie, fromdate, todate)
 
