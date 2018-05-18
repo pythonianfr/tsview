@@ -22,7 +22,7 @@ def agg_past_diff(ts_diff, insert_date):
     tsh = TimeSerie()
     for i_date in np.unique(past_diff.index.get_level_values('insertion_date')):
         diff = past_diff[i_date]
-        result = tsh._apply_diff(result, diff)
+        result = tsh.patch(result, diff)
     result = result[~result.isnull()]
     return result
 
