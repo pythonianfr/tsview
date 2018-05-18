@@ -160,7 +160,7 @@ def historic(app, engine,
 
     @dashboard.callback(dash.dependencies.Output('ts_snapshot', 'figure'),
                         [dash.dependencies.Input('ts_selector', 'value')])
-    def snapshot_display(id_serie):
+    def ts_snapshot(id_serie):
         tsh = TimeSerie()
         ts = tsh.get(engine, id_serie)
         if id_serie is None:
@@ -188,7 +188,7 @@ def historic(app, engine,
                          dash.dependencies.Input('submit-button', 'n_clicks')],
                         [dash.dependencies.State('ts_selector', 'value'),
                          dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def classic_display(idx, n_clicks, id_serie, graphdata):
+    def ts_by_appdate(idx, n_clicks, id_serie, graphdata):
         if n_clicks == 0:
             return {
                 'data': [],
@@ -269,7 +269,7 @@ def historic(app, engine,
                         [dash.dependencies.Input('ts_by_appdate', 'hoverData')],
                         [dash.dependencies.State('ts_selector', 'value'),
                          dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def other_display(hoverdata, id_serie, graphdata):
+    def ts_by_insertdate(hoverdata, id_serie, graphdata):
         if id_serie is None:
             return {
                 'data': [],
