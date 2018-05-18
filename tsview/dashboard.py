@@ -88,8 +88,7 @@ def historic(app, engine,
         tsh = TimeSerie()
         return tsh.get_history(engine, id_serie,
                                from_value_date=fromdate,
-                               to_value_date=todate,
-                               diffmode=True)
+                               to_value_date=todate)
 
     def get_diffs(id_serie, fromdate=None, todate=None):
         diffs = _get_diffs(id_serie, fromdate, todate)
@@ -287,6 +286,7 @@ def historic(app, engine,
         fromdate, todate = unpack_dates(graphdata)
         ts_diff = get_diffs(id_serie, fromdate, todate)
         ts = ts_diff[:, pd.to_datetime(date_str)]
+        ts = ts.loc[ts.shift(-1) != ts]
         traces = [
             go.Scatter(
                 x=ts.index,
