@@ -84,12 +84,15 @@ def historic(app, engine,
     ])
 
     @cache.memoize(timeout=300)
-    def _get_diffs(id_serie):
+    def _get_diffs(id_serie, fromdate, todate):
         tsh = TimeSerie()
-        return tsh.get_history(engine, id_serie, diffmode=True)
+        return tsh.get_history(engine, id_serie,
+                               from_value_date=fromdate,
+                               to_value_date=todate,
+                               diffmode=True)
 
     def get_diffs(id_serie, fromdate=None, todate=None):
-        diffs = _get_diffs(id_serie)
+        diffs = _get_diffs(id_serie, fromdate, todate)
         if fromdate is not None:
             part = diffs.loc[:,fromdate:todate]
             return part
