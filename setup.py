@@ -13,7 +13,7 @@ setup(name='tsview',
       install_requires=[
           'flask',
           'flask-caching',
-          'plotly',
+          'plotly==2.7.0',
           'pytest_sa_pg',
           'tshistory',
           'dash',
