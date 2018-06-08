@@ -22,8 +22,8 @@ setup(name='tsview',
           'dash-html-components==0.10.0'
       ],
       package_data={'tsview': [
-          'static/*',
-          'templates/*'
+          'tsview_static/*',
+          'tsview_templates/*'
       ]},
       entry_points={'tshistory.subcommands': [
           'view=tsview.command:view'
