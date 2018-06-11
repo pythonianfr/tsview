@@ -80,7 +80,7 @@ def tsview(engine):
         tsh = TimeSerie()
         with engine.connect() as cn:
             log = tsh.log(cn, limit=args.limit, names=args.series,
-                          authors=set(args.authors), diff=args.diff,
+                          authors=set(args.authors),
                           fromrev=args.fromrev, torev=args.torev)
 
         if not log:
