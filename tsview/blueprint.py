@@ -14,7 +14,7 @@ bp = Blueprint('tsview', __name__,
 
 
 def serie_names(engine):
-    sql = 'select name from tsh.registry order by name'
+    sql = 'select seriename from tsh.registry order by seriename'
     return [name for name, in engine.execute(sql).fetchall()]
 
 
