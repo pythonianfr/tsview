@@ -17,11 +17,12 @@ def serie_names(engine):
 
 
 def agg_past_diff(ts_diff, insert_date):
-    past_diff = ts_diff[ts_diff.index.get_level_values('insertion_date') <= insert_date]
     result = pd.Series()
     tsh = TimeSerie()
-    for i_date in np.unique(past_diff.index.get_level_values('insertion_date')):
-        diff = past_diff[i_date]
+    for i_date in np.unique(ts_diff.index.get_level_values('insertion_date')):
+        if i_date > insert_date:
+            break
+        diff = ts_diff[i_date]
         result = tsh.patch(result, diff)
     result = result[~result.isnull()]
     return result
@@ -200,7 +201,7 @@ def historic(app, engine,
         ts_diff = get_diffs(id_serie, fromdate, todate)
         list_insert_date = insertion_dates(id_serie, fromdate, todate)
 
-        insert_date = pd.to_datetime(list_insert_date[idx])
+        insert_date = list_insert_date[idx]
         ts_unti_now = agg_past_diff(ts_diff, insert_date)
 
         traces = []
