@@ -28,7 +28,7 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
-def tsview(engine):
+def tsview(engine, serie_names=serie_names):
 
     class viewargs(_argsdict):
         defaults = {

@@ -39,6 +39,7 @@ def unpack_dates(graphdata):
 
 
 def historic(app, engine,
+             serie_names=serie_names,
              url_base_pathname='/tshistory/',
              request_pathname_prefix='/',
              cachedir=None):
