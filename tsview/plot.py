@@ -1,12 +1,10 @@
 import plotly.graph_objs as go
 
-from tshistory.tsio import TimeSerie
-
 from tsview.util import plot_to_htmldiv
 
 
-def plot(args, engine, divid=None):
-    tsh = TimeSerie()
+def plot(args, engine, tshclass, divid=None):
+    tsh = tshclass()
     series = []
 
     with engine.connect() as cn:

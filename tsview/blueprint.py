@@ -28,7 +28,7 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
-def tsview(engine, serie_names=serie_names):
+def tsview(engine, tshclass=TimeSerie, serie_names=serie_names):
 
     class viewargs(_argsdict):
         defaults = {
@@ -49,7 +49,7 @@ def tsview(engine, serie_names=serie_names):
     @bp.route('/tsplot')
     def tsplot():
         args = viewargs(request.args)
-        return plot(args, engine)
+        return plot(args, engine, tshclass)
 
     class logargs(_argsdict):
         defaults = {
@@ -77,7 +77,7 @@ def tsview(engine, serie_names=serie_names):
     @bp.route('/tslog')
     def tslog():
         args = logargs(request.args)
-        tsh = TimeSerie()
+        tsh = tshclass()
         with engine.connect() as cn:
             log = tsh.log(cn, limit=args.limit, names=args.series,
                           authors=set(args.authors),

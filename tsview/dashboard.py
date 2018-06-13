@@ -8,17 +8,14 @@ import dash
 import pandas as pd
 import numpy as np
 
-from tshistory.tsio import TimeSerie
-
 
 def serie_names(engine):
     sql = 'select seriename from tsh.registry order by seriename'
     return [name for name, in engine.execute(sql).fetchall()]
 
 
-def agg_past_diff(ts_diff, insert_date):
+def agg_past_diff(tsh, ts_diff, insert_date):
     result = pd.Series()
-    tsh = TimeSerie()
     for i_date in np.unique(ts_diff.index.get_level_values('insertion_date')):
         if i_date > insert_date:
             break
@@ -39,6 +36,7 @@ def unpack_dates(graphdata):
 
 
 def historic(app, engine,
+             tshclass,
              serie_names=serie_names,
              url_base_pathname='/tshistory/',
              request_pathname_prefix='/',
@@ -87,13 +85,14 @@ def historic(app, engine,
 
     @cache.memoize(timeout=300)
     def _get_diffs(id_serie, fromdate, todate):
-        tsh = TimeSerie()
+        tsh = tshclass()
         return tsh.get_history(engine, id_serie,
                                from_value_date=fromdate,
                                to_value_date=todate)
 
     def get_diffs(id_serie, fromdate=None, todate=None):
         diffs = _get_diffs(id_serie, fromdate, todate)
+        assert diffs is not None, (id_serie, fromdate, todate)
         if fromdate is not None:
             part = diffs.loc[:,fromdate:todate]
             return part
@@ -160,7 +159,7 @@ def historic(app, engine,
     @dashboard.callback(dash.dependencies.Output('ts_snapshot', 'figure'),
                         [dash.dependencies.Input('ts_selector', 'value')])
     def ts_snapshot(id_serie):
-        tsh = TimeSerie()
+        tsh = tshclass()
         ts = tsh.get(engine, id_serie)
         if id_serie is None:
             return {'data': [], 'layout': {}}
@@ -195,7 +194,7 @@ def historic(app, engine,
             }
 
         fromdate, todate = unpack_dates(graphdata)
-        tsh = TimeSerie()
+        tsh = tshclass()
         ts_final = tsh.get(engine, id_serie,
                            from_value_date=fromdate,
                            to_value_date=todate)
@@ -203,7 +202,7 @@ def historic(app, engine,
         list_insert_date = insertion_dates(id_serie, fromdate, todate)
 
         insert_date = list_insert_date[idx]
-        ts_unti_now = agg_past_diff(ts_diff, insert_date)
+        ts_unti_now = agg_past_diff(tshclass(), ts_diff, insert_date)
 
         traces = []
         # all diffs

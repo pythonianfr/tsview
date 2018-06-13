@@ -21,7 +21,7 @@ def test_plot(engine, refresh):
         tsh.insert(cn, serie, 'banana_volume_consumption', 'Babar')
 
     args = argsdict({'series': ['banana_volume_consumption']})
-    plotted = plot(args, engine, 'mydiv').strip().encode('utf-8')
+    plotted = plot(args, engine, TimeSerie, divid='mydiv').strip().encode('utf-8')
 
     refpath = DATADIR / 'plotted.html'
     if refresh:
