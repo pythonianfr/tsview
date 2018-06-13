@@ -17,7 +17,7 @@ function init_form(formid, actionuri) {
                 $target.append(`<a href="tsview?${plotargs}">Permalink</a>`)
                 for (let item of new FormData(document.getElementById(formid)).entries()) {
                     let name = item[1]
-                    $target.append(`<br/> <a href="tshistory/${name}" target=_blank>View history</a>`)
+                    $target.append(`<br/> <a href="tshistory/${name}" target=_blank>View ${name} history</a>`)
                 }
                 const table = $('.dataframe').DataTable()
                 table.page.len(20);
