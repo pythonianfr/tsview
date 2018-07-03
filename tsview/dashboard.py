@@ -13,18 +13,6 @@ def serie_names(engine):
     sql = 'select seriename from tsh.registry order by seriename'
     return [name for name, in engine.execute(sql).fetchall()]
 
-
-def agg_past_diff(tsh, ts_diff, insert_date):
-    result = pd.Series()
-    for i_date in np.unique(ts_diff.index.get_level_values('insertion_date')):
-        if i_date > insert_date:
-            break
-        diff = ts_diff[i_date]
-        result = tsh.patch(result, diff)
-    result = result[~result.isnull()]
-    return result
-
-
 def unpack_dates(graphdata):
     fromdate = None
     todate = None
@@ -218,7 +206,9 @@ def historic(app, engine,
         # mayhappens when the input div are not refreshed at the same time
             idx = len(list_insert_date)-1
         insert_date = list_insert_date[idx]
-        ts_unti_now = agg_past_diff(tshclass(), ts_diff, insert_date)
+        ts_unti_now = ts_diff[insert_date]
+        # ts_until_now is the ts asof if diff='all'
+        # else it reprents the actall diff
 
         traces = []
         # all diffs
@@ -250,12 +240,13 @@ def historic(app, engine,
             opacity=0.4
         ))
         # ts as of
+        mode = 'lines' if len(ts_unti_now) > 1 else 'markers'
         traces.append(go.Scatter(
             x=ts_unti_now.index,
             y=ts_unti_now.values,
             text=[str(elt) for elt in ts_unti_now.index],
             name=str(pd.to_datetime(insert_date)),
-            mode='lines',
+            mode=mode,
             line={'color': ('rgb(20, 12, 204)')},
         ))
 
