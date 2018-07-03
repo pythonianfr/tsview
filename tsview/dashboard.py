@@ -263,7 +263,7 @@ def historic(app, engine,
                 hovermode='closest',
                 xaxis={'range': [ts_final.index.min(), ts_final.index.max()]},
                 yaxis={'range': [ts_diff.values.min(), ts_diff.values.max()]},
-                title='%s Insertion date : %s' % (id_serie, pd.to_datetime(insert_date)),
+                title='%s Insertion date : %s' % (id_serie, pd.to_datetime(insert_date).replace(microsecond=0)),
                 shapes=[{
                     'type': 'line',
                     'x0': insert_date,
