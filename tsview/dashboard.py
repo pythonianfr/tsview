@@ -8,6 +8,11 @@ import dash
 import pandas as pd
 import numpy as np
 
+COLOR_BEFORE = 'rgb(20, 200, 20)'
+COLOR_CURRENT = 'rgb(0, 0, 250)'
+COLOR_AFTER = 'rgb(204, 12, 20)'
+COLOR_LAST = 'rgb(0, 0, 0)'
+
 
 def serie_names(engine):
     sql = 'select seriename from tsh.registry order by seriename'
@@ -216,6 +221,7 @@ def historic(app, engine,
             diff = ts_diff[insertdate]
             # plolty does not plot a line with only one point
             mode = 'lines' if len(diff) > 1 else 'markers'
+            color = COLOR_BEFORE if insertdate < insert_date else COLOR_AFTER
             traces.append(
                 go.Scatter(
                     x=diff.index,
@@ -224,8 +230,8 @@ def historic(app, engine,
                     name=str(pd.to_datetime(insertdate)),
                     showlegend=False,
                     mode=mode,
-                    line={'color':('rgb(20, 12, 204)')},
-                    opacity=0.1
+                    line={'color':color},
+                    opacity=0.2
                 )
             )
 
@@ -236,9 +242,10 @@ def historic(app, engine,
             name='last',
             text=[str(elt) for elt in ts_final.index],
             mode='lines',
-            line={'color': 'rgb(150, 50, 50)'},
-            opacity=0.4
+            line={'color': COLOR_LAST},
+            opacity=1
         ))
+
         # ts as of
         mode = 'lines' if len(ts_unti_now) > 1 else 'markers'
         traces.append(go.Scatter(
@@ -247,7 +254,7 @@ def historic(app, engine,
             text=[str(elt) for elt in ts_unti_now.index],
             name=str(pd.to_datetime(insert_date)),
             mode=mode,
-            line={'color': ('rgb(20, 12, 204)')},
+            line={'color': COLOR_CURRENT},
         ))
 
         return {
