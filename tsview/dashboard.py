@@ -1,7 +1,7 @@
 from flask_caching import Cache
 import plotly.graph_objs as go
 
-from dash_core_components import Graph, Location, Dropdown, Slider
+from dash_core_components import Graph, Location, Dropdown, Slider, RadioItems
 from dash_html_components import Div, Button, Br
 import dash
 
@@ -34,6 +34,8 @@ def unpack_dates(graphdata):
         todate = pd.to_datetime(graphdata['xaxis.range[1]'])
     return fromdate, todate
 
+def read_diffmode(value):
+    return True if (value == 'diffs') else False
 
 def historic(app, engine,
              tshclass,
@@ -73,7 +75,17 @@ def historic(app, engine,
             style={'display': 'none'}),
         Div(Dropdown(id='insertdate_silder', value=None),
             style={'display': 'none'}),
-        Div(id='dropdown-container'),
+        Div(id='dropdown-container',
+            style={'width': '50%'}),
+        Div([
+            RadioItems(
+                id='radio-diff',
+                options=[{'label': 'All', 'value': 'all'}, {'label': 'Diffs', 'value': 'diffs'}],
+                value='all'
+            ),
+        Div(id='output_radio')
+        ],
+        ),
         Graph(id='ts_snapshot'),
         Div(Button(id='submit-button', n_clicks=0, children='Submit'), style={'display': 'none'}),
         Div(id='button-container'),
@@ -84,29 +96,24 @@ def historic(app, engine,
     ])
 
     @cache.memoize(timeout=300)
-    def _get_diffs(id_serie, fromdate, todate):
+    def _get_diffs(id_serie, fromdate, todate, diffmode):
         tsh = tshclass()
         return tsh.get_history(engine, id_serie,
                                from_value_date=fromdate,
-                               to_value_date=todate)
+                               to_value_date=todate,
+                               diffmode=diffmode)
 
-    def get_diffs(id_serie, fromdate=None, todate=None):
-        diffs = _get_diffs(id_serie, fromdate, todate)
+    def get_diffs(id_serie, fromdate=None, todate=None, diffmode=False):
+        diffs = _get_diffs(id_serie, fromdate, todate, diffmode)
         assert diffs is not None, (id_serie, fromdate, todate)
         if fromdate is not None:
             part = diffs.loc[:,fromdate:todate]
             return part
         return diffs
 
-    def insertion_dates(id_serie, fromdate=None, todate=None):
-        return np.sort(np.unique(get_diffs(
-            id_serie, fromdate, todate
-        ).index.get_level_values('insertion_date')))
-
-    def app_dates(id_serie, fromdate=None, todate=None):
-        return np.sort(np.unique(get_diffs(
-            id_serie, fromdate, todate
-        ).index.get_level_values('value_date')))
+    def insertion_dates(id_serie, fromdate=None, todate=None, diffmode=False):
+        return np.sort(np.unique(get_diffs(id_serie, fromdate, todate, diffmode=diffmode
+                                           ).index.get_level_values('insertion_date')))
 
     @dashboard.callback(dash.dependencies.Output('dropdown-container', 'children'),
                         [dash.dependencies.Input('url', 'pathname')])
@@ -130,14 +137,15 @@ def historic(app, engine,
     @dashboard.callback(dash.dependencies.Output('slider-container', 'children'),
                         [dash.dependencies.Input('ts_selector', 'value'),
                          dash.dependencies.Input('submit-button', 'n_clicks')],
-                        [dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def adaptable_slider(id_serie, n_clicks, graphdata):
+                        [dash.dependencies.State('ts_snapshot', 'relayoutData'),
+                         dash.dependencies.State('radio-diff', 'value')])
+    def adaptable_slider(id_serie, n_clicks, graphdata, diffmode):
         if n_clicks==0:
             return Slider(id='insertdate_silder', value=None)
 
         fromdate, todate = unpack_dates(graphdata)
-
-        idates = insertion_dates(id_serie, fromdate, todate)
+        diffmode = read_diffmode(diffmode)
+        idates = insertion_dates(id_serie, fromdate, todate, diffmode=diffmode)
         showlabel = len(idates) < 25
         slider = Slider(
             id='insertdate_silder',
@@ -161,7 +169,7 @@ def historic(app, engine,
     def ts_snapshot(id_serie):
         tsh = tshclass()
         ts = tsh.get(engine, id_serie)
-        if id_serie is None:
+        if id_serie is None or ts is None:
             return {'data': [], 'layout': {}}
         trace = [
                 go.Scatter(
@@ -185,8 +193,10 @@ def historic(app, engine,
                         [dash.dependencies.Input('insertdate_silder', 'value'),
                          dash.dependencies.Input('submit-button', 'n_clicks')],
                         [dash.dependencies.State('ts_selector', 'value'),
-                         dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def ts_by_appdate(idx, n_clicks, id_serie, graphdata):
+                         dash.dependencies.State('ts_snapshot', 'relayoutData'),
+                         dash.dependencies.State('radio-diff', 'value')
+                         ])
+    def ts_by_appdate(idx, n_clicks, id_serie, graphdata, diffmode):
         if n_clicks == 0:
             return {
                 'data': [],
@@ -194,13 +204,19 @@ def historic(app, engine,
             }
 
         fromdate, todate = unpack_dates(graphdata)
+        diffmode = read_diffmode(diffmode)
+        idx = idx if idx else 0
+
         tsh = tshclass()
         ts_final = tsh.get(engine, id_serie,
                            from_value_date=fromdate,
                            to_value_date=todate)
-        ts_diff = get_diffs(id_serie, fromdate, todate)
-        list_insert_date = insertion_dates(id_serie, fromdate, todate)
+        ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
+        list_insert_date = insertion_dates(id_serie, fromdate, todate, diffmode)
 
+        if idx > len(list_insert_date):
+        # mayhappens when the input div are not refreshed at the same time
+            idx = len(list_insert_date)-1
         insert_date = list_insert_date[idx]
         ts_unti_now = agg_past_diff(tshclass(), ts_diff, insert_date)
 
@@ -269,8 +285,10 @@ def historic(app, engine,
     @dashboard.callback(dash.dependencies.Output('ts_by_insertdate', 'figure'),
                         [dash.dependencies.Input('ts_by_appdate', 'hoverData')],
                         [dash.dependencies.State('ts_selector', 'value'),
-                         dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def ts_by_insertdate(hoverdata, id_serie, graphdata):
+                         dash.dependencies.State('ts_snapshot', 'relayoutData'),
+                         dash.dependencies.State('radio-diff', 'value')
+                         ])
+    def ts_by_insertdate(hoverdata, id_serie, graphdata, diffmode):
         if id_serie is None:
             return {
                 'data': [],
@@ -285,7 +303,9 @@ def historic(app, engine,
             }
 
         fromdate, todate = unpack_dates(graphdata)
-        ts_diff = get_diffs(id_serie, fromdate, todate)
+        diffmode = read_diffmode(diffmode)
+
+        ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
         ts = ts_diff[:, pd.to_datetime(date_str)]
         ts = ts.loc[ts.shift(-1) != ts]
         traces = [
