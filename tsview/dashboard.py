@@ -91,22 +91,26 @@ def historic(app, engine,
     @cache.memoize(timeout=300)
     def _get_diffs(id_serie, fromdate, todate, diffmode):
         tsh = tshclass()
-        return tsh.get_history(engine, id_serie,
-                               from_value_date=fromdate,
-                               to_value_date=todate,
-                               diffmode=diffmode)
+        return {
+            # canonicalize the keys immediately
+            dt.strftime('%Y-%m-%d %H:%M:%S'): serie
+            for dt, serie in tsh.get_history(
+                    engine, id_serie,
+                    from_value_date=fromdate,
+                    to_value_date=todate,
+                    diffmode=diffmode
+            ).items()
+        }
 
     def get_diffs(id_serie, fromdate=None, todate=None, diffmode=False):
         diffs = _get_diffs(id_serie, fromdate, todate, diffmode)
         assert diffs is not None, (id_serie, fromdate, todate)
-        if fromdate is not None:
-            part = diffs.loc[:,fromdate:todate]
-            return part
         return diffs
 
     def insertion_dates(id_serie, fromdate=None, todate=None, diffmode=False):
-        return np.sort(np.unique(get_diffs(id_serie, fromdate, todate, diffmode=diffmode
-                                           ).index.get_level_values('insertion_date')))
+        return list(
+            get_diffs(id_serie, fromdate, todate, diffmode=diffmode).keys()
+        )
 
     @dashboard.callback(dash.dependencies.Output('dropdown-container', 'children'),
                         [dash.dependencies.Input('url', 'pathname')])
@@ -146,7 +150,7 @@ def historic(app, engine,
             max=len(idates) - 1,
             value=len(idates) - 1,
             step=None,
-            marks={str(idx): str(elt.astype('M8[D]')) if showlabel else ''
+            marks={str(idx): elt if showlabel else ''
                    for idx, elt in enumerate(idates)}
         )
         return slider
@@ -227,7 +231,7 @@ def historic(app, engine,
                     x=diff.index,
                     y=diff.values,
                     text=[str(elt) for elt in diff.index],
-                    name=str(pd.to_datetime(insertdate)),
+                    name=insertdate,
                     showlegend=False,
                     mode=mode,
                     line={'color':color},
@@ -257,19 +261,22 @@ def historic(app, engine,
             line={'color': COLOR_CURRENT},
         ))
 
+        diffminvalue = min(diff.values.min() for diff in ts_diff.values() if len(diff))
+        diffmaxvalue = max(diff.values.max() for diff in ts_diff.values() if len(diff))
+
         return {
             'data': traces,
             'layout': go.Layout(
                 hovermode='closest',
                 xaxis={'range': [ts_final.index.min(), ts_final.index.max()]},
-                yaxis={'range': [ts_diff.values.min(), ts_diff.values.max()]},
+                yaxis={'range': [diffminvalue, diffmaxvalue]},
                 title='%s Insertion date : %s' % (id_serie, pd.to_datetime(insert_date).replace(microsecond=0)),
                 shapes=[{
                     'type': 'line',
                     'x0': insert_date,
-                    'y0': ts_diff.values.min(),
+                    'y0': diffminvalue,
                     'x1': insert_date,
-                    'y1': ts_diff.values.max(),
+                    'y1': diffmaxvalue,
                     'line': {
                         'dash': 'dot',
                         'color': 'rgb(0, 0, 0)',
@@ -304,12 +311,18 @@ def historic(app, engine,
         diffmode = read_diffmode(diffmode)
 
         ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
-        ts = ts_diff[:, pd.to_datetime(date_str)]
-        ts = ts.loc[ts.shift(-1) != ts]
+        index = []
+        values = []
+        for idate, diff in ts_diff.items():
+            dt = pd.to_datetime(date_str)
+            if dt in diff:
+                index.append(idate)
+                values.append(diff[dt])
+
         traces = [
             go.Scatter(
-                x=ts.index,
-                y=ts.values,
+                x=index,
+                y=values,
                 name=date_str,
                 mode='lines',
                 line={'color': ('rgb(20, 180, 40)')},
