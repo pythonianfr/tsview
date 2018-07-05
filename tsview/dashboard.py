@@ -18,6 +18,7 @@ def serie_names(engine):
     sql = 'select seriename from tsh.registry order by seriename'
     return [name for name, in engine.execute(sql).fetchall()]
 
+
 def unpack_dates(graphdata):
     fromdate = None
     todate = None
@@ -27,8 +28,10 @@ def unpack_dates(graphdata):
         todate = pd.to_datetime(graphdata['xaxis.range[1]'])
     return fromdate, todate
 
+
 def read_diffmode(value):
     return True if (value == 'diffs') else False
+
 
 def historic(app, engine,
              tshclass,
@@ -73,16 +76,23 @@ def historic(app, engine,
         Div([
             RadioItems(
                 id='radio-diff',
-                options=[{'label': 'All', 'value': 'all'}, {'label': 'Diffs', 'value': 'diffs'}],
+                options=[
+                    {'label': 'all', 'value': 'all'},
+                    {'label': 'diffs', 'value': 'diffs'}
+                ],
                 value='all'
             ),
-        Div(id='output_radio')
-        ],
-        ),
+            Div(id='output_radio')
+        ]),
         Graph(id='ts_snapshot'),
-        Div(Button(id='submit-button', n_clicks=0, children='Submit'), style={'display': 'none'}),
+        Div(Button(id='submit-button',
+                   n_clicks=0,
+                   children='Submit'),
+            style={'display': 'none'}),
         Div(id='button-container'),
-        Graph(id='ts_by_appdate', hoverData={'points':[{'text' : None}]}),
+        Graph(id='ts_by_appdate',
+              hoverData={'points':[{'text' : None}]}
+        ),
         Div(id='slider-container'),
         Div([Br()]),
         Graph(id='ts_by_insertdate'),
@@ -116,7 +126,10 @@ def historic(app, engine,
                         [dash.dependencies.Input('url', 'pathname')])
     def adaptable_dropdown(url_string):
         all_names = serie_names(engine)
-        formated_names = [{'label': name, 'value': name} for name in all_names]
+        formated_names = [
+            {'label': name, 'value': name}
+            for name in all_names
+        ]
 
         if (url_string in (url_base_pathname, request_pathname_prefix_adv) or
             url_string is None or
@@ -128,7 +141,7 @@ def historic(app, engine,
             id='ts_selector',
             options=formated_names,
             value=initial_value
-            )
+        )
         return dropdown
 
     @dashboard.callback(dash.dependencies.Output('slider-container', 'children'),
@@ -150,36 +163,47 @@ def historic(app, engine,
             max=len(idates) - 1,
             value=len(idates) - 1,
             step=None,
-            marks={str(idx): elt if showlabel else ''
-                   for idx, elt in enumerate(idates)}
+            marks={
+                str(idx): elt if showlabel else ''
+                for idx, elt in enumerate(idates)
+            }
         )
         return slider
 
     @dashboard.callback(dash.dependencies.Output('button-container', 'children'),
                         [dash.dependencies.Input('ts_selector', 'value')])
     def dynamic_button(_):
-        return Button(id='submit-button', n_clicks=0, children='Submit'),
-
+        return Button(
+            id='submit-button',
+            n_clicks=0,
+            children='Submit'
+        )
 
     @dashboard.callback(dash.dependencies.Output('ts_snapshot', 'figure'),
                         [dash.dependencies.Input('ts_selector', 'value')])
     def ts_snapshot(id_serie):
         tsh = tshclass()
         ts = tsh.get(engine, id_serie)
+
         if id_serie is None or ts is None:
             return {'data': [], 'layout': {}}
+
         trace = [
-                go.Scatter(
+            go.Scatter(
                 x=ts.index,
                 y=ts.values,
                 name= id_serie,
                 mode='lines',
-                line={'color': ('rgb(255, 127, 80)')},)
-                ]
-        layout = go.Layout(
-            {'yaxis': {'fixedrange': True},
-             'showlegend': True}
-        )
+                line={'color': ('rgb(255, 127, 80)')}
+            )
+        ]
+        layout = go.Layout({
+            'yaxis': {
+                'fixedrange': True
+            },
+            'showlegend': True
+        })
+
         return {
             'data': trace,
             'layout': layout
@@ -209,29 +233,30 @@ def historic(app, engine,
                            from_value_date=fromdate,
                            to_value_date=todate)
         ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
-        list_insert_date = insertion_dates(id_serie, fromdate, todate, diffmode)
+        idates = insertion_dates(id_serie, fromdate, todate, diffmode)
 
-        if idx > len(list_insert_date):
-        # mayhappens when the input div are not refreshed at the same time
-            idx = len(list_insert_date)-1
-        insert_date = list_insert_date[idx]
+        if idx > len(idates):
+            # may happen when the input div are not refreshed at the same time
+            idx = len(idates) - 1
+
+        insert_date = idates[idx]
         ts_unti_now = ts_diff[insert_date]
         # ts_until_now is the ts asof if diff='all'
-        # else it reprents the actall diff
+        # else it represents the actall diff
 
         traces = []
         # all diffs
-        for insertdate in list_insert_date:
-            diff = ts_diff[insertdate]
+        for idate in idates:
+            diff = ts_diff[idate]
             # plolty does not plot a line with only one point
             mode = 'lines' if len(diff) > 1 else 'markers'
-            color = COLOR_BEFORE if insertdate < insert_date else COLOR_AFTER
+            color = COLOR_BEFORE if idate < insert_date else COLOR_AFTER
             traces.append(
                 go.Scatter(
                     x=diff.index,
                     y=diff.values,
                     text=[str(elt) for elt in diff.index],
-                    name=insertdate,
+                    name=idate,
                     showlegend=False,
                     mode=mode,
                     line={'color':color},
@@ -261,8 +286,16 @@ def historic(app, engine,
             line={'color': COLOR_CURRENT},
         ))
 
-        diffminvalue = min(diff.values.min() for diff in ts_diff.values() if len(diff))
-        diffmaxvalue = max(diff.values.max() for diff in ts_diff.values() if len(diff))
+        diffminvalue = min(
+            diff.values.min()
+            for diff in ts_diff.values()
+            if len(diff)
+        )
+        diffmaxvalue = max(
+            diff.values.max()
+            for diff in ts_diff.values()
+            if len(diff)
+        )
 
         return {
             'data': traces,
@@ -270,7 +303,7 @@ def historic(app, engine,
                 hovermode='closest',
                 xaxis={'range': [ts_final.index.min(), ts_final.index.max()]},
                 yaxis={'range': [diffminvalue, diffmaxvalue]},
-                title='%s Insertion date : %s' % (id_serie, pd.to_datetime(insert_date).replace(microsecond=0)),
+                title='{} Insertion date : {}'.format(id_serie, insert_date),
                 shapes=[{
                     'type': 'line',
                     'x0': insert_date,
@@ -285,7 +318,6 @@ def historic(app, engine,
                 }]
             )
         }
-
 
     @dashboard.callback(dash.dependencies.Output('ts_by_insertdate', 'figure'),
                         [dash.dependencies.Input('ts_by_appdate', 'hoverData')],
