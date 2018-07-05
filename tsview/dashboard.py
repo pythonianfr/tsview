@@ -54,6 +54,9 @@ def historic(app, engine,
     dashboard.config['suppress_callback_exceptions'] = True
     if request_pathname_prefix != '/':
         dashboard.config.requests_pathname_prefix = request_pathname_prefix_adv
+    dashboard.css.append_css(
+        {'external_url': 'https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css'}
+    )
 
     if cachedir:
         cacheconfig = {
