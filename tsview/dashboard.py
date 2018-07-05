@@ -72,7 +72,7 @@ def historic(app, engine,
         Location(id='url', refresh=False),
         Div(Dropdown(id='ts_selector', value=None),
             style={'display': 'none'}),
-        Div(Dropdown(id='insertdate_silder', value=None),
+        Div(Dropdown(id='idate_slider', value=None),
             style={'display': 'none'}),
         Div(id='dropdown-container',
             style={'width': '50%'}),
@@ -154,14 +154,14 @@ def historic(app, engine,
                          dash.dependencies.State('radio-diff', 'value')])
     def adaptable_slider(id_serie, n_clicks, graphdata, diffmode):
         if n_clicks==0:
-            return Slider(id='insertdate_silder', value=None)
+            return Slider(id='idate_slider', value=None)
 
         fromdate, todate = unpack_dates(graphdata)
         diffmode = read_diffmode(diffmode)
         idates = insertion_dates(id_serie, fromdate, todate, diffmode=diffmode)
         showlabel = len(idates) < 25
         slider = Slider(
-            id='insertdate_silder',
+            id='idate_slider',
             min=0,
             max=len(idates) - 1,
             value=len(idates) - 1,
@@ -214,7 +214,7 @@ def historic(app, engine,
 
 
     @dashboard.callback(dash.dependencies.Output('ts_by_appdate', 'figure'),
-                        [dash.dependencies.Input('insertdate_silder', 'value'),
+                        [dash.dependencies.Input('idate_slider', 'value'),
                          dash.dependencies.Input('submit-button', 'n_clicks')],
                         [dash.dependencies.State('ts_selector', 'value'),
                          dash.dependencies.State('ts_snapshot', 'relayoutData'),
