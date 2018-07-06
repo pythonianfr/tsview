@@ -348,7 +348,7 @@ def historic(app, engine,
         ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
         index = []
         values = []
-        for idate, diff in ts_diff.items():
+        for idate, diff in sorted(ts_diff.items()):
             dt = pd.to_datetime(date_str)
             if dt in diff:
                 index.append(idate)
