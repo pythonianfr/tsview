@@ -113,6 +113,7 @@ def historic(app, engine,
                     to_value_date=todate,
                     diffmode=diffmode
             ).items()
+            if len(serie)
         }
 
     def get_diffs(id_serie, fromdate=None, todate=None, diffmode=False):
