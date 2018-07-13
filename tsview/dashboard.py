@@ -150,10 +150,10 @@ def historic(app, engine,
 
     @dashboard.callback(dash.dependencies.Output('slider-container', 'children'),
                         [dash.dependencies.Input('ts_selector', 'value'),
-                         dash.dependencies.Input('submit-button', 'n_clicks')],
-                        [dash.dependencies.State('ts_snapshot', 'relayoutData'),
-                         dash.dependencies.State('radio-diff', 'value')])
-    def adaptable_slider(id_serie, n_clicks, graphdata, diffmode):
+                         dash.dependencies.Input('submit-button', 'n_clicks'),
+                         dash.dependencies.Input('radio-diff', 'value')],
+                        [dash.dependencies.State('ts_snapshot', 'relayoutData')])
+    def adaptable_slider(id_serie, n_clicks, diffmode, graphdata):
         if n_clicks==0:
             return Slider(id='idate_slider', value=None)
 
@@ -216,12 +216,12 @@ def historic(app, engine,
 
     @dashboard.callback(dash.dependencies.Output('ts_by_appdate', 'figure'),
                         [dash.dependencies.Input('idate_slider', 'value'),
-                         dash.dependencies.Input('submit-button', 'n_clicks')],
+                         dash.dependencies.Input('submit-button', 'n_clicks'),
+                         dash.dependencies.Input('radio-diff', 'value')],
                         [dash.dependencies.State('ts_selector', 'value'),
-                         dash.dependencies.State('ts_snapshot', 'relayoutData'),
-                         dash.dependencies.State('radio-diff', 'value')
-                         ])
-    def ts_by_appdate(idx, n_clicks, id_serie, graphdata, diffmode):
+                         dash.dependencies.State('ts_snapshot', 'relayoutData')
+                        ])
+    def ts_by_appdate(idx, n_clicks, diffmode, id_serie, graphdata):
         if n_clicks == 0:
             return {
                 'data': [],
