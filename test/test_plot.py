@@ -17,7 +17,7 @@ def test_plot(engine, refresh):
 
     tsh = TimeSerie()
 
-    with engine.connect() as cn:
+    with engine.begin() as cn:
         tsh.insert(cn, serie, 'banana_volume_consumption', 'Babar')
 
     args = argsdict({'series': ['banana_volume_consumption']})

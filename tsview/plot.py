@@ -7,7 +7,7 @@ def plot(args, engine, tshclass, divid=None):
     tsh = tshclass()
     series = []
 
-    with engine.connect() as cn:
+    with engine.begin() as cn:
         for name in args.series:
             series.append((name, tsh.get(cn, name)))
 

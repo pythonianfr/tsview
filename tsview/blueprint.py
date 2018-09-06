@@ -78,7 +78,7 @@ def tsview(engine, tshclass=TimeSerie, serie_names=serie_names):
     def tslog():
         args = logargs(request.args)
         tsh = tshclass()
-        with engine.connect() as cn:
+        with engine.begin() as cn:
             log = tsh.log(cn, limit=args.limit, names=args.series,
                           authors=set(args.authors),
                           fromrev=args.fromrev, torev=args.torev)
