@@ -8,6 +8,9 @@ import dash
 import pandas as pd
 import numpy as np
 
+from tshistory import tsio
+
+
 COLOR_BEFORE = 'rgb(20, 200, 20)'
 COLOR_CURRENT = 'rgb(0, 0, 250)'
 COLOR_AFTER = 'rgb(204, 12, 20)'
@@ -34,7 +37,7 @@ def read_diffmode(value):
 
 
 def historic(app, engine,
-             tshclass,
+             tshclass=tsio.TimeSerie,
              serie_names=serie_names,
              url_base_pathname='/tshistory/',
              request_pathname_prefix='/',
