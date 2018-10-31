@@ -16,7 +16,7 @@ setup(name='tsview',
           'plotly==2.7.0',
           'pytest_sa_pg',
           'tshistory',
-          'dash',
+          'dash==0.22.0rc2',
           'dash-core-components==0.22.1',
           'dash-renderer==0.12.1',
           'dash-html-components==0.10.0'
