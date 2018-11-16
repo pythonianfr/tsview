@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='tsview',
-      version='0.4.0',
+      version='0.4.1',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
