@@ -352,11 +352,17 @@ def historic(app, engine,
         ts_diff = get_diffs(id_serie, fromdate, todate, diffmode=diffmode)
         index = []
         values = []
+
+        lastvalue = None
+        dt = pd.to_datetime(date_str)
         for idate, diff in sorted(ts_diff.items()):
-            dt = pd.to_datetime(date_str)
-            if dt in diff:
+            if dt in diff.index:
+                value = diff[dt]
+                if value == lastvalue:
+                    continue
                 index.append(idate)
-                values.append(diff[dt])
+                values.append(value)
+                lastvalue = value
 
         traces = [
             go.Scatter(
