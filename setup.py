@@ -2,11 +2,12 @@ from setuptools import setup
 
 
 setup(name='tsview',
-      version='0.4.1',
+      version='0.5.0',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
-                   'to visualize time series from a repository'),
+                   'to visualize time series from a repository and '
+                   'a flask blueprint'),
       url='https://bitbucket.org/pythonian/tsview',
       packages=['tsview'],
       zip_safe=False,
@@ -33,7 +34,6 @@ setup(name='tsview',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
           'Operating System :: OS Independent',
-          'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',
           'Topic :: Database',
           'Topic :: Scientific/Engineering',
