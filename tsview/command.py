@@ -1,3 +1,4 @@
+from os import getenv
 from threading import Thread
 import socket
 import webbrowser
@@ -13,7 +14,7 @@ from tsview.app import kickoff
 def view(db_uri, debug=False):
     """visualize time series through the web"""
     ipaddr = socket.gethostbyname(socket.gethostname())
-    port = 5678
+    port = int(getenv('TSVIEW_PORT', 5678))
 
     if debug:
         kickoff(ipaddr, port, db_uri)
