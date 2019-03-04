@@ -92,16 +92,17 @@ def historic(app, engine,
     @cache.memoize(timeout=300)
     def _get_diffs(id_serie, fromdate, todate):
         tsh = tshclass()
-        return {
-            # canonicalize the keys immediately
-            dt.strftime('%Y-%m-%d %H:%M:%S'): serie
-            for dt, serie in tsh.get_history(
-                    engine, id_serie,
-                    from_value_date=fromdate,
-                    to_value_date=todate
-            ).items()
-            if len(serie)
-        }
+        with engine.begin() as cn:
+            return {
+                # canonicalize the keys immediately
+                dt.strftime('%Y-%m-%d %H:%M:%S'): serie
+                for dt, serie in tsh.get_history(
+                        cn, id_serie,
+                        from_value_date=fromdate,
+                        to_value_date=todate
+                ).items()
+                if len(serie)
+            }
 
     def get_diffs(id_serie, fromdate=None, todate=None):
         diffs = _get_diffs(id_serie, fromdate, todate)
