@@ -35,21 +35,25 @@ def unpack_dates(graphdata):
 def historic(app, engine,
              tshclass=tsio.timeseries,
              serie_names=serie_names,
-             url_base_pathname='/tshistory/',
+             routes_pathname_prefix='/tshistory/',
              request_pathname_prefix='/',
              cachedir=None):
 
+    request_pathname_prefix_adv = request_pathname_prefix + routes_pathname_prefix
     if request_pathname_prefix != '/':
-        request_pathname_prefix_adv = request_pathname_prefix + url_base_pathname
+        dashboard = dash.Dash(
+            'tsview',
+            server=app,
+            routes_pathname_prefix=routes_pathname_prefix,
+            requests_pathname_prefix=request_pathname_prefix_adv
+        )
     else:
-        request_pathname_prefix_adv = request_pathname_prefix
+        dashboard = dash.Dash(
+            'tsview',
+            server=app,
+            url_base_pathname=routes_pathname_prefix,
+        )
 
-    dashboard = dash.Dash(
-        'tsview',
-        server=app,
-        url_base_pathname=url_base_pathname,
-        request_pathname_prefix=request_pathname_prefix_adv
-    )
     dashboard.config['suppress_callback_exceptions'] = True
     if request_pathname_prefix != '/':
         dashboard.config.requests_pathname_prefix = request_pathname_prefix_adv
@@ -123,7 +127,7 @@ def historic(app, engine,
             for name in all_names
         ]
 
-        if (url_string in (url_base_pathname, request_pathname_prefix_adv) or
+        if (url_string in (routes_pathname_prefix, request_pathname_prefix_adv) or
             url_string is None or
             len(url_string.strip('/')) == 0):
             initial_value = ''
