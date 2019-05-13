@@ -33,7 +33,7 @@ def unpack_dates(graphdata):
 
 
 def historic(app, engine,
-             tshclass=tsio.TimeSerie,
+             tshclass=tsio.timeseries,
              serie_names=serie_names,
              url_base_pathname='/tshistory/',
              request_pathname_prefix='/',
@@ -96,7 +96,7 @@ def historic(app, engine,
             return {
                 # canonicalize the keys immediately
                 dt.strftime('%Y-%m-%d %H:%M:%S'): serie
-                for dt, serie in tsh.get_history(
+                for dt, serie in tsh.history(
                         cn, id_serie,
                         from_value_date=fromdate,
                         to_value_date=todate

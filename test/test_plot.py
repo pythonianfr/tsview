@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 
-from tshistory.tsio import TimeSerie
+from tshistory.tsio import timeseries
 
 from tsview.plot import plot
 from tsview.util import argsdict
@@ -15,13 +15,13 @@ def test_plot(engine, refresh):
                                           freq='D',
                                           periods=5))
 
-    tsh = TimeSerie()
+    tsh = timeseries()
 
     with engine.begin() as cn:
         tsh.insert(cn, serie, 'banana_volume_consumption', 'Babar')
 
     args = argsdict({'series': ['banana_volume_consumption']})
-    plotted = plot(args, engine, TimeSerie, divid='mydiv').strip().encode('utf-8')
+    plotted = plot(args, engine, timeseries, divid='mydiv').strip().encode('utf-8')
 
     refpath = DATADIR / 'plotted.html'
     if refresh:

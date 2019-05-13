@@ -1,7 +1,7 @@
 import pandas as pd
 from flask import Blueprint, request, render_template
 
-from tshistory.tsio import TimeSerie
+from tshistory.tsio import timeseries
 
 from tsview.util import argsdict as _argsdict
 from tsview.plot import plot
@@ -28,7 +28,7 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
-def tsview(engine, tshclass=TimeSerie, serie_names=serie_names):
+def tsview(engine, tshclass=timeseries, serie_names=serie_names):
 
     class viewargs(_argsdict):
         defaults = {
