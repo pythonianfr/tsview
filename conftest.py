@@ -17,8 +17,7 @@ def engine(request):
     )
     e = create_engine(DBURI)
     sch = schema.tsschema()
-    sch.destroy(e)
-    schema.init_schemas(e)
+    sch.create(e)
     return e
 
 
