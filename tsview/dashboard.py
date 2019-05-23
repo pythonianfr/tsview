@@ -1,12 +1,13 @@
 from flask_caching import Cache
 import plotly.graph_objs as go
 
-from dash_core_components import Graph, Location, Dropdown, Slider, RadioItems
+from dash_core_components import Graph, Location, Dropdown, Slider
 from dash_html_components import Div, Button, Br
+import dash_html_components as html
+
 import dash
 
 import pandas as pd
-import numpy as np
 
 from tshistory import tsio
 
@@ -40,18 +41,26 @@ def historic(app, engine,
              cachedir=None):
 
     request_pathname_prefix_adv = request_pathname_prefix + routes_pathname_prefix
+
+    external_stylesheets = [
+        'https://codepen.io/chriddyp/pen/bWLwgP.css',
+        'https://cdn.rawgit.com/plotly/dash-app-stylesheets/2d266c578d2a6e8850ebce48fdb52759b2aef506/stylesheet-oil-and-gas.css'
+    ]
+
     if request_pathname_prefix != '/':
         dashboard = dash.Dash(
             'tsview',
             server=app,
             routes_pathname_prefix=routes_pathname_prefix,
-            requests_pathname_prefix=request_pathname_prefix_adv
+            requests_pathname_prefix=request_pathname_prefix_adv,
+            external_stylesheets=external_stylesheets
         )
     else:
         dashboard = dash.Dash(
             'tsview',
             server=app,
             url_base_pathname=routes_pathname_prefix,
+            external_stylesheets=external_stylesheets
         )
 
     dashboard.config['suppress_callback_exceptions'] = True
@@ -73,23 +82,41 @@ def historic(app, engine,
 
     dashboard.layout = Div([
         Location(id='url', refresh=False),
+
+        #Placeholders
         Div(Dropdown(id='ts_selector', value=None),
             style={'display': 'none'}),
         Div(Dropdown(id='idate_slider', value=None),
             style={'display': 'none'}),
-        Div(id='dropdown-container',
-            style={'width': '50%'}),
-        Graph(id='ts_snapshot'),
         Div(Button(id='submit-button',
                    n_clicks=0,
                    children='Submit'),
             style={'display': 'none'}),
+
+        Div(id='dropdown-container',
+            style={'margin-top': '10'}),
+
+        Graph(id='ts_snapshot'),
+
         Div(id='button-container'),
         Graph(id='ts_by_appdate',
               hoverData={'points':[{'text' : None}]}
         ),
+        html.P('Select an insertion date:',
+               style={'font-family': 'Helvetica',
+                      "font-size": "100%",
+                      'text-align': 'center',
+                      }
+               ),
         Div(id='slider-container'),
         Div([Br()]),
+        Div([Br()]),
+        html.P('Place the mouse on the graph above to see the republications for one application date:',
+               style={'font-family': 'Helvetica',
+                      "font-size": "100%",
+                      'text-align': 'center',
+                      }
+               ),
         Graph(id='ts_by_insertdate'),
     ])
 
@@ -170,8 +197,11 @@ def historic(app, engine,
         return Button(
             id='submit-button',
             n_clicks=0,
-            children='Submit'
-        )
+            children='Show Republications',
+            style = {'width': '100%',
+                     'background-color': '#F7F7F7',
+                     }),
+
 
     @dashboard.callback(dash.dependencies.Output('ts_snapshot', 'figure'),
                         [dash.dependencies.Input('ts_selector', 'value')])
@@ -195,7 +225,9 @@ def historic(app, engine,
             'yaxis': {
                 'fixedrange': True
             },
-            'showlegend': True
+            'showlegend': True,
+            'title' : 'Zoom to select the date interval:'
+
         })
 
         return {
@@ -295,7 +327,7 @@ def historic(app, engine,
                 hovermode='closest',
                 xaxis={'range': [ts_final.index.min(), ts_final.index.max()]},
                 yaxis={'range': [diffminvalue, diffmaxvalue]},
-                title='{} Insertion date : {}'.format(id_serie, insert_date),
+                title='{} <br>Insertion date : {}'.format(id_serie, insert_date),
                 shapes=[{
                     'type': 'line',
                     'x0': insert_date,
