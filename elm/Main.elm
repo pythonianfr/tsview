@@ -1,3 +1,15 @@
+{- Compilation :
+
+    $ elm make --output elm/elm.js elm/Main.elm
+
+   Running :
+
+    $ cd elm
+    $ elm reactor&
+
+-}
+
+
 module Main exposing (main)
 
 import Browser
