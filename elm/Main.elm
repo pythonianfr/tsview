@@ -2,9 +2,10 @@ module Main exposing (main)
 
 import Browser
 import Dict
+import Fuzzy exposing (match)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, classList)
-import Html.Styled.Events exposing (onMouseDown)
+import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
 import Json.Decode as Decode
 import Tachyons.Classes as T
@@ -12,6 +13,7 @@ import Tachyons.Classes as T
 
 type alias Model =
     { series : List String
+    , searchedSeries : List String
     , selectedSeries : List String
     , status : Maybe String
     }
@@ -24,6 +26,7 @@ type alias SeriesCatalog =
 type Msg
     = CatalogReceived (Result Http.Error SeriesCatalog)
     | ToggleItem String
+    | SearchSeries String
 
 
 classes : List String -> Attribute msg
@@ -43,16 +46,26 @@ update msg model =
 
         newModel x =
             ( x, Cmd.none )
+
+        fuzzyMatch xm xs =
+            List.sortBy (\x -> match [] [] xm x |> .score) xs
     in
     case msg of
         CatalogReceived (Ok x) ->
-            newModel { model | series = Dict.keys x }
+            let
+                series =
+                    Dict.keys x
+            in
+            newModel { model | series = series, searchedSeries = series }
 
         CatalogReceived (Err _) ->
             newModel { model | status = Just "Error on CatalogReceived" }
 
         ToggleItem x ->
             newModel { model | selectedSeries = toggleItem x model.selectedSeries }
+
+        SearchSeries x ->
+            newModel { model | searchedSeries = fuzzyMatch x model.series }
 
 
 view : Model -> Html Msg
@@ -81,13 +94,25 @@ view model =
             classes [ T.mw5, T.mw6_ns, T.center, T.pt4 ]
 
         div_class =
-            classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4, T.cb ]
+            classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ]
 
-        cols =
-            List.map (\x -> div [ classes [ T.fl, T.w_50, T.pa1 ] ] [ x ])
-                [ renderSeries model.series, renderSeries model.selectedSeries ]
+        fuzzySelector =
+            let
+                input_class =
+                    classes [ T.input_reset, T.ba, T.b__black_20, T.pa2, T.db, T.w_100 ]
+
+                searchInput =
+                    input [ input_class, onInput SearchSeries ] []
+
+                cols =
+                    List.map (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ renderSeries x ])
+                        [ model.searchedSeries, model.selectedSeries ]
+            in
+            [ div [ classes [ T.dt, T.dt__fixed ] ] [ searchInput ]
+            , div [ classes [ T.dt, T.dt__fixed ] ] cols
+            ]
     in
-    article [ article_class ] [ div [ div_class ] cols ]
+    article [ article_class ] [ div [ div_class ] fuzzySelector ]
 
 
 main : Program () Model Msg
@@ -100,7 +125,7 @@ main =
                 }
 
         init _ =
-            ( Model [] [] Nothing, initialGet )
+            ( Model [] [] [] Nothing, initialGet )
     in
     Browser.element
         { init = init
