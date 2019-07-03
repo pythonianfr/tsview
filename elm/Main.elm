@@ -3,7 +3,8 @@ module Main exposing (main)
 import Browser
 import Dict
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (class)
+import Html.Styled.Attributes exposing (class, classList)
+import Html.Styled.Events exposing (onMouseDown)
 import Http
 import Json.Decode as Decode
 import Tachyons.Classes as T
@@ -11,6 +12,7 @@ import Tachyons.Classes as T
 
 type alias Model =
     { series : List String
+    , selectedSeries : List String
     , status : Maybe String
     }
 
@@ -21,6 +23,7 @@ type alias SeriesCatalog =
 
 type Msg
     = CatalogReceived (Result Http.Error SeriesCatalog)
+    | ToggleItem String
 
 
 classes : List String -> Attribute msg
@@ -31,6 +34,13 @@ classes xs =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        toggleItem x xs =
+            if List.member x xs then
+                List.filter ((/=) x) xs
+
+            else
+                x :: xs
+
         newModel x =
             ( x, Cmd.none )
     in
@@ -41,6 +51,9 @@ update msg model =
         CatalogReceived (Err _) ->
             newModel { model | status = Just "Error on CatalogReceived" }
 
+        ToggleItem x ->
+            newModel { model | selectedSeries = toggleItem x model.selectedSeries }
+
 
 view : Model -> Html Msg
 view model =
@@ -49,10 +62,20 @@ view model =
             classes [ T.list, T.pl0, T.ml0, T.center, T.mw5, T.ba, T.b__light_silver, T.br3 ]
 
         li_class =
-            classes [ T.ph3, T.pv2, T.bb, T.b__light_silver ]
+            classes [ T.ph3, T.pv2, T.bb, T.b__light_silver, T.dim ]
+
+        li_selected serie =
+            let
+                is_selected =
+                    List.member serie model.selectedSeries
+            in
+            classList <| List.map (\x -> ( x, is_selected )) [ T.white, T.bg_blue ]
+
+        li_attrs x =
+            [ li_class, li_selected x, onMouseDown <| ToggleItem x ]
 
         renderSeries xs =
-            ul [ ul_class ] <| List.map (\x -> li [ li_class ] [ text x ]) xs
+            ul [ ul_class ] <| List.map (\x -> li (li_attrs x) [ text x ]) xs
 
         article_class =
             classes [ T.mw5, T.mw6_ns, T.center, T.pt4 ]
@@ -73,7 +96,7 @@ main =
                 }
 
         init _ =
-            ( Model [] Nothing, initialGet )
+            ( Model [] [] Nothing, initialGet )
     in
     Browser.element
         { init = init
