@@ -81,9 +81,13 @@ view model =
             classes [ T.mw5, T.mw6_ns, T.center, T.pt4 ]
 
         div_class =
-            classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ]
+            classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4, T.cb ]
+
+        cols =
+            List.map (\x -> div [ classes [ T.fl, T.w_50, T.pa1 ] ] [ x ])
+                [ renderSeries model.series, renderSeries model.selectedSeries ]
     in
-    article [ article_class ] [ div [ div_class ] [ renderSeries model.series ] ]
+    article [ article_class ] [ div [ div_class ] cols ]
 
 
 main : Program () Model Msg
