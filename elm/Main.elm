@@ -60,7 +60,11 @@ update msg model =
             ( x, Cmd.none )
 
         fuzzyMatch xm xs =
-            List.sortBy (\x -> match [] [] xm x |> .score) xs
+            if String.length xm < 2 then
+                []
+
+            else
+                List.sortBy (\x -> match [] [] xm x |> .score) xs |> List.take 20
     in
     case msg of
         CatalogReceived (Ok x) ->
@@ -68,7 +72,7 @@ update msg model =
                 series =
                     Dict.keys x
             in
-            newModel { model | series = series, searchedSeries = series }
+            newModel { model | series = series }
 
         CatalogReceived (Err _) ->
             newModel { model | status = Just "Error on CatalogReceived" }
