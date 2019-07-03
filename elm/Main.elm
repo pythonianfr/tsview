@@ -21,10 +21,12 @@ import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
 import Json.Decode as Decode
 import Tachyons.Classes as T
+import Time
 
 
 type alias Model =
     { series : List String
+    , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
     , status : Maybe String
@@ -39,6 +41,7 @@ type Msg
     = CatalogReceived (Result Http.Error SeriesCatalog)
     | ToggleItem String
     | SearchSeries String
+    | MakeSearch
 
 
 classes : List String -> Attribute msg
@@ -81,7 +84,10 @@ update msg model =
             newModel { model | selectedSeries = toggleItem x model.selectedSeries }
 
         SearchSeries x ->
-            newModel { model | searchedSeries = fuzzyMatch x model.series }
+            newModel { model | searchString = x }
+
+        MakeSearch ->
+            newModel { model | searchedSeries = fuzzyMatch model.searchString model.series }
 
 
 view : Model -> Html Msg
@@ -141,11 +147,14 @@ main =
                 }
 
         init _ =
-            ( Model [] [] [] Nothing, initialGet )
+            ( Model [] "" [] [] Nothing, initialGet )
+
+        sub model =
+            Time.every 1000 (always MakeSearch)
     in
     Browser.element
         { init = init
         , view = view >> toUnstyled
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = sub
         }
