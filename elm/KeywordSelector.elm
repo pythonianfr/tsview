@@ -7,18 +7,23 @@ countKeywords : String -> List String -> List ( Int, String )
 countKeywords keywordsString series =
     let
         keywords =
-            String.words keywordsString |> List.map String.toLower
+            String.words keywordsString
+                |> List.map (\k -> ( String.toLower k, String.length k ))
 
         matchCounter : Dict.Dict String Int
         matchCounter =
             let
-                matchKeyword k serieName b =
-                    if String.contains k <| String.toLower serieName then
+                matchKeyword ( key, weight ) serieName b =
+                    let
+                        val =
+                            negate (1000 + weight)
+                    in
+                    if String.contains key <| String.toLower serieName then
                         Dict.update
                             serieName
                             (\maybeCounter ->
-                                Maybe.map (\x -> (-) x 1) maybeCounter
-                                    |> Maybe.withDefault 0
+                                Maybe.map ((+) val) maybeCounter
+                                    |> Maybe.withDefault val
                                     |> Just
                             )
                             b
@@ -27,7 +32,7 @@ countKeywords keywordsString series =
                         b
             in
             List.foldl
-                (\k b -> List.foldl (matchKeyword k) b series)
+                (\kw b -> List.foldl (matchKeyword kw) b series)
                 Dict.empty
                 keywords
     in
