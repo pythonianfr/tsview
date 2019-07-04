@@ -94,7 +94,7 @@ view : Model -> Html Msg
 view model =
     let
         ul_class =
-            classes [ T.list, T.pl0, T.ml0, T.center, T.mw5, T.ba, T.b__light_silver, T.br3 ]
+            classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
 
         li_class =
             classes [ T.ph3, T.pv2, T.bb, T.b__light_silver, T.dim ]
@@ -113,7 +113,7 @@ view model =
             ul [ ul_class ] <| List.map (\x -> li (li_attrs x) [ text x ]) xs
 
         article_class =
-            classes [ T.mw5, T.mw6_ns, T.center, T.pt4 ]
+            classes [ T.center, T.pt4, T.w_90 ]
 
         div_class =
             classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ]
@@ -121,7 +121,7 @@ view model =
         fuzzySelector =
             let
                 input_class =
-                    classes [ T.input_reset, T.ba, T.b__black_20, T.pa2, T.db, T.w_100 ]
+                    classes [ T.input_reset, T.dtc, T.ba, T.b__black_20, T.pa2, T.db, T.w_100 ]
 
                 searchInput =
                     input [ input_class, onInput SearchSeries ] []
