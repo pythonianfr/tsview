@@ -14,12 +14,12 @@ module Main exposing (main)
 
 import Browser
 import Dict
-import Fuzzy exposing (match)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, classList)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
 import Json.Decode as Decode
+import KeywordSelector
 import Tachyons.Classes as T
 import Time
 
@@ -62,12 +62,12 @@ update msg model =
         newModel x =
             ( x, Cmd.none )
 
-        fuzzyMatch xm xs =
+        keywordMatch xm xs =
             if String.length xm < 2 then
                 []
 
             else
-                List.sortBy (\x -> match [] [] xm x |> .score) xs |> List.take 20
+                KeywordSelector.select xm xs |> List.take 20
     in
     case msg of
         CatalogReceived (Ok x) ->
@@ -87,7 +87,7 @@ update msg model =
             newModel { model | searchString = x }
 
         MakeSearch ->
-            newModel { model | searchedSeries = fuzzyMatch model.searchString model.series }
+            newModel { model | searchedSeries = keywordMatch model.searchString model.series }
 
 
 view : Model -> Html Msg
