@@ -24,6 +24,7 @@ import Json.Decode as Decode
 import KeywordSelector
 import Tachyons.Classes as T
 import Time
+import Url.Builder as UB
 
 
 type alias Model =
@@ -44,14 +45,19 @@ type Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
+    | OnDelete
+    | DeleteDone (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        removeItem x xs =
+            List.filter ((/=) x) xs
+
         toggleItem x xs =
             if List.member x xs then
-                List.filter ((/=) x) xs
+                removeItem x xs
 
             else
                 x :: xs
@@ -65,6 +71,17 @@ update msg model =
 
             else
                 KeywordSelector.select xm xs |> List.take 20
+
+        delete expect url =
+            Http.request
+                { method = "DELETE"
+                , headers = []
+                , url = url
+                , body = Http.emptyBody
+                , expect = expect
+                , timeout = Nothing
+                , tracker = Nothing
+                }
     in
     case msg of
         CatalogReceived (Ok x) ->
@@ -85,6 +102,58 @@ update msg model =
 
         MakeSearch ->
             newModel { model | searchedSeries = keywordMatch model.searchString model.series }
+
+        OnDelete ->
+            let
+                expect =
+                    Http.expectJson DeleteDone Decode.string
+
+                mkUrl serieName =
+                    UB.crossOrigin "http://tshistory.test.pythonian.fr"
+                        [ "series", "state" ]
+                        [ UB.string "name" serieName ]
+            in
+            ( model, Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries )
+
+        DeleteDone (Ok x) ->
+            let
+                _ =
+                    Debug.log "Result on DeleteDone" x
+            in
+            newModel
+                { model
+                    | series = removeItem x model.series
+                    , searchedSeries = removeItem x model.searchedSeries
+                    , selectedSeries = removeItem x model.selectedSeries
+                }
+
+        DeleteDone (Err x) ->
+            let
+                _ =
+                    Debug.log "Error on DeleteDone" x
+            in
+            newModel model
+
+
+searchSelectorConfig : ItemSelector.Config Msg
+searchSelectorConfig =
+    { action = Nothing
+    , defaultText = text "Type some keywords in input bar for selecting time series"
+    , toggleMsg = ToggleItem
+    }
+
+
+actionSelectorConfig : ItemSelector.Config Msg
+actionSelectorConfig =
+    { action =
+        Just
+            { attrs = [ classes [ T.white, T.bg_light_red ] ]
+            , html = text "Delete"
+            , clickMsg = OnDelete
+            }
+    , defaultText = text ""
+    , toggleMsg = ToggleItem
+    }
 
 
 view : Model -> Html Msg
@@ -117,10 +186,17 @@ view model =
                     let
                         attrs =
                             [ classes [ T.dtc, T.pa1 ] ]
+
+                        render ( cfg, series ) =
+                            ItemSelector.view
+                                cfg
+                                (ItemSelector.Context series model.selectedSeries)
                     in
                     List.map
-                        (\x -> div attrs [ ItemSelector.view ToggleItem x model.selectedSeries ])
-                        [ model.searchedSeries, model.selectedSeries ]
+                        (\x -> div attrs [ render x ])
+                        [ ( searchSelectorConfig, model.searchedSeries )
+                        , ( actionSelectorConfig, model.selectedSeries )
+                        ]
             in
             List.map
                 (div [ classes [ T.dt, T.dt__fixed ] ])
