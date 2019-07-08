@@ -90,19 +90,28 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
-        article_class =
+        articleClass =
             classes [ T.center, T.pt4, T.w_90 ]
 
-        div_class =
+        divClass =
             classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ]
 
         fuzzySelector =
             let
-                input_class =
-                    classes [ T.input_reset, T.dtc, T.ba, T.b__black_20, T.pa2, T.db, T.w_100 ]
-
                 searchInput =
-                    input [ input_class, onInput SearchSeries ] []
+                    let
+                        inputClass =
+                            classes
+                                [ T.input_reset
+                                , T.dtc
+                                , T.ba
+                                , T.b__black_20
+                                , T.pa2
+                                , T.db
+                                , T.w_100
+                                ]
+                    in
+                    [ input [ inputClass, onInput SearchSeries ] [] ]
 
                 cols =
                     let
@@ -113,11 +122,11 @@ view model =
                         (\x -> div attrs [ ItemSelector.view ToggleItem x model.selectedSeries ])
                         [ model.searchedSeries, model.selectedSeries ]
             in
-            [ div [ classes [ T.dt, T.dt__fixed ] ] [ searchInput ]
-            , div [ classes [ T.dt, T.dt__fixed ] ] cols
-            ]
+            List.map
+                (div [ classes [ T.dt, T.dt__fixed ] ])
+                [ searchInput, cols ]
     in
-    article [ article_class ] [ div [ div_class ] fuzzySelector ]
+    article [ articleClass ] [ div [ divClass ] fuzzySelector ]
 
 
 main : Program () Model Msg
