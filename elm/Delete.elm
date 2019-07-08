@@ -1,6 +1,6 @@
 {- Compilation :
 
-    $ elm make --output elm/elm.js elm/Main.elm
+    $ elm make --output elm/delete_elm.js elm/Delete.elm
 
    Running :
 
@@ -10,7 +10,7 @@
 -}
 
 
-module Main exposing (main)
+module Delete exposing (main)
 
 import Browser
 import Common exposing (classes)
