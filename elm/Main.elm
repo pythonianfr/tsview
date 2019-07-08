@@ -13,11 +13,13 @@
 module Main exposing (main)
 
 import Browser
+import Common exposing (classes)
 import Dict
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, classList)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
+import ItemSelector
 import Json.Decode as Decode
 import KeywordSelector
 import Tachyons.Classes as T
@@ -42,11 +44,6 @@ type Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
-
-
-classes : List String -> Attribute msg
-classes xs =
-    class (String.join " " xs)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -93,25 +90,6 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
-        ul_class =
-            classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
-
-        li_class =
-            classes [ T.ph3, T.pv2, T.bb, T.b__light_silver, T.dim ]
-
-        li_selected serie =
-            let
-                is_selected =
-                    List.member serie model.selectedSeries
-            in
-            classList <| List.map (\x -> ( x, is_selected )) [ T.white, T.bg_blue ]
-
-        li_attrs x =
-            [ li_class, li_selected x, onMouseDown <| ToggleItem x ]
-
-        renderSeries xs =
-            ul [ ul_class ] <| List.map (\x -> li (li_attrs x) [ text x ]) xs
-
         article_class =
             classes [ T.center, T.pt4, T.w_90 ]
 
@@ -127,7 +105,12 @@ view model =
                     input [ input_class, onInput SearchSeries ] []
 
                 cols =
-                    List.map (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ renderSeries x ])
+                    let
+                        attrs =
+                            [ classes [ T.dtc, T.pa1 ] ]
+                    in
+                    List.map
+                        (\x -> div attrs [ ItemSelector.view ToggleItem x model.selectedSeries ])
                         [ model.searchedSeries, model.selectedSeries ]
             in
             [ div [ classes [ T.dt, T.dt__fixed ] ] [ searchInput ]
