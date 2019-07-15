@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 from setuptools import setup
-from setuptools.command.build_py import build_py
+from setuptools.command.build_ext import build_ext
 
 
 def compile_elm(wdir, edit_kind):
@@ -12,7 +12,7 @@ def compile_elm(wdir, edit_kind):
     print(cmd, subprocess.call(cmd, shell=True))
 
 
-class ElmBuild(build_py):
+class ElmBuild(build_ext):
     """Build Elm components
     """
 
@@ -63,5 +63,5 @@ setup(name='tsview',
           'Topic :: Software Development :: Version Control',
           'Topic :: Scientific/Engineering :: Visualization'
       ],
-      cmdclass={'build_py': ElmBuild}
+      cmdclass={'build_ext': ElmBuild}
 )
