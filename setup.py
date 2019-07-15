@@ -20,7 +20,8 @@ setup(name='tsview',
           'dash==1.0.0a1',
           'dash-core-components==1.0.0a4',
           'dash-renderer==1.0.0a2',
-          'dash-html-components==1.0.0a2'
+          'dash-html-components==1.0.0a2',
+          'tshistory_rest'
       ],
       package_data={'tsview': [
           'tsview_static/*',

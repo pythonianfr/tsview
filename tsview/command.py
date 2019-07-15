@@ -5,6 +5,7 @@ import webbrowser
 
 import click
 
+from tshistory.util import find_dburi
 from tsview.app import kickoff
 
 
@@ -13,15 +14,16 @@ from tsview.app import kickoff
 @click.option('--debug', is_flag=True, default=False)
 def view(db_uri, debug=False):
     """visualize time series through the web"""
+    uri = find_dburi(db_uri)
     ipaddr = socket.gethostbyname(socket.gethostname())
     port = int(getenv('TSVIEW_PORT', 5678))
 
     if debug:
-        kickoff(ipaddr, port, db_uri)
+        kickoff(ipaddr, port, uri)
         return
 
     server = Thread(name='tsview.webapp', target=kickoff,
-                    kwargs={'host': ipaddr, 'port': port, 'dburi': db_uri})
+                    kwargs={'host': ipaddr, 'port': port, 'dburi': uri})
     server.daemon = True
     server.start()
 
