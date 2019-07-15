@@ -9,7 +9,10 @@
         <div id="app"></div>
         <script src="./tsview_static/{{ edit_kind.lower() }}_elm.js"></script>
         <script>
-            var app = Elm.{{ edit_kind }}.init({node: document.getElementById("app")});
+            var app = Elm.{{ edit_kind }}.init({
+                node: document.getElementById("app"),
+                flags: "{{ urlprefix }}"
+            });
         </script>
     </body>
 </html>

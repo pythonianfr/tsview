@@ -33,7 +33,8 @@ type State
 
 
 type alias Model =
-    { state : State
+    { urlPrefix : String
+    , state : State
     , series : List String
     , searchString : String
     , searchedSeries : List String
@@ -59,12 +60,12 @@ type Msg
     | RenameDone (Result String String)
 
 
-getCatalog : Cmd Msg
-getCatalog =
+getCatalog : String -> Cmd Msg
+getCatalog urlPrefix =
     Http.get
         { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
         , url =
-            UB.crossOrigin "http://tshistory.test.pythonian.fr"
+            UB.crossOrigin urlPrefix
                 [ "series", "catalog" ]
                 []
         }
@@ -149,7 +150,7 @@ update msg model =
                     Common.expectJsonMessage RenameDone Decode.string
 
                 url =
-                    UB.crossOrigin "http://tshistory.test.pythonian.fr"
+                    UB.crossOrigin model.urlPrefix
                         [ "series", "state" ]
                         [ UB.string "name" <|
                             Maybe.withDefault "" model.selectedSerie
@@ -176,7 +177,7 @@ update msg model =
                 , renamedSerie = ""
                 , status = Nothing
               }
-            , getCatalog
+            , getCatalog model.urlPrefix
             )
 
         RenameDone (Err x) ->
@@ -304,11 +305,13 @@ view model =
     article [ classes [ T.center, T.pt4, T.w_90 ] ] [ content ]
 
 
-main : Program () Model Msg
+main : Program String Model Msg
 main =
     let
-        init _ =
-            ( Model Select [] "" [] Nothing "" Nothing, getCatalog )
+        init urlPrefix =
+            ( Model urlPrefix Select [] "" [] Nothing "" Nothing
+            , getCatalog urlPrefix
+            )
 
         sub model =
             if model.state == Select then

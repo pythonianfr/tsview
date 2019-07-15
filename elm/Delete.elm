@@ -26,7 +26,8 @@ import Url.Builder as UB
 
 
 type alias Model =
-    { series : List String
+    { urlPrefix : String
+    , series : List String
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
@@ -107,7 +108,7 @@ update msg model =
                     Http.expectJson DeleteDone Decode.string
 
                 mkUrl serieName =
-                    UB.crossOrigin "http://tshistory.test.pythonian.fr"
+                    UB.crossOrigin model.urlPrefix
                         [ "series", "state" ]
                         [ UB.string "name" serieName ]
             in
@@ -167,17 +168,20 @@ view model =
         [ KeywordMultiSelector.view selectorConfig ctx ]
 
 
-main : Program () Model Msg
+main : Program String Model Msg
 main =
     let
-        initialGet =
+        initialGet urlPrefix =
             Http.get
                 { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
-                , url = "http://tshistory.test.pythonian.fr/series/catalog"
+                , url =
+                    UB.crossOrigin urlPrefix
+                        [ "series", "catalog" ]
+                        []
                 }
 
-        init _ =
-            ( Model [] "" [] [] Nothing, initialGet )
+        init urlPrefix =
+            ( Model urlPrefix [] "" [] [] Nothing, initialGet urlPrefix )
 
         sub model =
             Time.every 1000 (always MakeSearch)
