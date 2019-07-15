@@ -1,4 +1,26 @@
+import subprocess
+from pathlib import Path
 from setuptools import setup
+from setuptools.command.build_py import build_py
+
+
+def compile_elm(wdir, edit_kind):
+    """Compile elm component to JS"""
+    src = wdir / "elm" / f"{edit_kind}.elm"
+    out = wdir / "tsview" / "tsview_static" / f"{edit_kind.lower()}_elm.js"
+    cmd = f"elm make --output {out} {src}"
+    print(cmd, subprocess.call(cmd, shell=True))
+
+
+class ElmBuild(build_py):
+    """Build Elm components
+    """
+
+    def run(self):
+        wdir = Path(__file__).resolve().parent
+        for edit_kind in ["Delete", "Rename"]:
+            compile_elm(wdir, edit_kind)
+        super().run()
 
 
 setup(name='tsview',
@@ -40,5 +62,6 @@ setup(name='tsview',
           'Topic :: Scientific/Engineering',
           'Topic :: Software Development :: Version Control',
           'Topic :: Scientific/Engineering :: Visualization'
-      ]
+      ],
+      cmdclass={'build_py': ElmBuild}
 )

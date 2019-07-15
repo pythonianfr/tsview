@@ -88,4 +88,12 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
 
         return pd.DataFrame(log).to_html(index=False)
 
+    @bp.route('/tsdelete')
+    def tsdelete():
+        return render_template('tsedit.html', edit_kind="Delete")
+
+    @bp.route('/tsrename')
+    def tsrename():
+        return render_template('tsedit.html', edit_kind="Rename")
+
     return bp
