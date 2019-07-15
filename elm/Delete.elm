@@ -16,10 +16,7 @@ import Browser
 import Common exposing (classes)
 import Dict
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (class, classList)
-import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import ItemSelector
 import Json.Decode as Decode
 import KeywordMultiSelector
 import KeywordSelector
