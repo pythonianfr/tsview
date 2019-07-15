@@ -21,6 +21,7 @@ import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
 import ItemSelector
 import Json.Decode as Decode
+import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
 import Time
@@ -135,74 +136,38 @@ update msg model =
             newModel model
 
 
-searchSelectorConfig : ItemSelector.Config Msg
-searchSelectorConfig =
-    { action = Nothing
-    , defaultText = text "Type some keywords in input bar for selecting time series"
-    , toggleMsg = ToggleItem
-    }
-
-
-actionSelectorConfig : ItemSelector.Config Msg
-actionSelectorConfig =
-    { action =
-        Just
-            { attrs = [ classes [ T.white, T.bg_light_red ] ]
-            , html = text "Delete"
-            , clickMsg = OnDelete
-            }
-    , defaultText = text ""
-    , toggleMsg = ToggleItem
+selectorConfig : KeywordMultiSelector.Config Msg
+selectorConfig =
+    { searchSelector =
+        { action = Nothing
+        , defaultText =
+            text
+                "Type some keywords in input bar for selecting time series"
+        , toggleMsg = ToggleItem
+        }
+    , actionSelector =
+        { action =
+            Just
+                { attrs = [ classes [ T.white, T.bg_light_red ] ]
+                , html = text "Delete"
+                , clickMsg = OnDelete
+                }
+        , defaultText = text ""
+        , toggleMsg = ToggleItem
+        }
+    , onInputMsg = SearchSeries
+    , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
 
 
 view : Model -> Html Msg
 view model =
     let
-        articleClass =
-            classes [ T.center, T.pt4, T.w_90 ]
-
-        divClass =
-            classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ]
-
-        fuzzySelector =
-            let
-                searchInput =
-                    let
-                        inputClass =
-                            classes
-                                [ T.input_reset
-                                , T.dtc
-                                , T.ba
-                                , T.b__black_20
-                                , T.pa2
-                                , T.db
-                                , T.w_100
-                                ]
-                    in
-                    [ input [ inputClass, onInput SearchSeries ] [] ]
-
-                cols =
-                    let
-                        attrs =
-                            [ classes [ T.dtc, T.pa1 ] ]
-
-                        render ( cfg, series ) =
-                            ItemSelector.view
-                                cfg
-                                (ItemSelector.Context series model.selectedSeries)
-                    in
-                    List.map
-                        (\x -> div attrs [ render x ])
-                        [ ( searchSelectorConfig, model.searchedSeries )
-                        , ( actionSelectorConfig, model.selectedSeries )
-                        ]
-            in
-            List.map
-                (div [ classes [ T.dt, T.dt__fixed ] ])
-                [ searchInput, cols ]
+        ctx =
+            KeywordMultiSelector.Context model.searchedSeries model.selectedSeries
     in
-    article [ articleClass ] [ div [ divClass ] fuzzySelector ]
+    article [ classes [ T.center, T.pt4, T.w_90 ] ]
+        [ KeywordMultiSelector.view selectorConfig ctx ]
 
 
 main : Program () Model Msg
