@@ -1,6 +1,9 @@
 {- Compilation :
 
-    $ elm make --output elm/delete_elm.js elm/Delete.elm
+    $ sed -e "s/%APP%/Delete/" \
+    -e "s/%URLPREFIX%/http:\/\/tshistory.test.pythonian.fr/" \
+    elm/index.html.in > tsdelete/index.html
+    $ elm make --output tsdelete/elm.js elm/Delete.elm
 
    Running :
 

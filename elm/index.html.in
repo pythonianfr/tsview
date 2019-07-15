@@ -8,9 +8,12 @@
     <body>
         <!-- Minimal entry as provided by Elm in Action -->
         <div id="app"></div>
-        <script src="rename_elm.js"></script>
+        <script src="elm.js"></script>
         <script>
-            var app = Elm.Rename.init({node: document.getElementById("app")});
+            var app = Elm.%APP%.init({
+                node: document.getElementById("app"),
+                flags: "%URLPREFIX%"
+            });
         </script>
     </body>
 </html>

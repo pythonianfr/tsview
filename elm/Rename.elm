@@ -1,6 +1,9 @@
 {- Compilation :
 
-    $ elm make --output elm/rename_elm.js elm/Rename.elm
+    $ sed -e "s/%APP%/Rename/" \
+    -e "s/%URLPREFIX%/http:\/\/tshistory.test.pythonian.fr/" \
+    elm/index.html.in > tsrename/index.html
+    $ elm make --output tsrename/elm.js elm/Rename.elm
 
    Running :
 
