@@ -2,6 +2,7 @@ module KeywordMultiSelector exposing (Config, Context, view)
 
 import Common exposing (classes)
 import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (autofocus)
 import Html.Styled.Events exposing (onInput)
 import ItemSelector
 import Tachyons.Classes as T
@@ -37,7 +38,7 @@ view cfg ctx =
                         , T.w_100
                         ]
             in
-            [ input [ inputClass, onInput cfg.onInputMsg ] [] ]
+            [ input [ inputClass, onInput cfg.onInputMsg, autofocus True ] [] ]
 
         cols =
             let
