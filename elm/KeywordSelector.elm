@@ -3,46 +3,61 @@ module KeywordSelector exposing (countKeywords, select)
 import Common exposing (maybe)
 
 
-countKeywords : String -> List String -> List ( Int, String )
-countKeywords keywordsString series =
+type alias SplitFunc =
+    String -> List String
+
+
+matchKeywordWithWeight : String -> SplitFunc -> ( String, Int ) -> Maybe Float
+matchKeywordWithWeight item splitItem ( key, weight ) =
+    let
+        parts =
+            splitItem item
+
+        partsLen =
+            List.length parts
+
+        addPart a b =
+            if String.contains key a then
+                let
+                    prec =
+                        toFloat weight / toFloat (String.length a)
+                in
+                Just <| Maybe.withDefault 0 b + prec
+
+            else
+                b
+    in
+    List.foldl addPart Nothing parts
+        |> Maybe.map (\x -> x / toFloat partsLen)
+
+
+countKeywords : String -> SplitFunc -> List String -> List ( Int, String )
+countKeywords keywordsString splitItem items =
     let
         keywords =
             String.words keywordsString
                 |> List.map (\k -> ( String.toLower k, String.length k ))
 
         matchCounter : String -> Maybe Int
-        matchCounter serieName =
+        matchCounter item =
             let
-                nameLen =
-                    String.length serieName
-
-                searchName =
-                    String.toLower serieName
-
-                matchKeyword : ( String, Int ) -> Maybe Int -> Maybe Int
-                matchKeyword ( key, weight ) b =
-                    let
-                        prec =
-                            toFloat weight / toFloat nameLen
-
-                        val =
-                            round (1.0e6 + prec * 1.0e5) |> negate
-                    in
-                    if String.contains key searchName then
-                        Just <| maybe val ((+) val) b
-
-                    else
+                addKeywordPrec : ( String, Int ) -> Maybe Float -> Maybe Float
+                addKeywordPrec kw b =
+                    Common.maybe
                         b
+                        ((+) (Maybe.withDefault 0 b) >> Just)
+                        (matchKeywordWithWeight item splitItem kw)
             in
-            List.foldl matchKeyword Nothing keywords
+            List.foldl addKeywordPrec Nothing keywords
+                |> Maybe.map (\x -> round (1.0e6 * x) |> negate)
     in
     List.sort <|
         List.foldl
             (\x b -> maybe b (\i -> ( i, x ) :: b) (matchCounter x))
             []
-            series
+            items
 
 
-select : String -> List String -> List String
-select k =
-    List.map Tuple.second << countKeywords k
+select : String -> SplitFunc -> List String -> List String
+select k f =
+    List.map Tuple.second << countKeywords k f
