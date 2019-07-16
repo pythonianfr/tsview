@@ -100,7 +100,7 @@ update msg model =
                 []
 
             else
-                KeywordSelector.select xm (String.split ".") xs |> List.take 20
+                KeywordSelector.select xm xs |> List.take 20
     in
     case msg of
         CatalogReceived (Ok x) ->

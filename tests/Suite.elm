@@ -41,59 +41,59 @@ testCountKeywords : Test
 testCountKeywords =
     let
         runCount x =
-            countKeywords x (String.split ".") serieNames
+            countKeywords x serieNames
     in
     describe "test selector"
         [ test "obs" <|
             \_ ->
                 runCount "obs"
                     |> Expect.equal
-                        [ ( -166667, "gas.<unknown>.exports.lng.ktd.obs" )
-                        , ( -166667, "gas.argentina.exports.lng.ktd.obs" )
-                        , ( -166667, "gas.argentina.net_imports.lng.ktd.obs" )
-                        , ( -166667, "gas.australia.exports.lng.ktd.obs" )
-                        , ( -166667, "gas.australia.net_imports.lng.ktd.obs" )
-                        , ( -142857, "gas.united_arab_emirates.net_exports.lng.das_island.mcmd.obs" )
+                        [ ( -1009091, "gas.<unknown>.exports.lng.ktd.obs" )
+                        , ( -1009091, "gas.argentina.exports.lng.ktd.obs" )
+                        , ( -1009091, "gas.australia.exports.lng.ktd.obs" )
+                        , ( -1008108, "gas.argentina.net_imports.lng.ktd.obs" )
+                        , ( -1008108, "gas.australia.net_imports.lng.ktd.obs" )
+                        , ( -1005000, "gas.united_arab_emirates.net_exports.lng.das_island.mcmd.obs" )
                         ]
         , test "fcs" <|
             \_ ->
                 runCount "fcs"
                     |> Expect.equal
-                        [ ( -125000, "gas.uk.prod.bacton_seal.mcmd.fcst" )
-                        , ( -125000, "gas.uk.prod.bacton_shell.mcmd.fcst" )
-                        , ( -125000, "gas.uk.prod.st_fergus_mobil.mcmd.fcst" )
-                        , ( -125000, "gas.uk.prod.st_fergus_shell.mcmd.fcst" )
-                        , ( -107143, "gas.namibia.lng.imports.ktd.monthly.fcst" )
-                        , ( -107143, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
-                        , ( -93750, "gas.nl.imports.lng.sendouts.mcmd.monthly.fcst" )
+                        [ ( -1009091, "gas.uk.prod.bacton_seal.mcmd.fcst" )
+                        , ( -1008824, "gas.uk.prod.bacton_shell.mcmd.fcst" )
+                        , ( -1008108, "gas.uk.prod.st_fergus_mobil.mcmd.fcst" )
+                        , ( -1008108, "gas.uk.prod.st_fergus_shell.mcmd.fcst" )
+                        , ( -1007500, "gas.namibia.lng.imports.ktd.monthly.fcst" )
+                        , ( -1007500, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
+                        , ( -1006667, "gas.nl.imports.lng.sendouts.mcmd.monthly.fcst" )
                         ]
         , test "prod fcs" <|
             \_ ->
                 runCount "prod fcs"
                     |> Expect.equal
-                        [ ( -291667, "gas.uk.prod.bacton_seal.mcmd.fcst" )
-                        , ( -291667, "gas.uk.prod.bacton_shell.mcmd.fcst" )
-                        , ( -291667, "gas.uk.prod.st_fergus_mobil.mcmd.fcst" )
-                        , ( -291667, "gas.uk.prod.st_fergus_shell.mcmd.fcst" )
-                        , ( -107143, "gas.namibia.lng.imports.ktd.monthly.fcst" )
-                        , ( -107143, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
-                        , ( -93750, "gas.nl.imports.lng.sendouts.mcmd.monthly.fcst" )
+                        [ ( -2021212, "gas.uk.prod.bacton_seal.mcmd.fcst" )
+                        , ( -2020589, "gas.uk.prod.bacton_shell.mcmd.fcst" )
+                        , ( -2018919, "gas.uk.prod.st_fergus_mobil.mcmd.fcst" )
+                        , ( -2018919, "gas.uk.prod.st_fergus_shell.mcmd.fcst" )
+                        , ( -1007500, "gas.namibia.lng.imports.ktd.monthly.fcst" )
+                        , ( -1007500, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
+                        , ( -1006667, "gas.nl.imports.lng.sendouts.mcmd.monthly.fcst" )
                         ]
         , test "obs ktd arge" <|
             \_ ->
                 runCount "obs ktd arge"
                     |> Expect.equal
-                        [ ( -407407, "gas.argentina.exports.lng.ktd.obs" )
-                        , ( -407407, "gas.argentina.net_imports.lng.ktd.obs" )
-                        , ( -333333, "gas.<unknown>.exports.lng.ktd.obs" )
-                        , ( -333333, "gas.australia.exports.lng.ktd.obs" )
-                        , ( -333333, "gas.australia.net_imports.lng.ktd.obs" )
-                        , ( -288889, "gas.argentina.exports.lng.ktd" )
-                        , ( -288889, "gas.argentina.net_imports.lng.ktd" )
-                        , ( -166667, "gas.nl.demand.industrial.ktd.full" )
-                        , ( -148148, "gas.argentina.full" )
-                        , ( -142857, "gas.namibia.lng.imports.ktd.monthly.fcst" )
-                        , ( -142857, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
-                        , ( -142857, "gas.united_arab_emirates.net_exports.lng.das_island.mcmd.obs" )
+                        [ ( -3030303, "gas.argentina.exports.lng.ktd.obs" )
+                        , ( -3027027, "gas.argentina.net_imports.lng.ktd.obs" )
+                        , ( -2024138, "gas.argentina.exports.lng.ktd" )
+                        , ( -2021212, "gas.argentina.net_imports.lng.ktd" )
+                        , ( -2018182, "gas.<unknown>.exports.lng.ktd.obs" )
+                        , ( -2018182, "gas.australia.exports.lng.ktd.obs" )
+                        , ( -2016216, "gas.australia.net_imports.lng.ktd.obs" )
+                        , ( -1022222, "gas.argentina.full" )
+                        , ( -1009091, "gas.nl.demand.industrial.ktd.full" )
+                        , ( -1007500, "gas.namibia.lng.imports.ktd.monthly.fcst" )
+                        , ( -1007500, "gas.nigeria.lng.outages.ktd.monthly.fcst" )
+                        , ( -1005000, "gas.united_arab_emirates.net_exports.lng.das_island.mcmd.obs" )
                         ]
         ]
