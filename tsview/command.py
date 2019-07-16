@@ -9,13 +9,19 @@ from tshistory.util import find_dburi
 from tsview.app import kickoff
 
 
+def host():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 1))
+    return s.getsockname()[0]
+
+
 @click.command()
 @click.argument('db-uri')
 @click.option('--debug', is_flag=True, default=False)
 def view(db_uri, debug=False):
     """visualize time series through the web"""
     uri = find_dburi(db_uri)
-    ipaddr = socket.gethostbyname(socket.gethostname())
+    ipaddr = host()
     port = int(getenv('TSVIEW_PORT', 5678))
 
     if debug:
