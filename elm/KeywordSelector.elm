@@ -11,7 +11,7 @@ matchKeywordWithWeight : String -> SplitFunc -> ( String, Int ) -> Maybe Float
 matchKeywordWithWeight item splitItem ( key, weight ) =
     let
         parts =
-            splitItem item
+            splitItem <| String.toLower item
 
         partsLen =
             List.length parts
