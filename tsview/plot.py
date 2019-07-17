@@ -22,8 +22,6 @@ def plot(args, engine, tshclass, divid=None):
 
     layout = go.Layout(
         showlegend=True,
-        width=1400,
-        height=900
     )
 
     return plot_to_htmldiv(traces, layout, divid)
