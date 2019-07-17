@@ -36,7 +36,6 @@ setup(name='tsview',
       install_requires=[
           'flask',
           'flask-caching',
-          'plotly==2.7.0',
           'pytest_sa_pg',
           'tshistory',
           'dash==1.0.2',

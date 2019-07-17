@@ -110,13 +110,13 @@ def plot_to_htmldiv(data, layout=None, divid=None):
                                      sort_keys=True)))
 
     return (
-        '<div id="{id}" style="height: {height}px; width: {width}px;" '
+        '<div id="{id}" '
         '     class="plotly-graph-div">'
         '</div>'
         '<script type="text/javascript">'
         '    window.PLOTLYENV=window.PLOTLYENV || {{}};'
         '    {script}'
         '</script>').format(
-            id=divid, script=script,
-            height=layout.get('height', 600),
-            width=layout.get('width', 900))
+            id=divid,
+            script=script,
+        )
