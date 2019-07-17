@@ -1,10 +1,19 @@
 import pandas as pd
 from flask import Blueprint, request, render_template
 
+from dash import _utils
+
 from tshistory.tsio import timeseries
 
 from tsview.util import argsdict as _argsdict
 from tsview.plot import plot
+
+
+# monkeypatch dash utility
+def set_read_only(self, names, msg='Attribute is read-only'):
+    return
+
+_utils.AttributeDict.set_read_only = set_read_only
 
 
 bp = Blueprint('tsview', __name__,
