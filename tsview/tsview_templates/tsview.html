@@ -2,7 +2,27 @@
 
 {% block body %}
 
-{% include 'tsviewform.html' %}
+<form id="tsviewform" class="form-inline">
+    <div id="series_selector"></div>
+    <script src="./tsview_static/plot_elm.js"></script>
+    <script>
+    var app = Elm.Plot.init({
+        node: document.getElementById("series_selector"),
+        flags: ""
+    });
+    app.ports.renderPlotly.subscribe(function(args) {
+        let $target = $('#output')
+        $target.html(args.plotlyResponse)
+        $target.append(`<a href="tsview?${args.permalinkQuery}">Permalink</a>`)
+        args.selectedSeries.forEach(function(name){
+            $target.append(`<br/> <a href="tshistory/${name}" target=_blank>View ${name} history</a>`)
+        });
+        const table = $('.dataframe').DataTable()
+        table.page.len(20);
+        table.draw();
+    });
+    </script>
+</form>
 
 <div id="output" style="margin-top: 1em; padding-bottom:2em;">
   No data yet.

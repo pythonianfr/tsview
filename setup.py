@@ -18,7 +18,7 @@ class ElmBuild(build_ext):
 
     def run(self):
         wdir = Path(__file__).resolve().parent
-        for edit_kind in ["Delete", "Rename"]:
+        for edit_kind in ["Delete", "Rename", "Plot"]:
             compile_elm(wdir, edit_kind)
         super().run()
 
