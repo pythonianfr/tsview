@@ -295,7 +295,10 @@ view : Model -> Html Msg
 view model =
     let
         ctx =
-            KeywordSingleSelector.Context model.searchedSeries model.selectedSerie
+            KeywordSingleSelector.Context
+                model.searchString
+                model.searchedSeries
+                model.selectedSerie
 
         content =
             case model.state of

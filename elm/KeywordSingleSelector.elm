@@ -10,7 +10,8 @@ type alias Config msg =
 
 
 type alias Context =
-    { searchedItems : List String
+    { searchString : String
+    , searchedItems : List String
     , selectedItem : Maybe String
     }
 
@@ -18,5 +19,5 @@ type alias Context =
 view : Config msg -> Context -> Html msg
 view cfg ctx =
     KeywordMultiSelector.view cfg <|
-        KeywordMultiSelector.Context ctx.searchedItems <|
+        KeywordMultiSelector.Context ctx.searchString ctx.searchedItems <|
             Common.maybe [] (\x -> [ x ]) ctx.selectedItem

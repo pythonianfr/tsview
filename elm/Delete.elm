@@ -165,7 +165,10 @@ view : Model -> Html Msg
 view model =
     let
         ctx =
-            KeywordMultiSelector.Context model.searchedSeries model.selectedSeries
+            KeywordMultiSelector.Context
+                model.searchString
+                model.searchedSeries
+                model.selectedSeries
     in
     article [ classes [ T.center, T.pt4, T.w_90 ] ]
         [ KeywordMultiSelector.view selectorConfig ctx ]

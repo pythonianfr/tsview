@@ -165,7 +165,10 @@ view model =
             [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
 
         ctx =
-            KeywordMultiSelector.Context model.searchedSeries model.selectedSeries
+            KeywordMultiSelector.Context
+                model.searchString
+                model.searchedSeries
+                model.selectedSeries
     in
     div [ classes [ T.center, T.pt4, T.w_90 ] ]
         (if model.activeSelection then
