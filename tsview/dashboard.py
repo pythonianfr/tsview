@@ -66,9 +66,6 @@ def historic(app, engine,
     dashboard.config['suppress_callback_exceptions'] = True
     if request_pathname_prefix != '/':
         dashboard.config.requests_pathname_prefix = request_pathname_prefix_adv
-    dashboard.css.append_css(
-        {'external_url': 'https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css'}
-    )
 
     if cachedir:
         cacheconfig = {
@@ -132,17 +129,16 @@ def historic(app, engine,
                         from_value_date=fromdate,
                         to_value_date=todate
                 ).items()
-                if len(serie)
             }
 
     def get_diffs(id_serie, fromdate=None, todate=None):
-        diffs = _get_diffs(id_serie, fromdate, todate)
-        assert diffs is not None, (id_serie, fromdate, todate)
-        return diffs
+        return _get_diffs(id_serie, fromdate, todate)
 
     def insertion_dates(id_serie, fromdate=None, todate=None):
         return list(
-            get_diffs(id_serie, fromdate, todate).keys()
+            get_diffs(
+                id_serie, fromdate, todate
+            ).keys()
         )
 
     @dashboard.callback(dash.dependencies.Output('dropdown-container', 'children'),
@@ -257,7 +253,7 @@ def historic(app, engine,
                            from_value_date=fromdate,
                            to_value_date=todate)
         ts_diff = get_diffs(id_serie, fromdate, todate)
-        idates = insertion_dates(id_serie, fromdate, todate)
+        idates = list(ts_diff.keys())
 
         if idx > len(idates):
             # may happen when the input div are not refreshed at the same time
@@ -265,16 +261,14 @@ def historic(app, engine,
 
         insert_date = idates[idx]
         ts_unti_now = ts_diff[insert_date]
-        # ts_until_now is the ts asof if diff='all'
-        # else it represents the actall diff
 
         traces = []
         # all diffs
         for idate in idates:
-            diff = ts_diff[idate]
+            diff = ts_diff[idate].loc[fromdate:todate]
             # plolty does not plot a line with only one point
             mode = 'lines' if len(diff) > 1 else 'markers'
-            color = COLOR_BEFORE if idate < insert_date else COLOR_AFTER
+            color = COLOR_BEFORE if idate <= insert_date else COLOR_AFTER
             traces.append(
                 go.Scatter(
                     x=diff.index,
@@ -287,6 +281,7 @@ def historic(app, engine,
                     opacity=0.2
                 )
             )
+
 
         # final snapshot
         traces.append(go.Scatter(
