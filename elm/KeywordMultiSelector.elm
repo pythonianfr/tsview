@@ -30,7 +30,6 @@ view cfg ctx =
                 inputClass =
                     classes
                         [ T.input_reset
-                        , T.dtc
                         , T.ba
                         , T.b__black_20
                         , T.pa2
@@ -38,26 +37,26 @@ view cfg ctx =
                         , T.w_100
                         ]
             in
-            [ input [ inputClass, onInput cfg.onInputMsg, autofocus True ] [] ]
+            input [ inputClass, onInput cfg.onInputMsg, autofocus True ] []
 
         cols =
             let
-                attrs =
-                    [ classes [ T.dtc, T.pa1 ] ]
-
                 render ( selectorCfg, items ) =
                     ItemSelector.view
                         selectorCfg
                         (ItemSelector.Context items ctx.selectedItems)
             in
-            List.map
-                (\x -> div attrs [ render x ])
-                [ ( cfg.searchSelector, ctx.searchedItems )
-                , ( cfg.actionSelector, ctx.selectedItems )
-                ]
+            div [ classes [ T.dt, T.dt__fixed ] ]
+                (List.map
+                    (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ render x ])
+                    [ ( cfg.searchSelector, ctx.searchedItems )
+                    , ( cfg.actionSelector, ctx.selectedItems )
+                    ]
+                )
     in
     div cfg.divAttrs
-        (List.map
-            (div [ classes [ T.dt, T.dt__fixed ] ])
-            [ searchInput, cols ]
-        )
+        [ searchInput
+
+        -- XXX w_90 should not be there but how to fix it ?
+        , div [ classes [ T.w_90, T.absolute, T.z_2, T.bg_white_80 ] ] [ cols ]
+        ]
