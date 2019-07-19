@@ -118,7 +118,7 @@ def historic(app, engine,
     ])
 
     @cache.memoize(timeout=300)
-    def _get_diffs(id_serie, fromdate, todate):
+    def _history(id_serie, fromdate, todate):
         tsh = tshclass()
         with engine.begin() as cn:
             return {
@@ -131,12 +131,12 @@ def historic(app, engine,
                 ).items()
             }
 
-    def get_diffs(id_serie, fromdate=None, todate=None):
-        return _get_diffs(id_serie, fromdate, todate)
+    def history(id_serie, fromdate=None, todate=None):
+        return _history(id_serie, fromdate, todate)
 
     def insertion_dates(id_serie, fromdate=None, todate=None):
         return list(
-            get_diffs(
+            history(
                 id_serie, fromdate, todate
             ).keys()
         )
@@ -252,28 +252,28 @@ def historic(app, engine,
         ts_final = tsh.get(engine, id_serie,
                            from_value_date=fromdate,
                            to_value_date=todate)
-        ts_diff = get_diffs(id_serie, fromdate, todate)
-        idates = list(ts_diff.keys())
+        versions = history(id_serie, fromdate, todate)
+        idates = list(versions.keys())
 
         if idx > len(idates):
             # may happen when the input div are not refreshed at the same time
             idx = len(idates) - 1
 
         insert_date = idates[idx]
-        ts_unti_now = ts_diff[insert_date]
+        ts_unti_now = versions[insert_date]
 
         traces = []
-        # all diffs
+        # all versions
         for idate in idates:
-            diff = ts_diff[idate].loc[fromdate:todate]
+            ts = versions[idate].loc[fromdate:todate]
             # plolty does not plot a line with only one point
-            mode = 'lines' if len(diff) > 1 else 'markers'
+            mode = 'lines' if len(ts) > 1 else 'markers'
             color = COLOR_BEFORE if idate <= insert_date else COLOR_AFTER
             traces.append(
                 go.Scatter(
-                    x=diff.index,
-                    y=diff.values,
-                    text=[str(elt) for elt in diff.index],
+                    x=ts.index,
+                    y=ts.values,
+                    text=[str(elt) for elt in ts.index],
                     name=idate,
                     showlegend=False,
                     mode=mode,
@@ -305,15 +305,15 @@ def historic(app, engine,
             line={'color': COLOR_CURRENT},
         ))
 
-        diffminvalue = min(
-            diff.values.min()
-            for diff in ts_diff.values()
-            if len(diff)
+        tsminvalue = min(
+            ts.values.min()
+            for ts in versions.values()
+            if len(ts)
         )
-        diffmaxvalue = max(
-            diff.values.max()
-            for diff in ts_diff.values()
-            if len(diff)
+        tsmaxvalue = max(
+            ts.values.max()
+            for ts in versions.values()
+            if len(ts)
         )
 
         return {
@@ -321,14 +321,14 @@ def historic(app, engine,
             'layout': go.Layout(
                 hovermode='closest',
                 xaxis={'range': [ts_final.index.min(), ts_final.index.max()]},
-                yaxis={'range': [diffminvalue, diffmaxvalue]},
+                yaxis={'range': [tsminvalue, tsmaxvalue]},
                 title='{} <br>Insertion date : {}'.format(id_serie, insert_date),
                 shapes=[{
                     'type': 'line',
                     'x0': insert_date,
-                    'y0': diffminvalue,
+                    'y0': tsminvalue,
                     'x1': insert_date,
-                    'y1': diffmaxvalue,
+                    'y1': tsmaxvalue,
                     'line': {
                         'dash': 'dot',
                         'color': 'rgb(0, 0, 0)',
@@ -359,15 +359,15 @@ def historic(app, engine,
 
         fromdate, todate = unpack_dates(graphdata)
 
-        ts_diff = get_diffs(id_serie, fromdate, todate)
+        versions = history(id_serie, fromdate, todate)
         index = []
         values = []
 
         lastvalue = None
         dt = pd.to_datetime(date_str)
-        for idate, diff in sorted(ts_diff.items()):
-            if dt in diff.index:
-                value = diff[dt]
+        for idate, ts in sorted(versions.items()):
+            if dt in ts.index:
+                value = ts[dt]
                 if value == lastvalue:
                     continue
                 index.append(idate)
