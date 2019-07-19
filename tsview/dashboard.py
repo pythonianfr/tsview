@@ -108,7 +108,9 @@ def historic(app, engine,
         Div(id='slider-container'),
         Div([Br()]),
         Div([Br()]),
-        html.P('Place the mouse on the graph above to see the republications for one application date:',
+        html.P(
+            'Place the mouse on the graph above to see the versions '
+            'of one application date:',
                style={'font-family': 'Helvetica',
                       "font-size": "100%",
                       'text-align': 'center',
