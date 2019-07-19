@@ -6,10 +6,11 @@ import Dict
 import Html.Styled exposing (..)
 import Html.Styled.Events exposing (onClick)
 import Http
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder)
 import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
+import Task
 import Time
 import Url
 import Url.Builder as UB
@@ -29,6 +30,15 @@ type alias SeriesCatalog =
     Dict.Dict String String
 
 
+type alias Serie =
+    Dict.Dict String Float
+
+
+serieDecoder : Decoder Serie
+serieDecoder =
+    Decode.dict Decode.float
+
+
 type Msg
     = CatalogReceived (Result Http.Error SeriesCatalog)
     | ToggleSelection
@@ -37,6 +47,33 @@ type Msg
     | MakeSearch
     | OnApply
     | GotPlot (Result Http.Error String)
+    | RenderPlot (Result String (List Serie))
+
+
+type alias Trace =
+    { type_ : String
+    , name : String
+    , x : List String
+    , y : List Float
+    , mode : String
+    }
+
+
+type alias TraceArgs =
+    String -> List String -> List Float -> String -> Trace
+
+
+scatterPlot : TraceArgs
+scatterPlot =
+    Trace "scatter"
+
+
+type alias PlotArgs =
+    { data : List Trace
+    }
+
+
+port renderPlot : PlotArgs -> Cmd msg
 
 
 type alias RenderArgs =
@@ -96,13 +133,61 @@ update msg model =
             newModel { model | activeSelection = not model.activeSelection }
 
         ToggleItem x ->
-            newModel { model | selectedSeries = toggleItem x model.selectedSeries }
+            let
+                selectedSeries =
+                    toggleItem x model.selectedSeries
+
+                getSerie serieName =
+                    Http.task
+                        { method = "GET"
+                        , url =
+                            UB.crossOrigin
+                                model.urlPrefix
+                                [ "api", "series", "state" ]
+                                [ UB.string "name" serieName ]
+                        , headers = []
+                        , body = Http.emptyBody
+                        , timeout = Nothing
+                        , resolver =
+                            Http.stringResolver <|
+                                Common.decodeJsonMessage serieDecoder
+                        }
+
+                getSeries =
+                    Task.sequence <| List.map getSerie selectedSeries
+            in
+            ( { model | selectedSeries = selectedSeries }
+            , Task.attempt RenderPlot getSeries
+            )
 
         SearchSeries x ->
             newModel { model | searchString = x }
 
         MakeSearch ->
             newModel { model | searchedSeries = keywordMatch model.searchString model.series }
+
+        RenderPlot (Ok xs) ->
+            let
+                vals =
+                    List.map2
+                        (\name x ->
+                            scatterPlot
+                                name
+                                (Dict.keys x)
+                                (Dict.values x)
+                                "lines"
+                        )
+                        model.selectedSeries
+                        xs
+            in
+            ( model, renderPlot <| PlotArgs vals )
+
+        RenderPlot (Err x) ->
+            let
+                _ =
+                    Debug.log "Error on RenderPlot" x
+            in
+            newModel model
 
         OnApply ->
             ( model, Http.get { url = plotUrl, expect = Http.expectString GotPlot } )

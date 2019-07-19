@@ -10,6 +10,17 @@
         node: document.getElementById("series_selector"),
         flags: ""
     });
+    app.ports.renderPlot.subscribe(function(args) {
+        Plotly.newPlot(
+            "plot",
+            args.data.map(function(o) {
+                o.type = o.type_;
+                return o;
+            }),
+            {showLegend: true},
+            {displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]}
+        )
+    });
     app.ports.renderPlotly.subscribe(function(args) {
         let $target = $('#output')
         $target.html(args.plotlyResponse)
@@ -23,6 +34,8 @@
     });
     </script>
 </form>
+
+<div id="plot" class="plotly-graph-div"></div>
 
 <div id="output" style="margin-top: 1em; padding-bottom:2em;">
   No data yet.
