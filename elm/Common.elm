@@ -1,5 +1,7 @@
 module Common exposing
     ( classes
+    , decodeJsonMessage
+    , decodeResponse
     , expectJsonMessage
     , expectStringResponse
     , maybe
@@ -9,7 +11,7 @@ module Common exposing
 import Dict
 import Html.Styled exposing (Attribute)
 import Html.Styled.Attributes exposing (class)
-import Http
+import Http exposing (Response)
 import Json.Decode as D
 
 
@@ -33,12 +35,16 @@ resultEither mapErr mapOk result =
             mapOk b
 
 
-expectStringResponse :
-    (Result String a -> msg)
-    -> (String -> String)
-    -> D.Decoder a
-    -> Http.Expect msg
-expectStringResponse toMsg readErr decoder =
+type alias ToMsg a msg =
+    Result String a -> msg
+
+
+type alias ReadError =
+    String -> String
+
+
+decodeResponse : ReadError -> D.Decoder a -> Response String -> Result String a
+decodeResponse readErr decoder resp =
     let
         badStatus code body =
             "BadStatus "
@@ -46,36 +52,51 @@ expectStringResponse toMsg readErr decoder =
                 ++ " : "
                 ++ readErr body
     in
-    Http.expectStringResponse toMsg <|
-        \resp ->
-            case resp of
-                Http.BadUrl_ x ->
-                    Err <| "BadUrl : " ++ x
+    case resp of
+        Http.BadUrl_ x ->
+            Err <| "BadUrl : " ++ x
 
-                Http.Timeout_ ->
-                    Err "Timeout"
+        Http.Timeout_ ->
+            Err "Timeout"
 
-                Http.NetworkError_ ->
-                    Err "NetworkError"
+        Http.NetworkError_ ->
+            Err "NetworkError"
 
-                Http.BadStatus_ metadata body ->
-                    Err <| badStatus metadata.statusCode body
+        Http.BadStatus_ metadata body ->
+            Err <| badStatus metadata.statusCode body
 
-                Http.GoodStatus_ _ body ->
-                    D.decodeString decoder body
-                        |> Result.mapError D.errorToString
+        Http.GoodStatus_ _ body ->
+            D.decodeString decoder body
+                |> Result.mapError D.errorToString
 
 
-expectJsonMessage : (Result String a -> msg) -> D.Decoder a -> Http.Expect msg
-expectJsonMessage toMsg =
+readErrorMessage : ReadError
+readErrorMessage =
     let
+        dictToStr =
+            Dict.toList
+                >> List.map (\( k, v ) -> "(" ++ k ++ ", " ++ v ++ ")")
+                >> String.join " "
+
         getMessage x =
             Dict.get "message" x
-                |> Maybe.withDefault (Debug.toString x)
-
-        readErr body =
-            D.decodeString (D.dict D.string) body
-                |> Result.map getMessage
-                |> resultEither D.errorToString identity
+                |> Maybe.withDefault (dictToStr x)
     in
-    expectStringResponse toMsg readErr
+    D.decodeString (D.dict D.string)
+        >> Result.map getMessage
+        >> resultEither D.errorToString identity
+
+
+decodeJsonMessage : D.Decoder a -> Response String -> Result String a
+decodeJsonMessage =
+    decodeResponse readErrorMessage
+
+
+expectStringResponse : ToMsg a msg -> ReadError -> D.Decoder a -> Http.Expect msg
+expectStringResponse toMsg readErr decoder =
+    Http.expectStringResponse toMsg (decodeResponse readErr decoder)
+
+
+expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
+expectJsonMessage toMsg =
+    expectStringResponse toMsg readErrorMessage
