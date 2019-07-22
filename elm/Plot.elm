@@ -3,14 +3,16 @@ port module Plot exposing (main)
 import Browser
 import Common exposing (classes)
 import Dict
+import Either exposing (Either)
 import Html.Styled exposing (..)
 import Html.Styled.Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import KeywordMultiSelector
 import KeywordSelector
+import LruCache exposing (LruCache)
 import Tachyons.Classes as T
-import Task
+import Task exposing (Task)
 import Time
 import Url
 import Url.Builder as UB
@@ -23,6 +25,7 @@ type alias Model =
     , searchedSeries : List String
     , selectedSeries : List String
     , activeSelection : Bool
+    , cache : SeriesCache
     }
 
 
@@ -34,9 +37,17 @@ type alias Serie =
     Dict.Dict String Float
 
 
+type alias NamedSerie =
+    ( String, Serie )
+
+
 serieDecoder : Decoder Serie
 serieDecoder =
     Decode.dict Decode.float
+
+
+type alias SeriesCache =
+    LruCache String Serie
 
 
 type Msg
@@ -47,7 +58,7 @@ type Msg
     | MakeSearch
     | OnApply
     | GotPlot (Result Http.Error String)
-    | RenderPlot (Result String (List Serie))
+    | RenderPlot (Result String ( SeriesCache, List NamedSerie ))
 
 
 type alias Trace =
@@ -84,6 +95,81 @@ type alias RenderArgs =
 
 
 port renderPlotly : RenderArgs -> Cmd msg
+
+
+fetchSeries : List String -> Model -> Task String ( SeriesCache, List NamedSerie )
+fetchSeries selectedNames model =
+    let
+        ( usedCache, cachedSeries ) =
+            List.foldr
+                (\name ( cache, xs ) ->
+                    let
+                        ( newCache, maybeSerie ) =
+                            LruCache.get name cache
+
+                        x : Either String NamedSerie
+                        x =
+                            maybeSerie
+                                |> Either.fromMaybe name
+                                |> Either.map (Tuple.pair name)
+                    in
+                    ( newCache, x :: xs )
+                )
+                ( model.cache, [] )
+                selectedNames
+
+        missingNames =
+            Either.lefts cachedSeries
+
+        getSerie : String -> Task String Serie
+        getSerie serieName =
+            Http.task
+                { method = "GET"
+                , url =
+                    UB.crossOrigin
+                        model.urlPrefix
+                        [ "api", "series", "state" ]
+                        [ UB.string "name" serieName ]
+                , headers = []
+                , body = Http.emptyBody
+                , timeout = Nothing
+                , resolver =
+                    Http.stringResolver <|
+                        Common.decodeJsonMessage serieDecoder
+                }
+
+        getMissingSeries : Task String (List Serie)
+        getMissingSeries =
+            Task.sequence <| List.map getSerie missingNames
+
+        getSeries : List NamedSerie -> List NamedSerie
+        getSeries missing =
+            let
+                series =
+                    List.append (Either.rights cachedSeries) missing
+                        |> Dict.fromList
+            in
+            List.foldr
+                (\a b -> Common.maybe b (\x -> ( a, x ) :: b) (Dict.get a series))
+                []
+                selectedNames
+
+        updateCache : List NamedSerie -> SeriesCache
+        updateCache missing =
+            List.foldl
+                (\( name, serie ) cache -> LruCache.insert name serie cache)
+                usedCache
+                missing
+    in
+    getMissingSeries
+        |> Task.andThen
+            (\missingSeries ->
+                let
+                    xs =
+                        List.map2 Tuple.pair missingNames missingSeries
+                in
+                Task.succeed ( updateCache xs, getSeries xs )
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -136,28 +222,9 @@ update msg model =
             let
                 selectedSeries =
                     toggleItem x model.selectedSeries
-
-                getSerie serieName =
-                    Http.task
-                        { method = "GET"
-                        , url =
-                            UB.crossOrigin
-                                model.urlPrefix
-                                [ "api", "series", "state" ]
-                                [ UB.string "name" serieName ]
-                        , headers = []
-                        , body = Http.emptyBody
-                        , timeout = Nothing
-                        , resolver =
-                            Http.stringResolver <|
-                                Common.decodeJsonMessage serieDecoder
-                        }
-
-                getSeries =
-                    Task.sequence <| List.map getSerie selectedSeries
             in
             ( { model | selectedSeries = selectedSeries }
-            , Task.attempt RenderPlot getSeries
+            , Task.attempt RenderPlot <| fetchSeries selectedSeries model
             )
 
         SearchSeries x ->
@@ -166,21 +233,20 @@ update msg model =
         MakeSearch ->
             newModel { model | searchedSeries = keywordMatch model.searchString model.series }
 
-        RenderPlot (Ok xs) ->
+        RenderPlot (Ok ( cache, namedSeries )) ->
             let
                 vals =
-                    List.map2
-                        (\name x ->
+                    List.map
+                        (\( name, serie ) ->
                             scatterPlot
                                 name
-                                (Dict.keys x)
-                                (Dict.values x)
+                                (Dict.keys serie)
+                                (Dict.values serie)
                                 "lines"
                         )
-                        model.selectedSeries
-                        xs
+                        namedSeries
             in
-            ( model, renderPlot <| PlotArgs vals )
+            ( { model | cache = cache }, renderPlot <| PlotArgs vals )
 
         RenderPlot (Err x) ->
             let
@@ -279,7 +345,11 @@ main =
                 }
 
         init urlPrefix =
-            ( Model urlPrefix [] "" [] [] True, initialGet urlPrefix )
+            let
+                c =
+                    LruCache.empty 100
+            in
+            ( Model urlPrefix [] "" [] [] True c, initialGet urlPrefix )
 
         sub model =
             if model.activeSelection then
