@@ -69,7 +69,7 @@ getCatalog urlPrefix =
         { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
         , url =
             UB.crossOrigin urlPrefix
-                [ "series", "catalog" ]
+                [ "api", "series", "catalog" ]
                 []
         }
 
@@ -154,7 +154,7 @@ update msg model =
 
                 url =
                     UB.crossOrigin model.urlPrefix
-                        [ "series", "state" ]
+                        [ "api", "series", "state" ]
                         [ UB.string "name" <|
                             Maybe.withDefault "" model.selectedSerie
                         , UB.string "newname" model.renamedSerie

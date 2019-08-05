@@ -112,7 +112,7 @@ update msg model =
 
                 mkUrl serieName =
                     UB.crossOrigin model.urlPrefix
-                        [ "series", "state" ]
+                        [ "api", "series", "state" ]
                         [ UB.string "name" serieName ]
             in
             ( model, Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries )
@@ -182,7 +182,7 @@ main =
                 { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
                 , url =
                     UB.crossOrigin urlPrefix
-                        [ "series", "catalog" ]
+                        [ "api", "series", "catalog" ]
                         []
                 }
 

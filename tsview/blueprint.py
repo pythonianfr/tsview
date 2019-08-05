@@ -100,11 +100,11 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
     @bp.route('/tsdelete')
     def tsdelete():
         return render_template('tsedit.html',
-                               edit_kind="Delete", urlprefix="api")
+                               edit_kind="Delete", urlprefix="")
 
     @bp.route('/tsrename')
     def tsrename():
         return render_template('tsedit.html',
-                               edit_kind="Rename", urlprefix="api")
+                               edit_kind="Rename", urlprefix="")
 
     return bp
