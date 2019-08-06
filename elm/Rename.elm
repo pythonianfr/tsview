@@ -315,9 +315,11 @@ main : Program String Model Msg
 main =
     let
         init urlPrefix =
-            ( Model urlPrefix Select [] "" [] Nothing "" Nothing
-            , getCatalog urlPrefix
-            )
+            let
+                p =
+                    Common.checkUrlPrefix urlPrefix
+            in
+            ( Model p Select [] "" [] Nothing "" Nothing, getCatalog p )
 
         sub model =
             if model.state == Select then

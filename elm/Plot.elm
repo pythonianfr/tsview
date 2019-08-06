@@ -346,10 +346,13 @@ main =
 
         init urlPrefix =
             let
+                p =
+                    Common.checkUrlPrefix urlPrefix
+
                 c =
                     LruCache.empty 100
             in
-            ( Model urlPrefix [] "" [] [] True c, initialGet urlPrefix )
+            ( Model p [] "" [] [] True c, initialGet p )
 
         sub model =
             if model.activeSelection then

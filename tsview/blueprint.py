@@ -1,5 +1,5 @@
 import pandas as pd
-from flask import Blueprint, request, render_template
+from flask import Blueprint, request, render_template, url_for
 
 from dash import _utils
 
@@ -37,6 +37,11 @@ def maxrev(engine):
     return engine.execute(sql).scalar()
 
 
+def homeurl():
+    homeurl = url_for('tsview.home')
+    return homeurl[:homeurl.rindex('/')] + '/'
+
+
 def tsview(engine, tshclass=timeseries, serie_names=serie_names):
 
     class viewargs(_argsdict):
@@ -53,7 +58,9 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
     @bp.route('/tsview')
     def home():
         args = viewargs(request.args)
-        return render_template('tsview.html', **args)
+        return render_template('tsview.html',
+                               homeurl=homeurl(),
+                               **args)
 
     @bp.route('/tsplot')
     def tsplot():
@@ -100,11 +107,13 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
     @bp.route('/tsdelete')
     def tsdelete():
         return render_template('tsedit.html',
-                               edit_kind="Delete", urlprefix="")
+                               edit_kind="Delete",
+                               homeurl=homeurl())
 
     @bp.route('/tsrename')
     def tsrename():
         return render_template('tsedit.html',
-                               edit_kind="Rename", urlprefix="")
+                               edit_kind="Rename",
+                               homeurl=homeurl())
 
     return bp

@@ -1,5 +1,6 @@
 module Common exposing
-    ( classes
+    ( checkUrlPrefix
+    , classes
     , decodeJsonMessage
     , decodeResponse
     , expectJsonMessage
@@ -100,3 +101,12 @@ expectStringResponse toMsg readErr decoder =
 expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
 expectJsonMessage toMsg =
     expectStringResponse toMsg readErrorMessage
+
+
+checkUrlPrefix : String -> String
+checkUrlPrefix x =
+    if x == "/" then
+        ""
+
+    else
+        x

@@ -187,7 +187,11 @@ main =
                 }
 
         init urlPrefix =
-            ( Model urlPrefix [] "" [] [] Nothing, initialGet urlPrefix )
+            let
+                p =
+                    Common.checkUrlPrefix urlPrefix
+            in
+            ( Model p [] "" [] [] Nothing, initialGet p )
 
         sub model =
             Time.every 1000 (always MakeSearch)
