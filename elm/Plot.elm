@@ -379,8 +379,13 @@ main =
 
                 c =
                     LruCache.empty 100
+
+                s =
+                    flags.selectedSeries
             in
-            ( Model p [] "" [] flags.selectedSeries [] True c, initialGet p )
+            ( Model p [] "" [] s [] (List.isEmpty s) c
+            , initialGet p
+            )
 
         sub model =
             if model.activeSelection then
