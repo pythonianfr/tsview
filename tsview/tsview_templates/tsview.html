@@ -8,7 +8,10 @@
     const baseurl = "{{ homeurl }}"
     var app = Elm.Plot.init({
         node: document.getElementById("app"),
-        flags: baseurl
+        flags: {
+            urlPrefix : baseurl,
+            selectedSeries : {{ series | safe }}
+        }
     });
 </script>
 

@@ -47,7 +47,8 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
     @bp.route('/tsview')
     def home():
         return render_template('tsview.html',
-                               homeurl=homeurl())
+                               homeurl=homeurl(),
+                               series=request.args.getlist("series"))
 
     class logargs(_argsdict):
         defaults = {

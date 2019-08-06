@@ -213,7 +213,9 @@ update msg model =
                 series =
                     Dict.keys x
             in
-            newModel { model | series = series }
+            ( { model | series = series }
+            , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
+            )
 
         CatalogReceived (Err x) ->
             let
@@ -358,7 +360,7 @@ view model =
         ]
 
 
-main : Program String Model Msg
+main : Program { urlPrefix : String, selectedSeries : List String } Model Msg
 main =
     let
         initialGet urlPrefix =
@@ -370,15 +372,15 @@ main =
                         []
                 }
 
-        init urlPrefix =
+        init flags =
             let
                 p =
-                    Common.checkUrlPrefix urlPrefix
+                    Common.checkUrlPrefix flags.urlPrefix
 
                 c =
                     LruCache.empty 100
             in
-            ( Model p [] "" [] [] [] True c, initialGet p )
+            ( Model p [] "" [] flags.selectedSeries [] True c, initialGet p )
 
         sub model =
             if model.activeSelection then
