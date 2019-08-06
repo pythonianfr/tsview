@@ -16,7 +16,6 @@ import LruCache exposing (LruCache)
 import Tachyons.Classes as T
 import Task exposing (Task)
 import Time
-import Url
 import Url.Builder as UB
 
 
@@ -315,12 +314,47 @@ view model =
                  else
                     children
                 )
+
+        urls =
+            let
+                cls =
+                    classes [ T.link, T.blue, T.lh_title ]
+
+                permalink =
+                    let
+                        url =
+                            UB.relative
+                                [ "tsview" ]
+                                (List.map
+                                    (\x -> UB.string "series" x)
+                                    model.selectedSeries
+                                )
+                    in
+                    a [ A.href url, cls ] [ text "Permalink" ]
+
+                histories =
+                    List.map
+                        (\x ->
+                            a
+                                [ A.href <| UB.relative [ "tshistory", x ] []
+                                , A.target "_blank"
+                                , cls
+                                ]
+                                [ text <| "View " ++ x ++ " history" ]
+                        )
+                        model.selectedSeries
+            in
+            ul [ classes [ T.list, T.mt3, T.mb0 ] ]
+                (List.map
+                    (\x -> li [ classes [ T.pv2 ] ] [ x ])
+                    (permalink :: histories)
+                )
     in
-    div [ classes [ T.bg_light_blue ] ]
-        [ header [] [ selector ]
+    div []
+        [ header [ classes [ T.bg_light_blue ] ] [ selector ]
         , div [ A.id plotDiv ] []
         , plotFigure [ A.attribute "args" args ] []
-        , footer [] []
+        , footer [] [ urls ]
         ]
 
 
