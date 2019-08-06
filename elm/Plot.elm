@@ -1,13 +1,15 @@
-port module Plot exposing (main)
+module Plot exposing (main)
 
 import Browser
 import Common exposing (classes)
 import Dict
 import Either exposing (Either)
 import Html.Styled exposing (..)
+import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
 import KeywordMultiSelector
 import KeywordSelector
 import LruCache exposing (LruCache)
@@ -24,6 +26,7 @@ type alias Model =
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
+    , selectedNamedSeries : List NamedSerie
     , activeSelection : Bool
     , cache : SeriesCache
     }
@@ -56,8 +59,6 @@ type Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
-    | OnApply
-    | GotPlot (Result Http.Error String)
     | RenderPlot (Result String ( SeriesCache, List NamedSerie ))
 
 
@@ -70,6 +71,17 @@ type alias Trace =
     }
 
 
+encodeTrace : Trace -> Encode.Value
+encodeTrace t =
+    Encode.object
+        [ ( "type", Encode.string t.type_ )
+        , ( "name", Encode.string t.name )
+        , ( "x", Encode.list Encode.string t.x )
+        , ( "y", Encode.list Encode.float t.y )
+        , ( "mode", Encode.string t.mode )
+        ]
+
+
 type alias TraceArgs =
     String -> List String -> List Float -> String -> Trace
 
@@ -80,21 +92,22 @@ scatterPlot =
 
 
 type alias PlotArgs =
-    { data : List Trace
+    { div : String
+    , data : List Trace
     }
 
 
-port renderPlot : PlotArgs -> Cmd msg
+encodePlotArgs : PlotArgs -> Encode.Value
+encodePlotArgs x =
+    Encode.object
+        [ ( "div", Encode.string x.div )
+        , ( "data", Encode.list encodeTrace x.data )
+        ]
 
 
-type alias RenderArgs =
-    { plotlyResponse : String
-    , selectedSeries : List String
-    , permalinkQuery : String
-    }
-
-
-port renderPlotly : RenderArgs -> Cmd msg
+plotFigure : List (Attribute msg) -> List (Html msg) -> Html msg
+plotFigure =
+    node "plot-figure"
 
 
 fetchSeries : List String -> Model -> Task String ( SeriesCache, List NamedSerie )
@@ -194,11 +207,6 @@ update msg model =
 
             else
                 KeywordSelector.select xm xs |> List.take 20
-
-        plotUrl =
-            UB.crossOrigin model.urlPrefix
-                [ "tsplot" ]
-                (List.map (\x -> UB.string "series" x) model.selectedSeries)
     in
     case msg of
         CatalogReceived (Ok x) ->
@@ -234,50 +242,12 @@ update msg model =
             newModel { model | searchedSeries = keywordMatch model.searchString model.series }
 
         RenderPlot (Ok ( cache, namedSeries )) ->
-            let
-                vals =
-                    List.map
-                        (\( name, serie ) ->
-                            scatterPlot
-                                name
-                                (Dict.keys serie)
-                                (Dict.values serie)
-                                "lines"
-                        )
-                        namedSeries
-            in
-            ( { model | cache = cache }, renderPlot <| PlotArgs vals )
+            ( { model | cache = cache, selectedNamedSeries = namedSeries }, Cmd.none )
 
         RenderPlot (Err x) ->
             let
                 _ =
                     Debug.log "Error on RenderPlot" x
-            in
-            newModel model
-
-        OnApply ->
-            ( model, Http.get { url = plotUrl, expect = Http.expectString GotPlot } )
-
-        GotPlot (Ok x) ->
-            let
-                validUrl =
-                    Common.maybe
-                        ("http://dummy" ++ plotUrl)
-                        (always plotUrl)
-                        (Url.fromString plotUrl)
-
-                q =
-                    validUrl
-                        |> Url.fromString
-                        |> Maybe.map (.query >> Maybe.withDefault "")
-                        |> Maybe.withDefault ""
-            in
-            ( model, renderPlotly <| RenderArgs x model.selectedSeries q )
-
-        GotPlot (Err x) ->
-            let
-                _ =
-                    Debug.log "Error on GotPlot" x
             in
             newModel model
 
@@ -292,12 +262,7 @@ selectorConfig =
         , toggleMsg = ToggleItem
         }
     , actionSelector =
-        { action =
-            Just
-                { attrs = [ classes [ T.white, T.bg_dark_blue ] ]
-                , html = text "Apply"
-                , clickMsg = OnApply
-                }
+        { action = Nothing
         , defaultText = text ""
         , toggleMsg = ToggleItem
         }
@@ -309,27 +274,54 @@ selectorConfig =
 view : Model -> Html Msg
 view model =
     let
-        cls =
-            classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
+        plotDiv =
+            "plotly_div"
 
-        children =
-            [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
+        args =
+            let
+                data =
+                    List.map
+                        (\( name, serie ) ->
+                            scatterPlot
+                                name
+                                (Dict.keys serie)
+                                (Dict.values serie)
+                                "lines"
+                        )
+                        model.selectedNamedSeries
+            in
+            PlotArgs plotDiv data |> encodePlotArgs |> Encode.encode 0
 
-        ctx =
-            KeywordMultiSelector.Context
-                model.searchString
-                model.searchedSeries
-                model.selectedSeries
+        selector =
+            let
+                cls =
+                    classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
+
+                children =
+                    [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
+
+                ctx =
+                    KeywordMultiSelector.Context
+                        model.searchString
+                        model.searchedSeries
+                        model.selectedSeries
+            in
+            form [ classes [ T.center, T.pt4, T.w_90 ] ]
+                (if model.activeSelection then
+                    List.append children
+                        [ KeywordMultiSelector.view selectorConfig ctx
+                        ]
+
+                 else
+                    children
+                )
     in
-    div [ classes [ T.center, T.pt4, T.w_90 ] ]
-        (if model.activeSelection then
-            List.append children
-                [ KeywordMultiSelector.view selectorConfig ctx
-                ]
-
-         else
-            children
-        )
+    div [ classes [ T.bg_light_blue ] ]
+        [ header [] [ selector ]
+        , div [ A.id plotDiv ] []
+        , plotFigure [ A.attribute "args" args ] []
+        , footer [] []
+        ]
 
 
 main : Program String Model Msg
@@ -352,7 +344,7 @@ main =
                 c =
                     LruCache.empty 100
             in
-            ( Model p [] "" [] [] True c, initialGet p )
+            ( Model p [] "" [] [] [] True c, initialGet p )
 
         sub model =
             if model.activeSelection then

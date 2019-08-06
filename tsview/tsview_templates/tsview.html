@@ -2,45 +2,14 @@
 
 {% block body %}
 
-<form id="tsviewform" class="form-inline">
-    <div id="series_selector"></div>
-    <script src="./tsview_static/plot_elm.js"></script>
-    <script>
+<div id="app"></div>
+<script src="./tsview_static/plot_elm.js"></script>
+<script>
     const baseurl = "{{ homeurl }}"
     var app = Elm.Plot.init({
-        node: document.getElementById("series_selector"),
+        node: document.getElementById("app"),
         flags: baseurl
     });
-    app.ports.renderPlot.subscribe(function(args) {
-        Plotly.newPlot(
-            "plot",
-            args.data.map(function(o) {
-                o.type = o.type_;
-                return o;
-            }),
-            {showlegend: true},
-            {displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]}
-        )
-    });
-    app.ports.renderPlotly.subscribe(function(args) {
-        let $target = $('#output')
-        $target.html(args.plotlyResponse)
-        $target.append(`<a href="tsview?${args.permalinkQuery}">Permalink</a>`)
-        args.selectedSeries.forEach(function(name){
-            $target.append(`<br/> <a href="tshistory/${name}" target=_blank>View ${name} history</a>`)
-        });
-    });
-    </script>
-</form>
-
-<div id="plot" class="plotly-graph-div"></div>
-
-<div id="output" style="margin-top: 1em; padding-bottom:2em;">
-  No data yet.
-</div>
-
-<script>
-  init_form('tsviewform', 'tsplot');
 </script>
 
 {% endblock %}
