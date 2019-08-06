@@ -29,9 +29,6 @@
         args.selectedSeries.forEach(function(name){
             $target.append(`<br/> <a href="tshistory/${name}" target=_blank>View ${name} history</a>`)
         });
-        const table = $('.dataframe').DataTable()
-        table.page.len(20);
-        table.draw();
     });
     </script>
 </form>
