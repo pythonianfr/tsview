@@ -44,28 +44,10 @@ def homeurl():
 
 def tsview(engine, tshclass=timeseries, serie_names=serie_names):
 
-    class viewargs(_argsdict):
-        defaults = {
-            'outputtype': 'plot',
-            'outputtypevocab': ('plot', 'table'),
-            'series': (),
-            'seriesvocab': lambda: serie_names(engine)
-        }
-        types = {
-            'series': list
-        }
-
     @bp.route('/tsview')
     def home():
-        args = viewargs(request.args)
         return render_template('tsview.html',
-                               homeurl=homeurl(),
-                               **args)
-
-    @bp.route('/tsplot')
-    def tsplot():
-        args = viewargs(request.args)
-        return plot(args, engine, tshclass)
+                               homeurl=homeurl())
 
     class logargs(_argsdict):
         defaults = {
