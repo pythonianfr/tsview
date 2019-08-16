@@ -2,37 +2,11 @@
 
   <div class=item>
     <label for=series>Series</label>
-    <select name=series id=series class="form-control" multiple>
+    <select name=series id=series class="form-control">
       {% for s in seriesvocab%}
-      <option value="{{s}}"{% if s in series %}selected{% endif %}>{{s}}</option>
+      <option value="{{s}}"{% if s == series %}selected{% endif %}>{{s}}</option>
       {% endfor %}
     </select>
-  </div>
-
-  <div class=item>
-    <label for=authors>Authors</label>
-    <select name=authors id=authors class="form-control" multiple>
-      {% for a in authorsvocab%}
-      <option value="{{a}}"{% if a in authors %}selected{% endif %}>{{a}}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class=item>
-    <label for=limit>Last N items</label>
-    <input type=number min=0 id=limit name=limit {% if limit %}value="{{limit}}"{% endif %}
-           class="form-control">
-  </div>
-
-  <div class=item>
-    <label for=fromrev>From revision
-      <input type=number min=0 id=fromrev name=fromrev {% if fromrev %}value="{{fromrev}}"{% endif %}
-             class="form-control">
-    </label>
-    <label for=torev>To revision
-      <input type=number min=0 id=torev name=torev {% if torev %}value="{{torev}}"{% endif %}
-             class="form-control">
-    </label>
   </div>
 
   <input type=submit value="Apply filter"

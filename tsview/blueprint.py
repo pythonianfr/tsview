@@ -22,19 +22,8 @@ bp = Blueprint('tsview', __name__,
 )
 
 
-def serie_names(engine):
-    sql = 'select seriename from tsh.registry order by seriename'
-    return [name for name, in engine.execute(sql).fetchall()]
-
-
-def author_names(engine):
-    sql = 'select distinct author from tsh.changeset order by author'
-    return [name for name, in engine.execute(sql).fetchall()]
-
-
-def maxrev(engine):
-    sql = 'select max(id) from tsh.changeset'
-    return engine.execute(sql).scalar()
+def series_names(tshclass, engine):
+    return list(tshclass().list_series(engine).keys())
 
 
 def homeurl():
@@ -42,7 +31,7 @@ def homeurl():
     return homeurl[:homeurl.rindex('/')] + '/'
 
 
-def tsview(engine, tshclass=timeseries, serie_names=serie_names):
+def tsview(engine, tshclass=timeseries, series_names=series_names):
 
     @bp.route('/tsview')
     def home():
@@ -52,20 +41,11 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
 
     class logargs(_argsdict):
         defaults = {
-            'limit': 20,
-            'series': (),
-            'seriesvocab': lambda: serie_names(engine),
-            'authors': (),
-            'authorsvocab': lambda: author_names(engine),
-            'fromrev': 0,
-            'torev': lambda: maxrev(engine)
+            'series': None,
+            'seriesvocab': lambda: series_names(tshclass, engine),
         }
         types = {
-            'series': list,
-            'authors': list,
-            'limit': int,
-            'fromrev': int,
-            'torev': int
+            'series': str,
         }
 
     @bp.route('/tsviewlog')
@@ -78,14 +58,15 @@ def tsview(engine, tshclass=timeseries, serie_names=serie_names):
         args = logargs(request.args)
         tsh = tshclass()
         with engine.begin() as cn:
-            log = tsh.log(cn, limit=args.limit, names=args.series,
-                          authors=set(args.authors),
-                          fromrev=args.fromrev, torev=args.torev)
+            log = tsh.log(
+                cn,
+                name=args.series
+            )
 
         if not log:
             return 'No result.'
 
-        return pd.DataFrame(log).to_html(index=False)
+        return pd.DataFrame(reversed(log)).to_html(index=False)
 
     @bp.route('/tsdelete')
     def tsdelete():
