@@ -28,7 +28,14 @@ type alias Model =
     , selectedNamedSeries : List NamedSerie
     , activeSelection : Bool
     , cache : SeriesCache
+    , error : Maybe Error
     }
+
+
+type Error
+    = CatalogError String
+    | SelectionError (List NamedError)
+    | RenderError String
 
 
 type alias SeriesCatalog =
@@ -243,11 +250,7 @@ update msg model =
             )
 
         CatalogReceived (Err x) ->
-            let
-                _ =
-                    Debug.log "Error on CatalogReceived" x
-            in
-            newModel model
+            newModel { model | error = Just <| CatalogError "Nothing receive" }
 
         ToggleSelection ->
             newModel { model | activeSelection = not model.activeSelection }
@@ -269,17 +272,26 @@ update msg model =
 
         RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
             let
-                _ =
-                    Debug.log "Named errors" namedErrors
-            in
-            ( { model | cache = cache, selectedNamedSeries = namedSeries }, Cmd.none )
+                error =
+                    case namedErrors of
+                        [] ->
+                            Nothing
 
-        RenderPlot (Err x) ->
-            let
-                _ =
-                    Debug.log "Error on RenderPlot" x
+                        xs ->
+                            Just <| SelectionError xs
             in
-            newModel model
+            newModel
+                { model
+                    | cache = cache
+                    , selectedNamedSeries = namedSeries
+                    , error = error
+                }
+
+        RenderPlot (Err xs) ->
+            newModel
+                { model
+                    | error = Just <| RenderError <| String.join " " xs
+                }
 
 
 selectorConfig : KeywordMultiSelector.Config Msg
@@ -299,6 +311,27 @@ selectorConfig =
     , onInputMsg = SearchSeries
     , divAttrs = [ classes [ T.mb4 ] ]
     }
+
+
+viewError : Error -> Html Msg
+viewError error =
+    let
+        bold x =
+            b [] [ text x ]
+    in
+    case error of
+        CatalogError x ->
+            div [] [ bold "Catalog error", text x ]
+
+        RenderError x ->
+            text x
+
+        SelectionError namedErrors ->
+            ul []
+                (List.map
+                    (\( name, mess ) -> li [] [ bold name, text mess ])
+                    namedErrors
+                )
 
 
 view : Model -> Html Msg
@@ -335,6 +368,7 @@ view model =
                         model.searchString
                         model.searchedSeries
                         model.selectedSeries
+                        (Maybe.map viewError model.error)
             in
             form [ classes [ T.center, T.pt4, T.w_90 ] ]
                 (if model.activeSelection then
@@ -412,7 +446,7 @@ main =
                 s =
                     flags.selectedSeries
             in
-            ( Model p [] "" [] s [] (List.isEmpty s) c
+            ( Model p [] "" [] s [] (List.isEmpty s) c Nothing
             , initialGet p
             )
 

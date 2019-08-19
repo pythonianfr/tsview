@@ -169,6 +169,7 @@ view model =
                 model.searchString
                 model.searchedSeries
                 model.selectedSeries
+                Nothing
     in
     article [ classes [ T.center, T.pt4, T.w_90 ] ]
         [ KeywordMultiSelector.view selectorConfig ctx ]

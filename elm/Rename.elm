@@ -299,6 +299,7 @@ view model =
                 model.searchString
                 model.searchedSeries
                 model.selectedSerie
+                Nothing
 
         content =
             case model.state of
