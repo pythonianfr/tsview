@@ -43,6 +43,10 @@ type alias NamedSerie =
     ( String, Serie )
 
 
+type alias NamedError =
+    ( String, String )
+
+
 serieDecoder : Decoder Serie
 serieDecoder =
     Decode.dict Decode.float
@@ -58,7 +62,7 @@ type Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
-    | RenderPlot (Result String ( SeriesCache, List NamedSerie ))
+    | RenderPlot (Result (List String) ( SeriesCache, List NamedSerie, List NamedError ))
 
 
 type alias Trace =
@@ -109,7 +113,10 @@ plotFigure =
     node "plot-figure"
 
 
-fetchSeries : List String -> Model -> Task String ( SeriesCache, List NamedSerie )
+fetchSeries :
+    List String
+    -> Model
+    -> Task (List String) ( SeriesCache, List NamedSerie, List NamedError )
 fetchSeries selectedNames model =
     let
         ( usedCache, cachedSeries ) =
@@ -150,9 +157,9 @@ fetchSeries selectedNames model =
                         Common.decodeJsonMessage serieDecoder
                 }
 
-        getMissingSeries : Task String (List Serie)
+        getMissingSeries : Task (List String) (List (Either String Serie))
         getMissingSeries =
-            Task.sequence <| List.map getSerie missingNames
+            Common.taskSequenceEither <| List.map getSerie missingNames
 
         getSeries : List NamedSerie -> List NamedSerie
         getSeries missing =
@@ -174,13 +181,31 @@ fetchSeries selectedNames model =
                 missing
     in
     getMissingSeries
+        |> Task.onError (List.map Either.Left >> Task.succeed)
         |> Task.andThen
-            (\missingSeries ->
+            (\missings ->
                 let
+                    xs : List (Either NamedError NamedSerie)
                     xs =
-                        List.map2 Tuple.pair missingNames missingSeries
+                        List.map2
+                            (\name x ->
+                                let
+                                    addName =
+                                        Tuple.pair name
+                                in
+                                Either.mapBoth addName addName x
+                            )
+                            missingNames
+                            missings
+
+                    missingSeries =
+                        Either.rights xs
                 in
-                Task.succeed ( updateCache xs, getSeries xs )
+                Task.succeed
+                    ( updateCache missingSeries
+                    , getSeries missingSeries
+                    , Either.lefts xs
+                    )
             )
 
 
@@ -242,7 +267,11 @@ update msg model =
         MakeSearch ->
             newModel { model | searchedSeries = keywordMatch model.searchString model.series }
 
-        RenderPlot (Ok ( cache, namedSeries )) ->
+        RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
+            let
+                _ =
+                    Debug.log "Named errors" namedErrors
+            in
             ( { model | cache = cache, selectedNamedSeries = namedSeries }, Cmd.none )
 
         RenderPlot (Err x) ->

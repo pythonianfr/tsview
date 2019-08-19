@@ -7,13 +7,16 @@ module Common exposing
     , expectStringResponse
     , maybe
     , resultEither
+    , taskSequenceEither
     )
 
 import Dict
+import Either exposing (Either)
 import Html.Styled exposing (Attribute)
 import Html.Styled.Attributes exposing (class)
 import Http exposing (Response)
 import Json.Decode as D
+import Task exposing (Task)
 
 
 classes : List String -> Attribute msg
@@ -110,3 +113,33 @@ checkUrlPrefix x =
 
     else
         x
+
+
+taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
+taskSequenceEither tasks =
+    Task.andThen
+        (\xs ->
+            let
+                lefts =
+                    Either.lefts xs
+            in
+            if not (List.isEmpty xs) && (List.length lefts == List.length xs) then
+                Task.fail lefts
+
+            else
+                Task.succeed xs
+        )
+        (List.foldr
+            (\a b ->
+                let
+                    rightTask =
+                        Task.map Either.Right a
+                in
+                Task.map2
+                    (::)
+                    (Task.onError (Either.Left >> Task.succeed) rightTask)
+                    b
+            )
+            (Task.succeed [])
+            tasks
+        )
