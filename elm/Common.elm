@@ -51,10 +51,10 @@ decodeResponse : ReadError -> D.Decoder a -> Response String -> Result String a
 decodeResponse readErr decoder resp =
     let
         badStatus code body =
-            "BadStatus "
+            readErr body
+                ++ " ["
                 ++ String.fromInt code
-                ++ " : "
-                ++ readErr body
+                ++ "]"
     in
     case resp of
         Http.BadUrl_ x ->
