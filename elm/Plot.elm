@@ -317,7 +317,7 @@ viewError : Error -> Html Msg
 viewError error =
     let
         bold x =
-            b [] [ text x ]
+            span [ classes [ T.b, T.mr4 ] ] [ text x ]
     in
     case error of
         CatalogError x ->
