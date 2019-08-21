@@ -14,7 +14,7 @@ def plot(args, engine, tshclass, divid=None):
     traces = []
     for name, ts in series:
         traces.append(
-            go.Scatter(
+            go.ScatterGL(
                 name=name,
                 x=ts.index,
                 y=ts.values)
