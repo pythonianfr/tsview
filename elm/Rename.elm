@@ -43,7 +43,7 @@ type alias Model =
     , searchedSeries : List String
     , selectedSerie : Maybe String
     , renamedSerie : String
-    , status : Maybe String
+    , error : Maybe String
     }
 
 
@@ -52,7 +52,7 @@ type alias SeriesCatalog =
 
 
 type Msg
-    = CatalogReceived (Result Http.Error SeriesCatalog)
+    = CatalogReceived (Result String SeriesCatalog)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -66,7 +66,8 @@ type Msg
 getCatalog : String -> Cmd Msg
 getCatalog urlPrefix =
     Http.get
-        { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
+        { expect =
+            Common.expectJsonMessage CatalogReceived (Decode.dict Decode.string)
         , url =
             UB.crossOrigin urlPrefix
                 [ "api", "series", "catalog" ]
@@ -116,11 +117,7 @@ update msg model =
             )
 
         CatalogReceived (Err x) ->
-            let
-                _ =
-                    Debug.log "Error on CatalogReceived" x
-            in
-            newModel model
+            newModel { model | error = Just x }
 
         ToggleItem x ->
             newModel { model | selectedSerie = toggleItem x model.selectedSerie }
@@ -142,10 +139,10 @@ update msg model =
                 }
 
         SelectMode ->
-            newModel { model | state = Select, status = Nothing }
+            newModel { model | state = Select, error = Nothing }
 
         NewSerieName x ->
-            newModel { model | renamedSerie = x, status = Nothing }
+            newModel { model | renamedSerie = x, error = Nothing }
 
         OnRename ->
             let
@@ -178,13 +175,13 @@ update msg model =
                 | state = Select
                 , selectedSerie = Nothing
                 , renamedSerie = ""
-                , status = Nothing
+                , error = Nothing
               }
             , getCatalog model.urlPrefix
             )
 
         RenameDone (Err x) ->
-            newModel { model | status = Just x }
+            newModel { model | error = Just x }
 
 
 selectorConfig : KeywordSingleSelector.Config Msg
@@ -286,7 +283,7 @@ editor model =
             [ div [ cls ] [ text mess ] ]
 
         checkErr xs =
-            Common.maybe xs (addErr >> List.append xs) model.status
+            Common.maybe xs (addErr >> List.append xs) model.error
     in
     div selectorConfig.divAttrs <| checkErr [ edit, buttons ]
 
@@ -299,7 +296,7 @@ view model =
                 model.searchString
                 model.searchedSeries
                 model.selectedSerie
-                Nothing
+                (Maybe.map text model.error)
 
         content =
             case model.state of
