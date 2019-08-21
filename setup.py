@@ -8,7 +8,7 @@ def compile_elm(wdir, edit_kind):
     """Compile elm component to JS"""
     src = wdir / "elm" / f"{edit_kind}.elm"
     out = wdir / "tsview" / "tsview_static" / f"{edit_kind.lower()}_elm.js"
-    cmd = f"elm make --output {out} {src}"
+    cmd = f"elm make --optimize --output {out} {src}"
     print(cmd, subprocess.call(cmd, shell=True))
 
 
