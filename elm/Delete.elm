@@ -34,7 +34,7 @@ type alias Model =
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
-    , status : Maybe String
+    , errors : Maybe (List String)
     }
 
 
@@ -43,12 +43,12 @@ type alias SeriesCatalog =
 
 
 type Msg
-    = CatalogReceived (Result Http.Error SeriesCatalog)
+    = CatalogReceived (Result String SeriesCatalog)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
     | OnDelete
-    | DeleteDone (Result Http.Error String)
+    | DeleteDone (Result String String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -93,8 +93,8 @@ update msg model =
             in
             newModel { model | series = series }
 
-        CatalogReceived (Err _) ->
-            newModel { model | status = Just "Error on CatalogReceived" }
+        CatalogReceived (Err x) ->
+            newModel { model | errors = Just [ x ] }
 
         ToggleItem x ->
             newModel { model | selectedSeries = toggleItem x model.selectedSeries }
@@ -108,7 +108,7 @@ update msg model =
         OnDelete ->
             let
                 expect =
-                    Http.expectJson DeleteDone Decode.string
+                    Common.expectJsonMessage DeleteDone Decode.string
 
                 mkUrl serieName =
                     UB.crossOrigin model.urlPrefix
@@ -118,10 +118,6 @@ update msg model =
             ( model, Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries )
 
         DeleteDone (Ok x) ->
-            let
-                _ =
-                    Debug.log "Result on DeleteDone" x
-            in
             newModel
                 { model
                     | series = removeItem x model.series
@@ -130,11 +126,10 @@ update msg model =
                 }
 
         DeleteDone (Err x) ->
-            let
-                _ =
-                    Debug.log "Error on DeleteDone" x
-            in
-            newModel model
+            newModel
+                { model
+                    | errors = Just <| Common.maybe [ x ] ((::) x) model.errors
+                }
 
 
 selectorConfig : KeywordMultiSelector.Config Msg
@@ -164,12 +159,15 @@ selectorConfig =
 view : Model -> Html Msg
 view model =
     let
+        viewError xs =
+            ul [] (List.map (\x -> li [] [ text x ]) xs)
+
         ctx =
             KeywordMultiSelector.Context
                 model.searchString
                 model.searchedSeries
                 model.selectedSeries
-                Nothing
+                (Maybe.map viewError model.errors)
     in
     article [ classes [ T.center, T.pt4, T.w_90 ] ]
         [ KeywordMultiSelector.view selectorConfig ctx ]
@@ -180,7 +178,10 @@ main =
     let
         initialGet urlPrefix =
             Http.get
-                { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
+                { expect =
+                    Common.expectJsonMessage
+                        CatalogReceived
+                        (Decode.dict Decode.string)
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
