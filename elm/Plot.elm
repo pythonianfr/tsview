@@ -64,7 +64,7 @@ type alias SeriesCache =
 
 
 type Msg
-    = CatalogReceived (Result Http.Error SeriesCatalog)
+    = CatalogReceived (Result String SeriesCatalog)
     | ToggleSelection
     | ToggleItem String
     | SearchSeries String
@@ -250,7 +250,7 @@ update msg model =
             )
 
         CatalogReceived (Err x) ->
-            newModel { model | error = Just <| CatalogError "Nothing receive" }
+            newModel { model | error = Just <| CatalogError x }
 
         ToggleSelection ->
             newModel { model | activeSelection = not model.activeSelection }
@@ -428,7 +428,10 @@ main =
     let
         initialGet urlPrefix =
             Http.get
-                { expect = Http.expectJson CatalogReceived (Decode.dict Decode.string)
+                { expect =
+                    Common.expectJsonMessage
+                        CatalogReceived
+                        (Decode.dict Decode.string)
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
