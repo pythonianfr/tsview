@@ -98,7 +98,7 @@ type alias TraceArgs =
 
 scatterPlot : TraceArgs
 scatterPlot =
-    Trace "scatter"
+    Trace "scattergl"
 
 
 type alias PlotArgs =
