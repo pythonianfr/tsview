@@ -6,7 +6,6 @@ from dash import _utils
 from tshistory.tsio import timeseries
 
 from tsview.util import argsdict as _argsdict
-from tsview.plot import plot
 
 
 # monkeypatch dash utility
