@@ -22,7 +22,11 @@ bp = Blueprint('tsview', __name__,
 
 
 def series_names(tshclass, engine):
-    return list(tshclass().list_series(engine).keys())
+    return sorted(
+        name
+        for name, kind in tshclass().list_series(engine).items()
+        if kind == 'primary'
+    )
 
 
 def homeurl():
@@ -41,7 +45,7 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
     class logargs(_argsdict):
         defaults = {
             'series': None,
-            'seriesvocab': lambda: series_names(tshclass, engine),
+            'seriesvocab': lambda: series_names(tshclass, engine)
         }
         types = {
             'series': str,
