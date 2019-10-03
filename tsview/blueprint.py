@@ -83,4 +83,9 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
                                edit_kind="Rename",
                                homeurl=homeurl())
 
+    @bp.route('/tsformula')
+    def tsformula():
+        return render_template('tsformula.html',
+                               homeurl=homeurl())
+
     return bp

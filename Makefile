@@ -1,4 +1,4 @@
-all: delete rename plot
+all: delete rename plot formula
 
 delete:
 	elm make elm/Delete.elm --optimize --output tsview/tsview_static/delete_elm.js
@@ -9,6 +9,9 @@ rename:
 plot:
 	elm make elm/Plot.elm --optimize --output tsview/tsview_static/plot_elm.js
 
+formula:
+	elm make elm/TsView/Formula/Editor.elm --optimize --output tsview/tsview_static/formula_elm.js
+
 clean: cleanstuff cleanbuild
 
 cleanstuff:
@@ -18,3 +21,4 @@ cleanbuild:
 	rm tsview/tsview_static/delete_elm.js -f
 	rm tsview/tsview_static/rename_elm.js -f
 	rm tsview/tsview_static/plot_elm.js -f
+	rm tsview/tsview_static/formula_elm.js -f
