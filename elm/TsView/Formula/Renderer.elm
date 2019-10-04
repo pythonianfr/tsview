@@ -21,11 +21,26 @@ nil =
 
 quoted : String -> String
 quoted x =
-    if x == nil then
-        nil
+    "\"" ++ x ++ "\""
 
-    else
-        "\"" ++ x ++ "\""
+
+valueToString : S.Value -> String
+valueToString value =
+    case value of
+        S.Empty ->
+            nil
+
+        S.IntValue x ->
+            String.fromInt x
+
+        S.FloatValue x ->
+            String.fromFloat x
+
+        S.StringValue x ->
+            quoted x
+
+        S.DateValue x ->
+            quoted x
 
 
 buildRenderTree : Zipper S.EditionNode -> Tree RenderNode
@@ -65,9 +80,9 @@ renderTree indent zipper =
         renderInput : String
         renderInput =
             Either.unpack
-                (\_ -> nil)
-                (Maybe.withDefault nil << Maybe.map S.valueToString)
-                n.input
+                (\_ -> Tuple.first n.input |> quoted)
+                valueToString
+                (Tuple.second n.input)
 
         renderElement x =
             NE.fromElement ( indent, x )
@@ -152,19 +167,7 @@ renderTree indent zipper =
         S.Union _ ->
             renderChildren indent
 
-        S.String ->
-            renderElement <| quoted renderInput
-
-        S.SearchString ->
-            renderElement <| quoted renderInput
-
-        S.Int ->
-            renderElement <| renderInput
-
-        S.Float ->
-            renderElement <| renderInput
-
-        S.Date ->
+        _ ->
             renderElement <| renderInput
 
 

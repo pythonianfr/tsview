@@ -53,7 +53,7 @@ input zipper =
         n =
             Zipper.current zipper
 
-        inputTag errMess s =
+        inputTag ( s, errMess ) =
             H.span []
                 [ H.input [ A.value s, Events.onInput (EditNode zipper) ] []
                 , H.text " "
@@ -62,15 +62,7 @@ input zipper =
                 , H.text <| Maybe.withDefault "" errMess
                 ]
     in
-    case n.input of
-        Left ( s, errMess ) ->
-            inputTag (Just errMess) s
-
-        Right Nothing ->
-            inputTag Nothing ""
-
-        Right (Just v) ->
-            inputTag Nothing <| S.valueToString v
+    inputTag <| Tuple.mapSecond Either.leftToMaybe n.input
 
 
 viewEditor : Model -> HMsg
@@ -177,13 +169,7 @@ viewEditor model =
                 S.Date ->
                     input zipper
 
-                S.String ->
-                    input zipper
-
-                S.Float ->
-                    input zipper
-
-                S.Int ->
+                _ ->
                     input zipper
     in
     H.ul [] [ viewEditionNode (Zipper.fromTree model.tree) ]

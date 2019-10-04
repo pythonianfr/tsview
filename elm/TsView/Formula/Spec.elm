@@ -21,7 +21,6 @@ module TsView.Formula.Spec exposing
     , readInput
     , spec
     , toString
-    , valueToString
     )
 
 import Either exposing (Either(..))
@@ -56,19 +55,20 @@ type alias EditionFlags =
 
 
 type Value
-    = IntValue ( String, Int )
-    | FloatValue ( String, Float )
+    = Empty
+    | IntValue Int
+    | FloatValue Float
     | StringValue String
     | DateValue String
 
 
 type alias Input =
-    Either ( String, String ) (Maybe Value)
+    ( String, Either String Value )
 
 
 emptyInput : Input
 emptyInput =
-    Right Nothing
+    ( "", Right Empty )
 
 
 type alias EditionNode =
@@ -137,22 +137,6 @@ fromString x =
 
         _ ->
             Series
-
-
-valueToString : Value -> String
-valueToString value =
-    case value of
-        IntValue ( s, _ ) ->
-            s
-
-        FloatValue ( s, _ ) ->
-            s
-
-        StringValue s ->
-            s
-
-        DateValue s ->
-            s
 
 
 spec : Spec
@@ -354,37 +338,35 @@ getUnionCurrentType defaultSpecType =
 readInput : Input -> SpecType -> String -> Input
 readInput oldInput specType s =
     let
-        strInput =
-            Right <| Just <| StringValue s
-
         numInput valueConstructor numConv strType =
             let
                 mess =
-                    ( s, "Could not convert \"" ++ s ++ "\" as " ++ strType )
+                    "Could not convert \"" ++ s ++ "\" as " ++ strType
             in
             Either.fromMaybe mess <|
-                Maybe.map (Just << valueConstructor << Tuple.pair s) <|
+                Maybe.map valueConstructor <|
                     numConv s
     in
     if s == "" then
         emptyInput
 
     else
-        case specType of
-            Int ->
-                numInput IntValue String.toInt "Int"
+        Tuple.pair s <|
+            case specType of
+                Int ->
+                    numInput IntValue String.toInt "Int"
 
-            Float ->
-                numInput FloatValue String.toFloat "Float"
+                Float ->
+                    numInput FloatValue String.toFloat "Float"
 
-            String ->
-                strInput
+                String ->
+                    Right <| StringValue s
 
-            Date ->
-                strInput
+                Date ->
+                    Right <| DateValue s
 
-            SearchString ->
-                strInput
+                SearchString ->
+                    Right <| StringValue s
 
-            _ ->
-                oldInput
+                _ ->
+                    Tuple.second oldInput
