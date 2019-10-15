@@ -1,16 +1,18 @@
+FLAGS ?= --optimize
+
 all: delete rename plot formula
 
 delete:
-	elm make elm/Delete.elm --optimize --output tsview/tsview_static/delete_elm.js
+	elm make elm/Delete.elm $(FLAGS) --output tsview/tsview_static/delete_elm.js
 
 rename:
-	elm make elm/Rename.elm --optimize --output tsview/tsview_static/rename_elm.js
+	elm make elm/Rename.elm $(FLAGS) --output tsview/tsview_static/rename_elm.js
 
 plot:
-	elm make elm/Plot.elm --optimize --output tsview/tsview_static/plot_elm.js
+	elm make elm/Plot.elm $(FLAGS) --output tsview/tsview_static/plot_elm.js
 
 formula:
-	elm make elm/TsView/Formula/Editor.elm --optimize --output tsview/tsview_static/formula_elm.js
+	elm make elm/TsView/Formula/Editor.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
 
 clean: cleanstuff cleanbuild
 
