@@ -118,29 +118,28 @@ viewEditor model =
                         , listChildren
                         ]
 
-                S.NamedArg name _ ->
-                    if S.isOptArg zipper then
-                        H.li [] [ H.text name, H.text " ", viewChild ]
+                S.Arg _ ->
+                    let
+                        child =
+                            S.getFirstChild zipper
+                                |> Maybe.withDefault zipper
+                    in
+                    case S.getSpecType child of
+                        S.Series ->
+                            viewChild
 
-                    else
-                        let
-                            child =
-                                S.getFirstChild zipper
-                                    |> Maybe.withDefault zipper
-                        in
-                        case S.getSpecType child of
-                            S.Series ->
-                                viewChild
+                        S.SList _ ->
+                            H.li []
+                                [ H.text "List"
+                                , listButton child S.ListAdd "Add"
+                                , viewChild
+                                ]
 
-                            S.SList _ ->
-                                H.li []
-                                    [ H.text "List"
-                                    , listButton child S.ListAdd "Add"
-                                    , viewChild
-                                    ]
+                        _ ->
+                            H.li [] [ viewChild ]
 
-                            _ ->
-                                H.li [] [ viewChild ]
+                S.OptArg name _ ->
+                    H.li [] [ H.text name, H.text " ", viewChild ]
 
                 S.Union xs ->
                     let

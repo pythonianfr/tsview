@@ -13,15 +13,6 @@ import TsView.Formula.Spec as S exposing (Model, Msg(..))
 import TsView.Formula.ViewEditor exposing (viewEditor)
 
 
-init : Model
-init =
-    let
-        spec =
-            S.spec
-    in
-    Model spec (S.buildEditionTree <| NE.head spec)
-
-
 updateEditor : Zipper S.EditionNode -> String -> Model -> Zipper S.EditionNode
 updateEditor zipper s model =
     let
@@ -39,7 +30,7 @@ updateEditor zipper s model =
                         (\_ ->
                             Dict.get s ops
                                 |> Maybe.withDefault (NE.head model.spec)
-                                |> S.buildSpecTree
+                                |> S.buildSpecTree model.spec
                         )
                         (Zipper.map .specType zipper)
             in
@@ -48,7 +39,7 @@ updateEditor zipper s model =
         S.Union _ ->
             Zipper.open (always True) zipper
                 |> Maybe.map
-                    (Zipper.update (\_ -> S.fromString s |> S.buildEditionTree))
+                    (Zipper.update (\_ -> S.fromString s |> model.buildEditionTree))
                 |> Maybe.withDefault zipper
 
         _ ->
@@ -57,11 +48,13 @@ updateEditor zipper s model =
                 zipper
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         newTreeModel zipper =
-            { model | tree = zipper |> Zipper.root |> Zipper.getTree }
+            ( { model | tree = zipper |> Zipper.root |> Zipper.getTree }
+            , Cmd.none
+            )
     in
     case msg of
         ToggleNode zipper ->
@@ -78,7 +71,7 @@ update msg model =
 
         EditList zipper S.ListAdd ->
             S.getSpecType zipper
-                |> S.buildEditionTree
+                |> model.buildEditionTree
                 |> Tree.descendants
                 |> LL.foldl (\a b -> Zipper.insert a b) zipper
                 |> newTreeModel
@@ -94,6 +87,17 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
+        errMess =
+            let
+                itemize =
+                    H.text >> List.singleton >> H.li []
+            in
+            Maybe.map
+                (\xs -> H.ul [ A.style "margin" "30px" ] (List.map itemize xs))
+                model.specParsingError
+                |> Maybe.withDefault
+                    (H.text "")
+
         formula =
             renderString <|
                 Zipper.fromTree model.tree
@@ -102,7 +106,8 @@ view model =
             String.split "\n" formula
     in
     H.article []
-        [ H.div [ A.style "margin" "30px" ]
+        [ errMess
+        , H.div [ A.style "margin" "30px" ]
             [ H.textarea
                 [ A.rows <| List.length formulaLines
                 , A.cols <|
@@ -115,10 +120,31 @@ view model =
         ]
 
 
-main : Program () Model Msg
+main : Program ( String, S.JsonSpec ) Model Msg
 main =
-    Browser.sandbox
+    let
+        init ( urlPrefix, jsonSpec ) =
+            let
+                ( specError, spec ) =
+                    S.parseJsonSpec jsonSpec
+
+                buildEditionTree =
+                    S.buildEditionTree spec
+
+                defaultOperator =
+                    NE.head spec
+            in
+            ( Model
+                spec
+                specError
+                buildEditionTree
+                (buildEditionTree defaultOperator)
+            , Cmd.none
+            )
+    in
+    Browser.element
         { init = init
         , update = update
         , view = view
+        , subscriptions = \_ -> Sub.none
         }

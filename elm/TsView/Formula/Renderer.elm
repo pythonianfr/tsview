@@ -135,7 +135,10 @@ renderTree indent zipper =
                     )
                     xs
 
-        S.NamedArg name _ ->
+        S.Arg _ ->
+            renderChildren indent
+
+        S.OptArg name _ ->
             let
                 children =
                     renderChildren indent
@@ -143,17 +146,13 @@ renderTree indent zipper =
                 ( _, x ) =
                     NE.head <| children
             in
-            if S.isOptArg <| Zipper.map .node zipper then
-                if x == nil then
-                    emptyElement
-
-                else
-                    NE.Nonempty
-                        ( indent, "#:" ++ name ++ " " ++ x )
-                        (NE.tail children)
+            if x == nil then
+                emptyElement
 
             else
-                children
+                NE.Nonempty
+                    ( indent, "#:" ++ name ++ " " ++ x )
+                    (NE.tail children)
 
         S.OptArgs x ->
             renderChildren indent

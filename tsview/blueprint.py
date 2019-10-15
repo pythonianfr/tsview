@@ -85,7 +85,21 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
 
     @bp.route('/tsformula')
     def tsformula():
+        import json
+        import tshistory_formula.funcs
+        from tshistory_formula.interpreter import jsontypes
+
+        def check_arg(name, typ):
+            if name.endswith('list'):
+                typ = "List[%s]" % typ
+            return (name, typ)
+
+        spec = [
+            (op_name, [check_arg(name, typ) for name, typ in op_spec.items()])
+            for op_name, op_spec in json.loads(jsontypes()).items()
+        ]
         return render_template('tsformula.html',
-                               homeurl=homeurl())
+                               homeurl=homeurl(),
+                               spec=json.dumps(spec))
 
     return bp

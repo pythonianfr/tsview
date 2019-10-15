@@ -1,10 +1,12 @@
 module TsView.Formula.Spec exposing
     ( EditionNode
     , Input
+    , JsonSpec
     , ListAction(..)
     , Model
     , Msg(..)
     , Spec
+    , SpecParsingError
     , SpecType(..)
     , Value(..)
     , buildEditionNode
@@ -16,10 +18,9 @@ module TsView.Formula.Spec exposing
     , getFirstChild
     , getSpecType
     , getUnionCurrentType
-    , isOptArg
     , listOperators
+    , parseJsonSpec
     , readInput
-    , spec
     , toString
     )
 
@@ -28,6 +29,7 @@ import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
+import Parser exposing ((|.), (|=), Parser)
 
 
 type SpecType
@@ -39,13 +41,18 @@ type SpecType
     | Series
     | SList SpecType
     | Union (Nonempty SpecType)
-    | NamedArg String SpecType
+    | Arg SpecType
+    | OptArg String SpecType
     | OptArgs (List SpecType)
     | Operator String (List SpecType) SpecType
 
 
 type alias Spec =
     Nonempty SpecType
+
+
+type alias SpecParsingError =
+    Maybe (List String)
 
 
 type alias EditionFlags =
@@ -80,6 +87,8 @@ type alias EditionNode =
 
 type alias Model =
     { spec : Spec
+    , specParsingError : SpecParsingError
+    , buildEditionTree : SpecType -> Tree EditionNode
     , tree : Tree EditionNode
     }
 
@@ -139,67 +148,139 @@ fromString x =
             Series
 
 
-spec : Spec
-spec =
-    NE.Nonempty
-        (Operator
-            "series"
-            [ NamedArg "name" SearchString ]
-            (OptArgs
-                [ NamedArg "fill" String
-                , NamedArg "prune" String
-                ]
+type alias JsonArg =
+    ( String, String )
+
+
+type alias JsonOperator =
+    ( String, List JsonArg )
+
+
+type alias JsonSpec =
+    List JsonOperator
+
+
+parseUnion : Parser SpecType
+parseUnion =
+    Parser.sequence
+        { start = "Union["
+        , separator = ","
+        , end = "]"
+        , spaces = Parser.spaces
+        , item = parseSpecType
+        , trailing = Parser.Forbidden
+        }
+        |> Parser.andThen
+            (NE.fromList
+                >> Maybe.map (Union >> Parser.succeed)
+                >> Maybe.withDefault (Parser.problem "Empty Union")
             )
-        )
-        [ Operator
-            "*"
-            [ NamedArg "a" (Union (NE.Nonempty Int [ Float, Series ]))
-            , NamedArg "b" (Union (NE.Nonempty Series [ Float, Int ]))
-            ]
-            (OptArgs [])
-        , Operator
-            "+"
-            [ NamedArg "a" (Union (NE.Nonempty Int [ Float, Series ]))
-            , NamedArg "b" (Union (NE.Nonempty Series [ Float, Int ]))
-            ]
-            (OptArgs [])
-        , Operator
-            "add"
-            [ NamedArg "s1" Series
-            , NamedArg "s2" Series
-            ]
-            (OptArgs [])
-        , Operator
-            "div"
-            [ NamedArg "s1" Series
-            , NamedArg "s2" Series
-            ]
-            (OptArgs [])
-        , Operator
-            "mul"
-            [ NamedArg "serieslist" (SList Series) ]
-            (OptArgs [])
-        , Operator
-            "clip"
-            [ NamedArg "series" Series ]
-            (OptArgs
-                [ NamedArg "max" Float
-                , NamedArg "min" Float
-                ]
-            )
-        , Operator
-            "priority"
-            [ NamedArg "serieslist" (SList Series) ]
-            (OptArgs [])
-        , Operator
-            "slice"
-            [ NamedArg "series" Series ]
-            (OptArgs
-                [ NamedArg "fromdate" Date
-                , NamedArg "todate" Date
-                ]
-            )
+
+
+parseSpecType : Parser SpecType
+parseSpecType =
+    let
+        succeed =
+            Parser.succeed
+
+        keyword =
+            Parser.keyword
+
+        symbol =
+            Parser.symbol
+    in
+    Parser.oneOf
+        [ succeed Int
+            |. keyword "int"
+        , succeed Float
+            |. keyword "float"
+        , succeed String
+            |. keyword "str"
+        , succeed Date
+            |. keyword "iso_utc_datetime"
+        , succeed SearchString
+            |. keyword "search_str"
+        , succeed Series
+            |. keyword "Series"
+        , succeed SList
+            |. keyword "List"
+            |. symbol "["
+            |= Parser.lazy (\_ -> parseSpecType)
+            |. symbol "]"
+        , Parser.lazy (\_ -> parseUnion)
         ]
+
+
+parseArg : JsonArg -> Either String SpecType
+parseArg ( name, val ) =
+    let
+        parseOptArg =
+            Parser.oneOf
+                [ Parser.succeed (OptArg name)
+                    |. Parser.keyword "Optional"
+                    |. Parser.symbol "["
+                    |= parseSpecType
+                    |. Parser.symbol "]"
+                , Parser.succeed Arg
+                    |= parseSpecType
+                ]
+    in
+    Parser.run parseOptArg val
+        |> Either.fromResult
+        |> Either.mapLeft Parser.deadEndsToString
+
+
+parseOperator : JsonOperator -> Either (List String) SpecType
+parseOperator ( name, jsonArgs ) =
+    case
+        List.filter (Tuple.first >> (/=) "return") jsonArgs
+            |> List.map parseArg
+            |> Either.partition
+    of
+        ( [], specTypes ) ->
+            let
+                ( args, optArgs ) =
+                    List.foldr
+                        (\a b ->
+                            case a of
+                                OptArg _ _ ->
+                                    Tuple.mapSecond ((::) a) b
+
+                                _ ->
+                                    Tuple.mapFirst ((::) a) b
+                        )
+                        ( [], [] )
+                        specTypes
+            in
+            Right <| Operator name args (OptArgs optArgs)
+
+        ( xs, _ ) ->
+            Left <|
+                if List.isEmpty xs then
+                    [ name ++ " no argument provided" ]
+
+                else
+                    List.map (\x -> name ++ " " ++ x) xs
+
+
+parseJsonSpec : JsonSpec -> ( SpecParsingError, Spec )
+parseJsonSpec jsonSpec =
+    let
+        errSpec =
+            NE.fromElement <| OptArg "Spec parsing error" String
+    in
+    case List.map parseOperator jsonSpec |> Either.partition of
+        ( [], x :: xs ) ->
+            ( Nothing, NE.Nonempty x xs )
+
+        ( [], [] ) ->
+            ( Just [ "No specification provided" ], errSpec )
+
+        ( ys, x :: xs ) ->
+            ( Just <| List.concat ys, NE.Nonempty x xs )
+
+        ( ys, [] ) ->
+            ( Just <| List.concat ys, errSpec )
 
 
 listOperators : Spec -> List ( String, SpecType )
@@ -216,8 +297,8 @@ listOperators =
     NE.toList >> List.foldr f []
 
 
-listSpecNodes : SpecType -> List SpecType
-listSpecNodes specType =
+listSpecNodes : Spec -> SpecType -> List SpecType
+listSpecNodes spec specType =
     case specType of
         Operator _ args kargs ->
             case kargs of
@@ -230,7 +311,10 @@ listSpecNodes specType =
         OptArgs xs ->
             xs
 
-        NamedArg _ x ->
+        Arg x ->
+            [ x ]
+
+        OptArg _ x ->
             [ x ]
 
         Union xs ->
@@ -240,15 +324,15 @@ listSpecNodes specType =
             [ NE.head spec ]
 
         SList x ->
-            listSpecNodes x
+            listSpecNodes spec x
 
         x ->
             []
 
 
-buildSpecTree : SpecType -> Tree SpecType
-buildSpecTree =
-    Tree.build listSpecNodes
+buildSpecTree : Spec -> SpecType -> Tree SpecType
+buildSpecTree spec =
+    Tree.build (listSpecNodes spec)
 
 
 {-| Build a `Tree.Forest b` (aka `LList Tree b`) from `Zipper` children
@@ -289,9 +373,9 @@ buildEditionNode zipper =
         (buildForest buildEditionNode zipper)
 
 
-buildEditionTree : SpecType -> Tree EditionNode
-buildEditionTree =
-    buildSpecTree >> Zipper.fromTree >> buildEditionNode
+buildEditionTree : Spec -> SpecType -> Tree EditionNode
+buildEditionTree spec =
+    buildSpecTree spec >> Zipper.fromTree >> buildEditionNode
 
 
 getFirstChild : Zipper a -> Maybe (Zipper a)
@@ -302,21 +386,6 @@ getFirstChild =
 getSpecType : Zipper EditionNode -> SpecType
 getSpecType =
     Zipper.current >> .specType
-
-
-isOptArg : Zipper EditionNode -> Bool
-isOptArg =
-    let
-        f : Zipper EditionNode -> Bool
-        f n =
-            case Zipper.current n |> .specType of
-                OptArgs _ ->
-                    True
-
-                _ ->
-                    False
-    in
-    Zipper.up >> Maybe.map f >> Maybe.withDefault False
 
 
 getUnionCurrentType : SpecType -> Zipper EditionNode -> SpecType
