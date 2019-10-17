@@ -1,6 +1,6 @@
 FLAGS ?= --optimize
 
-all: delete rename plot formula
+all: delete rename plot formula pygmentize
 
 delete:
 	elm make elm/Delete.elm $(FLAGS) --output tsview/tsview_static/delete_elm.js
@@ -13,6 +13,9 @@ plot:
 
 formula:
 	elm make elm/TsView/Formula/Editor.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
+
+pygmentize:
+	pygmentize -S default -f html -a .highlight > tsview/tsview_static/pygmentize.css
 
 clean: cleanstuff cleanbuild
 

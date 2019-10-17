@@ -1,12 +1,14 @@
 module TsView.Formula.ViewEditor exposing (viewEditor)
 
 import Either exposing (Either(..))
-import Html as H exposing (Html)
+import Html as H exposing (Attribute, Html)
 import Html.Attributes as A
 import Html.Events as Events
 import Json.Decode as Decode
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
+import Tachyons exposing (classes)
+import Tachyons.Classes as T
 import TsView.Formula.Spec as S exposing (Model, Msg(..))
 
 
@@ -171,4 +173,5 @@ viewEditor model =
                 _ ->
                     input zipper
     in
-    H.ul [] [ viewEditionNode (Zipper.fromTree model.tree) ]
+    H.ul [ classes [ T.fl, T.w_100 ] ]
+        [ viewEditionNode (Zipper.fromTree model.tree) ]

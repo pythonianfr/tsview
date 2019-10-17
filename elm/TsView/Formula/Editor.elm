@@ -1,16 +1,26 @@
 module TsView.Formula.Editor exposing (main)
 
 import Browser
+import Common
 import Dict
-import Html as H exposing (Html)
+import Either exposing (Either(..))
+import Html as H exposing (Attribute, Html)
 import Html.Attributes as A
+import Html.Parser
+import Html.Parser.Util exposing (toVirtualDom)
+import Http
+import Json.Decode as Decode
 import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
+import Tachyons exposing (classes)
+import Tachyons.Classes as T
+import Time
 import TsView.Formula.Renderer exposing (renderString)
 import TsView.Formula.Spec as S exposing (Model, Msg(..))
 import TsView.Formula.ViewEditor exposing (viewEditor)
+import Url.Builder as UB
 
 
 updateEditor : Zipper S.EditionNode -> String -> Model -> Zipper S.EditionNode
@@ -51,8 +61,18 @@ updateEditor zipper s model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        formula =
+            model.formula
+
         newTreeModel zipper =
-            ( { model | tree = zipper |> Zipper.root |> Zipper.getTree }
+            let
+                root =
+                    Zipper.root zipper
+            in
+            ( { model
+                | tree = Zipper.getTree root
+                , formula = { formula | current = renderString root }
+              }
             , Cmd.none
             )
     in
@@ -83,10 +103,44 @@ update msg model =
         EditNode zipper s ->
             newTreeModel <| updateEditor zipper s model
 
+        Render ->
+            if formula.rendered /= formula.current then
+                ( { model | formula = { formula | rendered = formula.current } }
+                , Http.post
+                    { url =
+                        UB.crossOrigin
+                            model.urlPrefix
+                            [ "tsformula", "pygmentize" ]
+                            []
+                    , body = Http.stringBody "text/plain" formula.current
+                    , expect = Common.expectJsonMessage CodeHighlight Decode.string
+                    }
+                )
+
+            else
+                ( model, Cmd.none )
+
+        CodeHighlight (Ok x) ->
+            let
+                code =
+                    Html.Parser.run x
+                        |> Either.fromResult
+                        |> Either.mapBoth
+                            (\_ -> "Could not parse : " ++ x)
+                            toVirtualDom
+            in
+            ( { model | formula = { formula | code = code } }, Cmd.none )
+
+        CodeHighlight (Err x) ->
+            ( { model | formula = { formula | code = Left x } }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
     let
+        formula =
+            model.formula
+
         errMess =
             let
                 itemize =
@@ -97,25 +151,11 @@ view model =
                 model.specParsingError
                 |> Maybe.withDefault
                     (H.text "")
-
-        formula =
-            renderString <|
-                Zipper.fromTree model.tree
-
-        formulaLines =
-            String.split "\n" formula
     in
     H.article []
         [ errMess
-        , H.div [ A.style "margin" "30px" ]
-            [ H.textarea
-                [ A.rows <| List.length formulaLines
-                , A.cols <|
-                    List.foldl max 0 <|
-                        List.map String.length formulaLines
-                ]
-                [ H.text formula ]
-            ]
+        , H.div [ classes [ T.fl, T.w_90, T.ma3 ] ]
+            (Either.unpack (H.text >> List.singleton) identity formula.code)
         , viewEditor model
         ]
 
@@ -133,18 +173,30 @@ main =
 
                 defaultOperator =
                     NE.head spec
+
+                tree =
+                    buildEditionTree defaultOperator
             in
             ( Model
+                (Common.checkUrlPrefix urlPrefix)
                 spec
                 specError
                 buildEditionTree
-                (buildEditionTree defaultOperator)
+                tree
+                (S.Formula
+                    (renderString <| Zipper.fromTree tree)
+                    ""
+                    (Left "No rendering")
+                )
             , Cmd.none
             )
+
+        sub model =
+            Time.every 1000 (always Render)
     in
     Browser.element
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = sub
         }

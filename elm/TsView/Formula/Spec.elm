@@ -1,5 +1,6 @@
 module TsView.Formula.Spec exposing
     ( EditionNode
+    , Formula
     , Input
     , JsonSpec
     , ListAction(..)
@@ -25,6 +26,7 @@ module TsView.Formula.Spec exposing
     )
 
 import Either exposing (Either(..))
+import Html exposing (Html)
 import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
@@ -85,11 +87,20 @@ type alias EditionNode =
     }
 
 
+type alias Formula =
+    { current : String
+    , rendered : String
+    , code : Either String (List (Html Msg))
+    }
+
+
 type alias Model =
-    { spec : Spec
+    { urlPrefix : String
+    , spec : Spec
     , specParsingError : SpecParsingError
     , buildEditionTree : SpecType -> Tree EditionNode
     , tree : Tree EditionNode
+    , formula : Formula
     }
 
 
@@ -102,6 +113,8 @@ type Msg
     = ToggleNode (Zipper EditionNode)
     | EditList (Zipper EditionNode) ListAction
     | EditNode (Zipper EditionNode) String
+    | Render
+    | CodeHighlight (Result String String)
 
 
 toString : SpecType -> String

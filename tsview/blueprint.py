@@ -102,4 +102,16 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
                                homeurl=homeurl(),
                                spec=json.dumps(spec))
 
+    @bp.route('/tsformula/pygmentize', methods=['POST'])
+    def tsformula_pygmentize():
+        import json
+        from pygments import highlight
+        from pygments.lexers import get_lexer_by_name
+        from pygments.formatters import HtmlFormatter
+        return json.dumps(highlight(
+            request.data,
+            get_lexer_by_name("lisp"),
+            HtmlFormatter()
+        ))
+
     return bp
