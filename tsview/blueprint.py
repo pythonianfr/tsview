@@ -94,10 +94,10 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
                 typ = "List[%s]" % typ
             return (name, typ)
 
-        spec = [
+        spec = sorted([
             (op_name, [check_arg(name, typ) for name, typ in op_spec.items()])
             for op_name, op_spec in json.loads(jsontypes()).items()
-        ]
+        ])
         return render_template('tsformula.html',
                                homeurl=homeurl(),
                                spec=json.dumps(spec))
