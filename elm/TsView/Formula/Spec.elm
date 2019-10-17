@@ -210,7 +210,7 @@ parseSpecType =
         , succeed String
             |. keyword "str"
         , succeed Date
-            |. keyword "iso_utc_datetime"
+            |. keyword "Timestamp"
         , succeed SearchString
             |. keyword "search_str"
         , succeed Series
