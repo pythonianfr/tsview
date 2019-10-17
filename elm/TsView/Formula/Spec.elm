@@ -209,6 +209,8 @@ parseSpecType =
             |. keyword "float"
         , succeed String
             |. keyword "str"
+        , succeed String
+            |. keyword "bool"
         , succeed Date
             |. keyword "Timestamp"
         , succeed SearchString
