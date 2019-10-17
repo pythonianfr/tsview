@@ -81,21 +81,16 @@ def historic(app, engine,
         Location(id='url', refresh=False),
 
         #Placeholders
-        Div(Dropdown(id='ts_selector', value=None),
-            style={'display': 'none'}),
         Div(Dropdown(id='idate_slider', value=None),
             style={'display': 'none'}),
-        Div(Button(id='submit-button',
-                   n_clicks=0,
-                   children='Submit'),
-            style={'display': 'none'}),
-
-        Div(id='dropdown-container',
-            style={'margin-top': '10'}),
-
         Graph(id='ts_snapshot'),
 
-        Div(id='button-container'),
+        Button(id='submit-button',
+            n_clicks=0,
+            children='Show Republications',
+            style={'width': '100%',
+                   'background-color': '#F7F7F7',
+                   }),
         Graph(id='ts_by_appdate',
               hoverData={'points':[{'text' : None}]}
         ),
@@ -165,14 +160,25 @@ def historic(app, engine,
         )
         return dropdown
 
+    def parse_url(url_string):
+        if (url_string in (
+        routes_pathname_prefix, request_pathname_prefix_adv) or
+                url_string is None or
+                len(url_string.strip('/')) == 0):
+            id_serie = ''
+        else:
+            id_serie = url_string.split('/')[-1]
+        return id_serie
+
     @dashboard.callback(dash.dependencies.Output('slider-container', 'children'),
-                        [dash.dependencies.Input('ts_selector', 'value'),
+                        [dash.dependencies.Input('url', 'pathname'),
                          dash.dependencies.Input('submit-button', 'n_clicks')],
                         [dash.dependencies.State('ts_snapshot', 'relayoutData')])
-    def adaptable_slider(id_serie, n_clicks, graphdata):
+    def adaptable_slider(url_string, n_clicks, graphdata):
         if n_clicks==0:
             return Slider(id='idate_slider', value=None)
 
+        id_serie = parse_url(url_string)
         fromdate, todate = unpack_dates(graphdata)
         idates = insertion_dates(id_serie, fromdate, todate)
         showlabel = len(idates) < 25
@@ -189,21 +195,10 @@ def historic(app, engine,
         )
         return slider
 
-    @dashboard.callback(dash.dependencies.Output('button-container', 'children'),
-                        [dash.dependencies.Input('ts_selector', 'value')])
-    def dynamic_button(_):
-        return Button(
-            id='submit-button',
-            n_clicks=0,
-            children='Show Republications',
-            style = {'width': '100%',
-                     'background-color': '#F7F7F7',
-                     }),
-
-
     @dashboard.callback(dash.dependencies.Output('ts_snapshot', 'figure'),
-                        [dash.dependencies.Input('ts_selector', 'value')])
-    def ts_snapshot(id_serie):
+                        [dash.dependencies.Input('url', 'pathname')])
+    def ts_snapshot(url_string):
+        id_serie = parse_url(url_string)
         tsh = tshclass()
         ts = tsh.get(engine, id_serie)
 
@@ -237,10 +232,10 @@ def historic(app, engine,
     @dashboard.callback(dash.dependencies.Output('ts_by_appdate', 'figure'),
                         [dash.dependencies.Input('idate_slider', 'value'),
                          dash.dependencies.Input('submit-button', 'n_clicks')],
-                        [dash.dependencies.State('ts_selector', 'value'),
+                        [dash.dependencies.State('url', 'pathname'),
                          dash.dependencies.State('ts_snapshot', 'relayoutData')
                         ])
-    def ts_by_appdate(idx, n_clicks, id_serie, graphdata):
+    def ts_by_appdate(idx, n_clicks, url_string, graphdata):
         if n_clicks == 0:
             return {
                 'data': [],
@@ -250,6 +245,7 @@ def historic(app, engine,
         fromdate, todate = unpack_dates(graphdata)
         idx = idx if idx else 0
 
+        id_serie = parse_url(url_string)
         tsh = tshclass()
         ts_final = tsh.get(engine, id_serie,
                            from_value_date=fromdate,
@@ -342,10 +338,11 @@ def historic(app, engine,
 
     @dashboard.callback(dash.dependencies.Output('ts_by_insertdate', 'figure'),
                         [dash.dependencies.Input('ts_by_appdate', 'hoverData')],
-                        [dash.dependencies.State('ts_selector', 'value'),
+                        [dash.dependencies.State('url', 'pathname'),
                          dash.dependencies.State('ts_snapshot', 'relayoutData')
                          ])
-    def ts_by_insertdate(hoverdata, id_serie, graphdata):
+    def ts_by_insertdate(hoverdata, url_string, graphdata):
+        id_serie = parse_url(url_string)
         if id_serie is None:
             return {
                 'data': [],
