@@ -107,7 +107,7 @@ viewEditor model =
                         [ renderNavigationNode zipper flags.isOpen "operator "
                         , renderSelect zipper name operators
                         , if flags.isRemovable then
-                            listButton zipper S.ListRemove "Remove"
+                            listButton zipper S.ListRemove "Remove argument"
 
                           else
                             H.text ""
@@ -132,8 +132,7 @@ viewEditor model =
 
                         S.SList _ ->
                             H.li []
-                                [ H.text "List"
-                                , listButton child S.ListAdd "Add"
+                                [ listButton child S.ListAdd "Add argument"
                                 , viewChild
                                 ]
 
