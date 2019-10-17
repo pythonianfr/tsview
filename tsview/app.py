@@ -5,7 +5,7 @@ from tshistory.api import timeseries
 from tshistory_rest.blueprint import blueprint as rest_blueprint
 
 from tsview.blueprint import tsview
-from tsview.dashboard import historic
+from tsview.history import historic
 
 
 app = Flask('tsview')
