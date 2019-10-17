@@ -97,7 +97,7 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
         spec = sorted([
             (op_name, [check_arg(name, typ) for name, typ in op_spec.items()])
             for op_name, op_spec in json.loads(jsontypes()).items()
-        ])
+        ], key=lambda x: ("\x00",) if x[0]=="series" else x)
         return render_template('tsformula.html',
                                homeurl=homeurl(),
                                spec=json.dumps(spec))
