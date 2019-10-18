@@ -334,20 +334,24 @@ viewError error =
                     namedErrors
                 )
 
-viewHistoryLink cls seriesName =
-    a [ A.href <| UB.relative [ "tshistory", seriesName ] []
-      , A.target "_blank"
-      , cls
-      ]
-    [ text <| seriesName ++ " history" ]
-
-
-viewEditorLink cls seriesName =
-    a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
-      , A.target "_blank"
-      , cls
-      ]
-    [ text <| seriesName ++ " editor" ]
+viewHistoryEditorLink cls hasEditor seriesName =
+    div [ ]
+        [ text (seriesName ++ " ")
+        , a [ A.href <| UB.relative [ "tshistory", seriesName ] []
+            , A.target "_blank"
+            , cls
+            ]
+              [ text <| "history" ]
+        , text " "
+        , if hasEditor then
+              a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
+                , A.target "_blank"
+                , cls
+                ]
+              [ text <| "editor" ]
+          else
+              text ""
+        ]
 
 
 view : Model -> Html Msg
@@ -413,19 +417,16 @@ view model =
                     in
                     a [ A.href url, cls ] [ text "Permalink" ]
 
-                histories =
-                    List.map (viewHistoryLink cls) model.selectedSeries
+                links =
+                    List.map
+                        (viewHistoryEditorLink cls model.hasEditor)
+                        model.selectedSeries
 
-                editor =
-                    if model.hasEditor then
-                        List.map (viewEditorLink cls) model.selectedSeries
-                    else
-                        []
             in
             ul [ classes [ T.list, T.mt3, T.mb0 ] ]
                 (List.map
                     (\x -> li [ classes [ T.pv2 ] ] [ x ])
-                    (permalink :: histories ++ editor)
+                    (permalink :: links)
                 )
     in
     div []
