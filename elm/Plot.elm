@@ -334,6 +334,21 @@ viewError error =
                     namedErrors
                 )
 
+viewHistoryLink cls seriesName =
+    a [ A.href <| UB.relative [ "tshistory", seriesName ] []
+      , A.target "_blank"
+      , cls
+      ]
+    [ text <| seriesName ++ " history" ]
+
+
+viewEditorLink cls seriesName =
+    a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
+      , A.target "_blank"
+      , cls
+      ]
+    [ text <| seriesName ++ " editor" ]
+
 
 view : Model -> Html Msg
 view model =
@@ -399,30 +414,13 @@ view model =
                     a [ A.href url, cls ] [ text "Permalink" ]
 
                 histories =
-                    List.map
-                        (\x ->
-                            a
-                                [ A.href <| UB.relative [ "tshistory", x ] []
-                                , A.target "_blank"
-                                , cls
-                                ]
-                                [ text <| x ++ " history" ]
-                        )
-                        model.selectedSeries
+                    List.map (viewHistoryLink cls) model.selectedSeries
 
                 editor =
-                    List.map
-                        (\x ->
-                             if model.hasEditor then
-                                 a [ A.href <| UB.relative [ "tseditor/?name=" ++ x ] []
-                                   , A.target "_blank"
-                                   , cls
-                                   ]
-                                 [ text <| x ++ " editor" ]
-                             else
-                                 text "NEIN"
-                        )
-                        model.selectedSeries
+                    if model.hasEditor then
+                        List.map (viewEditorLink cls) model.selectedSeries
+                    else
+                        []
             in
             ul [ classes [ T.list, T.mt3, T.mb0 ] ]
                 (List.map
