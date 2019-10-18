@@ -22,6 +22,7 @@ import Url.Builder as UB
 type alias Model =
     { urlPrefix : String
     , series : List String
+    , hasEditor : Bool
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
@@ -405,14 +406,28 @@ view model =
                                 , A.target "_blank"
                                 , cls
                                 ]
-                                [ text <| "View " ++ x ++ " history" ]
+                                [ text <| x ++ " history" ]
+                        )
+                        model.selectedSeries
+
+                editor =
+                    List.map
+                        (\x ->
+                             if model.hasEditor then
+                                 a [ A.href <| UB.relative [ "tseditor/?name=" ++ x ] []
+                                   , A.target "_blank"
+                                   , cls
+                                   ]
+                                 [ text <| x ++ " editor" ]
+                             else
+                                 text "NEIN"
                         )
                         model.selectedSeries
             in
             ul [ classes [ T.list, T.mt3, T.mb0 ] ]
                 (List.map
                     (\x -> li [ classes [ T.pv2 ] ] [ x ])
-                    (permalink :: histories)
+                    (permalink :: histories ++ editor)
                 )
     in
     div []
@@ -423,7 +438,11 @@ view model =
         ]
 
 
-main : Program { urlPrefix : String, selectedSeries : List String } Model Msg
+main : Program
+       {urlPrefix : String
+       , selectedSeries : List String
+       , hasEditor : Bool
+       } Model Msg
 main =
     let
         initialGet urlPrefix =
@@ -448,8 +467,11 @@ main =
 
                 s =
                     flags.selectedSeries
+
+                e =
+                    flags.hasEditor
             in
-            ( Model p [] "" [] s [] (List.isEmpty s) c Nothing
+            ( Model p [] e "" [] s [] (List.isEmpty s) c Nothing
             , initialGet p
             )
 

@@ -6,11 +6,13 @@
 <script src="./tsview_static/plot_elm.js"></script>
 <script>
     const baseurl = "{{ homeurl }}"
+    const haseditor = {{ haseditor }}
     var app = Elm.Plot.init({
         node: document.getElementById("app"),
         flags: {
             urlPrefix : baseurl,
-            selectedSeries : {{ series | safe }}
+            selectedSeries : {{ series | safe }},
+            hasEditor: haseditor
         }
     });
 </script>

@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from flask import Blueprint, request, render_template, url_for
 
@@ -29,6 +30,14 @@ def series_names(tshclass, engine):
     )
 
 
+def haseditor():
+    try:
+        import tshistory_editor
+        return True
+    except ImportError:
+        return False
+
+
 def homeurl():
     homeurl = url_for('tsview.home')
     return homeurl[:homeurl.rindex('/')] + '/'
@@ -40,6 +49,7 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
     def home():
         return render_template('tsview.html',
                                homeurl=homeurl(),
+                               haseditor=json.dumps(haseditor()),
                                series=request.args.getlist("series"))
 
     class logargs(_argsdict):
@@ -85,7 +95,6 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
 
     @bp.route('/tsformula')
     def tsformula():
-        import json
         import tshistory_formula.funcs
         from tshistory_formula.interpreter import jsontypes
 
