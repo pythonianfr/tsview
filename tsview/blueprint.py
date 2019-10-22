@@ -38,6 +38,14 @@ def haseditor():
         return False
 
 
+def hasformula():
+    try:
+        import tshistory_formula
+        return True
+    except ImportError:
+        return False
+
+
 def homeurl():
     homeurl = url_for('tsview.home')
     return homeurl[:homeurl.rindex('/')] + '/'
@@ -122,5 +130,22 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
             get_lexer_by_name("lisp"),
             HtmlFormatter()
         ))
+
+    @bp.route('/tsformula/operators')
+    def formula_operators():
+        if not hasformula:
+            return ''
+
+        from tshistory_formula.registry import FUNCS
+
+        return render_template(
+            'operators.html',
+            funcs={
+                name: (FUNCS[name].__doc__,
+                       FUNCS[name].__module__)
+                for name in sorted(FUNCS)
+                if FUNCS[name].__doc__ is not None
+            }
+        )
 
     return bp

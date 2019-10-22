@@ -1,0 +1,14 @@
+{% extends "tsbase.html" %}
+
+{% block body %}
+
+<section>
+  {% for name, (doc, module) in funcs.items() %}
+  <section>
+    <h3>{{name}} (provided by {{module}})</h3>
+    <pre>{{doc}}</pre>
+  </section>
+  {% endfor %}
+</section>
+
+{% endblock %}
