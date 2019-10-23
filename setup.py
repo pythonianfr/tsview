@@ -4,10 +4,15 @@ from setuptools import setup
 from setuptools.command.build_ext import build_ext
 
 
-def compile_elm(wdir, edit_kind, src):
+WORKING_DIR = Path(__file__).resolve().parent
+
+STATIC_DIR = WORKING_DIR / "tsview" / "tsview_static"
+
+
+def compile_elm(edit_kind, src):
     """Compile elm component to JS"""
-    src = wdir / "elm" / src
-    out = wdir / "tsview" / "tsview_static" / f"{edit_kind}_elm.js"
+    src = WORKING_DIR / "elm" / src
+    out = STATIC_DIR / f"{edit_kind}_elm.js"
     cmd = f"elm make --optimize --output {out} {src}"
     print(cmd, subprocess.call(cmd, shell=True))
 
@@ -17,14 +22,16 @@ class ElmBuild(build_ext):
     """
 
     def run(self):
-        wdir = Path(__file__).resolve().parent
         for edit_kind, src in [
             ("delete", "Delete.elm"),
             ("rename", "Rename.elm"),
             ("plot", "Plot.elm"),
             ("formula", Path("TsView/Formula/Editor.elm")),
         ]:
-            compile_elm(wdir, edit_kind, src)
+            compile_elm(edit_kind, src)
+        css = STATIC_DIR / "pygmentize.css"
+        cmd = f"pygmentize -S default -f html -a .highlight > {css}"
+        print(cmd, subprocess.call(cmd, shell=True))
         super().run()
 
 
