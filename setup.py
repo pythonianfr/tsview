@@ -4,10 +4,10 @@ from setuptools import setup
 from setuptools.command.build_ext import build_ext
 
 
-def compile_elm(wdir, edit_kind):
+def compile_elm(wdir, edit_kind, src):
     """Compile elm component to JS"""
-    src = wdir / "elm" / f"{edit_kind}.elm"
-    out = wdir / "tsview" / "tsview_static" / f"{edit_kind.lower()}_elm.js"
+    src = wdir / "elm" / src
+    out = wdir / "tsview" / "tsview_static" / f"{edit_kind}_elm.js"
     cmd = f"elm make --optimize --output {out} {src}"
     print(cmd, subprocess.call(cmd, shell=True))
 
@@ -18,8 +18,13 @@ class ElmBuild(build_ext):
 
     def run(self):
         wdir = Path(__file__).resolve().parent
-        for edit_kind in ["Delete", "Rename", "Plot"]:
-            compile_elm(wdir, edit_kind)
+        for edit_kind, src in [
+            ("delete", "Delete.elm"),
+            ("rename", "Rename.elm"),
+            ("plot", "Plot.elm"),
+            ("formula", Path("TsView/Formula/Editor.elm")),
+        ]:
+            compile_elm(wdir, edit_kind, src)
         super().run()
 
 
