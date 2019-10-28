@@ -35,6 +35,9 @@ class ElmBuild(build_ext):
         super().run()
 
 
+doc = Path(__file__).parent / 'README.md'
+
+
 setup(name='tsview',
       version='0.9.0',
       author='Pythonian',
@@ -42,7 +45,10 @@ setup(name='tsview',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
                    'to visualize time series from a repository and '
                    'a flask blueprint'),
+      long_description=doc.read_text(),
+      long_description_content_type='text/markdown',
       url='https://bitbucket.org/pythonian/tsview',
+
       packages=['tsview'],
       zip_safe=False,
       install_requires=[
