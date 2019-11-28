@@ -17,6 +17,12 @@ def kickoff(host, port, dburi, debug=False):
         rest_blueprint(engine.url),
         url_prefix='/api'
     )
-    app.register_blueprint(tsview(engine))
+    app.register_blueprint(
+        tsview(
+            engine,
+            user_has_rename_permission=lambda: True,
+            user_has_delete_permission=lambda: True
+        )
+    )
     historic(app, engine)
     app.run(host=host, port=port, debug=debug, threaded=not debug)

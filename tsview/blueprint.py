@@ -51,7 +51,11 @@ def homeurl():
     return homeurl[:homeurl.rindex('/')] + '/'
 
 
-def tsview(engine, tshclass=timeseries, series_names=series_names):
+def tsview(engine,
+           tshclass=timeseries,
+           series_names=series_names,
+           user_has_rename_permission=lambda: False,
+           user_has_delete_permission=lambda: False):
 
     @bp.route('/tsview')
     def home():
@@ -91,15 +95,21 @@ def tsview(engine, tshclass=timeseries, series_names=series_names):
 
     @bp.route('/tsdelete')
     def tsdelete():
-        return render_template('tsedit.html',
-                               edit_kind="Delete",
-                               homeurl=homeurl())
+        if user_has_delete_permission():
+            return render_template('tsedit.html',
+                                   edit_kind="Delete",
+                                   homeurl=homeurl())
+
+        return 'You do not have the delete capability.'
 
     @bp.route('/tsrename')
     def tsrename():
-        return render_template('tsedit.html',
-                               edit_kind="Rename",
-                               homeurl=homeurl())
+        if user_has_rename_permission():
+            return render_template('tsedit.html',
+                                   edit_kind="Rename",
+                                   homeurl=homeurl())
+
+        return 'You do not have the rename capability.'
 
     @bp.route('/tsformula')
     def tsformula():
