@@ -51,14 +51,19 @@ def homeurl():
     return homeurl[:homeurl.rindex('/')] + '/'
 
 
+PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete')
+
+
 def tsview(engine,
            tshclass=timeseries,
            series_names=series_names,
-           user_has_rename_permission=lambda: False,
-           user_has_delete_permission=lambda: False):
+           has_permission=lambda perm: True):
 
     @bp.route('/tsview')
     def home():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
         return render_template('tsview.html',
                                homeurl=homeurl(),
                                haseditor=json.dumps(haseditor()),
@@ -80,6 +85,8 @@ def tsview(engine,
 
     @bp.route('/tslog')
     def tslog():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
         args = logargs(request.args)
         tsh = tshclass()
         with engine.begin() as cn:
@@ -95,7 +102,7 @@ def tsview(engine,
 
     @bp.route('/tsdelete')
     def tsdelete():
-        if user_has_delete_permission():
+        if has_permission('delete'):
             return render_template('tsedit.html',
                                    edit_kind="Delete",
                                    homeurl=homeurl())
@@ -104,7 +111,7 @@ def tsview(engine,
 
     @bp.route('/tsrename')
     def tsrename():
-        if user_has_rename_permission():
+        if has_permission('rename'):
             return render_template('tsedit.html',
                                    edit_kind="Rename",
                                    homeurl=homeurl())
@@ -113,6 +120,9 @@ def tsview(engine,
 
     @bp.route('/tsformula')
     def tsformula():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
         import tshistory_formula.funcs
         from tshistory_formula.interpreter import jsontypes
 
@@ -131,6 +141,8 @@ def tsview(engine,
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
     def tsformula_pygmentize():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
         import json
         from pygments import highlight
         from pygments.lexers import get_lexer_by_name
@@ -145,6 +157,8 @@ def tsview(engine,
     def formula_operators():
         if not hasformula:
             return ''
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
 
         from tshistory_formula.registry import FUNCS
 
