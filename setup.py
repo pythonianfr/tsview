@@ -68,7 +68,7 @@ setup(name='tsview',
           'tsview_templates/*'
       ]},
       entry_points={'tshistory.subcommands': [
-          'view=tsview.command:view'
+          'view=tsview.cli:view'
       ]},
       classifiers=[
           'Development Status :: 4 - Beta',
