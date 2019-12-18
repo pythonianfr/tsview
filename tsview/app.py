@@ -14,14 +14,13 @@ app = Flask('tsview')
 def kickoff(host, port, dburi, debug=False):
     engine = create_engine(dburi)
     app.register_blueprint(
-        rest_blueprint(engine.url),
+        rest_blueprint(str(engine.url)),
         url_prefix='/api'
     )
     app.register_blueprint(
         tsview(
             engine,
-            user_has_rename_permission=lambda: True,
-            user_has_delete_permission=lambda: True
+            has_permission=lambda perm: True
         )
     )
     historic(app, engine)
