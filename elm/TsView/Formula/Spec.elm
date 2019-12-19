@@ -314,6 +314,9 @@ listOperators =
 
 listSpecNodes : Spec -> SpecType -> List SpecType
 listSpecNodes spec specType =
+    -- takes a type and returns its constituents
+    -- to help build subnodes for the whole
+    -- edition tree node
     case specType of
         Operator _ args kargs ->
             case kargs of
