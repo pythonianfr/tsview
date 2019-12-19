@@ -132,8 +132,8 @@ viewEditor model =
 
                         S.SList _ ->
                             H.li []
-                                [ listButton child S.ListAdd "Add argument"
-                                , viewChild
+                                [ viewChild
+                                , listButton child S.ListAdd "Add argument"
                                 ]
 
                         _ ->
