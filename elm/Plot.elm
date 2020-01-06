@@ -40,7 +40,7 @@ type Error
 
 
 type alias SeriesCatalog =
-    Dict.Dict String String
+    Dict.Dict String (List String)
 
 
 type alias Serie =
@@ -449,7 +449,7 @@ main =
                 { expect =
                     Common.expectJsonMessage
                         CatalogReceived
-                        (Decode.dict Decode.string)
+                        (Decode.dict (Decode.list Decode.string))
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
