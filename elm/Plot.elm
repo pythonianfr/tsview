@@ -246,9 +246,9 @@ update msg model =
                 series =
                     Dict.keys x
             in
-            ( { model | series = series }
-            , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
-            )
+                ( { model | series = series }
+                , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
+                )
 
         CatalogReceived (Err x) ->
             newModel { model | error = Just <| CatalogError x }
