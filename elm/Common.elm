@@ -56,22 +56,19 @@ decodeResponse readErr decoder resp =
                 ++ String.fromInt code
                 ++ "]"
     in
-    case resp of
-        Http.BadUrl_ x ->
-            Err <| "BadUrl : " ++ x
+        case resp of
+            Http.BadUrl_ x -> Err <| "BadUrl : " ++ x
 
-        Http.Timeout_ ->
-            Err "Timeout"
+            Http.Timeout_ -> Err "Timeout"
 
-        Http.NetworkError_ ->
-            Err "NetworkError"
+            Http.NetworkError_ -> Err "NetworkError"
 
-        Http.BadStatus_ metadata body ->
-            Err <| badStatus metadata.statusCode body
+            Http.BadStatus_ metadata body ->
+                Err <| badStatus metadata.statusCode body
 
-        Http.GoodStatus_ _ body ->
-            D.decodeString decoder body
-                |> Result.mapError D.errorToString
+            Http.GoodStatus_ _ body ->
+                D.decodeString decoder body
+                    |> Result.mapError D.errorToString
 
 
 readErrorMessage : ReadError
@@ -86,9 +83,9 @@ readErrorMessage =
             Dict.get "message" x
                 |> Maybe.withDefault (dictToStr x)
     in
-    D.decodeString (D.dict D.string)
-        >> Result.map getMessage
-        >> resultEither D.errorToString identity
+        D.decodeString (D.dict D.string)
+            >> Result.map getMessage
+            >> resultEither D.errorToString identity
 
 
 decodeJsonMessage : D.Decoder a -> Response String -> Result String a
@@ -110,7 +107,6 @@ checkUrlPrefix : String -> String
 checkUrlPrefix x =
     if x == "/" then
         ""
-
     else
         x
 
@@ -119,27 +115,24 @@ taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
 taskSequenceEither tasks =
     Task.andThen
         (\xs ->
-            let
-                lefts =
-                    Either.lefts xs
-            in
-            if not (List.isEmpty xs) && (List.length lefts == List.length xs) then
-                Task.fail lefts
-
-            else
-                Task.succeed xs
+             let
+                 lefts =
+                     Either.lefts xs
+             in
+                 if
+                     not (List.isEmpty xs) && (List.length lefts == List.length xs)
+                 then
+                     Task.fail lefts
+                 else
+                     Task.succeed xs
         )
-        (List.foldr
-            (\a b ->
-                let
-                    rightTask =
-                        Task.map Either.Right a
-                in
-                Task.map2
-                    (::)
-                    (Task.onError (Either.Left >> Task.succeed) rightTask)
-                    b
-            )
-            (Task.succeed [])
-            tasks
-        )
+    (List.foldr
+         (\a b ->
+              let
+                  rightTask = Task.map Either.Right a
+              in
+                  Task.map2 (::) (Task.onError (Either.Left >> Task.succeed) rightTask) b
+         )
+         (Task.succeed [])
+         tasks
+    )
