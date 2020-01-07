@@ -1,18 +1,3 @@
-{- Compilation :
-
-    $ sed -e "s/%APP%/Delete/" \
-    -e "s/%URLPREFIX%/http:\/\/tshistory.test.pythonian.fr/" \
-    elm/index.html.in > tsdelete/index.html
-    $ elm make --output tsdelete/elm.js elm/Delete.elm
-
-   Running :
-
-    $ cd elm
-    $ elm reactor&
-
--}
-
-
 module Delete exposing (main)
 
 import Browser
@@ -54,23 +39,21 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        removeItem x xs =
-            List.filter ((/=) x) xs
+        removeItem x xs = List.filter ((/=) x) xs
 
         toggleItem x xs =
-            if List.member x xs then
+            if
+                List.member x xs
+            then
                 removeItem x xs
-
             else
                 x :: xs
 
-        newModel x =
-            ( x, Cmd.none )
+        newModel x = ( x, Cmd.none )
 
         keywordMatch xm xs =
             if String.length xm < 2 then
                 []
-
             else
                 KeywordSelector.select xm xs |> List.take 20
 
@@ -85,48 +68,51 @@ update msg model =
                 , tracker = Nothing
                 }
     in
-    case msg of
-        CatalogReceived (Ok x) ->
-            let
-                series =
-                    Dict.keys x
-            in
-            newModel { model | series = series }
+        case msg of
+            CatalogReceived (Ok x) ->
+                let
+                    series = Dict.keys x
+                in
+                    newModel { model | series = series }
 
-        CatalogReceived (Err x) ->
-            newModel { model | errors = Just [ x ] }
+            CatalogReceived (Err x) ->
+                newModel { model | errors = Just [ x ] }
 
-        ToggleItem x ->
-            newModel { model | selectedSeries = toggleItem x model.selectedSeries }
+            ToggleItem x ->
+                newModel { model | selectedSeries = toggleItem x model.selectedSeries }
 
-        SearchSeries x ->
-            newModel { model | searchString = x }
+            SearchSeries x ->
+                newModel { model | searchString = x }
 
-        MakeSearch ->
-            newModel { model | searchedSeries = keywordMatch model.searchString model.series }
+            MakeSearch ->
+                newModel { model
+                             | searchedSeries = keywordMatch model.searchString model.series
+                         }
 
-        OnDelete ->
-            let
-                expect =
-                    Common.expectJsonMessage DeleteDone Decode.string
+            OnDelete ->
+                let
+                    expect =
+                        Common.expectJsonMessage DeleteDone Decode.string
 
-                mkUrl serieName =
-                    UB.crossOrigin model.urlPrefix
-                        [ "api", "series", "state" ]
-                        [ UB.string "name" serieName ]
-            in
-            ( model, Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries )
+                    mkUrl serieName =
+                        UB.crossOrigin model.urlPrefix
+                            [ "api", "series", "state" ]
+                            [ UB.string "name" serieName ]
+                in
+                    ( model
+                    , Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries
+                    )
 
-        DeleteDone (Ok x) ->
-            newModel
+            DeleteDone (Ok x) ->
+                newModel
                 { model
                     | series = removeItem x model.series
                     , searchedSeries = removeItem x model.searchedSeries
                     , selectedSeries = removeItem x model.selectedSeries
                 }
 
-        DeleteDone (Err x) ->
-            newModel
+            DeleteDone (Err x) ->
+                newModel
                 { model
                     | errors = Just <| Common.maybe [ x ] ((::) x) model.errors
                 }
@@ -135,22 +121,22 @@ update msg model =
 selectorConfig : KeywordMultiSelector.Config Msg
 selectorConfig =
     { searchSelector =
-        { action = Nothing
-        , defaultText =
-            text
-                "Type some keywords in input bar for selecting time series"
-        , toggleMsg = ToggleItem
-        }
+          { action = Nothing
+          , defaultText =
+              text
+              "Type some keywords in input bar for selecting time series"
+          , toggleMsg = ToggleItem
+          }
     , actionSelector =
-        { action =
-            Just
+          { action =
+                Just
                 { attrs = [ classes [ T.white, T.bg_light_red ] ]
                 , html = text "Delete"
                 , clickMsg = OnDelete
                 }
-        , defaultText = text ""
-        , toggleMsg = ToggleItem
-        }
+          , defaultText = text ""
+          , toggleMsg = ToggleItem
+          }
     , onInputMsg = SearchSeries
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
@@ -169,8 +155,8 @@ view model =
                 model.selectedSeries
                 (Maybe.map viewError model.errors)
     in
-    article [ classes [ T.center, T.pt4, T.w_90 ] ]
-        [ KeywordMultiSelector.view selectorConfig ctx ]
+        article [ classes [ T.center, T.pt4, T.w_90 ] ]
+            [ KeywordMultiSelector.view selectorConfig ctx ]
 
 
 main : Program String Model Msg
@@ -179,9 +165,9 @@ main =
         initialGet urlPrefix =
             Http.get
                 { expect =
-                    Common.expectJsonMessage
-                        CatalogReceived
-                        (Decode.dict Decode.string)
+                      Common.expectJsonMessage
+                      CatalogReceived
+                      (Decode.dict Decode.string)
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
@@ -190,17 +176,16 @@ main =
 
         init urlPrefix =
             let
-                p =
-                    Common.checkUrlPrefix urlPrefix
+                p = Common.checkUrlPrefix urlPrefix
             in
-            ( Model p [] "" [] [] Nothing, initialGet p )
+                ( Model p [] "" [] [] Nothing, initialGet p )
 
         sub model =
             Time.every 1000 (always MakeSearch)
     in
-    Browser.element
-        { init = init
-        , view = view >> toUnstyled
-        , update = update
-        , subscriptions = sub
-        }
+        Browser.element
+            { init = init
+            , view = view >> toUnstyled
+            , update = update
+            , subscriptions = sub
+            }
