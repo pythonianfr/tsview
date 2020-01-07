@@ -33,7 +33,7 @@ type alias Model =
 
 
 type alias SeriesCatalog =
-    Dict.Dict String String
+    Dict.Dict String (List String)
 
 
 type Msg
@@ -52,7 +52,9 @@ getCatalog : String -> Cmd Msg
 getCatalog urlPrefix =
     Http.get
         { expect =
-              Common.expectJsonMessage CatalogReceived (Decode.dict Decode.string)
+              Common.expectJsonMessage
+              CatalogReceived
+              ( Decode.dict (Decode.list Decode.string) )
         , url =
             UB.crossOrigin urlPrefix
                 [ "api", "series", "catalog" ]
