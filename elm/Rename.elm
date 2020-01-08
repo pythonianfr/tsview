@@ -7,6 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
+import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
@@ -32,10 +33,6 @@ type alias Model =
     , renamedSerie : String
     , error : Maybe String
     }
-
-
-type alias SeriesCatalog =
-    Dict String (List (List String))
 
 
 type Msg
@@ -91,30 +88,14 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                let
-                    makeSeries: List String -> String
-                    makeSeries rawlist =
-                        case rawlist of
-                            [a,_] -> a
-                            _ -> "<nosuchseries>"
-
-                    makeSeriesTuple: List String -> (String, String)
-                    makeSeriesTuple rawList =
-                        case rawList of
-                            [a,b] -> (a, b)
-                            _ -> ("<nosuchseries>", "<nosuchkind>")
-
-                    series = List.map makeSeries (List.concat (values x))
-                    seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
-                in
-                    ( { model
-                          | series = series
-                          , searchedSeries = keywordMatch model.searchString model.series
-                          , sources = keys x
-                          , seriesKind = seriesKind
-                      }
-                    , Cmd.none
-                    )
+                ( { model
+                      | series = seriesFromCatalog x
+                      , searchedSeries = keywordMatch model.searchString model.series
+                      , sources = keys x
+                      , seriesKind = kindsFromCatalog x
+                  }
+                , Cmd.none
+                )
 
             CatalogReceived (Err x) ->
                 newModel { model | error = Just x }

@@ -8,6 +8,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
+import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import KeywordMultiSelector
@@ -39,10 +40,6 @@ type Error
     = CatalogError String
     | SelectionError (List NamedError)
     | RenderError String
-
-
-type alias SeriesCatalog =
-    Dict String (List (List String))
 
 
 type alias Serie =
@@ -244,29 +241,13 @@ update msg model =
     in
     case msg of
         CatalogReceived (Ok x) ->
-            let
-                makeSeries: List String -> String
-                makeSeries rawlist =
-                    case rawlist of
-                        [a,_] -> a
-                        _ -> "<nosuchseries>"
-
-                makeSeriesTuple: List String -> (String, String)
-                makeSeriesTuple rawList =
-                    case rawList of
-                        [a,b] -> (a, b)
-                        _ -> ("<nosuchseries>", "<nosuchkind>")
-
-                series = List.map makeSeries (List.concat (values x))
-                seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
-            in
-                ( { model
-                      | series = series
-                      , sources = keys x
-                      , seriesKind = seriesKind
-                  }
-                , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
-                )
+            ( { model
+                  | series = seriesFromCatalog x
+                  , sources = keys x
+                  , seriesKind = kindsFromCatalog x
+              }
+            , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
+            )
 
         CatalogReceived (Err x) ->
             newModel { model | error = Just <| CatalogError x }

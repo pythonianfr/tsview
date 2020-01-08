@@ -6,6 +6,7 @@ import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
+import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
@@ -23,10 +24,6 @@ type alias Model =
     , selectedSeries : List String
     , errors : Maybe (List String)
     }
-
-
-type alias SeriesCatalog =
-    Dict String (List (List String))
 
 
 type Msg
@@ -73,27 +70,11 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                let
-                    makeSeries: List String -> String
-                    makeSeries rawlist =
-                        case rawlist of
-                            [a,_] -> a
-                            _ -> "<nosuchseries>"
-
-                    makeSeriesTuple: List String -> (String, String)
-                    makeSeriesTuple rawList =
-                        case rawList of
-                            [a,b] -> (a, b)
-                            _ -> ("<nosuchseries>", "<nosuchkind>")
-
-                    series = List.map makeSeries (List.concat (values x))
-                    seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
-                in
-                    newModel { model |
-                               series = series
+                newModel { model
+                             | series = seriesFromCatalog x
                              , sources = keys x
-                             , seriesKind = seriesKind
-                             }
+                             , seriesKind = kindsFromCatalog x
+                         }
 
             CatalogReceived (Err x) ->
                 newModel { model | errors = Just [ x ] }
