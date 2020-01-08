@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog)
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
@@ -87,10 +87,7 @@ update msg model =
         case msg of
             CatalogReceived (Ok x) ->
                 ( { model
-                      | catalog = SeriesCatalog
-                        (seriesFromCatalog x)
-                        (keys x)
-                        (kindsFromCatalog x)
+                      | catalog = buildCatalog x
                       , searchedSeries = keywordMatch model.searchString model.catalog.series
                   }
                 , Cmd.none
@@ -296,7 +293,7 @@ main =
             in
                 (
                  Model p Select
-                 (SeriesCatalog [] [] (Dict.fromList []))
+                 (buildCatalog (Dict.fromList []))
                  "" [] Nothing "" Nothing,
                  getCatalog p
                 )
