@@ -1,6 +1,7 @@
 module Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog,
                          seriesFromCatalog, kindsFromCatalog) -- to be removed
 
+import Set exposing (Set)
 import Dict exposing(Dict, fromList, keys, values)
 
 type alias RawSeriesCatalog =
@@ -33,7 +34,7 @@ buildCatalog : RawSeriesCatalog -> SeriesCatalog
 buildCatalog rawCatalog =
     let
         series = seriesFromCatalog rawCatalog
-        seriesBySource = []
+        seriesBySource = Dict.fromList []
         seriesByKind = kindsFromCatalog rawCatalog
     in
         SeriesCatalog series seriesBySource seriesByKind
@@ -41,6 +42,6 @@ buildCatalog rawCatalog =
 
 type alias SeriesCatalog =
     { series : List String
-    , seriesBySource : List String -- Dict String (Set Series)
+    , seriesBySource : Dict String (Set String)
     , seriesByKind : Dict String String -- Dict String (Set Series)
     }

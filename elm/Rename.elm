@@ -2,7 +2,7 @@ module Rename exposing (main)
 
 import Browser
 import Common exposing (classes)
-import Dict exposing (Dict, fromList, keys, values)
+import Dict exposing (Dict)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
@@ -293,7 +293,7 @@ main =
             in
                 (
                  Model p Select
-                 (buildCatalog (Dict.fromList []))
+                 (buildCatalog (Dict.empty))
                  "" [] Nothing "" Nothing,
                  getCatalog p
                 )
