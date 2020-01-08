@@ -2,7 +2,7 @@ module Plot exposing (main)
 
 import Browser
 import Common exposing (classes)
-import Dict
+import Dict exposing (Dict, fromList, keys, values)
 import Either exposing (Either)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
@@ -22,6 +22,8 @@ import Url.Builder as UB
 type alias Model =
     { urlPrefix : String
     , series : List String
+    , sources : List String
+    , seriesKind : Dict String String
     , hasEditor : Bool
     , searchString : String
     , searchedSeries : List String
@@ -40,7 +42,7 @@ type Error
 
 
 type alias SeriesCatalog =
-    Dict.Dict String (List String)
+    Dict String (List (List String))
 
 
 type alias Serie =
@@ -243,10 +245,27 @@ update msg model =
     case msg of
         CatalogReceived (Ok x) ->
             let
-                series =
-                    Dict.keys x
+                makeSeries: List String -> String
+                makeSeries rawlist =
+                    case rawlist of
+                        [a,_] -> a
+                        _ -> "<nosuchseries>"
+
+                makeSeriesTuple: List String -> (String, String)
+                makeSeriesTuple rawList =
+                    case rawList of
+                        [a,b] -> (a, b)
+                        _ -> ("<nosuchseries>", "<nosuchkind>")
+
+                series = List.map makeSeries (List.concat (values x))
+                sources = keys x
+                seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
             in
-                ( { model | series = series }
+                ( { model
+                      | series = series
+                      , sources = sources
+                      , seriesKind = seriesKind
+                  }
                 , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
                 )
 
@@ -449,7 +468,7 @@ main =
                 { expect =
                     Common.expectJsonMessage
                         CatalogReceived
-                        (Decode.dict (Decode.list Decode.string))
+                        (Decode.dict (Decode.list (Decode.list Decode.string)))
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
@@ -470,7 +489,7 @@ main =
                 e =
                     flags.hasEditor
             in
-            ( Model p [] e "" [] s [] (List.isEmpty s) c Nothing
+            ( Model p [] [] (fromList []) e "" [] s [] (List.isEmpty s) c Nothing
             , initialGet p
             )
 
