@@ -1,6 +1,6 @@
-module Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
-import Dict exposing(Dict, fromList, keys, values)
+module Catalog exposing (RawSeriesCatalog, SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 
+import Dict exposing(Dict, fromList, keys, values)
 
 type alias RawSeriesCatalog =
     Dict String (List (List String))
@@ -26,3 +26,10 @@ kindsFromCatalog rawCatalog =
                 _ -> ("<nosuchseries>", "<nosuchkind>")
     in
         fromList (List.map makeSeriesTuple (List.concat (values rawCatalog)))
+
+
+type alias SeriesCatalog =
+    { series : List String
+    , seriesBySource : List String -- Dict String (Set Series)
+    , seriesByKind : Dict String String -- Dict String (Set Series)
+    }

@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
@@ -24,9 +24,7 @@ type State
 type alias Model =
     { urlPrefix : String
     , state : State
-    , series : List String
-    , sources : List String
-    , seriesKind : Dict String String
+    , catalog : SeriesCatalog
     , searchString : String
     , searchedSeries : List String
     , selectedSerie : Maybe String
@@ -89,10 +87,11 @@ update msg model =
         case msg of
             CatalogReceived (Ok x) ->
                 ( { model
-                      | series = seriesFromCatalog x
-                      , searchedSeries = keywordMatch model.searchString model.series
-                      , sources = keys x
-                      , seriesKind = kindsFromCatalog x
+                      | catalog = SeriesCatalog
+                        (seriesFromCatalog x)
+                        (keys x)
+                        (kindsFromCatalog x)
+                      , searchedSeries = keywordMatch model.searchString model.catalog.series
                   }
                 , Cmd.none
                 )
@@ -109,7 +108,7 @@ update msg model =
             MakeSearch ->
                 newModel
                 { model
-                    | searchedSeries = keywordMatch model.searchString model.series
+                    | searchedSeries = keywordMatch model.searchString model.catalog.series
                 }
 
             EditMode ->
@@ -295,7 +294,12 @@ main =
             let
                 p = Common.checkUrlPrefix urlPrefix
             in
-                ( Model p Select [] [] (fromList []) "" [] Nothing "" Nothing, getCatalog p )
+                (
+                 Model p Select
+                 (SeriesCatalog [] [] (Dict.fromList []))
+                 "" [] Nothing "" Nothing,
+                 getCatalog p
+                )
 
         sub model =
             if
