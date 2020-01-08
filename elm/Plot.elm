@@ -8,7 +8,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
-import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import KeywordMultiSelector
@@ -22,9 +22,7 @@ import Url.Builder as UB
 
 type alias Model =
     { urlPrefix : String
-    , series : List String
-    , sources : List String
-    , seriesKind : Dict String String
+    , catalog: SeriesCatalog
     , hasEditor : Bool
     , searchString : String
     , searchedSeries : List String
@@ -241,11 +239,7 @@ update msg model =
     in
     case msg of
         CatalogReceived (Ok x) ->
-            ( { model
-                  | series = seriesFromCatalog x
-                  , sources = keys x
-                  , seriesKind = kindsFromCatalog x
-              }
+            ( { model | catalog = buildCatalog x }
             , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
             )
 
@@ -268,7 +262,9 @@ update msg model =
             newModel { model | searchString = x }
 
         MakeSearch ->
-            newModel { model | searchedSeries = keywordMatch model.searchString model.series }
+            newModel { model | searchedSeries = keywordMatch
+                                                model.searchString
+                                                model.catalog.series }
 
         RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
             let
@@ -469,7 +465,7 @@ main =
                 e =
                     flags.hasEditor
             in
-            ( Model p [] [] (fromList []) e "" [] s [] (List.isEmpty s) c Nothing
+            ( Model p (buildCatalog Dict.empty) e "" [] s [] (List.isEmpty s) c Nothing
             , initialGet p
             )
 
