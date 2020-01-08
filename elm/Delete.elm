@@ -87,12 +87,11 @@ update msg model =
                             _ -> ("<nosuchseries>", "<nosuchkind>")
 
                     series = List.map makeSeries (List.concat (values x))
-                    sources = keys x
                     seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
                 in
                     newModel { model |
                                series = series
-                             , sources = sources
+                             , sources = keys x
                              , seriesKind = seriesKind
                              }
 
