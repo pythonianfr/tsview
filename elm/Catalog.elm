@@ -37,11 +37,21 @@ kindsFromCatalog rawCatalog =
         Dict.fromList (List.map makedictentry allkinds)
 
 
+sourcesFromCatalog rawCatalog =
+    let
+        namesbysource source =
+            List.map Tuple.first (Maybe.withDefault [] (Dict.get source rawCatalog))
+        makedictentry source =
+            Tuple.pair source (Set.fromList (namesbysource source))
+    in
+         Dict.fromList (List.map makedictentry (Dict.keys rawCatalog))
+
+
 buildCatalog : RawSeriesCatalog -> SeriesCatalog
 buildCatalog rawCatalog =
     let
         series = seriesFromCatalog rawCatalog
-        seriesBySource = Dict.empty
+        seriesBySource = sourcesFromCatalog rawCatalog
         seriesByKind = kindsFromCatalog rawCatalog
     in
         SeriesCatalog series seriesBySource seriesByKind
