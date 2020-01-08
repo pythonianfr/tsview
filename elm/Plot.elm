@@ -29,7 +29,7 @@ type alias Model =
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
-    , selectedNamedSeries : List NamedSerie
+    , selectedNamedSeries : List NamedSeries
     , activeSelection : Bool
     , cache : SeriesCache
     , error : Maybe Error
@@ -46,7 +46,7 @@ type alias Serie =
     Dict.Dict String Float
 
 
-type alias NamedSerie =
+type alias NamedSeries =
     ( String, Serie )
 
 
@@ -69,7 +69,7 @@ type Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
-    | RenderPlot (Result (List String) ( SeriesCache, List NamedSerie, List NamedError ))
+    | RenderPlot (Result (List String) ( SeriesCache, List NamedSeries, List NamedError ))
 
 
 type alias Trace =
@@ -123,7 +123,7 @@ plotFigure =
 fetchSeries :
     List String
     -> Model
-    -> Task (List String) ( SeriesCache, List NamedSerie, List NamedError )
+    -> Task (List String) ( SeriesCache, List NamedSeries, List NamedError )
 fetchSeries selectedNames model =
     let
         ( usedCache, cachedSeries ) =
@@ -133,7 +133,7 @@ fetchSeries selectedNames model =
                         ( newCache, maybeSerie ) =
                             LruCache.get name cache
 
-                        x : Either String NamedSerie
+                        x : Either String NamedSeries
                         x =
                             maybeSerie
                                 |> Either.fromMaybe name
@@ -168,7 +168,7 @@ fetchSeries selectedNames model =
         getMissingSeries =
             Common.taskSequenceEither <| List.map getSerie missingNames
 
-        getSeries : List NamedSerie -> List NamedSerie
+        getSeries : List NamedSeries -> List NamedSeries
         getSeries missing =
             let
                 series =
@@ -180,7 +180,7 @@ fetchSeries selectedNames model =
                 []
                 selectedNames
 
-        updateCache : List NamedSerie -> SeriesCache
+        updateCache : List NamedSeries -> SeriesCache
         updateCache missing =
             List.foldl
                 (\( name, serie ) cache -> LruCache.insert name serie cache)
@@ -192,7 +192,7 @@ fetchSeries selectedNames model =
         |> Task.andThen
             (\missings ->
                 let
-                    xs : List (Either NamedError NamedSerie)
+                    xs : List (Either NamedError NamedSeries)
                     xs =
                         List.map2
                             (\name x ->
