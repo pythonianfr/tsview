@@ -8,7 +8,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
-import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import KeywordMultiSelector
@@ -64,7 +64,7 @@ type alias SeriesCache =
 
 
 type Msg
-    = CatalogReceived (Result String SeriesCatalog)
+    = CatalogReceived (Result String RawSeriesCatalog)
     | ToggleSelection
     | ToggleItem String
     | SearchSeries String

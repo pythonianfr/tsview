@@ -1,8 +1,8 @@
-module Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+module Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Dict exposing(Dict, fromList, keys, values)
 
 
-type alias SeriesCatalog =
+type alias RawSeriesCatalog =
     Dict String (List (List String))
 
 

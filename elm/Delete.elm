@@ -6,7 +6,7 @@ import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
-import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
@@ -27,7 +27,7 @@ type alias Model =
 
 
 type Msg
-    = CatalogReceived (Result String SeriesCatalog)
+    = CatalogReceived (Result String RawSeriesCatalog)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch

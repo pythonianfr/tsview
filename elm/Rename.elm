@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import Catalog exposing (SeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
@@ -36,7 +36,7 @@ type alias Model =
 
 
 type Msg
-    = CatalogReceived (Result String SeriesCatalog)
+    = CatalogReceived (Result String RawSeriesCatalog)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
