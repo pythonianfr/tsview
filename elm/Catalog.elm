@@ -5,6 +5,7 @@ import Dict exposing(Dict)
 import Set exposing (Set)
 import Http
 import Json.Decode as Decode
+import List.Extra exposing (unique)
 import Url.Builder as UB
 
 
@@ -23,7 +24,17 @@ seriesFromCatalog rawCatalog =
 
 
 kindsFromCatalog rawCatalog =
-    Dict.fromList (List.concat (Dict.values rawCatalog))
+    let
+        allserieskinds = List.concat (Dict.values rawCatalog)
+        allkinds = unique (List.map Tuple.second allserieskinds)
+
+        filternamesbykind kind xs =
+            List.map Tuple.first (List.filter (\x -> (==) kind (Tuple.second x)) xs)
+
+        makedictentry kind =
+            Tuple.pair kind (Set.fromList (filternamesbykind kind allserieskinds))
+    in
+        Dict.fromList (List.map makedictentry allkinds)
 
 
 buildCatalog : RawSeriesCatalog -> SeriesCatalog
@@ -31,7 +42,7 @@ buildCatalog rawCatalog =
     let
         series = seriesFromCatalog rawCatalog
         seriesBySource = Dict.empty
-        seriesByKind = Dict.empty
+        seriesByKind = kindsFromCatalog rawCatalog
     in
         SeriesCatalog series seriesBySource seriesByKind
 
@@ -59,5 +70,5 @@ getCatalog urlPrefix expectcatalog =
 type alias SeriesCatalog =
     { series : List String
     , seriesBySource : Dict String (Set String)
-    , seriesByKind : Dict String String -- Dict String (Set Series)
+    , seriesByKind : Dict String (Set String)
     }
