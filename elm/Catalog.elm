@@ -1,8 +1,8 @@
-module Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog,
-                         seriesFromCatalog, kindsFromCatalog) -- to be removed
+module Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, removeSeries)
 
 import Set exposing (Set)
 import Dict exposing(Dict, fromList, keys, values)
+
 
 type alias RawSeriesCatalog =
     Dict String (List (List String))
@@ -38,6 +38,13 @@ buildCatalog rawCatalog =
         seriesByKind = kindsFromCatalog rawCatalog
     in
         SeriesCatalog series seriesBySource seriesByKind
+
+
+removeSeries name catalog =
+    let
+        removeItem x xs = List.filter ((/=) x) xs
+    in
+        { catalog | series = removeItem name catalog.series }
 
 
 type alias SeriesCatalog =

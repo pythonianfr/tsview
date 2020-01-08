@@ -6,7 +6,7 @@ import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
-import Catalog exposing (RawSeriesCatalog, seriesFromCatalog, kindsFromCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, removeSeries)
 import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
@@ -16,9 +16,7 @@ import Url.Builder as UB
 
 type alias Model =
     { urlPrefix : String
-    , series : List String
-    , sources : List String
-    , seriesKind : Dict String String
+    , catalog : SeriesCatalog
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
@@ -70,11 +68,7 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                newModel { model
-                             | series = seriesFromCatalog x
-                             , sources = keys x
-                             , seriesKind = kindsFromCatalog x
-                         }
+                newModel { model | catalog = buildCatalog x }
 
             CatalogReceived (Err x) ->
                 newModel { model | errors = Just [ x ] }
@@ -87,7 +81,9 @@ update msg model =
 
             MakeSearch ->
                 newModel { model
-                             | searchedSeries = keywordMatch model.searchString model.series
+                             | searchedSeries = keywordMatch
+                                                model.searchString
+                                                model.catalog.series
                          }
 
             OnDelete ->
@@ -107,7 +103,7 @@ update msg model =
             DeleteDone (Ok x) ->
                 newModel
                 { model
-                    | series = removeItem x model.series
+                    | catalog = removeSeries x model.catalog
                     , searchedSeries = removeItem x model.searchedSeries
                     , selectedSeries = removeItem x model.selectedSeries
                 }
@@ -179,7 +175,7 @@ main =
             let
                 p = Common.checkUrlPrefix urlPrefix
             in
-                ( Model p [] [] (fromList []) "" [] [] Nothing, initialGet p )
+                ( Model p (buildCatalog Dict.empty) "" [] [] Nothing, initialGet p )
 
         sub model =
             Time.every 1000 (always MakeSearch)
