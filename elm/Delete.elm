@@ -2,7 +2,7 @@ module Delete exposing (main)
 
 import Browser
 import Common exposing (classes)
-import Dict
+import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
@@ -16,6 +16,8 @@ import Url.Builder as UB
 type alias Model =
     { urlPrefix : String
     , series : List String
+    , sources : List String
+    , seriesKind : Dict String String
     , searchString : String
     , searchedSeries : List String
     , selectedSeries : List String
@@ -24,7 +26,7 @@ type alias Model =
 
 
 type alias SeriesCatalog =
-    Dict.Dict String (List String)
+    Dict String (List (List String))
 
 
 type Msg
@@ -67,13 +69,32 @@ update msg model =
                 , timeout = Nothing
                 , tracker = Nothing
                 }
+
     in
         case msg of
             CatalogReceived (Ok x) ->
                 let
-                    series = Dict.keys x
+                    makeSeries: List String -> String
+                    makeSeries rawlist =
+                        case rawlist of
+                            [a,_] -> a
+                            _ -> "<nosuchseries>"
+
+                    makeSeriesTuple: List String -> (String, String)
+                    makeSeriesTuple rawList =
+                        case rawList of
+                            [a,b] -> (a, b)
+                            _ -> ("<nosuchseries>", "<nosuchkind>")
+
+                    series = List.map makeSeries (List.concat (values x))
+                    sources = keys x
+                    seriesKind = fromList (List.map makeSeriesTuple (List.concat (values x)))
                 in
-                    newModel { model | series = series }
+                    newModel { model |
+                               series = series
+                             , sources = sources
+                             , seriesKind = seriesKind
+                             }
 
             CatalogReceived (Err x) ->
                 newModel { model | errors = Just [ x ] }
@@ -167,7 +188,7 @@ main =
                 { expect =
                       Common.expectJsonMessage
                       CatalogReceived
-                      (Decode.dict (Decode.list Decode.string))
+                      (Decode.dict (Decode.list (Decode.list Decode.string)))
                 , url =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "catalog" ]
@@ -178,7 +199,7 @@ main =
             let
                 p = Common.checkUrlPrefix urlPrefix
             in
-                ( Model p [] "" [] [] Nothing, initialGet p )
+                ( Model p [] [] (fromList []) "" [] [] Nothing, initialGet p )
 
         sub model =
             Time.every 1000 (always MakeSearch)
