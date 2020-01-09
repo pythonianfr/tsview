@@ -29,19 +29,18 @@ view cfg ctx =
     let
         searchInput =
             input
-                [ classes
-                    [ T.input_reset
-                    , T.ba
-                    , T.b__black_20
-                    , T.pa2
-                    , T.db
-                    , T.w_100
-                    ]
-                , value ctx.searchString
-                , onInput cfg.onInputMsg
-                , autofocus True
-                ]
-                []
+            [ classes
+                  [ T.input_reset
+                  , T.ba
+                  , T.b__black_20
+                  , T.pa2
+                  , T.db
+                  , T.w_100
+                  ]
+            , value ctx.searchString
+            , onInput cfg.onInputMsg
+            , autofocus True
+            ] []
 
         cols =
             let
@@ -50,33 +49,32 @@ view cfg ctx =
                         selectorCfg
                         (ItemSelector.Context items ctx.selectedItems)
             in
-            div [ classes [ T.dt, T.dt__fixed ] ]
-                (List.map
-                    (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ render x ])
-                    [ ( cfg.searchSelector, ctx.searchedItems )
-                    , ( cfg.actionSelector, ctx.selectedItems )
-                    ]
-                )
+                div [ classes [ T.dt, T.dt__fixed ] ]
+                    (List.map
+                         (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ render x ])
+                         [ ( cfg.searchSelector, ctx.searchedItems )
+                         , ( cfg.actionSelector, ctx.selectedItems )
+                         ]
+                    )
 
         addErr mess =
             let
                 cls =
                     classes
-                        [ T.flex
-                        , T.items_center
-                        , T.pa4
-                        , T.bg_washed_red
-                        , T.navy
-                        ]
+                    [ T.flex
+                    , T.items_center
+                    , T.pa4
+                    , T.bg_washed_red
+                    , T.navy
+                    ]
             in
-            [ div [ cls ] [ mess ] ]
+                [ div [ cls ] [ mess ] ]
 
         checkErr xs =
             Common.maybe xs (addErr >> List.append xs) ctx.errorMessage
     in
-    div cfg.divAttrs
-        [ searchInput
-
-        -- XXX w_90 should not be there but how to fix it ?
-        , div [ classes [ T.w_90, T.absolute, T.z_2, T.bg_white_80 ] ] <| checkErr [ cols ]
-        ]
+        div cfg.divAttrs
+            [ searchInput
+            -- XXX w_90 should not be there but how to fix it ?
+            , div [ classes [ T.w_90, T.absolute, T.z_2, T.bg_white_80 ] ] <| checkErr [ cols ]
+            ]
