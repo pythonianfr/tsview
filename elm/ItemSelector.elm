@@ -9,11 +9,11 @@ import Tachyons.Classes as T
 
 type alias Config msg =
     { action :
-        Maybe
-            { attrs : List (Attribute msg)
-            , html : Html msg
-            , clickMsg : msg
-            }
+          Maybe
+          { attrs : List (Attribute msg)
+          , html : Html msg
+          , clickMsg : msg
+          }
     , defaultText : Html msg
     , toggleMsg : String -> msg
     }
@@ -28,8 +28,7 @@ type alias Context =
 view : Config msg -> Context -> Html msg
 view cfg ctx =
     let
-        enabled =
-            List.length ctx.items > 0
+        enabled = List.length ctx.items > 0
 
         ulClass =
             classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
@@ -41,15 +40,14 @@ view cfg ctx =
 
                 liSelected =
                     let
-                        isSelected =
-                            List.member item ctx.selectedItems
+                        isSelected = List.member item ctx.selectedItems
                     in
-                    classList <|
-                        List.map
-                            (\x -> ( x, isSelected ))
-                            [ T.white, T.bg_blue ]
+                        classList <|
+                            List.map
+                                (\x -> ( x, isSelected ))
+                                [ T.white, T.bg_blue ]
             in
-            [ liClass, liSelected, onMouseDown <| cfg.toggleMsg item ]
+                [ liClass, liSelected, onMouseDown <| cfg.toggleMsg item ]
 
         lst =
             ul [ ulClass ] <|
@@ -61,15 +59,16 @@ view cfg ctx =
             let
                 aClass =
                     classes
-                        [ T.w_100, T.link, T.dim, T.ph3, T.pv2, T.ma2, T.dib, T.tc ]
+                    [ T.w_100, T.link, T.dim, T.ph3, T.pv2, T.ma2, T.dib, T.tc ]
 
                 attrs =
                     [ aClass, onMouseDown act.clickMsg ] ++ act.attrs
             in
-            div [ classes [ T.dt, T.dt__fixed ] ] [ a attrs [ act.html ], lst ]
+                div [ classes [ T.dt, T.dt__fixed ] ] [ a attrs [ act.html ], lst ]
     in
-    if enabled then
-        Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
-
-    else
-        div [ classes [ T.pl0, T.ml0 ] ] [ cfg.defaultText ]
+        if
+            enabled
+        then
+            Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
+        else
+            div [ classes [ T.pl0, T.ml0 ] ] [ cfg.defaultText ]
