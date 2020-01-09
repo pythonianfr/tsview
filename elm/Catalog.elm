@@ -9,37 +9,29 @@ import Url.Builder as UB
 
 
 type alias RawSeriesCatalog =
-    Dict String (List (List String))
+    Dict String (List (String, String))
+
+
+decodeTuple =
+    Decode.map2 Tuple.pair
+        (Decode.index 0 Decode.string)
+        (Decode.index 1 Decode.string)
 
 
 seriesFromCatalog rawCatalog =
-    let
-        makeSeries: List String -> String
-        makeSeries rawlist =
-            case rawlist of
-                [a,_] -> a
-                _ -> "<nosuchseries>"
-    in
-        List.map makeSeries (List.concat (Dict.values rawCatalog))
+    List.map Tuple.first (List.concat (Dict.values rawCatalog))
 
 
 kindsFromCatalog rawCatalog =
-    let
-        makeSeriesTuple: List String -> (String, String)
-        makeSeriesTuple rawList =
-            case rawList of
-                [a,b] -> (a, b)
-                _ -> ("<nosuchseries>", "<nosuchkind>")
-    in
-        Dict.fromList (List.map makeSeriesTuple (List.concat (Dict.values rawCatalog)))
+    Dict.fromList (List.concat (Dict.values rawCatalog))
 
 
 buildCatalog : RawSeriesCatalog -> SeriesCatalog
 buildCatalog rawCatalog =
     let
         series = seriesFromCatalog rawCatalog
-        seriesBySource = Dict.fromList []
-        seriesByKind = kindsFromCatalog rawCatalog
+        seriesBySource = Dict.empty
+        seriesByKind = Dict.empty
     in
         SeriesCatalog series seriesBySource seriesByKind
 
@@ -55,7 +47,7 @@ getCatalog urlPrefix expectcatalog =
     Http.get
         { expect =
               expectcatalog
-              (Decode.dict (Decode.list (Decode.list (Decode.string))))
+              (Decode.dict (Decode.list decodeTuple))
         , url =
             UB.crossOrigin urlPrefix
                 [ "api", "series", "catalog" ]
