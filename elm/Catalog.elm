@@ -23,18 +23,23 @@ seriesFromCatalog rawCatalog =
     List.map Tuple.first (List.concat (Dict.values rawCatalog))
 
 
-kindsFromCatalog rawCatalog =
+groupBy : List (String, String)
+        -> ((String, String) -> String)
+        -> ((String, String) -> String)
+        -> Dict String (Set String)
+groupBy list itemaccessor keyaccessor =
     let
-        allserieskinds = List.concat (Dict.values rawCatalog)
-        allkinds = unique (List.map Tuple.second allserieskinds)
-
-        filternamesbykind kind xs =
-            List.map Tuple.first (List.filter (\x -> (==) kind (Tuple.second x)) xs)
-
-        makedictentry kind =
-            Tuple.pair kind (Set.fromList (filternamesbykind kind allserieskinds))
+        allkeys = unique (List.map keyaccessor list)
+        filterItemsByKey items key =
+            List.map itemaccessor (List.filter (\x -> (==) key (keyaccessor x)) items)
+        makeDictEntry key =
+            Tuple.pair key (Set.fromList (filterItemsByKey list key))
     in
-        Dict.fromList (List.map makedictentry allkinds)
+        Dict.fromList (List.map makeDictEntry allkeys)
+
+
+kindsFromCatalog rawCatalog =
+    groupBy (List.concat (Dict.values rawCatalog)) Tuple.first Tuple.second
 
 
 sourcesFromCatalog rawCatalog =
