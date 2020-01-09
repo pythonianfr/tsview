@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
@@ -43,20 +43,6 @@ type Msg
     | NewSerieName String
     | OnRename
     | RenameDone (Result String String)
-
-
-getCatalog : String -> Cmd Msg
-getCatalog urlPrefix =
-    Http.get
-        { expect =
-              Common.expectJsonMessage
-              CatalogReceived
-              (Decode.dict (Decode.list (Decode.list (Decode.string))))
-        , url =
-            UB.crossOrigin urlPrefix
-                [ "api", "series", "catalog" ]
-                []
-        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -154,7 +140,7 @@ update msg model =
                       , renamedSerie = ""
                       , error = Nothing
                   }
-                , getCatalog model.urlPrefix
+                , getCatalog model.urlPrefix (Common.expectJsonMessage CatalogReceived)
                 )
 
             RenameDone (Err x) ->
@@ -295,7 +281,7 @@ main =
                  Model p Select
                  (buildCatalog (Dict.empty))
                  "" [] Nothing "" Nothing,
-                 getCatalog p
+                 getCatalog p (Common.expectJsonMessage CatalogReceived)
                 )
 
         sub model =

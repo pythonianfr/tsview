@@ -8,7 +8,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import KeywordMultiSelector
@@ -440,16 +440,7 @@ main : Program
 main =
     let
         initialGet urlPrefix =
-            Http.get
-                { expect =
-                    Common.expectJsonMessage
-                        CatalogReceived
-                        (Decode.dict (Decode.list (Decode.list Decode.string)))
-                , url =
-                    UB.crossOrigin urlPrefix
-                        [ "api", "series", "catalog" ]
-                        []
-                }
+            getCatalog urlPrefix (Common.expectJsonMessage CatalogReceived)
 
         init flags =
             let

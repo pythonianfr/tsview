@@ -1,7 +1,11 @@
-module Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, removeSeries)
+module Catalog exposing (RawSeriesCatalog, SeriesCatalog, getCatalog, buildCatalog, removeSeries)
 
+import Common
+import Dict exposing(Dict)
 import Set exposing (Set)
-import Dict exposing(Dict, fromList, keys, values)
+import Http
+import Json.Decode as Decode
+import Url.Builder as UB
 
 
 type alias RawSeriesCatalog =
@@ -16,7 +20,7 @@ seriesFromCatalog rawCatalog =
                 [a,_] -> a
                 _ -> "<nosuchseries>"
     in
-        List.map makeSeries (List.concat (values rawCatalog))
+        List.map makeSeries (List.concat (Dict.values rawCatalog))
 
 
 kindsFromCatalog rawCatalog =
@@ -27,7 +31,7 @@ kindsFromCatalog rawCatalog =
                 [a,b] -> (a, b)
                 _ -> ("<nosuchseries>", "<nosuchkind>")
     in
-        fromList (List.map makeSeriesTuple (List.concat (values rawCatalog)))
+        Dict.fromList (List.map makeSeriesTuple (List.concat (Dict.values rawCatalog)))
 
 
 buildCatalog : RawSeriesCatalog -> SeriesCatalog
@@ -45,6 +49,19 @@ removeSeries name catalog =
         removeItem x xs = List.filter ((/=) x) xs
     in
         { catalog | series = removeItem name catalog.series }
+
+
+getCatalog urlPrefix expectcatalog =
+    Http.get
+        { expect =
+              expectcatalog
+              (Decode.dict (Decode.list (Decode.list (Decode.string))))
+        , url =
+            UB.crossOrigin urlPrefix
+                [ "api", "series", "catalog" ]
+                []
+        }
+
 
 
 type alias SeriesCatalog =

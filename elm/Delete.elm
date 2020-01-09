@@ -6,7 +6,7 @@ import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, removeSeries)
+import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog, removeSeries)
 import KeywordMultiSelector
 import KeywordSelector
 import Tachyons.Classes as T
@@ -160,16 +160,7 @@ main : Program String Model Msg
 main =
     let
         initialGet urlPrefix =
-            Http.get
-                { expect =
-                      Common.expectJsonMessage
-                      CatalogReceived
-                      (Decode.dict (Decode.list (Decode.list Decode.string)))
-                , url =
-                    UB.crossOrigin urlPrefix
-                        [ "api", "series", "catalog" ]
-                        []
-                }
+            getCatalog urlPrefix (Common.expectJsonMessage CatalogReceived)
 
         init urlPrefix =
             let
