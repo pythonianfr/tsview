@@ -13,34 +13,30 @@ countKeywords keywordsString series =
         matchCounter : String -> Maybe Int
         matchCounter serieName =
             let
-                nameLen =
-                    String.length serieName
+                nameLen = String.length serieName
 
-                searchName =
-                    String.toLower serieName
+                searchName = String.toLower serieName
 
                 matchKeyword : ( String, Int ) -> Maybe Int -> Maybe Int
                 matchKeyword ( key, weight ) b =
                     let
-                        prec =
-                            toFloat weight / toFloat nameLen
-
-                        val =
-                            round (1.0e6 + prec * 1.0e5) |> negate
+                        prec = toFloat weight / toFloat nameLen
+                        val = round (1.0e6 + prec * 1.0e5) |> negate
                     in
-                    if String.contains key searchName then
-                        Just <| maybe val ((+) val) b
-
-                    else
-                        b
+                        if
+                            String.contains key searchName
+                        then
+                            Just <| maybe val ((+) val) b
+                        else
+                            b
             in
-            List.foldl matchKeyword Nothing keywords
+                List.foldl matchKeyword Nothing keywords
     in
-    List.sort <|
-        List.foldl
-            (\x b -> maybe b (\i -> ( i, x ) :: b) (matchCounter x))
-            []
-            series
+        List.sort <|
+            List.foldl
+                (\x b -> maybe b (\i -> ( i, x ) :: b) (matchCounter x))
+                []
+                series
 
 
 select : String -> List String -> List String
