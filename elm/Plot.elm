@@ -444,20 +444,19 @@ main =
 
         init flags =
             let
-                p =
-                    Common.checkUrlPrefix flags.urlPrefix
-
-                c =
-                    LruCache.empty 100
-
-                s =
-                    flags.selectedSeries
-
-                e =
-                    flags.hasEditor
+                prefix = Common.checkUrlPrefix flags.urlPrefix
+                selected = flags.selectedSeries
             in
-            ( Model p (buildCatalog Dict.empty) e "" [] s [] (List.isEmpty s) c Nothing
-            , initialGet p
+                ( Model
+                      prefix
+                      (buildCatalog Dict.empty)
+                      flags.hasEditor
+                      "" [] selected  -- search, should be grouped
+                      []
+                      (List.isEmpty selected)
+                      (LruCache.empty 100)
+                      Nothing
+            , initialGet prefix
             )
 
         sub model =
