@@ -14,6 +14,7 @@ import Json.Encode as Encode
 import KeywordMultiSelector
 import KeywordSelector
 import LruCache exposing (LruCache)
+import SeriesSelector
 import Tachyons.Classes as T
 import Task exposing (Task)
 import Time
@@ -24,9 +25,7 @@ type alias Model =
     { urlPrefix : String
     , catalog: SeriesCatalog
     , hasEditor : Bool
-    , searchString : String
-    , searchedSeries : List String
-    , selectedSeries : List String
+    , search : SeriesSelector.Model
     , selectedNamedSeries : List NamedSeries
     , activeSelection : Bool
     , cache : SeriesCache
@@ -240,7 +239,7 @@ update msg model =
     case msg of
         CatalogReceived (Ok x) ->
             ( { model | catalog = buildCatalog x }
-            , Task.attempt RenderPlot <| fetchSeries model.selectedSeries model
+            , Task.attempt RenderPlot <| fetchSeries model.search.selected model
             )
 
         CatalogReceived (Err x) ->
@@ -251,20 +250,28 @@ update msg model =
 
         ToggleItem x ->
             let
-                selectedSeries =
-                    toggleItem x model.selectedSeries
+                search = SeriesSelector.updateselected
+                         model.search
+                         (toggleItem x model.search.selected)
             in
-            ( { model | selectedSeries = selectedSeries }
-            , Task.attempt RenderPlot <| fetchSeries selectedSeries model
-            )
+                ( { model | search = search }
+                , Task.attempt RenderPlot <| fetchSeries search.selected model
+                )
 
         SearchSeries x ->
-            newModel { model | searchString = x }
+            let
+                search = SeriesSelector.updatesearch model.search x
+            in
+                newModel { model | search = search }
 
         MakeSearch ->
-            newModel { model | searchedSeries = keywordMatch
-                                                model.searchString
-                                                model.catalog.series }
+            let
+                search = SeriesSelector.updatefound model.search
+                         (keywordMatch
+                              model.search.search
+                              model.catalog.series)
+            in
+                newModel { model | search = search }
 
         RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
             let
@@ -380,9 +387,9 @@ view model =
 
                 ctx =
                     KeywordMultiSelector.Context
-                        model.searchString
-                        model.searchedSeries
-                        model.selectedSeries
+                        model.search.search
+                        model.search.found
+                        model.search.selected
                         (Maybe.map viewError model.error)
             in
             form [ classes [ T.center, T.pt4, T.w_90 ] ]
@@ -407,7 +414,7 @@ view model =
                                 [ "tsview" ]
                                 (List.map
                                     (\x -> UB.string "series" x)
-                                    model.selectedSeries
+                                    model.search.selected
                                 )
                     in
                     a [ A.href url, cls ] [ text "Permalink" ]
@@ -415,7 +422,7 @@ view model =
                 links =
                     List.map
                         (viewHistoryEditorLink cls model.hasEditor)
-                        model.selectedSeries
+                        model.search.selected
 
             in
             ul [ classes [ T.list, T.mt3, T.mb0 ] ]
@@ -451,7 +458,7 @@ main =
                       prefix
                       (buildCatalog Dict.empty)
                       flags.hasEditor
-                      "" [] selected  -- search, should be grouped
+                      (SeriesSelector.Model "" [] selected)
                       []
                       (List.isEmpty selected)
                       (LruCache.empty 100)
