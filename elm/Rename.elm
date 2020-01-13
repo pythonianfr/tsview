@@ -11,6 +11,7 @@ import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatal
 import Json.Decode as Decode
 import KeywordSelector
 import KeywordSingleSelector
+import SeriesSelector
 import Tachyons.Classes as T
 import Time
 import Url.Builder as UB
@@ -25,9 +26,7 @@ type alias Model =
     { urlPrefix : String
     , state : State
     , catalog : SeriesCatalog
-    , searchString : String
-    , searchedSeries : List String
-    , selectedSerie : Maybe String
+    , search : SeriesSelector.Model
     , renamedSerie : String
     , error : Maybe String
     }
@@ -51,16 +50,13 @@ update msg model =
         removeItem x xs =
             List.filter ((/=) x) xs
 
-        toggleItem new maybeCurrent =
-            case maybeCurrent of
-                Just current ->
-                    if current == new then
-                        Nothing
-                    else
-                        Just new
-
-                Nothing ->
-                    Just new
+        toggleitem elt list =
+            if
+                List.member elt list
+            then
+                []
+            else
+                List.singleton elt
 
         newModel x = ( x, Cmd.none )
 
@@ -72,10 +68,7 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                ( { model
-                      | catalog = buildCatalog x
-                      , searchedSeries = keywordMatch model.searchString model.catalog.series
-                  }
+                ( { model | catalog = buildCatalog x }
                 , Cmd.none
                 )
 
@@ -83,22 +76,32 @@ update msg model =
                 newModel { model | error = Just x }
 
             ToggleItem x ->
-                newModel { model | selectedSerie = toggleItem x model.selectedSerie }
+                newModel { model | search = SeriesSelector.updateselected
+                                            model.search
+                                            (toggleitem x model.search.selected)
+                         }
 
             SearchSeries x ->
-                newModel { model | searchString = x }
+                newModel { model | search = SeriesSelector.updatesearch
+                                            model.search
+                                            x
+                         }
 
             MakeSearch ->
-                newModel
-                { model
-                    | searchedSeries = keywordMatch model.searchString model.catalog.series
-                }
+                let
+                    newsearch = SeriesSelector.updatefound
+                                model.search
+                                    (keywordMatch
+                                         model.search.search
+                                         model.catalog.series)
+                in
+                    newModel { model | search = newsearch }
 
             EditMode ->
                 newModel
                 { model
                     | state = Edit
-                    , renamedSerie = Maybe.withDefault "" model.selectedSerie
+                    , renamedSerie = Maybe.withDefault "" (List.head model.search.selected)
                 }
 
             SelectMode ->
@@ -116,7 +119,7 @@ update msg model =
                         UB.crossOrigin model.urlPrefix
                             [ "api", "series", "state" ]
                             [ UB.string "name" <|
-                                  Maybe.withDefault "" model.selectedSerie
+                                  Maybe.withDefault "" (List.head model.search.selected)
                             , UB.string "newname" model.renamedSerie
                             ]
 
@@ -136,7 +139,7 @@ update msg model =
             RenameDone (Ok _) ->
                 ( { model
                       | state = Select
-                      , selectedSerie = Nothing
+                      , search = SeriesSelector.null
                       , renamedSerie = ""
                       , error = Nothing
                   }
@@ -177,7 +180,7 @@ editor model =
         edit =
             let
                 txt =
-                    "New name for : " ++ Maybe.withDefault "" model.selectedSerie
+                    "New name for : " ++ Maybe.withDefault "" (List.head model.search.selected)
 
                 lab =
                     label
@@ -254,9 +257,9 @@ view model =
     let
         ctx =
             KeywordSingleSelector.Context
-                model.searchString
-                model.searchedSeries
-                model.selectedSerie
+                model.search.search
+                model.search.found
+                (List.head model.search.selected)
                 (Maybe.map text model.error)
 
         content =
@@ -275,13 +278,18 @@ main =
     let
         init urlPrefix =
             let
-                p = Common.checkUrlPrefix urlPrefix
+                prefix = Common.checkUrlPrefix urlPrefix
             in
                 (
-                 Model p Select
-                 (buildCatalog (Dict.empty))
-                 "" [] Nothing "" Nothing,
-                 getCatalog p (Common.expectJsonMessage CatalogReceived)
+                 Model
+                     prefix
+                     Select
+                     (buildCatalog (Dict.empty))
+                     SeriesSelector.null
+                     ""
+                     Nothing
+                ,
+                    getCatalog prefix (Common.expectJsonMessage CatalogReceived)
                 )
 
         sub model =
