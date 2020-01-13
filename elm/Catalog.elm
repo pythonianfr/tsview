@@ -1,4 +1,4 @@
-module Catalog exposing (RawSeriesCatalog, SeriesCatalog, getCatalog, buildCatalog, removeSeries)
+module Catalog exposing (RawSeries, Model, get, new, removeSeries)
 
 import Common
 import Dict exposing(Dict)
@@ -9,25 +9,32 @@ import List.Extra exposing (unique)
 import Url.Builder as UB
 
 
-type alias RawSeriesCatalog =
+type alias RawSeries =
     Dict String (List (String, String))
 
 
-decodeTuple =
+type alias Model =
+    { series : List String
+    , seriesBySource : Dict String (Set String)
+    , seriesByKind : Dict String (Set String)
+    }
+
+decodetuple =
     Decode.map2 Tuple.pair
         (Decode.index 0 Decode.string)
         (Decode.index 1 Decode.string)
 
 
-seriesFromCatalog rawCatalog =
-    List.map Tuple.first (List.concat (Dict.values rawCatalog))
+newseries : RawSeries -> List String
+newseries raw =
+    List.map Tuple.first (List.concat (Dict.values raw))
 
 
-groupBy : List (String, String)
+groupby : List (String, String)
         -> ((String, String) -> String)
         -> ((String, String) -> String)
         -> Dict String (Set String)
-groupBy list itemaccessor keyaccessor =
+groupby list itemaccessor keyaccessor =
     let
         allkeys = unique (List.map keyaccessor list)
         filterItemsByKey items key =
@@ -38,28 +45,29 @@ groupBy list itemaccessor keyaccessor =
         Dict.fromList (List.map makeDictEntry allkeys)
 
 
-kindsFromCatalog rawCatalog =
-    groupBy (List.concat (Dict.values rawCatalog)) Tuple.first Tuple.second
+newkinds : RawSeries -> Dict String (Set String)
+newkinds raw =
+    groupby (List.concat (Dict.values raw)) Tuple.first Tuple.second
 
 
-sourcesFromCatalog rawCatalog =
+newsources raw =
     let
         namesbysource source =
-            List.map Tuple.first (Maybe.withDefault [] (Dict.get source rawCatalog))
+            List.map Tuple.first (Maybe.withDefault [] (Dict.get source raw))
         makedictentry source =
             Tuple.pair source (Set.fromList (namesbysource source))
     in
-         Dict.fromList (List.map makedictentry (Dict.keys rawCatalog))
+         Dict.fromList (List.map makedictentry (Dict.keys raw))
 
 
-buildCatalog : RawSeriesCatalog -> SeriesCatalog
-buildCatalog rawCatalog =
+new : RawSeries -> Model
+new raw =
     let
-        series = seriesFromCatalog rawCatalog
-        seriesBySource = sourcesFromCatalog rawCatalog
-        seriesByKind = kindsFromCatalog rawCatalog
+        series = newseries raw
+        seriesBySource = newsources raw
+        seriesByKind = newkinds raw
     in
-        SeriesCatalog series seriesBySource seriesByKind
+        Model series seriesBySource seriesByKind
 
 
 removeSeries name catalog =
@@ -69,21 +77,13 @@ removeSeries name catalog =
         { catalog | series = removeItem name catalog.series }
 
 
-getCatalog urlPrefix expectcatalog =
+get urlPrefix expectcatalog =
     Http.get
         { expect =
               expectcatalog
-              (Decode.dict (Decode.list decodeTuple))
+              (Decode.dict (Decode.list decodetuple))
         , url =
             UB.crossOrigin urlPrefix
                 [ "api", "series", "catalog" ]
                 []
         }
-
-
-
-type alias SeriesCatalog =
-    { series : List String
-    , seriesBySource : Dict String (Set String)
-    , seriesByKind : Dict String (Set String)
-    }

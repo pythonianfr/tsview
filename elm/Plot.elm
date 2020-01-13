@@ -8,7 +8,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
+import Catalog
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import KeywordSelector
@@ -22,7 +22,7 @@ import Url.Builder as UB
 
 type alias Model =
     { urlPrefix : String
-    , catalog: SeriesCatalog
+    , catalog: Catalog.Model
     , hasEditor : Bool
     , search : SeriesSelector.Model
     , selectedNamedSeries : List NamedSeries
@@ -60,7 +60,7 @@ type alias SeriesCache =
 
 
 type Msg
-    = CatalogReceived (Result String RawSeriesCatalog)
+    = CatalogReceived (Result String Catalog.RawSeries)
     | ToggleSelection
     | ToggleItem String
     | SearchSeries String
@@ -237,7 +237,7 @@ update msg model =
     in
     case msg of
         CatalogReceived (Ok x) ->
-            ( { model | catalog = buildCatalog x }
+            ( { model | catalog = Catalog.new x }
             , Task.attempt RenderPlot <| fetchSeries model.search.selected model
             )
 
@@ -444,7 +444,7 @@ main : Program
 main =
     let
         initialGet urlPrefix =
-            getCatalog urlPrefix (Common.expectJsonMessage CatalogReceived)
+            Catalog.get urlPrefix (Common.expectJsonMessage CatalogReceived)
 
         init flags =
             let
@@ -453,7 +453,7 @@ main =
             in
                 ( Model
                       prefix
-                      (buildCatalog Dict.empty)
+                      (Catalog.new Dict.empty)
                       flags.hasEditor
                       (SeriesSelector.Model "" [] selected)
                       []

@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
 import Html.Styled.Events exposing (onInput, onMouseDown)
 import Http
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
+import Catalog
 import Json.Decode as Decode
 import KeywordSelector
 import SeriesSelector
@@ -24,7 +24,7 @@ type State
 type alias Model =
     { urlPrefix : String
     , state : State
-    , catalog : SeriesCatalog
+    , catalog : Catalog.Model
     , search : SeriesSelector.Model
     , renamed : String
     , error : Maybe String
@@ -32,7 +32,7 @@ type alias Model =
 
 
 type Msg
-    = CatalogReceived (Result String RawSeriesCatalog)
+    = CatalogReceived (Result String Catalog.RawSeries)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -67,7 +67,7 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                ( { model | catalog = buildCatalog x }
+                ( { model | catalog = Catalog.new x }
                 , Cmd.none
                 )
 
@@ -142,7 +142,7 @@ update msg model =
                       , renamed = ""
                       , error = Nothing
                   }
-                , getCatalog model.urlPrefix (Common.expectJsonMessage CatalogReceived)
+                , Catalog.get model.urlPrefix (Common.expectJsonMessage CatalogReceived)
                 )
 
             RenameDone (Err x) ->
@@ -281,12 +281,12 @@ main =
                  Model
                      prefix
                      Select
-                     (buildCatalog (Dict.empty))
+                     (Catalog.new Dict.empty)
                      SeriesSelector.null
                      ""
                      Nothing
                 ,
-                    getCatalog prefix (Common.expectJsonMessage CatalogReceived)
+                    Catalog.get prefix (Common.expectJsonMessage CatalogReceived)
                 )
 
         sub model =

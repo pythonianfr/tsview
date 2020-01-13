@@ -6,7 +6,7 @@ import Dict exposing(Dict, fromList, keys, values)
 import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
-import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog, removeSeries)
+import Catalog
 import KeywordSelector
 import SeriesSelector
 import Tachyons.Classes as T
@@ -16,14 +16,14 @@ import Url.Builder as UB
 
 type alias Model =
     { urlPrefix : String
-    , catalog : SeriesCatalog
+    , catalog : Catalog.Model
     , search : SeriesSelector.Model
     , errors : Maybe (List String)
     }
 
 
 type Msg
-    = CatalogReceived (Result String RawSeriesCatalog)
+    = CatalogReceived (Result String Catalog.RawSeries)
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -66,7 +66,7 @@ update msg model =
     in
         case msg of
             CatalogReceived (Ok x) ->
-                newModel { model | catalog = buildCatalog x }
+                newModel { model | catalog = Catalog.new x }
 
             CatalogReceived (Err x) ->
                 newModel { model | errors = Just [ x ] }
@@ -118,7 +118,7 @@ update msg model =
                 in
                     newModel
                     { model
-                        | catalog = removeSeries x model.catalog
+                        | catalog = Catalog.removeSeries x model.catalog
                         , search = newsearch
                     }
 
@@ -172,7 +172,7 @@ main : Program String Model Msg
 main =
     let
         initialGet urlPrefix =
-            getCatalog urlPrefix (Common.expectJsonMessage CatalogReceived)
+            Catalog.get urlPrefix (Common.expectJsonMessage CatalogReceived)
 
         init urlPrefix =
             let
@@ -180,7 +180,7 @@ main =
             in
                 ( Model
                       prefix
-                      (buildCatalog Dict.empty)
+                      (Catalog.new Dict.empty)
                       SeriesSelector.null
                       Nothing
                 ,
