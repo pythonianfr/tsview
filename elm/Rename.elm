@@ -27,7 +27,7 @@ type alias Model =
     , state : State
     , catalog : SeriesCatalog
     , search : SeriesSelector.Model
-    , renamedSerie : String
+    , renamed : String
     , error : Maybe String
     }
 
@@ -101,14 +101,14 @@ update msg model =
                 newModel
                 { model
                     | state = Edit
-                    , renamedSerie = Maybe.withDefault "" (List.head model.search.selected)
+                    , renamed = Maybe.withDefault "" (List.head model.search.selected)
                 }
 
             SelectMode ->
                 newModel { model | state = Select, error = Nothing }
 
             NewSerieName x ->
-                newModel { model | renamedSerie = x, error = Nothing }
+                newModel { model | renamed = x, error = Nothing }
 
             OnRename ->
                 let
@@ -120,7 +120,7 @@ update msg model =
                             [ "api", "series", "state" ]
                             [ UB.string "name" <|
                                   Maybe.withDefault "" (List.head model.search.selected)
-                            , UB.string "newname" model.renamedSerie
+                            , UB.string "newname" model.renamed
                             ]
 
                     putRequest =
@@ -140,7 +140,7 @@ update msg model =
                 ( { model
                       | state = Select
                       , search = SeriesSelector.null
-                      , renamedSerie = ""
+                      , renamed = ""
                       , error = Nothing
                   }
                 , getCatalog model.urlPrefix (Common.expectJsonMessage CatalogReceived)
@@ -201,7 +201,7 @@ editor model =
                 inpt =
                     input
                     [ inputClass
-                    , value model.renamedSerie
+                    , value model.renamed
                     , onInput NewSerieName
                     ] []
             in
