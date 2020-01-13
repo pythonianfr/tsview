@@ -7,7 +7,6 @@ import Html.Styled exposing (..)
 import Http
 import Json.Decode as Decode
 import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog, removeSeries)
-import KeywordMultiSelector
 import KeywordSelector
 import SeriesSelector
 import Tachyons.Classes as T
@@ -130,7 +129,7 @@ update msg model =
                 }
 
 
-selectorConfig : KeywordMultiSelector.Config Msg
+selectorConfig : SeriesSelector.Config Msg
 selectorConfig =
     { searchSelector =
           { action = Nothing
@@ -161,14 +160,12 @@ view model =
             ul [] (List.map (\x -> li [] [ text x ]) xs)
 
         ctx =
-            KeywordMultiSelector.Context
-                model.search.search
-                model.search.found
-                model.search.selected
+            SeriesSelector.View
+                model.search
                 (Maybe.map viewError model.errors)
     in
         article [ classes [ T.center, T.pt4, T.w_90 ] ]
-            [ KeywordMultiSelector.view selectorConfig ctx ]
+            [ SeriesSelector.view selectorConfig ctx ]
 
 
 main : Program String Model Msg

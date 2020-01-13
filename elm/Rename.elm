@@ -10,7 +10,6 @@ import Http
 import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
 import Json.Decode as Decode
 import KeywordSelector
-import KeywordMultiSelector
 import SeriesSelector
 import Tachyons.Classes as T
 import Time
@@ -150,7 +149,7 @@ update msg model =
                 newModel { model | error = Just x }
 
 
-selectorConfig : KeywordMultiSelector.Config Msg
+selectorConfig : SeriesSelector.Config Msg
 selectorConfig =
     { searchSelector =
           { action = Nothing
@@ -256,16 +255,14 @@ view : Model -> Html Msg
 view model =
     let
         ctx =
-            KeywordMultiSelector.Context
-                model.search.search
-                model.search.found
-                model.search.selected
+            SeriesSelector.View
+                model.search
                 (Maybe.map text model.error)
 
         content =
             case model.state of
                 Select ->
-                    KeywordMultiSelector.view selectorConfig ctx
+                    SeriesSelector.view selectorConfig ctx
 
                 Edit ->
                     editor model

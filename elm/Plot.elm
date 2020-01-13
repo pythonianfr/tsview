@@ -11,7 +11,6 @@ import Http
 import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import KeywordMultiSelector
 import KeywordSelector
 import LruCache exposing (LruCache)
 import SeriesSelector
@@ -297,7 +296,7 @@ update msg model =
                 }
 
 
-selectorConfig : KeywordMultiSelector.Config Msg
+selectorConfig : SeriesSelector.Config Msg
 selectorConfig =
     { searchSelector =
         { action = Nothing
@@ -386,16 +385,14 @@ view model =
                     [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
 
                 ctx =
-                    KeywordMultiSelector.Context
-                        model.search.search
-                        model.search.found
-                        model.search.selected
+                    SeriesSelector.View
+                        model.search
                         (Maybe.map viewError model.error)
             in
             form [ classes [ T.center, T.pt4, T.w_90 ] ]
                 (if model.activeSelection then
                     List.append children
-                        [ KeywordMultiSelector.view selectorConfig ctx
+                        [ SeriesSelector.view selectorConfig ctx
                         ]
 
                  else
