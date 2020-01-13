@@ -9,6 +9,7 @@ import Json.Decode as Decode
 import Catalog exposing (RawSeriesCatalog, SeriesCatalog, buildCatalog, getCatalog, removeSeries)
 import KeywordMultiSelector
 import KeywordSelector
+import SeriesSelector
 import Tachyons.Classes as T
 import Time
 import Url.Builder as UB
@@ -17,9 +18,7 @@ import Url.Builder as UB
 type alias Model =
     { urlPrefix : String
     , catalog : SeriesCatalog
-    , searchString : String
-    , searchedSeries : List String
-    , selectedSeries : List String
+    , search : SeriesSelector.Model
     , errors : Maybe (List String)
     }
 
@@ -74,17 +73,28 @@ update msg model =
                 newModel { model | errors = Just [ x ] }
 
             ToggleItem x ->
-                newModel { model | selectedSeries = toggleItem x model.selectedSeries }
+                let
+                    newsearch = SeriesSelector.updateselected
+                                model.search
+                                (toggleItem x model.search.selected)
+                in
+                    newModel { model | search = newsearch }
 
             SearchSeries x ->
-                newModel { model | searchString = x }
+                let
+                    newsearch = SeriesSelector.updatesearch model.search x
+                in
+                    newModel { model | search = newsearch }
 
             MakeSearch ->
-                newModel { model
-                             | searchedSeries = keywordMatch
-                                                model.searchString
-                                                model.catalog.series
-                         }
+                let
+                    newsearch = SeriesSelector.updatefound
+                                model.search
+                                (keywordMatch
+                                     model.search.search
+                                     model.catalog.series)
+                in
+                    newModel { model | search = newsearch }
 
             OnDelete ->
                 let
@@ -97,16 +107,21 @@ update msg model =
                             [ UB.string "name" serieName ]
                 in
                     ( model
-                    , Cmd.batch <| List.map (mkUrl >> delete expect) model.selectedSeries
+                    , Cmd.batch <| List.map (mkUrl >> delete expect) model.search.selected
                     )
 
             DeleteDone (Ok x) ->
-                newModel
-                { model
-                    | catalog = removeSeries x model.catalog
-                    , searchedSeries = removeItem x model.searchedSeries
-                    , selectedSeries = removeItem x model.selectedSeries
-                }
+                let
+                    newsearch = SeriesSelector.new
+                                model.search.search
+                                (removeItem x model.search.found)
+                                (removeItem x model.search.selected)
+                in
+                    newModel
+                    { model
+                        | catalog = removeSeries x model.catalog
+                        , search = newsearch
+                    }
 
             DeleteDone (Err x) ->
                 newModel
@@ -147,9 +162,9 @@ view model =
 
         ctx =
             KeywordMultiSelector.Context
-                model.searchString
-                model.searchedSeries
-                model.selectedSeries
+                model.search.search
+                model.search.found
+                model.search.selected
                 (Maybe.map viewError model.errors)
     in
         article [ classes [ T.center, T.pt4, T.w_90 ] ]
@@ -164,9 +179,16 @@ main =
 
         init urlPrefix =
             let
-                p = Common.checkUrlPrefix urlPrefix
+                prefix = Common.checkUrlPrefix urlPrefix
             in
-                ( Model p (buildCatalog Dict.empty) "" [] [] Nothing, initialGet p )
+                ( Model
+                      prefix
+                      (buildCatalog Dict.empty)
+                      SeriesSelector.null
+                      Nothing
+                ,
+                      initialGet prefix
+                )
 
         sub model =
             Time.every 1000 (always MakeSearch)
