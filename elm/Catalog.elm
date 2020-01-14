@@ -19,11 +19,8 @@ type alias Model =
     , seriesByKind : Dict String (Set String)
     }
 
-decodetuple =
-    Decode.map2 Tuple.pair
-        (Decode.index 0 Decode.string)
-        (Decode.index 1 Decode.string)
 
+-- catalog building
 
 newseries : RawSeries -> List String
 newseries raw =
@@ -76,6 +73,13 @@ removeSeries name catalog =
     in
         { catalog | series = removeItem name catalog.series }
 
+
+-- catalog fetching
+
+decodetuple =
+    Decode.map2 Tuple.pair
+        (Decode.index 0 Decode.string)
+        (Decode.index 1 Decode.string)
 
 get urlPrefix expectcatalog =
     Http.get
