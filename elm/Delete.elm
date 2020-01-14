@@ -29,6 +29,7 @@ type Msg
     | MakeSearch
     | OnDelete
     | DeleteDone (Result String String)
+    | KindChange String Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -68,8 +69,22 @@ update msg model =
             GotCatalog catmsg ->
                 let
                     newcat = Catalog.update catmsg model.catalog
+                    newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model | catalog = newcat }
+                    newModel { model
+                                 | catalog = newcat
+                                 , search = newsearch
+                             }
+
+            KindChange kind checked ->
+                let
+                    newsearch = SeriesSelector.updatekinds
+                                model.search
+                                model.catalog
+                                kind
+                                checked
+                in
+                    newModel { model | search = newsearch }
 
             ToggleItem x ->
                 let
@@ -91,7 +106,7 @@ update msg model =
                                 model.search
                                 (keywordMatch
                                      model.search.search
-                                     model.catalog.series)
+                                     model.search.filteredseries)
                 in
                     newModel { model | search = newsearch }
 
@@ -111,10 +126,12 @@ update msg model =
 
             DeleteDone (Ok x) ->
                 let
-                    newsearch = SeriesSelector.new
+                    newsearch = SeriesSelector.new -- there must be a more elegant way
+                                (removeItem x model.search.filteredseries)
                                 model.search.search
                                 (removeItem x model.search.found)
                                 (removeItem x model.search.selected)
+                                model.search.kinds
                 in
                     newModel
                     { model
@@ -123,7 +140,7 @@ update msg model =
                     }
 
             DeleteDone (Err x) ->
-                newModel
+                newModel -- why not trigger GotCatalog again ?
                 { model
                     | errors = Just <| Common.maybe [ x ] ((::) x) model.errors
                 }
@@ -149,6 +166,7 @@ selectorConfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
+    , onKindChange = KindChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
 
@@ -165,7 +183,7 @@ view model =
                 (Maybe.map viewError model.errors)
     in
         article [ classes [ T.center, T.pt4, T.w_90 ] ]
-            [ SeriesSelector.view selectorConfig ctx ]
+            [ SeriesSelector.view model.search model.catalog selectorConfig ctx ]
 
 
 main : Program String Model Msg
@@ -181,7 +199,7 @@ main =
                       SeriesSelector.null
                       Nothing
                 ,
-                      Cmd.map GotCatalog (Catalog.get urlprefix)
+                      Cmd.map GotCatalog (Catalog.get prefix)
                 )
 
         sub model =

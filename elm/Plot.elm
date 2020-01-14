@@ -67,6 +67,7 @@ type Msg
     | SearchSeries String
     | MakeSearch
     | RenderPlot (Result (List String) ( SeriesCache, List NamedSeries, List NamedError ))
+    | KindChange String Bool
 
 
 type alias Trace =
@@ -234,8 +235,22 @@ update msg model =
             GotCatalog catmsg ->
                 let
                     newcat = Catalog.update catmsg model.catalog
+                    newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model | catalog = newcat }
+                    newModel { model
+                                 | catalog = newcat
+                                 , search = newsearch
+                             }
+
+            KindChange kind checked ->
+                let
+                    newsearch = SeriesSelector.updatekinds
+                                model.search
+                                model.catalog
+                                kind
+                                checked
+                in
+                    newModel { model | search = newsearch }
 
             ToggleSelection ->
                 newModel { model | activeSelection = not model.activeSelection }
@@ -261,7 +276,7 @@ update msg model =
                     search = SeriesSelector.updatefound model.search
                              (keywordMatch
                                   model.search.search
-                                  model.catalog.series)
+                                  model.search.filteredseries)
                 in
                     newModel { model | search = search }
 
@@ -303,6 +318,7 @@ selectorConfig =
         , toggleMsg = ToggleItem
         }
     , onInputMsg = SearchSeries
+    , onKindChange = KindChange
     , divAttrs = [ classes [ T.mb4 ] ]
     }
 
@@ -384,7 +400,11 @@ view model =
                          model.activeSelection
                      then
                          List.append children
-                             [ SeriesSelector.view selectorConfig ctx ]
+                             [ SeriesSelector.view
+                                   model.search
+                                   model.catalog
+                                   selectorConfig
+                                   ctx ]
                      else
                          children
                     )
@@ -440,7 +460,7 @@ main =
                       prefix
                       (Catalog.new Dict.empty)
                       flags.hasEditor
-                      (SeriesSelector.Model "" [] selected)
+                      (SeriesSelector.new [] "" [] selected [])
                       []
                       (List.isEmpty selected)
                       (LruCache.empty 100)

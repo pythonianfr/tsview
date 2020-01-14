@@ -41,6 +41,7 @@ type Msg
     | NewSerieName String
     | OnRename
     | RenameDone (Result String String)
+    | KindChange String Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -69,8 +70,22 @@ update msg model =
             GotCatalog catmsg ->
                 let
                     newcat = Catalog.update catmsg model.catalog
+                    newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model | catalog = newcat }
+                    newModel { model
+                                 | catalog = newcat
+                                 , search = newsearch
+                             }
+
+            KindChange kind checked ->
+                let
+                    newsearch = SeriesSelector.updatekinds
+                                model.search
+                                model.catalog
+                                kind
+                                checked
+                in
+                    newModel { model | search = newsearch }
 
             ToggleItem x ->
                 newModel { model | search = SeriesSelector.updateselected
@@ -88,9 +103,9 @@ update msg model =
                 let
                     newsearch = SeriesSelector.updatefound
                                 model.search
-                                    (keywordMatch
-                                         model.search.search
-                                         model.catalog.series)
+                                (keywordMatch
+                                     model.search.search
+                                     model.search.filteredseries)
                 in
                     newModel { model | search = newsearch }
 
@@ -167,6 +182,7 @@ selectorConfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
+    , onKindChange = KindChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
 
@@ -260,7 +276,7 @@ view model =
         content =
             case model.state of
                 Select ->
-                    SeriesSelector.view selectorConfig ctx
+                    SeriesSelector.view model.search model.catalog selectorConfig ctx
 
                 Edit ->
                     editor model
