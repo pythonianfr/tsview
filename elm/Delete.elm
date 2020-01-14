@@ -23,7 +23,7 @@ type alias Model =
 
 
 type Msg
-    = CatalogReceived (Result String Catalog.RawSeries)
+    = GotCatalog Catalog.Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -65,11 +65,11 @@ update msg model =
 
     in
         case msg of
-            CatalogReceived (Ok x) ->
-                newModel { model | catalog = Catalog.new x }
-
-            CatalogReceived (Err x) ->
-                newModel { model | errors = Just [ x ] }
+            GotCatalog catmsg ->
+                let
+                    newcat = Catalog.update catmsg model.catalog
+                in
+                    newModel { model | catalog = newcat }
 
             ToggleItem x ->
                 let
@@ -171,12 +171,9 @@ view model =
 main : Program String Model Msg
 main =
     let
-        initialGet urlPrefix =
-            Catalog.get urlPrefix (Common.expectJsonMessage CatalogReceived)
-
-        init urlPrefix =
+        init urlprefix =
             let
-                prefix = Common.checkUrlPrefix urlPrefix
+                prefix = Common.checkUrlPrefix urlprefix
             in
                 ( Model
                       prefix
@@ -184,7 +181,7 @@ main =
                       SeriesSelector.null
                       Nothing
                 ,
-                      initialGet prefix
+                      Cmd.map GotCatalog (Catalog.get urlprefix)
                 )
 
         sub model =

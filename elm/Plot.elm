@@ -33,8 +33,7 @@ type alias Model =
 
 
 type Error
-    = CatalogError String
-    | SelectionError (List NamedError)
+    = SelectionError (List NamedError)
     | RenderError String
 
 
@@ -60,7 +59,7 @@ type alias SeriesCache =
 
 
 type Msg
-    = CatalogReceived (Result String Catalog.RawSeries)
+    = GotCatalog Catalog.Msg
     | ToggleSelection
     | ToggleItem String
     | SearchSeries String
@@ -236,13 +235,11 @@ update msg model =
                 KeywordSelector.select xm xs |> List.take 20
     in
     case msg of
-        CatalogReceived (Ok x) ->
-            ( { model | catalog = Catalog.new x }
-            , Task.attempt RenderPlot <| fetchSeries model.search.selected model
-            )
-
-        CatalogReceived (Err x) ->
-            newModel { model | error = Just <| CatalogError x }
+        GotCatalog catmsg ->
+            let
+                newcat = Catalog.update catmsg model.catalog
+            in
+                newModel { model | catalog = newcat }
 
         ToggleSelection ->
             newModel { model | activeSelection = not model.activeSelection }
@@ -321,10 +318,7 @@ viewError error =
         bold x =
             span [ classes [ T.b, T.mr4 ] ] [ text x ]
     in
-    case error of
-        CatalogError x ->
-            div [] [ bold "Catalog error", text x ]
-
+    case error of -- Catalog errors are no more handled at all !
         RenderError x ->
             text x
 
@@ -443,9 +437,6 @@ main : Program
        } Model Msg
 main =
     let
-        initialGet urlPrefix =
-            Catalog.get urlPrefix (Common.expectJsonMessage CatalogReceived)
-
         init flags =
             let
                 prefix = Common.checkUrlPrefix flags.urlPrefix
@@ -460,7 +451,7 @@ main =
                       (List.isEmpty selected)
                       (LruCache.empty 100)
                       Nothing
-            , initialGet prefix
+            , Cmd.map GotCatalog (Catalog.get prefix)
             )
 
         sub model =

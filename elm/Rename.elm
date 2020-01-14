@@ -32,7 +32,7 @@ type alias Model =
 
 
 type Msg
-    = CatalogReceived (Result String Catalog.RawSeries)
+    = GotCatalog Catalog.Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -66,13 +66,11 @@ update msg model =
                 KeywordSelector.select xm xs |> List.take 20
     in
         case msg of
-            CatalogReceived (Ok x) ->
-                ( { model | catalog = Catalog.new x }
-                , Cmd.none
-                )
-
-            CatalogReceived (Err x) ->
-                newModel { model | error = Just x }
+            GotCatalog catmsg ->
+                let
+                    newcat = Catalog.update catmsg model.catalog
+                in
+                    newModel { model | catalog = newcat }
 
             ToggleItem x ->
                 newModel { model | search = SeriesSelector.updateselected
@@ -142,7 +140,7 @@ update msg model =
                       , renamed = ""
                       , error = Nothing
                   }
-                , Catalog.get model.urlPrefix (Common.expectJsonMessage CatalogReceived)
+                , Cmd.map GotCatalog (Catalog.get model.urlPrefix)
                 )
 
             RenameDone (Err x) ->
@@ -286,7 +284,7 @@ main =
                      ""
                      Nothing
                 ,
-                    Catalog.get prefix (Common.expectJsonMessage CatalogReceived)
+                    Cmd.map GotCatalog (Catalog.get prefix)
                 )
 
         sub model =

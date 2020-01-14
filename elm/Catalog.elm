@@ -1,4 +1,5 @@
-module Catalog exposing (RawSeries, Model, get, new, removeSeries)
+module Catalog exposing
+    (Model, Msg, get, new, update, removeSeries)
 
 import Common
 import Dict exposing(Dict)
@@ -13,11 +14,31 @@ type alias RawSeries =
     Dict String (List (String, String))
 
 
+type Error
+    = Error String
+
+
 type alias Model =
     { series : List String
     , seriesBySource : Dict String (Set String)
     , seriesByKind : Dict String (Set String)
+    , error : Maybe Error
     }
+
+
+type Msg
+    = Received (Result String RawSeries)
+
+
+-- catalog update
+
+update msg model =
+    case msg of
+        Received (Ok x) ->
+            new x
+
+        Received (Err x) ->
+            Model [] Dict.empty Dict.empty (Just (Error x))
 
 
 -- catalog building
@@ -64,7 +85,7 @@ new raw =
         seriesBySource = newsources raw
         seriesByKind = newkinds raw
     in
-        Model series seriesBySource seriesByKind
+        Model series seriesBySource seriesByKind Nothing
 
 
 removeSeries name catalog =
@@ -81,13 +102,15 @@ decodetuple =
         (Decode.index 0 Decode.string)
         (Decode.index 1 Decode.string)
 
-get urlPrefix expectcatalog =
+
+get : String -> Cmd Msg
+get urlprefix =
     Http.get
         { expect =
-              expectcatalog
+              (Common.expectJsonMessage Received)
               (Decode.dict (Decode.list decodetuple))
         , url =
-            UB.crossOrigin urlPrefix
+            UB.crossOrigin urlprefix
                 [ "api", "series", "catalog" ]
                 []
         }
