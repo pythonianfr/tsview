@@ -11,9 +11,9 @@ import Tachyons.Classes as T
 -- model
 
 type alias Model =
-    { search : String
-    , found : List String
-    , selected : List String
+    { search : String  -- the search input pattern
+    , found : List String  -- series matching the search
+    , selected : List String  --  selected series
     }
 
 
