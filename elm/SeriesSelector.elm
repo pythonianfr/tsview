@@ -1,4 +1,14 @@
-module SeriesSelector exposing (Model, new, null, updatesearch, updatefound, updateselected, Config, View, view)
+module SeriesSelector exposing
+    (Model
+    , new
+    , null
+    , updatesearch
+    , updatefound
+    , updateselected
+    , Config
+    , View
+    , view
+    )
 
 import Common exposing (classes)
 import Html.Styled exposing (..)
