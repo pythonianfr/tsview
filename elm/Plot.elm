@@ -126,23 +126,21 @@ fetchSeries selectedNames model =
         ( usedCache, cachedSeries ) =
             List.foldr
                 (\name ( cache, xs ) ->
-                    let
-                        ( newCache, maybeSerie ) =
-                            LruCache.get name cache
+                     let
+                         ( newCache, maybeSerie ) = LruCache.get name cache
 
-                        x : Either String NamedSeries
-                        x =
-                            maybeSerie
+                         x : Either String NamedSeries
+                         x =
+                             maybeSerie
                                 |> Either.fromMaybe name
                                 |> Either.map (Tuple.pair name)
                     in
-                    ( newCache, x :: xs )
+                        ( newCache, x :: xs )
                 )
-                ( model.cache, [] )
-                selectedNames
+            ( model.cache, [] )
+            selectedNames
 
-        missingNames =
-            Either.lefts cachedSeries
+        missingNames = Either.lefts cachedSeries
 
         getSerie : String -> Task String Serie
         getSerie serieName =
@@ -172,10 +170,10 @@ fetchSeries selectedNames model =
                     List.append (Either.rights cachedSeries) missing
                         |> Dict.fromList
             in
-            List.foldr
-                (\a b -> Common.maybe b (\x -> ( a, x ) :: b) (Dict.get a series))
-                []
-                selectedNames
+                List.foldr
+                    (\a b -> Common.maybe b (\x -> ( a, x ) :: b) (Dict.get a series))
+                    []
+                    selectedNames
 
         updateCache : List NamedSeries -> SeriesCache
         updateCache missing =
@@ -184,112 +182,107 @@ fetchSeries selectedNames model =
                 usedCache
                 missing
     in
-    getMissingSeries
-        |> Task.onError (List.map Either.Left >> Task.succeed)
-        |> Task.andThen
-            (\missings ->
-                let
-                    xs : List (Either NamedError NamedSeries)
-                    xs =
-                        List.map2
+        getMissingSeries
+            |> Task.onError (List.map Either.Left >> Task.succeed)
+            |> Task.andThen
+               (\missings ->
+                    let
+                        xs : List (Either NamedError NamedSeries)
+                        xs =
+                            List.map2
                             (\name x ->
-                                let
-                                    addName =
-                                        Tuple.pair name
-                                in
-                                Either.mapBoth addName addName x
+                                 let
+                                     addName = Tuple.pair name
+                                 in
+                                     Either.mapBoth addName addName x
                             )
                             missingNames
                             missings
 
-                    missingSeries =
-                        Either.rights xs
-                in
-                Task.succeed
-                    ( updateCache missingSeries
-                    , getSeries missingSeries
-                    , Either.lefts xs
-                    )
-            )
+                        missingSeries = Either.rights xs
+                    in
+                        Task.succeed
+                            ( updateCache missingSeries
+                            , getSeries missingSeries
+                            , Either.lefts xs
+                            )
+               )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        removeItem x xs =
-            List.filter ((/=) x) xs
-
+        removeItem x xs = List.filter ((/=) x) xs
         toggleItem x xs =
-            if List.member x xs then
+            if
+                List.member x xs
+            then
                 removeItem x xs
-
             else
                 x :: xs
-
         newModel x =
             ( x, Cmd.none )
-
         keywordMatch xm xs =
-            if String.length xm < 2 then
+            if
+                String.length xm < 2
+            then
                 []
-
             else
                 KeywordSelector.select xm xs |> List.take 20
     in
-    case msg of
-        GotCatalog catmsg ->
-            let
-                newcat = Catalog.update catmsg model.catalog
-            in
-                newModel { model | catalog = newcat }
+        case msg of
+            GotCatalog catmsg ->
+                let
+                    newcat = Catalog.update catmsg model.catalog
+                in
+                    newModel { model | catalog = newcat }
 
-        ToggleSelection ->
-            newModel { model | activeSelection = not model.activeSelection }
+            ToggleSelection ->
+                newModel { model | activeSelection = not model.activeSelection }
 
-        ToggleItem x ->
-            let
-                search = SeriesSelector.updateselected
-                         model.search
-                         (toggleItem x model.search.selected)
-            in
-                ( { model | search = search }
-                , Task.attempt RenderPlot <| fetchSeries search.selected model
-                )
+            ToggleItem x ->
+                let
+                    search = SeriesSelector.updateselected
+                             model.search
+                                 (toggleItem x model.search.selected)
+                in
+                    ( { model | search = search }
+                    , Task.attempt RenderPlot <| fetchSeries search.selected model
+                    )
 
-        SearchSeries x ->
-            let
-                search = SeriesSelector.updatesearch model.search x
-            in
-                newModel { model | search = search }
+            SearchSeries x ->
+                let
+                    search = SeriesSelector.updatesearch model.search x
+                in
+                    newModel { model | search = search }
 
-        MakeSearch ->
-            let
-                search = SeriesSelector.updatefound model.search
-                         (keywordMatch
-                              model.search.search
-                              model.catalog.series)
-            in
-                newModel { model | search = search }
+            MakeSearch ->
+                let
+                    search = SeriesSelector.updatefound model.search
+                             (keywordMatch
+                                  model.search.search
+                                  model.catalog.series)
+                in
+                    newModel { model | search = search }
 
-        RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
-            let
-                error =
-                    case namedErrors of
-                        [] ->
-                            Nothing
+            RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
+                let
+                    error =
+                        case namedErrors of
+                            [] ->
+                                Nothing
+                            xs ->
+                                Just <| SelectionError xs
+                in
+                    newModel
+                    { model
+                        | cache = cache
+                        , selectedNamedSeries = namedSeries
+                        , error = error
+                    }
 
-                        xs ->
-                            Just <| SelectionError xs
-            in
-            newModel
-                { model
-                    | cache = cache
-                    , selectedNamedSeries = namedSeries
-                    , error = error
-                }
-
-        RenderPlot (Err xs) ->
-            newModel
+            RenderPlot (Err xs) ->
+                newModel
                 { model
                     | error = Just <| RenderError <| String.join " " xs
                 }
@@ -320,18 +313,19 @@ viewError error =
         bold x =
             span [ classes [ T.b, T.mr4 ] ] [ text x ]
     in
-    case error of
-        RenderError x ->
-            text x
+        case error of
+            RenderError x ->
+                text x
 
-        SelectionError namedErrors ->
-            ul []
-                (List.map
-                    (\( name, mess ) -> li [] [ bold name, text mess ])
-                    namedErrors
-                )
-        CatalogError x ->
-            Catalog.viewError x
+            SelectionError namedErrors ->
+                ul []
+                    (List.map
+                         (\( name, mess ) -> li [] [ bold name, text mess ])
+                         namedErrors
+                    )
+            CatalogError x ->
+                Catalog.viewError x
+
 
 
 viewHistoryEditorLink cls hasEditor seriesName =
@@ -357,63 +351,58 @@ viewHistoryEditorLink cls hasEditor seriesName =
 view : Model -> Html Msg
 view model =
     let
-        plotDiv =
-            "plotly_div"
-
+        plotDiv = "plotly_div"
         args =
             let
                 data =
                     List.map
                         (\( name, serie ) ->
-                            scatterPlot
-                                name
-                                (Dict.keys serie)
-                                (Dict.values serie)
-                                "lines"
+                             scatterPlot
+                             name
+                             (Dict.keys serie)
+                             (Dict.values serie)
+                             "lines"
                         )
                         model.selectedNamedSeries
             in
-            PlotArgs plotDiv data |> encodePlotArgs |> Encode.encode 0
+                PlotArgs plotDiv data |> encodePlotArgs |> Encode.encode 0
 
         selector =
             let
-                cls =
-                    classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
-
+                cls = classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
                 children =
                     [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
 
                 ctx =
                     SeriesSelector.View
-                        model.search
+                    model.search
                         (Maybe.map viewError model.error)
             in
-            form [ classes [ T.center, T.pt4, T.w_90 ] ]
-                (if model.activeSelection then
-                    List.append children
-                        [ SeriesSelector.view selectorConfig ctx
-                        ]
-
-                 else
-                    children
-                )
+                form [ classes [ T.center, T.pt4, T.w_90 ] ]
+                    (
+                     if
+                         model.activeSelection
+                     then
+                         List.append children
+                             [ SeriesSelector.view selectorConfig ctx ]
+                     else
+                         children
+                    )
 
         urls =
             let
-                cls =
-                    classes [ T.link, T.blue, T.lh_title ]
-
+                cls = classes [ T.link, T.blue, T.lh_title ]
                 permalink =
                     let
                         url =
                             UB.relative
                                 [ "tsview" ]
                                 (List.map
-                                    (\x -> UB.string "series" x)
-                                    model.search.selected
+                                     (\x -> UB.string "series" x)
+                                     model.search.selected
                                 )
                     in
-                    a [ A.href url, cls ] [ text "Permalink" ]
+                        a [ A.href url, cls ] [ text "Permalink" ]
 
                 links =
                     List.map
@@ -421,22 +410,22 @@ view model =
                         model.search.selected
 
             in
-            ul [ classes [ T.list, T.mt3, T.mb0 ] ]
-                (List.map
-                    (\x -> li [ classes [ T.pv2 ] ] [ x ])
-                    (permalink :: links)
-                )
+                ul [ classes [ T.list, T.mt3, T.mb0 ] ]
+                    (List.map
+                         (\x -> li [ classes [ T.pv2 ] ] [ x ])
+                         (permalink :: links)
+                    )
     in
-    div []
-        [ header [ classes [ T.bg_light_blue ] ] [ selector ]
-        , div [ A.id plotDiv ] []
-        , plotFigure [ A.attribute "args" args ] []
-        , footer [] [ urls ]
-        ]
+        div []
+            [ header [ classes [ T.bg_light_blue ] ] [ selector ]
+            , div [ A.id plotDiv ] []
+            , plotFigure [ A.attribute "args" args ] []
+            , footer [] [ urls ]
+            ]
 
 
 main : Program
-       {urlPrefix : String
+       { urlPrefix : String
        , selectedSeries : List String
        , hasEditor : Bool
        } Model Msg
@@ -466,9 +455,9 @@ main =
             else
                 Sub.none
     in
-    Browser.element
-        { init = init
-        , view = view >> toUnstyled
-        , update = update
-        , subscriptions = sub
-        }
+        Browser.element
+            { init = init
+            , view = view >> toUnstyled
+            , update = update
+            , subscriptions = sub
+            }
