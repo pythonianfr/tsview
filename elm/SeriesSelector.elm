@@ -247,7 +247,11 @@ view model catalog cfg =
             , value model.search
             , onInput cfg.onInputMsg
             , autofocus True
-            , placeholder "start typing here ..."
+            , placeholder
+                  ("start typing here to pick from " ++
+                   (String.fromInt (List.length model.filteredseries)) ++
+                   " items"
+                  )
             ] []
 
         selectorwidget =
