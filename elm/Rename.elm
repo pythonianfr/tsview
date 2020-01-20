@@ -42,6 +42,7 @@ type Msg
     | OnRename
     | RenameDone (Result String String)
     | KindChange String Bool
+    | SourceChange String Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -83,6 +84,16 @@ update msg model =
                                 model.search
                                 model.catalog
                                 kind
+                                checked
+                in
+                    newModel { model | search = newsearch }
+
+            SourceChange source checked ->
+                let
+                    newsearch = SeriesSelector.updatesources
+                                model.search
+                                model.catalog
+                                source
                                 checked
                 in
                     newModel { model | search = newsearch }
@@ -183,6 +194,7 @@ selectorConfig =
           }
     , onInputMsg = SearchSeries
     , onKindChange = KindChange
+    , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
 

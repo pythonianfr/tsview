@@ -68,6 +68,7 @@ type Msg
     | MakeSearch
     | RenderPlot (Result (List String) ( SeriesCache, List NamedSeries, List NamedError ))
     | KindChange String Bool
+    | SourceChange String Bool
 
 
 type alias Trace =
@@ -252,6 +253,16 @@ update msg model =
                 in
                     newModel { model | search = newsearch }
 
+            SourceChange source checked ->
+                let
+                    newsearch = SeriesSelector.updatesources
+                                model.search
+                                model.catalog
+                                source
+                                checked
+                in
+                    newModel { model | search = newsearch }
+
             ToggleSelection ->
                 newModel { model | activeSelection = not model.activeSelection }
 
@@ -319,6 +330,7 @@ selectorConfig =
         }
     , onInputMsg = SearchSeries
     , onKindChange = KindChange
+    , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.mb4 ] ]
     }
 
@@ -460,7 +472,7 @@ main =
                       prefix
                       (Catalog.new Dict.empty)
                       flags.hasEditor
-                      (SeriesSelector.new [] "" [] selected [])
+                      (SeriesSelector.new [] "" [] selected [] [])
                       []
                       (List.isEmpty selected)
                       (LruCache.empty 100)

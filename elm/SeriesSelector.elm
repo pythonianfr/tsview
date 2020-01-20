@@ -7,6 +7,7 @@ module SeriesSelector exposing
     , updatefound
     , updateselected
     , updatekinds
+    , updatesources
     , Config
     , View
     , view
@@ -43,15 +44,16 @@ type alias Model =
     , found : List String  -- series matching the search
     , selected : List String  --  selected series
     , kinds : List String -- list of series kinds
+    , sources : List String -- list of series sources
     }
 
 
-new search searched selected kinds =
-    Model search searched selected kinds
+new search searched selected kinds sources =
+    Model search searched selected kinds sources
 
 
 null =
-    new [] "" [] [] []
+    new [] "" [] [] [] []
 
 
 updatesearch : Model -> String -> Model
@@ -73,6 +75,7 @@ fromcatalog : Model -> Catalog.Model -> Model
 fromcatalog model catalog =
     let
         newkinds = List.sort (Dict.keys catalog.seriesByKind)
+        newsources = List.sort (Dict.keys catalog.seriesBySource)
         seriesbykind kind =
             Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
         allserieslist =
@@ -80,6 +83,7 @@ fromcatalog model catalog =
     in
         { model
             | kinds = newkinds
+            , sources = newsources
             , filteredseries = List.sort (List.concat allserieslist)
         }
 
@@ -89,10 +93,15 @@ filterseries model catalog =
     let
         seriesbykind kind =
             Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
-        allserieslist =
-            List.map seriesbykind model.kinds
+        filteredseries =
+            List.concat (List.map seriesbykind model.kinds)
+        filterbysource source =
+            let
+                series = Maybe.withDefault Set.empty (Dict.get source catalog.seriesBySource)
+            in
+                List.filter (\x -> Set.member x series) filteredseries
     in
-        List.sort (List.concat allserieslist)
+        List.sort (List.concat (List.map filterbysource model.sources))
 
 
 updatekinds : Model -> Catalog.Model -> String -> Bool -> Model
@@ -110,6 +119,21 @@ updatekinds model catalog kind checked =
         { newmodel | filteredseries = filterseries newmodel catalog }
 
 
+updatesources : Model -> Catalog.Model -> String -> Bool -> Model
+updatesources model catalog source checked =
+    let
+        newsources =
+            if
+                checked
+            then
+                List.sort (source :: model.sources)
+            else
+                List.filter (\x -> x /= source) model.sources
+        newmodel = { model | sources = newsources }
+    in
+        { newmodel | filteredseries = filterseries newmodel catalog }
+
+
 -- view
 
 type alias Config msg =
@@ -117,6 +141,7 @@ type alias Config msg =
     , actionSelector : ItemSelector.Config msg
     , onInputMsg : String -> msg
     , onKindChange : String -> Bool -> msg
+    , onSourceChange : String -> Bool -> msg
     , divAttrs : List (Attribute msg)
     }
 
@@ -205,6 +230,7 @@ view model catalog cfg viewctx =
         div cfg.divAttrs
             [ searchInput
             , makefilter "kinds" (Dict.keys catalog.seriesByKind) model.kinds cfg.onKindChange
+            , makefilter "sources" (Dict.keys catalog.seriesBySource) model.sources cfg.onSourceChange
             -- XXX w_90 should not be there but how to fix it ?
             , div [ classes [ T.w_90, T.absolute, T.z_2, T.bg_white_80 ] ] <| checkErr [ cols ]
             ]

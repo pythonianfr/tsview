@@ -30,6 +30,7 @@ type Msg
     | OnDelete
     | DeleteDone (Result String String)
     | KindChange String Bool
+    | SourceChange String Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -86,6 +87,16 @@ update msg model =
                 in
                     newModel { model | search = newsearch }
 
+            SourceChange source checked ->
+                let
+                    newsearch = SeriesSelector.updatesources
+                                model.search
+                                model.catalog
+                                source
+                                checked
+                in
+                    newModel { model | search = newsearch }
+
             ToggleItem x ->
                 let
                     newsearch = SeriesSelector.updateselected
@@ -132,6 +143,7 @@ update msg model =
                                 (removeItem x model.search.found)
                                 (removeItem x model.search.selected)
                                 model.search.kinds
+                                model.search.sources
                 in
                     newModel
                     { model
@@ -167,6 +179,7 @@ selectorConfig =
           }
     , onInputMsg = SearchSeries
     , onKindChange = KindChange
+    , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
     }
 
