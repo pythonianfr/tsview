@@ -401,10 +401,6 @@ view model =
                 children =
                     [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
 
-                ctx =
-                    SeriesSelector.View
-                    model.search
-                        (Maybe.map viewError model.error)
             in
                 form [ classes [ T.center, T.pt4, T.w_90 ] ]
                     (
@@ -416,7 +412,7 @@ view model =
                                    model.search
                                    model.catalog
                                    selectorConfig
-                                   ctx ]
+                             ]
                      else
                          children
                     )

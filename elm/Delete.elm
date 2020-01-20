@@ -189,14 +189,14 @@ view model =
     let
         viewError xs =
             ul [] (List.map (\x -> li [] [ text x ]) xs)
-
-        ctx =
-            SeriesSelector.View
-                model.search
-                (Maybe.map viewError model.errors)
     in
-        article [ classes [ T.center, T.pt4, T.w_90 ] ]
-            [ SeriesSelector.view model.search model.catalog selectorConfig ctx ]
+        case model.errors of
+            Nothing ->
+                article [ classes [ T.center, T.pt4, T.w_90 ] ]
+                    [ SeriesSelector.view model.search model.catalog selectorConfig ]
+
+            Just error ->
+                viewError error
 
 
 main : Program String Model Msg

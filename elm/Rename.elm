@@ -280,15 +280,10 @@ editor model =
 view : Model -> Html Msg
 view model =
     let
-        ctx =
-            SeriesSelector.View
-                model.search
-                (Maybe.map text model.error)
-
         content =
             case model.state of
                 Select ->
-                    SeriesSelector.view model.search model.catalog selectorConfig ctx
+                    SeriesSelector.view model.search model.catalog selectorConfig
 
                 Edit ->
                     editor model

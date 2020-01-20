@@ -9,7 +9,6 @@ module SeriesSelector exposing
     , updatekinds
     , updatesources
     , SelectorConfig
-    , View
     , view
     )
 
@@ -148,17 +147,10 @@ type alias ItemConfig msg =
     }
 
 
-type alias ItemContext =
-    { items : List String
-    , selectedItems : List String
-    }
 
-
-viewitemselector : ItemConfig msg -> ItemContext -> Html msg
-viewitemselector cfg ctx =
+viewitemselector : ItemConfig msg -> List String -> List String -> Html msg
+viewitemselector cfg items selected =
     let
-        enabled = List.length ctx.items > 0
-
         ulClass =
             classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
 
@@ -169,7 +161,7 @@ viewitemselector cfg ctx =
 
                 liSelected =
                     let
-                        isSelected = List.member item ctx.selectedItems
+                        isSelected = List.member item selected
                     in
                         classList <|
                             List.map
@@ -182,7 +174,7 @@ viewitemselector cfg ctx =
             ul [ ulClass ] <|
                 List.map
                     (\x -> li (liAttrs x) [ text x ])
-                    ctx.items
+                    items
 
         lstWithAction act =
             let
@@ -196,7 +188,7 @@ viewitemselector cfg ctx =
                 div [ classes [ T.dt, T.dt__fixed ] ] [ a attrs [ act.html ], lst ]
     in
         if
-            enabled
+            List.length items > 0
         then
             Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
         else
@@ -212,12 +204,6 @@ type alias SelectorConfig msg =
     , onKindChange : String -> Bool -> msg
     , onSourceChange : String -> Bool -> msg
     , divAttrs : List (Attribute msg)
-    }
-
-
-type alias View msg =
-    { search : Model
-    , errorMessage : Maybe (Html msg)
     }
 
 
@@ -245,8 +231,8 @@ makefilter section sectionitems activeitems event =
           ) ]
 
 
-view : Model -> Catalog.Model -> SelectorConfig msg -> View msg -> Html msg
-view model catalog cfg viewctx =
+view : Model -> Catalog.Model -> SelectorConfig msg -> Html msg
+view model catalog cfg =
     let
         searchInput =
             input
@@ -258,48 +244,29 @@ view model catalog cfg viewctx =
                   , T.db
                   , T.w_100
                   ]
-            , value viewctx.search.search
+            , value model.search
             , onInput cfg.onInputMsg
             , autofocus True
             , placeholder "start typing here ..."
             ] []
 
-        cols =
+        selectorwidget =
             let
-                render ( selectorCfg, items ) =
-                    viewitemselector
-                        selectorCfg
-                        (ItemContext items viewctx.search.selected)
+                renderselector (selectorCfg, items) =
+                    viewitemselector selectorCfg items model.selected
             in
                 div [ classes [ T.dt, T.dt__fixed ] ]
                     (List.map
-                         (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ render x ])
-                         [ ( cfg.searchSelector, viewctx.search.found )
-                         , ( cfg.actionSelector, viewctx.search.selected )
+                         (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ renderselector x ])
+                         [ ( cfg.searchSelector, model.found )
+                         , ( cfg.actionSelector, model.selected )
                          ]
                     )
-
-        addErr mess =
-            let
-                cls =
-                    classes
-                    [ T.flex
-                    , T.items_center
-                    , T.pa4
-                    , T.bg_washed_red
-                    , T.navy
-                    ]
-            in
-                [ div [ cls ] [ mess ] ]
-
-        checkErr xs =
-            Common.maybe xs (addErr >> List.append xs) viewctx.errorMessage
 
     in
         div cfg.divAttrs
             [ searchInput
             , makefilter "kinds" (Dict.keys catalog.seriesByKind) model.kinds cfg.onKindChange
             , makefilter "sources" (Dict.keys catalog.seriesBySource) model.sources cfg.onSourceChange
-            -- XXX w_90 should not be there but how to fix it ?
-            , div [ classes [ T.w_90, T.absolute, T.z_2, T.bg_white_80 ] ] <| checkErr [ cols ]
+            , selectorwidget
             ]
