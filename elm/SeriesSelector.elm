@@ -292,13 +292,15 @@ view model catalog cfg =
                 div [] []
 
         sourcesfilter =
-            if
-                model.menu
-            then
-                makefilter "sources" (Dict.keys catalog.seriesBySource)
-                    model.sources cfg.onSourceChange
-            else
-                div [] []
+            let
+                sources = Dict.keys catalog.seriesBySource
+            in
+                if
+                    model.menu && ((List.length sources) > 1)
+                then
+                    makefilter "sources" sources model.sources cfg.onSourceChange
+                else
+                    div [] []
     in
         div cfg.divAttrs
             [ searchInput
