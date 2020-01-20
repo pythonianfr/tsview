@@ -478,7 +478,7 @@ main =
                       (List.isEmpty selected)
                       (LruCache.empty 100)
                       Nothing
-            , Cmd.map GotCatalog (Catalog.get prefix)
+            , Cmd.map GotCatalog (Catalog.get prefix 1)
             )
 
         sub model =

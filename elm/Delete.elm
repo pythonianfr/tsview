@@ -218,7 +218,7 @@ main =
                       SeriesSelector.null
                       Nothing
                 ,
-                      Cmd.map GotCatalog (Catalog.get prefix)
+                      Cmd.map GotCatalog (Catalog.get prefix 0)
                 )
 
         sub model =

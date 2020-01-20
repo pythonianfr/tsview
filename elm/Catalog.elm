@@ -118,8 +118,8 @@ decodetuple =
         (Decode.index 1 Decode.string)
 
 
-get : String -> Cmd Msg
-get urlprefix =
+get : String -> Int -> Cmd Msg
+get urlprefix allsources =
     Http.get
         { expect =
               (Common.expectJsonMessage Received)
@@ -127,5 +127,5 @@ get urlprefix =
         , url =
             UB.crossOrigin urlprefix
                 [ "api", "series", "catalog" ]
-                []
+                [ UB.int "allsources" allsources ]
         }

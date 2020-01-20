@@ -170,7 +170,7 @@ update msg model =
                       , renamed = ""
                       , error = Nothing
                   }
-                , Cmd.map GotCatalog (Catalog.get model.urlPrefix)
+                , Cmd.map GotCatalog (Catalog.get model.urlPrefix 0)
                 )
 
             RenameDone (Err x) ->
@@ -312,7 +312,7 @@ main =
                      ""
                      Nothing
                 ,
-                    Cmd.map GotCatalog (Catalog.get prefix)
+                    Cmd.map GotCatalog (Catalog.get prefix 0)
                 )
 
         sub model =
