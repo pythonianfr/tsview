@@ -76,15 +76,11 @@ fromcatalog model catalog =
     let
         newkinds = List.sort (Dict.keys catalog.seriesByKind)
         newsources = List.sort (Dict.keys catalog.seriesBySource)
-        seriesbykind kind =
-            Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
-        allserieslist =
-            List.map seriesbykind newkinds
     in
         { model
             | kinds = newkinds
             , sources = newsources
-            , filteredseries = List.sort (List.concat allserieslist)
+            , filteredseries = List.sort catalog.series
         }
 
 
