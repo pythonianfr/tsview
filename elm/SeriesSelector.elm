@@ -218,22 +218,24 @@ type alias SelectorConfig msg =
 
 filterdiv : String -> List String -> (String -> Bool -> msg) -> Html msg
 filterdiv filtername activenames event =
-    div [] [ input [ type_ "checkbox"
-                   , id filtername
-                   , name filtername
-                   , checked (List.member filtername activenames)
-                   , onCheck (event filtername)
-                   ] []
-           , label [ for filtername ] [ text filtername ]
-           ]
+    div [ classes [ T.pa1_ns ] ]
+        [ input [ type_ "checkbox"
+                , id filtername
+                , name filtername
+                , checked (List.member filtername activenames)
+                , onCheck (event filtername)
+                , classes [ T.pa2_ns ]
+                ] []
+        , label [ classes [ T.pa2_ns ], for filtername ] [ text filtername ]
+        ]
 
 
 makefilter : String -> List String -> List String -> (String -> Bool -> msg) -> Html msg
 makefilter section sectionitems activeitems event =
-    div []
-        [ p []
+    div [ classes  [ T.ma1 ] ]
+        [ p [ classes [ T.f5 ] ]
           (
-           [ text ("series " ++ section) ] ++
+           [ text ("Series " ++ section) ] ++
               List.map
               (\x -> filterdiv x activeitems event)
               sectionitems
