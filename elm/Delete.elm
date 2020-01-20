@@ -29,6 +29,7 @@ type Msg
     | MakeSearch
     | OnDelete
     | DeleteDone (Result String String)
+    | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
 
@@ -76,6 +77,9 @@ update msg model =
                                  | catalog = newcat
                                  , search = newsearch
                              }
+
+            ToggleMenu ->
+                newModel { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -142,6 +146,7 @@ update msg model =
                                 model.search.search
                                 (removeItem x model.search.found)
                                 (removeItem x model.search.selected)
+                                model.search.menu
                                 model.search.kinds
                                 model.search.sources
                 in
@@ -178,6 +183,7 @@ selectorConfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
+    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]

@@ -41,6 +41,7 @@ type Msg
     | NewSerieName String
     | OnRename
     | RenameDone (Result String String)
+    | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
 
@@ -77,6 +78,9 @@ update msg model =
                                  | catalog = newcat
                                  , search = newsearch
                              }
+
+            ToggleMenu ->
+                newModel { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -193,6 +197,7 @@ selectorConfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
+    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]

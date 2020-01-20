@@ -3,6 +3,7 @@ module SeriesSelector exposing
     , new
     , null
     , fromcatalog
+    , togglemenu
     , updatesearch
     , updatefound
     , updateselected
@@ -29,6 +30,7 @@ import Html.Styled.Attributes exposing
     )
 import Html.Styled.Events exposing
     (onCheck
+    , onClick
     , onInput
     , onMouseDown
     )
@@ -43,17 +45,18 @@ type alias Model =
     , search : String  -- the search input pattern
     , found : List String  -- series matching the search
     , selected : List String  --  selected series
+    , menu : Bool -- filter menu state
     , kinds : List String -- list of series kinds
     , sources : List String -- list of series sources
     }
 
 
-new search searched selected kinds sources =
-    Model search searched selected kinds sources
+new search searched selected menu kinds sources =
+    Model search searched selected menu kinds sources
 
 
 null =
-    new [] "" [] [] [] []
+    new [] "" [] [] False [] []
 
 
 updatesearch : Model -> String -> Model
@@ -82,6 +85,11 @@ fromcatalog model catalog =
             , sources = newsources
             , filteredseries = List.sort catalog.series
         }
+
+
+togglemenu : Model -> Model
+togglemenu model =
+    { model | menu = not model.menu }
 
 
 filterseries : Model -> Catalog.Model -> List String
@@ -201,6 +209,7 @@ type alias SelectorConfig msg =
     { searchSelector : ItemConfig msg
     , actionSelector : ItemConfig msg
     , onInputMsg : String -> msg
+    , onMenuToggle : msg
     , onKindChange : String -> Bool -> msg
     , onSourceChange : String -> Bool -> msg
     , divAttrs : List (Attribute msg)
@@ -234,25 +243,29 @@ makefilter section sectionitems activeitems event =
 view : Model -> Catalog.Model -> SelectorConfig msg -> Html msg
 view model catalog cfg =
     let
+        barcss = [ T.ba
+                 , T.b__black_20
+                 , T.pa2
+                 , T.db
+                 , T.outline
+                 ]
         searchInput =
-            input
-            [ classes
-                  [ T.input_reset
-                  , T.ba
-                  , T.b__black_20
-                  , T.pa2
-                  , T.db
-                  , T.w_100
-                  ]
-            , value model.search
-            , onInput cfg.onInputMsg
-            , autofocus True
-            , placeholder
-                  ("start typing here to pick from " ++
-                   (String.fromInt (List.length model.filteredseries)) ++
-                   " items"
-                  )
-            ] []
+            div [ classes [ T.flex ] ] [
+                 input
+                     [ classes (barcss ++ [ T.input_reset, T.w_100 ])
+                     , value model.search
+                     , onInput cfg.onInputMsg
+                     , autofocus True
+                     , placeholder
+                           ("start typing here to pick from " ++
+                                (String.fromInt (List.length model.filteredseries)) ++
+                                " items"
+                           )
+                     ] []
+                , div [ classes barcss
+                      , onClick cfg.onMenuToggle
+                      ] [ text "☰" ]
+                ]
 
         selectorwidget =
             let
@@ -267,10 +280,27 @@ view model catalog cfg =
                          ]
                     )
 
+        kindsfilter =
+            if
+                model.menu
+            then
+                makefilter "kinds" (Dict.keys catalog.seriesByKind)
+                    model.kinds cfg.onKindChange
+            else
+                div [] []
+
+        sourcesfilter =
+            if
+                model.menu
+            then
+                makefilter "sources" (Dict.keys catalog.seriesBySource)
+                    model.sources cfg.onSourceChange
+            else
+                div [] []
     in
         div cfg.divAttrs
             [ searchInput
-            , makefilter "kinds" (Dict.keys catalog.seriesByKind) model.kinds cfg.onKindChange
-            , makefilter "sources" (Dict.keys catalog.seriesBySource) model.sources cfg.onSourceChange
+            , kindsfilter
+            , sourcesfilter
             , selectorwidget
             ]

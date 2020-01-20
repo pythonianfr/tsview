@@ -69,6 +69,7 @@ type Msg
     | RenderPlot (Result (List String) ( SeriesCache, List NamedSeries, List NamedError ))
     | KindChange String Bool
     | SourceChange String Bool
+    | ToggleMenu
 
 
 type alias Trace =
@@ -243,6 +244,9 @@ update msg model =
                                  , search = newsearch
                              }
 
+            ToggleMenu ->
+                newModel { model | search = SeriesSelector.togglemenu model.search }
+
             KindChange kind checked ->
                 let
                     newsearch = SeriesSelector.updatekinds
@@ -329,6 +333,7 @@ selectorConfig =
         , toggleMsg = ToggleItem
         }
     , onInputMsg = SearchSeries
+    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.mb4 ] ]
@@ -468,7 +473,7 @@ main =
                       prefix
                       (Catalog.new Dict.empty)
                       flags.hasEditor
-                      (SeriesSelector.new [] "" [] selected [] [])
+                      (SeriesSelector.new [] "" [] selected False [] [])
                       []
                       (List.isEmpty selected)
                       (LruCache.empty 100)
