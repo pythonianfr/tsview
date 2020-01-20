@@ -1,12 +1,14 @@
 module Catalog exposing
-    (Model, Msg, get, new, update, removeSeries)
+    (Model, Msg, Error, viewError, get, new, update, removeSeries)
 
-import Common
+import Common exposing (classes)
 import Dict exposing(Dict)
 import Set exposing (Set)
+import Html.Styled exposing (Html, div, text, span)
 import Http
 import Json.Decode as Decode
 import List.Extra exposing (unique)
+import Tachyons.Classes as T
 import Url.Builder as UB
 
 
@@ -39,6 +41,19 @@ update msg model =
 
         Received (Err x) ->
             Model [] Dict.empty Dict.empty (Just (Error x))
+
+
+-- view
+
+viewError : Error -> Html msg
+viewError error =
+    let
+        bold x =
+            span [ classes [ T.b, T.mr4 ] ] [ text x ]
+    in
+        case error of
+            Error x ->
+                div [] [ bold "Catalog error", text x ]
 
 
 -- catalog building

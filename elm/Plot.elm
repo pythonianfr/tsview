@@ -4,6 +4,7 @@ import Browser
 import Common exposing (classes)
 import Dict exposing (Dict, fromList, keys, values)
 import Either exposing (Either)
+import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
@@ -35,6 +36,7 @@ type alias Model =
 type Error
     = SelectionError (List NamedError)
     | RenderError String
+    | CatalogError Catalog.Error
 
 
 type alias Serie =
@@ -318,7 +320,7 @@ viewError error =
         bold x =
             span [ classes [ T.b, T.mr4 ] ] [ text x ]
     in
-    case error of -- Catalog errors are no more handled at all !
+    case error of
         RenderError x ->
             text x
 
@@ -328,6 +330,9 @@ viewError error =
                     (\( name, mess ) -> li [] [ bold name, text mess ])
                     namedErrors
                 )
+        CatalogError x ->
+            Catalog.viewError x
+
 
 viewHistoryEditorLink cls hasEditor seriesName =
     div [ ]
