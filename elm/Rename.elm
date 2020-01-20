@@ -173,7 +173,7 @@ update msg model =
                 newModel { model | error = Just x }
 
 
-selectorConfig : SeriesSelector.Config Msg
+selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
     { searchSelector =
           { action = Nothing

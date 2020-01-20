@@ -314,7 +314,7 @@ update msg model =
                 }
 
 
-selectorConfig : SeriesSelector.Config Msg
+selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
     { searchSelector =
         { action = Nothing

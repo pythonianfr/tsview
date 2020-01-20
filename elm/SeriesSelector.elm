@@ -8,7 +8,7 @@ module SeriesSelector exposing
     , updateselected
     , updatekinds
     , updatesources
-    , Config
+    , SelectorConfig
     , View
     , view
     )
@@ -20,6 +20,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing
     (autofocus
     , checked
+    , classList
     , for
     , id
     , name
@@ -30,8 +31,8 @@ import Html.Styled.Attributes exposing
 import Html.Styled.Events exposing
     (onCheck
     , onInput
+    , onMouseDown
     )
-import ItemSelector
 import Set exposing (Set)
 import Tachyons.Classes as T
 
@@ -132,9 +133,81 @@ updatesources model catalog source checked =
 
 -- view
 
-type alias Config msg =
-    { searchSelector : ItemSelector.Config msg
-    , actionSelector : ItemSelector.Config msg
+-- item selector
+
+
+type alias ItemConfig msg =
+    { action :
+          Maybe
+          { attrs : List (Attribute msg)
+          , html : Html msg
+          , clickMsg : msg
+          }
+    , defaultText : Html msg
+    , toggleMsg : String -> msg
+    }
+
+
+type alias ItemContext =
+    { items : List String
+    , selectedItems : List String
+    }
+
+
+viewitemselector : ItemConfig msg -> ItemContext -> Html msg
+viewitemselector cfg ctx =
+    let
+        enabled = List.length ctx.items > 0
+
+        ulClass =
+            classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
+
+        liAttrs item =
+            let
+                liClass =
+                    classes [ T.ph3, T.pv2, T.bb, T.b__light_silver, T.dim ]
+
+                liSelected =
+                    let
+                        isSelected = List.member item ctx.selectedItems
+                    in
+                        classList <|
+                            List.map
+                                (\x -> ( x, isSelected ))
+                                [ T.white, T.bg_blue ]
+            in
+                [ liClass, liSelected, onMouseDown <| cfg.toggleMsg item ]
+
+        lst =
+            ul [ ulClass ] <|
+                List.map
+                    (\x -> li (liAttrs x) [ text x ])
+                    ctx.items
+
+        lstWithAction act =
+            let
+                aClass =
+                    classes
+                    [ T.w_100, T.link, T.dim, T.ph3, T.pv2, T.ma2, T.dib, T.tc ]
+
+                attrs =
+                    [ aClass, onMouseDown act.clickMsg ] ++ act.attrs
+            in
+                div [ classes [ T.dt, T.dt__fixed ] ] [ a attrs [ act.html ], lst ]
+    in
+        if
+            enabled
+        then
+            Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
+        else
+            div [ classes [ T.pl0, T.ml0 ] ] [ cfg.defaultText ]
+
+
+-- series selector
+
+type alias SelectorConfig msg =
+    { searchSelector : ItemConfig msg
+    , actionSelector : ItemConfig msg
     , onInputMsg : String -> msg
     , onKindChange : String -> Bool -> msg
     , onSourceChange : String -> Bool -> msg
@@ -172,7 +245,7 @@ makefilter section sectionitems activeitems event =
           ) ]
 
 
-view : Model -> Catalog.Model -> Config msg -> View msg -> Html msg
+view : Model -> Catalog.Model -> SelectorConfig msg -> View msg -> Html msg
 view model catalog cfg viewctx =
     let
         searchInput =
@@ -194,9 +267,9 @@ view model catalog cfg viewctx =
         cols =
             let
                 render ( selectorCfg, items ) =
-                    ItemSelector.view
+                    viewitemselector
                         selectorCfg
-                        (ItemSelector.Context items viewctx.search.selected)
+                        (ItemContext items viewctx.search.selected)
             in
                 div [ classes [ T.dt, T.dt__fixed ] ]
                     (List.map
