@@ -207,6 +207,8 @@ parseSpecType =
             |. keyword "int"
         , succeed Float
             |. keyword "float"
+        , succeed Float
+            |. keyword "Number"
         , succeed String
             |. keyword "str"
         , succeed String
