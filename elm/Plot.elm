@@ -239,10 +239,12 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model
-                                 | catalog = newcat
-                                 , search = newsearch
-                             }
+                    ( { model
+                          | catalog = newcat
+                          , search = newsearch
+                      }
+                    , Task.attempt RenderPlot <| fetchSeries model.search.selected model
+                    )
 
             ToggleMenu ->
                 newModel { model | search = SeriesSelector.togglemenu model.search }
