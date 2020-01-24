@@ -24,6 +24,7 @@ import Html.Styled.Attributes exposing
     , for
     , id
     , name
+    , title
     , type_
     , value
     , placeholder
@@ -253,7 +254,11 @@ view model catalog cfg =
                  ]
         searchInput =
             div [ classes [ T.flex ] ] [
-                 input
+                 div [ classes (barcss ++ [ T.dim, T.pointer ])
+                     , title "show series filter"
+                     , onClick cfg.onMenuToggle
+                     ] [ text "☰" ]
+                , input
                      [ classes (barcss ++ [ T.input_reset, T.w_100 ])
                      , value model.search
                      , onInput cfg.onInputMsg
@@ -264,9 +269,6 @@ view model catalog cfg =
                                 " items"
                            )
                      ] []
-                , div [ classes barcss
-                      , onClick cfg.onMenuToggle
-                      ] [ text "☰" ]
                 ]
 
         selectorwidget =
