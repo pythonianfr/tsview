@@ -17,11 +17,13 @@ import Json.Decode as D
 import Task exposing (Task)
 
 
+-- css helper
 classes : List String -> Attribute msg
 classes xs =
     class (String.join " " xs)
 
 
+-- core helpers
 maybe : b -> (a -> b) -> Maybe a -> b
 maybe b f =
     Maybe.map f >> Maybe.withDefault b
@@ -37,6 +39,7 @@ resultEither mapErr mapOk result =
             mapOk b
 
 
+-- messaging/decoding helpers
 type alias ToMsg a msg =
     Result String a -> msg
 
@@ -97,6 +100,8 @@ expectJsonMessage toMsg =
     expectJsonResponse toMsg
 
 
+
+-- weird helper
 checkUrlPrefix : String -> String
 checkUrlPrefix x =
     if x == "/" then
@@ -105,6 +110,7 @@ checkUrlPrefix x =
         x
 
 
+-- task helper
 taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
 taskSequenceEither tasks =
     Task.andThen
