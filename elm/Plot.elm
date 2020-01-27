@@ -470,7 +470,7 @@ main =
     let
         init flags =
             let
-                prefix = Common.checkUrlPrefix flags.urlPrefix
+                prefix = flags.urlPrefix
                 selected = flags.selectedSeries
             in
                 ( Model

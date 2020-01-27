@@ -299,21 +299,17 @@ view model =
 main : Program String Model Msg
 main =
     let
-        init urlPrefix =
-            let
-                prefix = Common.checkUrlPrefix urlPrefix
-            in
-                (
-                 Model
-                     prefix
-                     Select
-                     (Catalog.new Dict.empty)
-                     SeriesSelector.null
-                     ""
-                     Nothing
-                ,
-                    Cmd.map GotCatalog (Catalog.get prefix 0)
-                )
+        init prefix =
+            ( Model
+                  prefix
+                  Select
+                  (Catalog.new Dict.empty)
+                  SeriesSelector.null
+                  ""
+                  Nothing
+            ,
+                Cmd.map GotCatalog (Catalog.get prefix 0)
+            )
 
         sub model =
             if

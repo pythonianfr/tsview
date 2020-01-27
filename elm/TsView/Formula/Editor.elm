@@ -178,7 +178,7 @@ main =
                     buildEditionTree defaultOperator
             in
             ( Model
-                (Common.checkUrlPrefix urlPrefix)
+                urlPrefix
                 spec
                 specError
                 buildEditionTree

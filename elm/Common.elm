@@ -1,6 +1,5 @@
 module Common exposing
-    ( checkUrlPrefix
-    , classes
+    ( classes
     , decodeJsonMessage
     , expectJsonMessage
     , maybe
@@ -100,24 +99,13 @@ expectJsonMessage toMsg =
     expectJsonResponse toMsg
 
 
-
--- weird helper
-checkUrlPrefix : String -> String
-checkUrlPrefix x =
-    if x == "/" then
-        ""
-    else
-        x
-
-
 -- task helper
 taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
 taskSequenceEither tasks =
     Task.andThen
         (\xs ->
              let
-                 lefts =
-                     Either.lefts xs
+                 lefts = Either.lefts xs
              in
                  if
                      not (List.isEmpty xs) && (List.length lefts == List.length xs)

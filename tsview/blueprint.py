@@ -57,7 +57,10 @@ if hasformula():
 
 def homeurl():
     homeurl = url_for('tsview.home')
-    return homeurl[:homeurl.rindex('/')] + '/'
+    baseurl = homeurl[:homeurl.rindex('/')]
+    if len(baseurl):
+        return baseurl + '/'
+    return baseurl
 
 
 PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete')

@@ -208,18 +208,15 @@ view model =
 main : Program String Model Msg
 main =
     let
-        init urlprefix =
-            let
-                prefix = Common.checkUrlPrefix urlprefix
-            in
-                ( Model
-                      prefix
-                      (Catalog.new Dict.empty)
-                      SeriesSelector.null
-                      Nothing
-                ,
-                      Cmd.map GotCatalog (Catalog.get prefix 0)
-                )
+        init prefix =
+            ( Model
+                  prefix
+                  (Catalog.new Dict.empty)
+                  SeriesSelector.null
+                  Nothing
+            ,
+                Cmd.map GotCatalog (Catalog.get prefix 0)
+            )
 
         sub model =
             Time.every 1000 (always MakeSearch)
