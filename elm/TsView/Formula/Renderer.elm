@@ -180,5 +180,5 @@ renderString =
         >> Zipper.fromTree
         >> renderTree 0
         >> NE.toList
-        >> List.map (\( i, x ) -> String.repeat i iStr ++ x)
+        >> List.map (\( i, x ) -> String.repeat i iStr ++ String.trimRight x)
         >> String.join "\n"
