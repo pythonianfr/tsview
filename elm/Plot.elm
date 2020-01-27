@@ -406,8 +406,10 @@ view model =
             let
                 cls = classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
                 children =
-                    [ a [ cls, onClick ToggleSelection ] [ text "Series selection" ] ]
-
+                    [ a
+                      [ cls, onClick ToggleSelection, A.title "click to toggle selector" ]
+                      [ text "Series selection" ]
+                    ]
             in
                 form [ classes [ T.center, T.pt4, T.w_90 ] ]
                     (
