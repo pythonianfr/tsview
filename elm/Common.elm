@@ -2,9 +2,7 @@ module Common exposing
     ( checkUrlPrefix
     , classes
     , decodeJsonMessage
-    , decodeResponse
     , expectJsonMessage
-    , expectStringResponse
     , maybe
     , resultEither
     , taskSequenceEither
@@ -47,9 +45,22 @@ type alias ReadError =
     String -> String
 
 
-decodeResponse : ReadError -> D.Decoder a -> Response String -> Result String a
-decodeResponse readErr decoder resp =
+decodeResponse : D.Decoder a -> Response String -> Result String a
+decodeResponse decoder resp =
     let
+        dictToStr =
+            Dict.toList
+                >> List.map (\( k, v ) -> "(" ++ k ++ ", " ++ v ++ ")")
+                >> String.join " "
+
+        getMessage x =
+            Dict.get "message" x
+                |> Maybe.withDefault (dictToStr x)
+
+        readErr = D.decodeString (D.dict D.string)
+            >> Result.map getMessage
+            >> resultEither D.errorToString identity
+
         badStatus code body =
             readErr body
                 ++ " ["
@@ -71,36 +82,19 @@ decodeResponse readErr decoder resp =
                     |> Result.mapError D.errorToString
 
 
-readErrorMessage : ReadError
-readErrorMessage =
-    let
-        dictToStr =
-            Dict.toList
-                >> List.map (\( k, v ) -> "(" ++ k ++ ", " ++ v ++ ")")
-                >> String.join " "
-
-        getMessage x =
-            Dict.get "message" x
-                |> Maybe.withDefault (dictToStr x)
-    in
-        D.decodeString (D.dict D.string)
-            >> Result.map getMessage
-            >> resultEither D.errorToString identity
-
-
 decodeJsonMessage : D.Decoder a -> Response String -> Result String a
 decodeJsonMessage =
-    decodeResponse readErrorMessage
+    decodeResponse
 
 
-expectStringResponse : ToMsg a msg -> ReadError -> D.Decoder a -> Http.Expect msg
-expectStringResponse toMsg readErr decoder =
-    Http.expectStringResponse toMsg (decodeResponse readErr decoder)
+expectJsonResponse : ToMsg a msg -> D.Decoder a -> Http.Expect msg
+expectJsonResponse toMsg decoder =
+    Http.expectStringResponse toMsg (decodeResponse decoder)
 
 
 expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
 expectJsonMessage toMsg =
-    expectStringResponse toMsg readErrorMessage
+    expectJsonResponse toMsg
 
 
 checkUrlPrefix : String -> String
