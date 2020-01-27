@@ -40,7 +40,7 @@ type Msg
     | EditMode
     | NewSerieName String
     | OnRename
-    | RenameDone (Result String String)
+    | RenameDone (Result Http.Error String)
     | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
@@ -140,7 +140,7 @@ update msg model =
             OnRename ->
                 let
                     expect =
-                        Common.expectJsonMessage RenameDone Decode.string
+                        Http.expectString RenameDone
 
                     url =
                         UB.crossOrigin model.urlPrefix
@@ -174,7 +174,7 @@ update msg model =
                 )
 
             RenameDone (Err x) ->
-                newModel { model | error = Just x }
+                newModel { model | error = Just "something wrong happened" }
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
