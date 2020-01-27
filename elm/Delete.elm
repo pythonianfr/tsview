@@ -18,7 +18,7 @@ type alias Model =
     { urlPrefix : String
     , catalog : Catalog.Model
     , search : SeriesSelector.Model
-    , errors : Maybe (List String)
+    , errors : Maybe (List String) -- why many ?
     }
 
 
@@ -28,10 +28,43 @@ type Msg
     | SearchSeries String
     | MakeSearch
     | OnDelete
-    | DeleteDone (Result String String)
+    | DeleteDone String (Result Http.Error String)
     | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
+
+
+-- deletion update helpers
+newModel x =
+    ( x, Cmd.none )
+
+
+delete expect url =
+    Http.request
+        { method = "DELETE"
+        , headers = []
+        , url = url
+        , body = Http.emptyBody
+        , expect = expect
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+deleteseries model =
+    case model.search.selected of
+        [] -> newModel ( model )-- we're done
+
+        head :: tail ->
+            let
+                mkurl name = UB.crossOrigin model.urlPrefix
+                             [ "api", "series", "state" ]
+                             [ UB.string "name" name ]
+                expect = Http.expectString (DeleteDone head)
+            in
+                ( model
+                , delete expect (mkurl head)
+                )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -47,24 +80,11 @@ update msg model =
             else
                 x :: xs
 
-        newModel x = ( x, Cmd.none )
-
         keywordMatch xm xs =
             if String.length xm < 2 then
                 []
             else
                 KeywordSelector.select xm xs |> List.take 20
-
-        delete expect url =
-            Http.request
-                { method = "DELETE"
-                , headers = []
-                , url = url
-                , body = Http.emptyBody
-                , expect = expect
-                , timeout = Nothing
-                , tracker = Nothing
-                }
 
     in
         case msg of
@@ -126,41 +146,34 @@ update msg model =
                     newModel { model | search = newsearch }
 
             OnDelete ->
-                let
-                    expect =
-                        Common.expectJsonMessage DeleteDone Decode.string
+                deleteseries model
 
-                    mkUrl serieName =
-                        UB.crossOrigin model.urlPrefix
-                            [ "api", "series", "state" ]
-                            [ UB.string "name" serieName ]
-                in
-                    ( model
-                    , Cmd.batch <| List.map (mkUrl >> delete expect) model.search.selected
-                    )
-
-            DeleteDone (Ok x) ->
+            DeleteDone name (Ok _) ->
                 let
                     newsearch = SeriesSelector.new -- there must be a more elegant way
-                                (removeItem x model.search.filteredseries)
+                                (removeItem name model.search.filteredseries)
                                 model.search.search
-                                (removeItem x model.search.found)
-                                (removeItem x model.search.selected)
+                                (removeItem name model.search.found)
+                                (removeItem name model.search.selected)
                                 model.search.menu
                                 model.search.kinds
                                 model.search.sources
+                    newmodel = { model
+                                   | catalog = Catalog.removeSeries name model.catalog
+                                   , search = newsearch
+                               }
+                in
+                    -- this will void model.search.selected one name at a time
+                    deleteseries newmodel
+
+            DeleteDone series (Err _) ->
+                let
+                    err = "stopping, wrong signal on delete for " ++ series
                 in
                     newModel
                     { model
-                        | catalog = Catalog.removeSeries x model.catalog
-                        , search = newsearch
+                        | errors = Just <| Common.maybe [ err ] ((::) err) model.errors
                     }
-
-            DeleteDone (Err x) ->
-                newModel -- why not trigger GotCatalog again ?
-                { model
-                    | errors = Just <| Common.maybe [ x ] ((::) x) model.errors
-                }
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg

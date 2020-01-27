@@ -52,8 +52,8 @@ type alias Model =
     }
 
 
-new search searched selected menu kinds sources =
-    Model search searched selected menu kinds sources
+new series search found selected menu kinds sources =
+    Model series search found selected menu kinds sources
 
 
 null =
