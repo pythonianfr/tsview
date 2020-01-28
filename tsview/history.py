@@ -138,28 +138,6 @@ def historic(app, engine,
             ).keys()
         )
 
-    @dashboard.callback(dash.dependencies.Output('dropdown-container', 'children'),
-                        [dash.dependencies.Input('url', 'pathname')])
-    def adaptable_dropdown(url_string):
-        all_names = serie_names(engine)
-        formated_names = [
-            {'label': name, 'value': name}
-            for name in all_names
-        ]
-
-        if (url_string in (routes_pathname_prefix, request_pathname_prefix_adv) or
-            url_string is None or
-            len(url_string.strip('/')) == 0):
-            initial_value = ''
-        else:
-            initial_value = url_string.split('/')[-1]
-        dropdown = Dropdown(
-            id='ts_selector',
-            options=formated_names,
-            value=initial_value
-        )
-        return dropdown
-
     def parse_url(url_string):
         if (url_string in (
         routes_pathname_prefix, request_pathname_prefix_adv) or
