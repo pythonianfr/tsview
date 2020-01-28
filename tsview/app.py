@@ -23,5 +23,5 @@ def kickoff(host, port, dburi, debug=False):
             has_permission=lambda perm: True
         )
     )
-    historic(app, engine)
+    historic(app, timeseries(dburi))
     app.run(host=host, port=port, debug=debug, threaded=not debug)

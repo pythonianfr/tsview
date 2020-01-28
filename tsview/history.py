@@ -6,21 +6,15 @@ from dash_html_components import Div, Button, Br
 import dash_html_components as html
 
 import dash
-
 import pandas as pd
 
-from tshistory import tsio
+from tshistory.api import timeseries
 
 
 COLOR_BEFORE = 'rgb(20, 200, 20)'
 COLOR_CURRENT = 'rgb(0, 0, 250)'
 COLOR_AFTER = 'rgb(204, 12, 20)'
 COLOR_LAST = 'rgb(0, 0, 0)'
-
-
-def serie_names(engine):
-    sql = 'select seriename from tsh.registry order by seriename'
-    return [name for name, in engine.execute(sql).fetchall()]
 
 
 def unpack_dates(graphdata):
@@ -33,9 +27,8 @@ def unpack_dates(graphdata):
     return fromdate, todate
 
 
-def historic(app, engine,
-             tshclass=tsio.timeseries,
-             serie_names=serie_names,
+def historic(app,
+             tsa,
              routes_pathname_prefix='/tshistory/',
              request_pathname_prefix='/',
              cachedir=None):
@@ -116,17 +109,15 @@ def historic(app, engine,
 
     @cache.memoize(timeout=300)
     def _history(id_serie, fromdate, todate):
-        tsh = tshclass()
-        with engine.begin() as cn:
-            return {
-                # canonicalize the keys immediately
-                dt.strftime('%Y-%m-%d %H:%M:%S'): serie
-                for dt, serie in tsh.history(
-                        cn, id_serie,
-                        from_value_date=fromdate,
-                        to_value_date=todate
-                ).items()
-            }
+        return {
+            # canonicalize the keys immediately
+            dt.strftime('%Y-%m-%d %H:%M:%S'): serie
+            for dt, serie in tsa.history(
+                    id_serie,
+                    from_value_date=fromdate,
+                    to_value_date=todate
+            ).items()
+        }
 
     def history(id_serie, fromdate=None, todate=None):
         return _history(id_serie, fromdate, todate)
@@ -177,8 +168,7 @@ def historic(app, engine,
                         [dash.dependencies.Input('url', 'pathname')])
     def ts_snapshot(url_string):
         id_serie = parse_url(url_string)
-        tsh = tshclass()
-        ts = tsh.get(engine, id_serie)
+        ts = tsa.get(id_serie)
 
         if id_serie is None or ts is None:
             return {'data': [], 'layout': {}}
@@ -224,8 +214,7 @@ def historic(app, engine,
         idx = idx if idx else 0
 
         id_serie = parse_url(url_string)
-        tsh = tshclass()
-        ts_final = tsh.get(engine, id_serie,
+        ts_final = tsa.get(id_serie,
                            from_value_date=fromdate,
                            to_value_date=todate)
         versions = history(id_serie, fromdate, todate)
