@@ -14,7 +14,7 @@ app = Flask('tsview')
 def kickoff(host, port, dburi, debug=False):
     engine = create_engine(dburi)
     app.register_blueprint(
-        rest_blueprint(str(engine.url)),
+        rest_blueprint(timeseries(str(engine.url))),
         url_prefix='/api'
     )
     app.register_blueprint(
