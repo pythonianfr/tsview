@@ -11,10 +11,15 @@ from tsview.history import historic
 app = Flask('tsview')
 
 
-def kickoff(host, port, dburi, debug=False):
+def kickoff(host, port, dburi, handler, debug=False):
     engine = create_engine(dburi)
     app.register_blueprint(
-        rest_blueprint(timeseries(str(engine.url))),
+        rest_blueprint(
+            timeseries(
+                dburi,
+                handler=handler
+            )
+        ),
         url_prefix='/api'
     )
     app.register_blueprint(
