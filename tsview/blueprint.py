@@ -1,6 +1,8 @@
 import json
 import pandas as pd
+from operator import itemgetter
 from flask import Blueprint, request, render_template, url_for
+from flask_restplus import Api, fields, reqparse
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
@@ -23,6 +25,21 @@ bp = Blueprint('tsview', __name__,
                template_folder='tsview_templates',
                static_folder='tsview_static',
 )
+
+api = Api(bp, title='tsview api')
+api.namespaces.pop(0)
+
+formula_name = reqparse.RequestParser()
+
+formula_name.add_argument(
+    'name', type=str, required=True,
+    help='formula name'
+)
+
+formula_model = api.model('Formula', dict(
+    name=fields.String(required=True),
+    code=fields.String(required=True)
+))
 
 
 def series_names(tshclass, engine):
@@ -183,5 +200,31 @@ def tsview(engine,
                 if FUNCS[name].__doc__ is not None
             }
         )
+
+    @bp.route('/tsformula/code')
+    @api.expect(formula_name)
+    @api.marshal_with(formula_model)
+    def formula_code():
+        args = formula_name.parse_args()
+        if not hasformula():
+            return ''
+        from tshistory_formula.tsio import timeseries as tshclass
+        tsh = tshclass()
+        return dict(name=args.name, code=tsh.formula(engine, args.name))
+
+    @bp.route('/tsformula/save', methods=['POST'])
+    @api.expect(fields=formula_model)
+    @api.marshal_with(formula_model)
+    def formula_save():
+        name, code = itemgetter('name', 'code')(request.json)
+        from tshistory_formula.tsio import timeseries as tshclass
+        tsh = tshclass()
+        if tsh.exists(engine, name):
+            api.abort(409, f'`{name}` already exists')
+        try:
+            tsh.register_formula(engine, name, code)
+        except ValueError as err:
+            api.abort(405, err.args[0])
+        return request.json
 
     return bp
