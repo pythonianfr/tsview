@@ -27,6 +27,7 @@ module TsView.Formula.Spec exposing
 
 import Either exposing (Either(..))
 import Html exposing (Html)
+import Http
 import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
@@ -91,6 +92,8 @@ type alias Formula =
     { current : String
     , rendered : String
     , code : Either String (List (Html Msg))
+    , saved : String
+    , name : String
     }
 
 
@@ -115,6 +118,9 @@ type Msg
     | EditNode (Zipper EditionNode) String
     | Render
     | CodeHighlight (Result String String)
+    | Save
+    | SaveDone (Result Http.Error String)
+    | EditedName String
 
 
 toString : SpecType -> String

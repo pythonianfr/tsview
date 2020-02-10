@@ -4,12 +4,14 @@ import Browser
 import Common
 import Dict
 import Either exposing (Either(..))
-import Html as H exposing (Attribute, Html)
+import Html as H exposing (Attribute, Html, input)
 import Html.Attributes as A
+import Html.Events exposing (onClick, onInput)
 import Html.Parser
 import Html.Parser.Util exposing (toVirtualDom)
 import Http
 import Json.Decode as Decode
+import Json.Encode as E
 import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
@@ -134,6 +136,37 @@ update msg model =
         CodeHighlight (Err x) ->
             ( { model | formula = { formula | code = Left x } }, Cmd.none )
 
+        Save ->
+            ( model
+            , Http.post
+                { url =
+                    UB.crossOrigin
+                        model.urlPrefix
+                        [ "tsformula", "save" ]
+                        []
+                , body =
+                    Http.jsonBody
+                        (E.object
+                            [ ( "code", E.string formula.rendered )
+                            , ( "name", E.string formula.name )
+                            ]
+                        )
+                , expect = Http.expectString SaveDone
+                }
+            )
+
+        SaveDone (Ok _) ->
+            ( { model | formula = { formula | saved = formula.rendered } }
+            , Cmd.none
+            )
+
+        SaveDone (Err _) ->
+            -- TODO let's not forget to tell something to the user
+            ( model, Cmd.none )
+
+        EditedName newContent ->
+            ( { model | formula = { formula | name = newContent } }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
@@ -153,7 +186,9 @@ view model =
                     (H.text "")
     in
     H.article []
-        [ errMess
+        [ H.button [ onClick Save ] [ H.text "Save" ]
+        , H.input [ A.placeholder "Enter a name", A.value formula.name, onInput EditedName ] []
+        , errMess
         , H.div [ classes [ T.fl, T.w_90, T.ma3 ] ]
             (Either.unpack (H.text >> List.singleton) identity formula.code)
         , viewEditor model
@@ -187,6 +222,8 @@ main =
                     (renderString <| Zipper.fromTree tree)
                     ""
                     (Left "No rendering")
+                    ""
+                    ""
                 )
             , Cmd.none
             )
