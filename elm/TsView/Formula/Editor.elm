@@ -156,16 +156,30 @@ update msg model =
             )
 
         SaveDone (Ok _) ->
-            ( { model | formula = { formula | saved = formula.rendered } }
+            ( { model
+                | formula =
+                    { formula
+                        | saved = formula.code
+                        , error = Nothing
+                    }
+              }
             , Cmd.none
             )
 
-        SaveDone (Err _) ->
+        SaveDone (Err x) ->
             -- TODO let's not forget to tell something to the user
-            ( model, Cmd.none )
+            ( { model | formula = { formula | error = Just "Wrong formula, could not be saved" } }
+            , Cmd.none
+            )
 
         EditedName newContent ->
             ( { model | formula = { formula | name = newContent } }, Cmd.none )
+
+
+formatDiv : Either String (List (Html Msg)) -> Html Msg
+formatDiv formular =
+    H.div [ classes [ T.fl, T.w_90, T.ma3 ] ]
+        (Either.unpack (H.text >> List.singleton) identity formular)
 
 
 view : Model -> Html Msg
@@ -174,23 +188,24 @@ view model =
         formula =
             model.formula
 
-        errMess =
+        errMess errorList =
             let
                 itemize =
                     H.text >> List.singleton >> H.li []
             in
             Maybe.map
                 (\xs -> H.ul [ A.style "margin" "30px" ] (List.map itemize xs))
-                model.specParsingError
+                errorList
                 |> Maybe.withDefault
                     (H.text "")
     in
     H.article []
         [ H.button [ onClick Save ] [ H.text "Save" ]
         , H.input [ A.placeholder "Enter a name", A.value formula.name, onInput EditedName ] []
-        , errMess
-        , H.div [ classes [ T.fl, T.w_90, T.ma3 ] ]
-            (Either.unpack (H.text >> List.singleton) identity formula.code)
+        , errMess model.specParsingError
+        , errMess <| Maybe.map List.singleton formula.error
+        , formatDiv formula.saved
+        , formatDiv formula.code
         , viewEditor model
         ]
 
@@ -222,8 +237,9 @@ main =
                     (renderString <| Zipper.fromTree tree)
                     ""
                     (Left "No rendering")
+                    (Left "Nothing saved")
                     ""
-                    ""
+                    Nothing
                 )
             , Cmd.none
             )

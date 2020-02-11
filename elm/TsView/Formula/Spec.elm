@@ -92,8 +92,9 @@ type alias Formula =
     { current : String
     , rendered : String
     , code : Either String (List (Html Msg))
-    , saved : String
+    , saved : Either String (List (Html Msg))
     , name : String
+    , error : Maybe String
     }
 
 
