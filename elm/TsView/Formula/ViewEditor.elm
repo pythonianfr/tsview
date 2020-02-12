@@ -172,5 +172,5 @@ viewEditor model =
                 _ ->
                     input zipper
     in
-    H.ul [ classes [ T.fl, T.w_100 ] ]
+    H.ul []
         [ viewEditionNode (Zipper.fromTree model.tree) ]

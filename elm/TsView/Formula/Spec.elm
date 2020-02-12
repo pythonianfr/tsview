@@ -25,6 +25,7 @@ module TsView.Formula.Spec exposing
     , toString
     )
 
+import Catalog
 import Either exposing (Either(..))
 import Html exposing (Html)
 import Http
@@ -33,6 +34,7 @@ import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
+import SeriesSelector
 
 
 type SpecType
@@ -105,6 +107,8 @@ type alias Model =
     , buildEditionTree : SpecType -> Tree EditionNode
     , tree : Tree EditionNode
     , formula : Formula
+    , search : SeriesSelector.Model
+    , catalog : Catalog.Model
     }
 
 
@@ -122,6 +126,13 @@ type Msg
     | Save
     | SaveDone (Result Http.Error String)
     | EditedName String
+    | ToggleItem String
+    | SearchSeries String
+    | KindChange String Bool
+    | ToggleMenu
+    | SourceChange String Bool
+    | GotCatalog Catalog.Msg
+    | MakeSearch
 
 
 toString : SpecType -> String

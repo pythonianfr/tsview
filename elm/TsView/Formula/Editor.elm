@@ -1,6 +1,8 @@
 module TsView.Formula.Editor exposing (main)
 
 import Browser
+import Catalog
+import Cmd.Extra exposing (withNoCmd)
 import Common
 import Dict
 import Either exposing (Either(..))
@@ -9,13 +11,16 @@ import Html.Attributes as A
 import Html.Events exposing (onClick, onInput)
 import Html.Parser
 import Html.Parser.Util exposing (toVirtualDom)
+import Html.Styled as HS
 import Http
 import Json.Decode as Decode
 import Json.Encode as E
+import KeywordSelector
 import Lazy.LList as LL
 import Lazy.Tree as Tree exposing (Tree(..))
 import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
+import SeriesSelector
 import Tachyons exposing (classes)
 import Tachyons.Classes as T
 import Time
@@ -77,6 +82,23 @@ update msg model =
               }
             , Cmd.none
             )
+
+        removeItem x xs =
+            List.filter ((/=) x) xs
+
+        toggleItem x xs =
+            if List.member x xs then
+                removeItem x xs
+
+            else
+                x :: xs
+
+        keywordMatch xm xs =
+            if String.length xm < 2 then
+                []
+
+            else
+                KeywordSelector.select xm xs |> List.take 20
     in
     case msg of
         ToggleNode zipper ->
@@ -166,8 +188,7 @@ update msg model =
             , Cmd.none
             )
 
-        SaveDone (Err x) ->
-            -- TODO let's not forget to tell something to the user
+        SaveDone (Err _) ->
             ( { model | formula = { formula | error = Just "Wrong formula, could not be saved" } }
             , Cmd.none
             )
@@ -175,11 +196,134 @@ update msg model =
         EditedName newContent ->
             ( { model | formula = { formula | name = newContent } }, Cmd.none )
 
+        ToggleItem x ->
+            let
+                newsearch =
+                    SeriesSelector.updateselected
+                        model.search
+                        (toggleItem x model.search.selected)
+            in
+            { model | search = newsearch } |> withNoCmd
+
+        SearchSeries x ->
+            let
+                newsearch =
+                    SeriesSelector.updatesearch model.search x
+            in
+            { model | search = newsearch } |> withNoCmd
+
+        KindChange kind checked ->
+            let
+                newsearch =
+                    SeriesSelector.updatekinds
+                        model.search
+                        model.catalog
+                        kind
+                        checked
+            in
+            { model | search = newsearch } |> withNoCmd
+
+        ToggleMenu ->
+            { model | search = SeriesSelector.togglemenu model.search } |> withNoCmd
+
+        SourceChange source checked ->
+            let
+                newsearch =
+                    SeriesSelector.updatesources
+                        model.search
+                        model.catalog
+                        source
+                        checked
+            in
+            { model | search = newsearch } |> withNoCmd
+
+        GotCatalog catmsg ->
+            let
+                newcat =
+                    Catalog.update catmsg model.catalog
+
+                newsearch =
+                    SeriesSelector.fromcatalog model.search newcat
+            in
+            { model
+                | catalog = newcat
+                , search = newsearch
+            }
+                |> withNoCmd
+
+        MakeSearch ->
+            let
+                newsearch =
+                    SeriesSelector.updatefound
+                        model.search
+                        (keywordMatch
+                            model.search.search
+                            model.search.filteredseries
+                        )
+            in
+            { model | search = newsearch } |> withNoCmd
+
 
 formatDiv : Either String (List (Html Msg)) -> Html Msg
 formatDiv formular =
-    H.div [ classes [ T.fl, T.w_90, T.ma3 ] ]
+    H.div [ classes [ T.ma3 ] ]
         (Either.unpack (H.text >> List.singleton) identity formular)
+
+
+makeCard : String -> List (Html msg) -> Html msg
+makeCard title contentChildren =
+    H.article
+        [ classes
+            [ T.center
+            , T.w_90
+            , T.w_60_l
+            , T.ba
+            , T.mv4
+            ]
+        , A.hidden False
+        ]
+        [ H.h1
+            [ classes
+                [ T.f4
+                , T.bg_moon_gray
+                , T.navy
+                , T.mv0
+                , T.pv2
+                , T.ph3
+                ]
+            ]
+            [ H.text title ]
+        , H.div
+            [ classes
+                [ T.pa3
+                , T.bt
+                ]
+            ]
+            contentChildren
+        ]
+
+
+selectorConfig : SeriesSelector.SelectorConfig Msg
+selectorConfig =
+    { searchSelector =
+        { action = Nothing
+        , defaultText =
+            HS.text
+                "Type some keywords in input bar for selecting time series"
+        , toggleMsg = ToggleItem
+        }
+    , actionSelector =
+        { action =
+            Nothing
+        , defaultText = HS.text ""
+        , toggleMsg = ToggleItem
+        }
+    , onInputMsg = SearchSeries
+    , onMenuToggle = ToggleMenu
+    , onKindChange = KindChange
+    , onSourceChange = SourceChange
+    , divAttrs = [ Common.classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
+    }
 
 
 view : Model -> Html Msg
@@ -199,14 +343,29 @@ view model =
                 |> Maybe.withDefault
                     (H.text "")
     in
-    H.article []
-        [ H.button [ onClick Save ] [ H.text "Save" ]
-        , H.input [ A.placeholder "Enter a name", A.value formula.name, onInput EditedName ] []
-        , errMess model.specParsingError
-        , errMess <| Maybe.map List.singleton formula.error
-        , formatDiv formula.saved
-        , formatDiv formula.code
-        , viewEditor model
+    H.main_ []
+        [ makeCard "Load formula"
+            [ SeriesSelector.view model.search model.catalog selectorConfig |> HS.toUnstyled ]
+        , makeCard
+            "Formula text editor"
+            [ formatDiv formula.code
+            , errMess model.specParsingError
+            ]
+        , makeCard
+            "Formula graphical editor"
+            [ viewEditor model ]
+        , makeCard
+            "Save formula"
+            [ H.button [ onClick Save ] [ H.text "Save" ]
+            , H.input
+                [ A.placeholder "Enter a name"
+                , A.value formula.name
+                , onInput EditedName
+                ]
+                []
+            , errMess <| Maybe.map List.singleton formula.error
+            , formatDiv formula.saved
+            ]
         ]
 
 
@@ -241,11 +400,13 @@ main =
                     ""
                     Nothing
                 )
-            , Cmd.none
+                SeriesSelector.null
+                (Catalog.new Dict.empty)
+            , Cmd.map GotCatalog (Catalog.get urlPrefix 0)
             )
 
         sub model =
-            Time.every 1000 (always Render)
+            Sub.batch <| List.map (always >> Time.every 1000) [ Render, MakeSearch ]
     in
     Browser.element
         { init = init
