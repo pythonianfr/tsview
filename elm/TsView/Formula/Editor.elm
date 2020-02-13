@@ -269,10 +269,18 @@ update msg model =
                 newModel =
                     { model | formula = { formula | current = x } }
 
+                rdr t =
+                    Zipper.fromTree t |> renderString
+
                 parse =
                     Either.unpack
                         (\s -> { newModel | errors = s :: model.errors })
-                        (\tree -> { newModel | tree = tree })
+                        (\tree ->
+                            { newModel
+                                | tree = tree
+                                , formula = { formula | current = rdr tree }
+                            }
+                        )
                         (parseSpec model.spec x)
             in
             ( parse, Cmd.none )
