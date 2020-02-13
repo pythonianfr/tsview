@@ -152,7 +152,8 @@ def tsview(engine,
         )
         return render_template('tsformula.html',
                                homeurl=homeurl(),
-                               spec=json.dumps(spec))
+                               spec=json.dumps(spec),
+                               name=json.dumps(request.args.get('name')))
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
     def tsformula_pygmentize():

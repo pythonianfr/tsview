@@ -12,7 +12,7 @@
         <script>
             var app = Elm.TsView.Formula.Editor.init({
                 node: document.getElementById("app"),
-                flags: ["{{ homeurl }}", {{ spec | safe }}]
+                flags: ["{{ homeurl }}", {{ spec | safe }}, {{ name | safe }}]
             });
         </script>
     </body>
