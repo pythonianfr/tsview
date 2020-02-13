@@ -267,7 +267,7 @@ update msg model =
             ( { model | formula = { formula | current = x } }, Cmd.none )
 
         GotFormula (Err _) ->
-            ( { model | formula = { formula | error = Just "Formula could not be loaded" } }, Cmd.none )
+            ( { model | errors = "Formula could not be loaded" :: model.errors }, Cmd.none )
 
 
 formatDiv : Either String (List (Html Msg)) -> Html Msg
@@ -344,18 +344,18 @@ view model =
                     H.text >> List.singleton >> H.li []
             in
             Maybe.map
-                (\xs -> H.ul [ A.style "margin" "30px" ] (List.map itemize xs))
-                errorList
+                (\xs -> H.ul [ A.style "margin" "30px" ] (NE.map itemize xs |> NE.toList))
+                (NE.fromList errorList)
                 |> Maybe.withDefault
                     (H.text "")
     in
     H.main_ []
-        [ makeCard "Load formula"
+        [ errMess model.errors
+        , makeCard "Load formula"
             [ SeriesSelector.view model.search model.catalog selectorConfig |> HS.toUnstyled ]
         , makeCard
             "Formula text editor"
             [ formatDiv formula.code
-            , errMess model.specParsingError
             ]
         , makeCard
             "Formula graphical editor"
@@ -369,7 +369,7 @@ view model =
                 , onInput EditedName
                 ]
                 []
-            , errMess <| Maybe.map List.singleton formula.error
+            , errMess <| Maybe.withDefault [] <| Maybe.map List.singleton formula.error
             , formatDiv formula.saved
             ]
         ]
@@ -422,7 +422,7 @@ main =
                     ""
                     (Left "No rendering")
                     (Left "Nothing saved")
-                    ""
+                    (Maybe.withDefault "" formulaName)
                     Nothing
                 )
                 SeriesSelector.null

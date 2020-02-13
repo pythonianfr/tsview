@@ -7,7 +7,6 @@ module TsView.Formula.Spec exposing
     , Model
     , Msg(..)
     , Spec
-    , SpecParsingError
     , SpecType(..)
     , Value(..)
     , buildEditionNode
@@ -56,10 +55,6 @@ type alias Spec =
     Nonempty SpecType
 
 
-type alias SpecParsingError =
-    Maybe (List String)
-
-
 type alias EditionFlags =
     { isOpen : Bool
     , isRemovable : Bool
@@ -103,7 +98,7 @@ type alias Formula =
 type alias Model =
     { urlPrefix : String
     , spec : Spec
-    , specParsingError : SpecParsingError
+    , errors : List String
     , buildEditionTree : SpecType -> Tree EditionNode
     , tree : Tree EditionNode
     , formula : Formula
@@ -299,7 +294,7 @@ parseOperator ( name, jsonArgs ) =
                     List.map (\x -> name ++ " " ++ x) xs
 
 
-parseJsonSpec : JsonSpec -> ( SpecParsingError, Spec )
+parseJsonSpec : JsonSpec -> ( List String, Spec )
 parseJsonSpec jsonSpec =
     let
         errSpec =
@@ -307,16 +302,16 @@ parseJsonSpec jsonSpec =
     in
     case List.map parseOperator jsonSpec |> Either.partition of
         ( [], x :: xs ) ->
-            ( Nothing, NE.Nonempty x xs )
+            ( [], NE.Nonempty x xs )
 
         ( [], [] ) ->
-            ( Just [ "No specification provided" ], errSpec )
+            ( [ "No specification provided" ], errSpec )
 
         ( ys, x :: xs ) ->
-            ( Just <| List.concat ys, NE.Nonempty x xs )
+            ( List.concat ys, NE.Nonempty x xs )
 
         ( ys, [] ) ->
-            ( Just <| List.concat ys, errSpec )
+            ( List.concat ys, errSpec )
 
 
 listOperators : Spec -> List ( String, SpecType )
