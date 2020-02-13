@@ -24,6 +24,7 @@ import SeriesSelector
 import Tachyons exposing (classes)
 import Tachyons.Classes as T
 import Time
+import TsView.Formula.Parser exposing (parseSpec)
 import TsView.Formula.Renderer exposing (renderString)
 import TsView.Formula.Spec as S exposing (Model, Msg(..))
 import TsView.Formula.ViewEditor exposing (viewEditor)
@@ -264,7 +265,17 @@ update msg model =
             { model | search = newsearch } |> withNoCmd
 
         GotFormula (Ok x) ->
-            ( { model | formula = { formula | current = x } }, Cmd.none )
+            let
+                newModel =
+                    { model | formula = { formula | current = x } }
+
+                parse =
+                    Either.unpack
+                        (\s -> { newModel | errors = s :: model.errors })
+                        (\tree -> { newModel | tree = tree })
+                        (parseSpec model.spec x)
+            in
+            ( parse, Cmd.none )
 
         GotFormula (Err _) ->
             ( { model | errors = "Formula could not be loaded" :: model.errors }, Cmd.none )
