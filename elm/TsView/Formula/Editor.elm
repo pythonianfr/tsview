@@ -322,7 +322,7 @@ selectorConfig =
     , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
-    , divAttrs = [ Common.classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
+    , divAttrs = [ Common.classes [ T.mb4 ] ]
     }
 
 
