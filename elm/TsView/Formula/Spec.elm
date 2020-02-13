@@ -133,6 +133,7 @@ type Msg
     | SourceChange String Bool
     | GotCatalog Catalog.Msg
     | MakeSearch
+    | GotFormula (Result Http.Error String)
 
 
 toString : SpecType -> String

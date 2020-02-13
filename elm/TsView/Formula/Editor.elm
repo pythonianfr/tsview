@@ -263,6 +263,12 @@ update msg model =
             in
             { model | search = newsearch } |> withNoCmd
 
+        GotFormula (Ok x) ->
+            ( { model | formula = { formula | current = x } }, Cmd.none )
+
+        GotFormula (Err _) ->
+            ( { model | formula = { formula | error = Just "Formula could not be loaded" } }, Cmd.none )
+
 
 formatDiv : Either String (List (Html Msg)) -> Html Msg
 formatDiv formular =
@@ -369,10 +375,29 @@ view model =
         ]
 
 
-main : Program ( String, S.JsonSpec ) Model Msg
+getFormulaCode : String -> Maybe String -> Cmd Msg
+getFormulaCode urlPrefix formulaName =
+    let
+        getFormulaCode_ : String -> Cmd Msg
+        getFormulaCode_ x =
+            Http.get
+                { url =
+                    UB.crossOrigin urlPrefix
+                        [ "tsformula", "code" ]
+                        [ UB.string "name" x ]
+                , expect = Http.expectString GotFormula
+                }
+
+        maybeCmd =
+            Maybe.map getFormulaCode_ formulaName
+    in
+    Maybe.withDefault Cmd.none maybeCmd
+
+
+main : Program ( String, S.JsonSpec, Maybe String ) Model Msg
 main =
     let
-        init ( urlPrefix, jsonSpec ) =
+        init ( urlPrefix, jsonSpec, formulaName ) =
             let
                 ( specError, spec ) =
                     S.parseJsonSpec jsonSpec
@@ -402,7 +427,10 @@ main =
                 )
                 SeriesSelector.null
                 (Catalog.new Dict.empty)
-            , Cmd.map GotCatalog (Catalog.get urlPrefix 0)
+            , Cmd.batch
+                [ Cmd.map GotCatalog (Catalog.get urlPrefix 0)
+                , getFormulaCode urlPrefix formulaName
+                ]
             )
 
         sub model =
