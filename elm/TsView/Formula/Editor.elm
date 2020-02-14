@@ -161,20 +161,24 @@ update msg model =
 
         Save ->
             ( model
-            , Http.post
-                { url =
+            , Http.request
+                { method = "PATCH"
+                , headers = []
+                , url =
                     UB.crossOrigin
                         model.urlPrefix
-                        [ "tsformula", "save" ]
+                        [ "api", "series", "formula" ]
                         []
                 , body =
                     Http.jsonBody
                         (E.object
-                            [ ( "code", E.string formula.rendered )
+                            [ ( "text", E.string formula.rendered )
                             , ( "name", E.string formula.name )
                             ]
                         )
                 , expect = Http.expectString SaveDone
+                , timeout = Nothing
+                , tracker = Nothing
                 }
             )
 
@@ -402,7 +406,7 @@ getFormulaCode urlPrefix formulaName =
             Http.get
                 { url =
                     UB.crossOrigin urlPrefix
-                        [ "tsformula", "code" ]
+                        [ "api", "series", "formula" ]
                         [ UB.string "name" x ]
                 , expect = Http.expectString GotFormula
                 }

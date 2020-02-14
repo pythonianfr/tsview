@@ -185,29 +185,4 @@ def tsview(engine,
             }
         )
 
-    class formula_args(_argsdict):
-        types = {
-            'name': str,
-            'code': str
-        }
-
-    @bp.route('/tsformula/code')
-    def formula_code():
-        args = formula_args(request.args)
-
-        from tshistory_formula.tsio import timeseries as tshclass
-        tsh = tshclass()
-
-        return tsh.formula(engine, args.name)
-
-    @bp.route('/tsformula/save', methods=['POST'])
-    def formula_save():
-        args = formula_args(request.json)
-
-        from tshistory_formula.tsio import timeseries as tshclass
-        tsh = tshclass()
-
-        tsh.register_formula(engine, args.name, args.code, update=True)
-        return ''
-
     return bp
