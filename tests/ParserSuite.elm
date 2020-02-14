@@ -71,10 +71,10 @@ formulaTests =
     , T "+ too many args" "(+ 3 4 5)" <| Left "FAILED"
     , T "@ unsupported op" "(@ 3 4)" <| Left "FAILED"
     , T "+ wrong args" "(+ ab 4)" <| Left "FAILED"
-    , T "* Right" "(* 5 (+ 7 9))" <| Right """
+    , T "* Right" "(* -9.26e-08 (+ 9.259e-02 -109))" <| Right """
 (*
-    5
-    (+ 7 9))
+    -9.26e-8
+    (+ 0.09259 -109))
 """
     , T "priority Right" "( priority  4 3  6 7 )" <| Right "(priority 4 3 6 7)"
     , T "priority Right series" """
@@ -97,7 +97,7 @@ formulaTests =
     (+  3 (series "a.b" #:weight 3.5 )  )
     (priority
         (* 10.3 (series "gaz.es"))
-        (+ 1.7 (series "gaz.pt" #:weight .3) #:a 12)
+        (+ -1.7 (series "gaz.pt" #:weight .3) #:a 12)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
         #:k2 "2020-01-24"
     )
@@ -116,7 +116,7 @@ formulaTests =
             10.3
             (series "gaz.es"))
         (+
-            1.7
+            -1.7
             (series "gaz.pt" #:weight 0.3)
             #:a 12)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)

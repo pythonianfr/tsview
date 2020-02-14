@@ -54,6 +54,28 @@ stringParser =
         |. Parser.symbol quoteSymbol
 
 
+minusSign : Parser Bool
+minusSign =
+    Parser.oneOf
+        [ Parser.map (always True) (Parser.symbol "-")
+        , Parser.succeed False
+        ]
+
+
+numberParser : Parser number -> Parser number
+numberParser pa =
+    Parser.succeed
+        (\negative x ->
+            if negative then
+                -x
+
+            else
+                x
+        )
+        |= minusSign
+        |= pa
+
+
 parseEditionNode : S.Spec -> Tree S.EditionNode -> Parser (Tree S.EditionNode)
 parseEditionNode spec tree =
     let
@@ -75,11 +97,11 @@ parseEditionNode spec tree =
     in
     case n.specType of
         S.Int ->
-            Parser.int
+            numberParser Parser.int
                 |> inputParser (\x -> ( String.fromInt x, S.IntValue x ))
 
         S.Float ->
-            Parser.float
+            numberParser Parser.float
                 |> inputParser (\x -> ( String.fromFloat x, S.FloatValue x ))
 
         S.String ->
