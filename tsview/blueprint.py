@@ -9,6 +9,10 @@ from dash import _utils
 
 from tshistory.tsio import timeseries
 
+import tshistory_formula.funcs
+from tshistory_formula.registry import FUNCS
+from tshistory_formula.interpreter import jsontypes
+
 from tsview.util import argsdict as _argsdict
 
 
@@ -25,10 +29,13 @@ bp = Blueprint('tsview', __name__,
 )
 
 
-def series_names(tshclass, engine):
+def primary_names(tsa):
+    cat = list(tsa.catalog(
+        allsources=False
+    ).values())[0]
     return sorted(
         name
-        for name, kind in tshclass().list_series(engine).items()
+        for name, kind in cat
         if kind == 'primary'
     )
 
@@ -39,20 +46,6 @@ def haseditor():
         return True
     except ImportError:
         return False
-
-
-def hasformula():
-    try:
-        import tshistory_formula
-        return True
-    except ImportError:
-        return False
-
-
-if hasformula():
-    import tshistory_formula.funcs
-    from tshistory_formula.registry import FUNCS
-    from tshistory_formula.interpreter import jsontypes
 
 
 def homeurl():
@@ -66,9 +59,7 @@ def homeurl():
 PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete')
 
 
-def tsview(engine,
-           tshclass=timeseries,
-           series_names=series_names,
+def tsview(tsa,
            has_permission=lambda perm: True):
 
     @bp.route('/tsview')
@@ -84,7 +75,7 @@ def tsview(engine,
     class logargs(_argsdict):
         defaults = {
             'series': None,
-            'seriesvocab': lambda: series_names(tshclass, engine)
+            'seriesvocab': lambda: primary_names(tsa)
         }
         types = {
             'series': str,
@@ -100,12 +91,9 @@ def tsview(engine,
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
         args = logargs(request.args)
-        tsh = tshclass()
-        with engine.begin() as cn:
-            log = tsh.log(
-                cn,
-                name=args.series
-            )
+        log = tsa.log(
+            name=args.series
+        )
 
         if not log:
             return 'No result.'
@@ -132,8 +120,6 @@ def tsview(engine,
 
     @bp.route('/tsformula')
     def tsformula():
-        if not hasformula():
-            return ''
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
@@ -159,8 +145,6 @@ def tsview(engine,
     def tsformula_pygmentize():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
-        if not hasformula():
-            return ''
 
         return json.dumps(highlight(
             request.data,
@@ -170,8 +154,6 @@ def tsview(engine,
 
     @bp.route('/tsformula/operators')
     def formula_operators():
-        if not hasformula():
-            return ''
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 

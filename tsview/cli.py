@@ -5,17 +5,11 @@ import webbrowser
 
 import click
 
+from tshistory.api import timeseries
 from tshistory.util import find_dburi
+from tshistory_formula.tsio import timeseries as tshclass
+
 from tsview.app import kickoff
-
-
-def tshclass(mode):
-    assert mode in ('default', 'formula')
-    if mode == 'default':
-        from tshistory.tsio import timeseries as tshclass
-        return tshclass
-    from tshistory_formula.tsio import timeseries as tshclass
-    return tshclass
 
 
 def host():
@@ -33,12 +27,12 @@ def host():
 def view(db_uri, handler, debug=False):
     """visualize time series through the web"""
     uri = find_dburi(db_uri)
+    tsa = timeseries(uri)
     ipaddr = host()
     port = int(getenv('TSVIEW_PORT', 5678))
 
-    serieshandler = tshclass(handler)
     if debug:
-        kickoff(ipaddr, port, uri, serieshandler)
+        kickoff(ipaddr, port, tsa, tshclass)
         return
 
     server = Thread(
@@ -46,8 +40,7 @@ def view(db_uri, handler, debug=False):
         kwargs={
             'host': ipaddr,
             'port': port,
-            'dburi': uri,
-            'handler': serieshandler
+            'tsa': tsa,
         }
     )
     server.daemon = True

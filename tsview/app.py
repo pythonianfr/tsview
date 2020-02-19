@@ -1,6 +1,5 @@
 from flask import Flask
 
-from sqlalchemy import create_engine
 from tshistory.api import timeseries
 from tshistory_rest.blueprint import blueprint as rest_blueprint
 
@@ -16,7 +15,7 @@ def make_app(tsa):
     )
     app.register_blueprint(
         tsview(
-            tsa.engine,
+            tsa,
             has_permission=lambda perm: True
         )
     )
@@ -24,11 +23,6 @@ def make_app(tsa):
     return app
 
 
-def kickoff(host, port, dburi, handler, debug=False):
-    engine = create_engine(dburi)
-    tsa =  timeseries(
-        dburi,
-        handler=handler
-    )
+def kickoff(host, port, tsa, debug=False):
     app = make_app(tsa)
     app.run(host=host, port=port, debug=debug, threaded=not debug)

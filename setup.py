@@ -61,7 +61,8 @@ setup(name='tsview',
           'dash-core-components==1.0.0',
           'dash-renderer==1.0.0',
           'dash-html-components==1.0.0',
-          'tshistory_rest'
+          'tshistory_rest',
+          'tshistory_formula'
       ],
       package_data={'tsview': [
           'tsview_static/*',
