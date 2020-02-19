@@ -3,8 +3,20 @@ import json
 from warnings import warn
 
 from werkzeug import ImmutableMultiDict
-
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
 from plotly import utils
+
+
+# formula helper
+
+def format_formula(formula):
+    return highlight(
+        formula,
+        get_lexer_by_name("lisp"),
+        HtmlFormatter()
+    )
 
 
 # webapp helper

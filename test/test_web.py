@@ -2,6 +2,8 @@ import pandas as pd
 
 from tshistory.testutil import utcdt
 
+from tsview.util import format_formula
+
 
 def test_log(client, tsa):
     series = pd.Series(
@@ -37,3 +39,10 @@ def test_log(client, tsa):
          'meta': {'comment': 'day 3'},
          'rev': 3}
     ]
+
+
+def test_formula_formatter():
+    f = '(add (series "foo") (+ 3 (series "bar")))'
+    f2 = format_formula(f)
+    assert f2 == '<div class="highlight"><pre><span></span><span class="p">(</span><span class="nv">add</span> <span class="p">(</span><span class="nv">series</span> <span class="s">&quot;foo&quot;</span><span class="p">)</span> <span class="p">(</span><span class="nb">+</span> <span class="mi">3</span> <span class="p">(</span><span class="nv">series</span> <span class="s">&quot;bar&quot;</span><span class="p">)))</span>\n</pre></div>\n'
+

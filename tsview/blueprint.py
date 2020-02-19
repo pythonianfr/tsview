@@ -13,7 +13,10 @@ import tshistory_formula.funcs
 from tshistory_formula.registry import FUNCS
 from tshistory_formula.interpreter import jsontypes
 
-from tsview.util import argsdict as _argsdict
+from tsview.util import (
+    argsdict as _argsdict,
+    format_formula
+)
 
 
 # monkeypatch dash utility
@@ -146,11 +149,7 @@ def tsview(tsa,
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
-        return json.dumps(highlight(
-            request.data,
-            get_lexer_by_name("lisp"),
-            HtmlFormatter()
-        ))
+        return json.dumps(format_formula(request.data))
 
     @bp.route('/tsformula/operators')
     def formula_operators():
