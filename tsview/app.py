@@ -8,25 +8,27 @@ from tsview.blueprint import tsview
 from tsview.history import historic
 
 
-app = Flask('tsview')
-
-
-def kickoff(host, port, dburi, handler, debug=False):
-    engine = create_engine(dburi)
+def make_app(tsa):
+    app = Flask('tsview')
     app.register_blueprint(
-        rest_blueprint(
-            timeseries(
-                dburi,
-                handler=handler
-            )
-        ),
+        rest_blueprint(tsa),
         url_prefix='/api'
     )
     app.register_blueprint(
         tsview(
-            engine,
+            tsa.engine,
             has_permission=lambda perm: True
         )
     )
-    historic(app, timeseries(dburi))
+    historic(app, tsa)
+    return app
+
+
+def kickoff(host, port, dburi, handler, debug=False):
+    engine = create_engine(dburi)
+    tsa =  timeseries(
+        dburi,
+        handler=handler
+    )
+    app = make_app(tsa)
     app.run(host=host, port=port, debug=debug, threaded=not debug)

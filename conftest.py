@@ -1,9 +1,15 @@
 from pathlib import Path
 
 import pytest
+import webtest
 from pytest_sa_pg import db
 from sqlalchemy import create_engine
+
+from tshistory import api
 from tshistory import schema
+
+from tsview import app
+
 
 DATADIR = Path(__file__).parent / 'test/data'
 DBURI = 'postgresql://localhost:5433/postgres'
@@ -21,11 +27,24 @@ def engine(request):
     return e
 
 
-def pytest_addoption(parser):
-    parser.addoption('--refresh-refs', action='store_true', default=False,
-                     help='refresh reference outputs')
+class WebTester(webtest.TestApp):
+
+    def _check_status(self, status, res):
+        try:
+            super(WebTester, self)._check_status(status, res)
+        except:
+            print('ERRORS', res.errors)
+            # raise <- default behaviour on 4xx is silly
 
 
-@pytest.fixture
-def refresh(request):
-    return request.config.getoption('--refresh-refs')
+@pytest.fixture(scope='session')
+def tsa(engine):
+    return api.timeseries(
+        str(engine.url)
+    )
+
+
+@pytest.fixture(scope='session')
+def client(tsa):
+    wsgi = app.make_app(tsa)
+    yield WebTester(wsgi)
