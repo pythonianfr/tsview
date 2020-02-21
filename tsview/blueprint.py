@@ -75,6 +75,17 @@ def tsview(tsa,
                                haseditor=json.dumps(haseditor()),
                                series=request.args.getlist("series"))
 
+    @bp.route('/tsinfo')
+    def tsinfo():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'tsinfo.html',
+            homeurl=homeurl(),
+            name=request.args.get('name')
+        )
+
     class logargs(_argsdict):
         defaults = {
             'series': None,

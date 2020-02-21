@@ -363,9 +363,15 @@ viewError error =
 
 
 
-viewHistoryEditorLink cls hasEditor seriesName =
+viewlinks cls hasEditor seriesName =
     div [ ]
         [ text (seriesName ++ " ")
+        , a [A.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
+            , A.target "_blank"
+            , cls
+            ]
+              [ text <| "info" ]
+        , text " "
         , a [ A.href <| UB.relative [ "tshistory", seriesName ] []
             , A.target "_blank"
             , cls
@@ -443,7 +449,7 @@ view model =
 
                 links =
                     List.map
-                        (viewHistoryEditorLink cls model.hasEditor)
+                        (viewlinks cls model.hasEditor)
                         model.search.selected
 
             in
