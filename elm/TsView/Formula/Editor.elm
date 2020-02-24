@@ -177,7 +177,7 @@ update msg model =
                             , ( "force_update", E.bool True )
                             ]
                         )
-                , expect = Http.expectString SaveDone
+                , expect = Common.expectJsonMessage SaveDone Decode.string
                 , timeout = Nothing
                 , tracker = Nothing
                 }
@@ -194,8 +194,8 @@ update msg model =
             , Cmd.none
             )
 
-        SaveDone (Err _) ->
-            ( { model | formula = { formula | error = Just "Wrong formula, could not be saved" } }
+        SaveDone (Err x) ->
+            ( { model | formula = { formula | error = Just x } }
             , Cmd.none
             )
 

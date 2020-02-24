@@ -119,7 +119,7 @@ type Msg
     | Render
     | CodeHighlight (Result String String)
     | Save
-    | SaveDone (Result Http.Error String)
+    | SaveDone (Result String String)
     | EditedName String
     | ToggleItem String
     | SearchSeries String
