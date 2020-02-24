@@ -102,14 +102,9 @@ decodeJsonMessage =
     decodeResponse
 
 
-expectJsonResponse : ToMsg a msg -> D.Decoder a -> Http.Expect msg
-expectJsonResponse toMsg decoder =
-    Http.expectStringResponse toMsg (decodeResponse decoder)
-
-
 expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
-expectJsonMessage toMsg =
-    expectJsonResponse toMsg
+expectJsonMessage toMsg decoder =
+    Http.expectStringResponse toMsg (decodeResponse decoder)
 
 
 
