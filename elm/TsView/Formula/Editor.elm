@@ -408,7 +408,7 @@ getFormulaCode urlPrefix formulaName =
                     UB.crossOrigin urlPrefix
                         [ "api", "series", "formula" ]
                         [ UB.string "name" x ]
-                , expect = Http.expectString GotFormula
+                , expect = Http.expectJson GotFormula Decode.string
                 }
 
         maybeCmd =
