@@ -16,13 +16,19 @@ import Json.Decode as D
 import Task exposing (Task)
 
 
+
 -- css helper
+
+
 classes : List String -> Attribute msg
 classes xs =
     class (String.join " " xs)
 
 
+
 -- core helpers
+
+
 maybe : b -> (a -> b) -> Maybe a -> b
 maybe b f =
     Maybe.map f >> Maybe.withDefault b
@@ -38,7 +44,10 @@ resultEither mapErr mapOk result =
             mapOk b
 
 
+
 -- messaging/decoding helpers
+
+
 type alias ToMsg a msg =
     Result String a -> msg
 
@@ -59,9 +68,10 @@ decodeResponse decoder resp =
             Dict.get "message" x
                 |> Maybe.withDefault (dictToStr x)
 
-        readErr = D.decodeString (D.dict D.string)
-            >> Result.map getMessage
-            >> resultEither D.errorToString identity
+        readErr =
+            D.decodeString (D.dict D.string)
+                >> Result.map getMessage
+                >> resultEither D.errorToString identity
 
         badStatus code body =
             readErr body
@@ -69,19 +79,22 @@ decodeResponse decoder resp =
                 ++ String.fromInt code
                 ++ "]"
     in
-        case resp of
-            Http.BadUrl_ x -> Err <| "BadUrl : " ++ x
+    case resp of
+        Http.BadUrl_ x ->
+            Err <| "BadUrl : " ++ x
 
-            Http.Timeout_ -> Err "Timeout"
+        Http.Timeout_ ->
+            Err "Timeout"
 
-            Http.NetworkError_ -> Err "NetworkError"
+        Http.NetworkError_ ->
+            Err "NetworkError"
 
-            Http.BadStatus_ metadata body ->
-                Err <| badStatus metadata.statusCode body
+        Http.BadStatus_ metadata body ->
+            Err <| badStatus metadata.statusCode body
 
-            Http.GoodStatus_ _ body ->
-                D.decodeString decoder body
-                    |> Result.mapError D.errorToString
+        Http.GoodStatus_ _ body ->
+            D.decodeString decoder body
+                |> Result.mapError D.errorToString
 
 
 decodeJsonMessage : D.Decoder a -> Response String -> Result String a
@@ -99,28 +112,32 @@ expectJsonMessage toMsg =
     expectJsonResponse toMsg
 
 
+
 -- task helper
+
+
 taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
 taskSequenceEither tasks =
     Task.andThen
         (\xs ->
-             let
-                 lefts = Either.lefts xs
-             in
-                 if
-                     not (List.isEmpty xs) && (List.length lefts == List.length xs)
-                 then
-                     Task.fail lefts
-                 else
-                     Task.succeed xs
+            let
+                lefts =
+                    Either.lefts xs
+            in
+            if not (List.isEmpty xs) && (List.length lefts == List.length xs) then
+                Task.fail lefts
+
+            else
+                Task.succeed xs
         )
-    (List.foldr
-         (\a b ->
-              let
-                  rightTask = Task.map Either.Right a
-              in
-                  Task.map2 (::) (Task.onError (Either.Left >> Task.succeed) rightTask) b
-         )
-         (Task.succeed [])
-         tasks
-    )
+        (List.foldr
+            (\a b ->
+                let
+                    rightTask =
+                        Task.map Either.Right a
+                in
+                Task.map2 (::) (Task.onError (Either.Left >> Task.succeed) rightTask) b
+            )
+            (Task.succeed [])
+            tasks
+        )
