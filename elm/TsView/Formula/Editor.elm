@@ -174,6 +174,7 @@ update msg model =
                         (E.object
                             [ ( "text", E.string formula.rendered )
                             , ( "name", E.string formula.name )
+                            , ( "force_update", E.bool True )
                             ]
                         )
                 , expect = Http.expectString SaveDone
