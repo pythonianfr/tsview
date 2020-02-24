@@ -3,7 +3,6 @@ module Common exposing
     , decodeJsonMessage
     , expectJsonMessage
     , maybe
-    , resultEither
     , taskSequenceEither
     )
 
@@ -34,16 +33,6 @@ maybe b f =
     Maybe.map f >> Maybe.withDefault b
 
 
-resultEither : (a -> c) -> (b -> c) -> Result a b -> c
-resultEither mapErr mapOk result =
-    case result of
-        Err a ->
-            mapErr a
-
-        Ok b ->
-            mapOk b
-
-
 
 -- messaging/decoding helpers
 
@@ -58,27 +47,6 @@ type alias ReadError =
 
 decodeResponse : D.Decoder a -> Response String -> Result String a
 decodeResponse decoder resp =
-    let
-        dictToStr =
-            Dict.toList
-                >> List.map (\( k, v ) -> "(" ++ k ++ ", " ++ v ++ ")")
-                >> String.join " "
-
-        getMessage x =
-            Dict.get "message" x
-                |> Maybe.withDefault (dictToStr x)
-
-        readErr =
-            D.decodeString (D.dict D.string)
-                >> Result.map getMessage
-                >> resultEither D.errorToString identity
-
-        badStatus code body =
-            readErr body
-                ++ " ["
-                ++ String.fromInt code
-                ++ "]"
-    in
     case resp of
         Http.BadUrl_ x ->
             Err <| "BadUrl : " ++ x
@@ -89,8 +57,11 @@ decodeResponse decoder resp =
         Http.NetworkError_ ->
             Err "NetworkError"
 
-        Http.BadStatus_ metadata body ->
-            Err <| badStatus metadata.statusCode body
+        Http.BadStatus_ _ body ->
+            D.decodeString (D.field "message" D.string) body
+                |> Either.fromResult
+                |> Either.mapLeft D.errorToString
+                |> Either.unpack Err Err
 
         Http.GoodStatus_ _ body ->
             D.decodeString decoder body
