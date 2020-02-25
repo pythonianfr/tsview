@@ -41,10 +41,6 @@ type alias ToMsg a msg =
     Result String a -> msg
 
 
-type alias ReadError =
-    String -> String
-
-
 decodeResponse : D.Decoder a -> Response String -> Result String a
 decodeResponse decoder resp =
     case resp of
