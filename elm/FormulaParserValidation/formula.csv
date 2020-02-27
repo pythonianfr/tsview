@@ -1,0 +1,6 @@
+name,code
+test_real,(priority (* 2.6e-02 (series "a")) (* 1.4e-01 (series "b")) (* 2.3e-03 (series "c")) (* 3.7e-02 (series "d")))
+test_div,(/ (series "a") 500)
+test_cronos,(/ (cronos "a" #:default_start (date "2013-01-01") #:default_end (date "2013-12-31")) 10)
+test_nan,(add (* nan (series "gas.fr.demand.ldz.new.mcmd.obs")) (* 0.092592593 (series "53443")) (* 0.092592593 (series "53440")))
+test_comma_on_str,'(* 5.72e-02 (series "x" #:fill "a, b"))'
