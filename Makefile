@@ -25,11 +25,13 @@ elm-test:
 	elm-test
 
 elm-validation:
-	elm make --output elm/FormulaParserValidation/tsformula_elm_parser.js elm/FormulaParserValidation/Main.elm
+	elm make --output elm/FormulaParserValidation/tsformula_elm_parser.js $(FLAGS) \
+		elm/FormulaParserValidation/Main.elm
 
 # need : $ npm install -g csv-parse
 validation: elm-validation
-	cd elm/FormulaParserValidation && NODE_PATH=$(NODE_PATH):. ./tsformula-elm-parser -s spec.json parse formula.csv
+	cd elm/FormulaParserValidation && \
+		NODE_PATH=$(NODE_PATH):. ./tsformula-elm-parser -s spec.json parse formula.csv
 
 clean: cleanstuff cleanbuild
 

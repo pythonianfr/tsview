@@ -8,7 +8,7 @@ function runElm(spec, records){
         .Elm.FormulaParserValidation.Main.init({
             flags: [spec, records]
         });
-    console.log('DONE');
+    app.ports.log.subscribe((x) => { console.log(x) });
 }
 
 require("yargs")

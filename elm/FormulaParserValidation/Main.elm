@@ -1,4 +1,4 @@
-module FormulaParserValidation.Main exposing (main)
+port module FormulaParserValidation.Main exposing (main)
 
 import Either exposing (Either(..))
 import Lazy.Tree.Zipper as Zipper
@@ -6,6 +6,9 @@ import Platform exposing (worker)
 import TsView.Formula.Parser exposing (parseSpec)
 import TsView.Formula.Renderer exposing (renderString)
 import TsView.Formula.Spec as S
+
+
+port log : String -> Cmd msg
 
 
 type alias Formula =
@@ -51,11 +54,10 @@ main =
                 ( _, spec ) =
                     S.parseJsonSpec jsonSpec
 
-                _ =
+                output =
                     parseFormulas spec formulas
-                        |> (\x -> Debug.log x ".")
             in
-            ( (), Cmd.none )
+            ( (), log output )
     in
     worker
         { init = run
