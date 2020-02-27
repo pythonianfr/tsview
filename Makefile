@@ -29,7 +29,7 @@ elm-validation:
 
 # need : $ npm install -g csv-parse
 validation: elm-validation
-	cd elm/FormulaParserValidation && NODE_PATH=$(NODE_PATH):. nodejs run.js -s spec.json parse formula.csv
+	cd elm/FormulaParserValidation && NODE_PATH=$(NODE_PATH):. ./tsformula-elm-parser -s spec.json parse formula.csv
 
 clean: cleanstuff cleanbuild
 
