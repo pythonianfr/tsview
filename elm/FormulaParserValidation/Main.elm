@@ -1,6 +1,7 @@
 port module FormulaParserValidation.Main exposing (main)
 
 import Either exposing (Either(..))
+import Json.Decode as D exposing (Decoder)
 import Lazy.Tree.Zipper as Zipper
 import Platform exposing (worker)
 import TsView.Formula.Parser exposing (parseSpec)
@@ -15,6 +16,11 @@ type alias Formula =
     { name : String
     , code : String
     }
+
+
+formulaDecoder : Decoder Formula
+formulaDecoder =
+    D.map2 Formula (D.field "name" D.string) (D.field "code" D.string)
 
 
 parseFormula : S.Spec -> String -> Either String String
@@ -46,16 +52,19 @@ parseFormulas spec formulas =
         |> String.join "\n"
 
 
-main : Program ( S.JsonSpec, List Formula ) () ()
+main : Program ( S.JsonSpec, D.Value ) () ()
 main =
     let
-        run ( jsonSpec, formulas ) =
+        run ( jsonSpec, formulasValue ) =
             let
                 ( _, spec ) =
                     S.parseJsonSpec jsonSpec
 
                 output =
-                    parseFormulas spec formulas
+                    D.decodeValue (D.list formulaDecoder) formulasValue
+                        |> Either.fromResult
+                        |> Either.map (parseFormulas spec)
+                        |> Either.unpack D.errorToString identity
             in
             ( (), log output )
     in
