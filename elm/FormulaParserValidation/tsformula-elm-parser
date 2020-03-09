@@ -3,10 +3,10 @@
 const fs = require('fs');
 const parse = require('csv-parse/lib/sync');
 
-function runElm(spec, records){
+function runElm(cmd){
     var app = require('tsformula_elm_parser.js')
         .Elm.FormulaParserValidation.Main.init({
-            flags: [spec, records]
+            flags: cmd
         });
     app.ports.log.subscribe((x) => { console.log(x) });
 }
@@ -21,6 +21,24 @@ require("yargs")
         describe: 'JSON specification file',
         coerce: (x) => { return JSON.parse(fs.readFileSync(x)) }
     })
+   .command(
+        'check',
+        'Check JSON specification',
+        (_) => {},
+        (args) => { runElm({cmd: 'Check', spec: args.spec}); }
+    )
+   .command(
+        'inspect',
+        'Inspect JSON specification',
+        (yargs) => {
+            yargs.option('all', {
+                boolean: 'all',
+                default: true,
+                describe: 'Explore all possible return types'
+            })
+        },
+        (args) => { runElm({cmd: 'Inspect', spec: args.spec, all: args.all}); }
+    )
     .command(
         'parse [catalog]',
         'Parse formula CSV with name, code header',
@@ -35,7 +53,7 @@ require("yargs")
                 fs.readFileSync(args.catalog, 'utf8'),
                 {columns: true, quote: "'"}
             );
-            runElm(args.spec, records);
+            runElm({cmd: 'Parse', spec: args.spec, formulas: records});
         }
     )
     .help()
