@@ -1,9 +1,8 @@
 module TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 
 import Either exposing (Either(..))
-import Lazy.LList as LL
-import Lazy.Tree as Tree exposing (Tree(..))
 import List.Nonempty as NE exposing (Nonempty)
+import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Type as T exposing (EditionNode)
 import TsView.Formula.Spec.Render as SR
 
@@ -98,14 +97,17 @@ inspectNode i node =
 
 
 inspect : Int -> Tree EditionNode -> List ( Int, String )
-inspect iParent (Tree n forest) =
+inspect iParent tree =
     let
-        children i =
-            List.concatMap (inspect i) (LL.toList forest)
+        ( iChild, head ) =
+            case inspectNode iParent (Tree.label tree) of
+                Just ( i, s ) ->
+                    ( i, [ ( iParent, s ) ] )
+
+                Nothing ->
+                    ( iParent, [] )
     in
-    inspectNode iParent n
-        |> Maybe.map (\( iChild, line ) -> ( iParent, line ) :: children iChild)
-        |> Maybe.withDefault (children iParent)
+    head ++ List.concatMap (inspect iChild) (Tree.children tree)
 
 
 inspectEditionTree : Tree EditionNode -> String

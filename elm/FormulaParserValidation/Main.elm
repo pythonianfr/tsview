@@ -68,11 +68,10 @@ parseFormulas spec formulas =
                 (rdr "OK")
                 (parseFormula spec formula.code |> Either.map inspectEditionTree)
     in
-    List.foldl
+    List.foldr
         (\a b -> [ sep ] ++ addEntry a ++ b)
         [ sep ]
         formulas
-        |> List.reverse
         |> String.join "\n"
 
 

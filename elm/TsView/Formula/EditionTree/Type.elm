@@ -19,11 +19,11 @@ module TsView.Formula.EditionTree.Type exposing
     )
 
 import Either exposing (Either(..))
-import Lazy.Tree as Tree exposing (Tree(..))
-import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import List.Nonempty as NE exposing (Nonempty)
+import Tree exposing (Tree)
+import Tree.Zipper as Zipper exposing (Zipper)
 import TsView.Formula.Spec.Type as S
-import TsView.Formula.Utils exposing (buildForest)
+import TsView.Formula.Utils exposing (buildForest, buildTree)
 
 
 type ArgType
@@ -205,14 +205,14 @@ listTypes spec editionType =
 
 buildTypeTree : S.Spec -> EditionType -> Tree EditionType
 buildTypeTree spec editionType =
-    Tree.build (listTypes spec) editionType
+    buildTree (listTypes spec) editionType
 
 
 buildEditionNode : Zipper EditionType -> Tree EditionNode
 buildEditionNode zipper =
     let
         editionType =
-            Zipper.current zipper
+            Zipper.label zipper
 
         isOpen =
             case editionType of
@@ -223,14 +223,14 @@ buildEditionNode zipper =
                     True
 
         isRemovable =
-            case Zipper.up zipper |> Maybe.map Zipper.current of
+            case Zipper.parent zipper |> Maybe.map Zipper.label of
                 Just (ArgTypeT (ArgType (S.SList _))) ->
                     True
 
                 _ ->
                     False
     in
-    Tree.Tree
+    Tree.tree
         (EditionNode
             (EditionFlags isOpen isRemovable)
             editionType

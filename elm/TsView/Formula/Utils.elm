@@ -1,21 +1,31 @@
 module TsView.Formula.Utils exposing
     ( buildForest
+    , buildTree
     , numberParser
     , stringParser
     )
 
-import Lazy.LList as LL
-import Lazy.Tree as Tree exposing (Tree(..))
-import Lazy.Tree.Zipper as Zipper exposing (Zipper)
 import Parser exposing ((|.), (|=), Parser)
 import Set
+import Tree exposing (Tree)
+import Tree.Zipper as Zipper exposing (Zipper)
+
+
+buildTree : (a -> List a) -> a -> Tree a
+buildTree getChildren parent =
+    case getChildren parent of
+        [] ->
+            Tree.tree parent []
+
+        xs ->
+            Tree.tree parent <| List.map (buildTree getChildren) xs
 
 
 {-| Build a `Tree.Forest b` (aka `LList Tree b`) from `Zipper` children
 -}
-buildForest : (Zipper a -> Tree b) -> Zipper a -> Tree.Forest b
+buildForest : (Zipper a -> Tree b) -> Zipper a -> List (Tree b)
 buildForest mkTree =
-    Zipper.openAll >> List.map mkTree >> LL.fromList
+    Zipper.children >> List.map (Zipper.fromTree >> mkTree)
 
 
 stringParser : Parser String

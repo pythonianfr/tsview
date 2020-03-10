@@ -2,11 +2,10 @@ module TsView.Formula.EditionTree.Parser exposing (parseFormula)
 
 import Dict
 import Either exposing (Either(..))
-import Lazy.LList as LL
-import Lazy.Tree as Tree exposing (Forest, Tree(..))
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
+import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 import TsView.Formula.EditionTree.Type as ET exposing (EditionNode)
 import TsView.Formula.Spec.Type as S exposing (Spec)
@@ -28,6 +27,10 @@ type alias EditionTree =
     Tree EditionNode
 
 
+type alias Forest a =
+    List (Tree a)
+
+
 map2 : (a -> b -> c) -> Parser a -> Parser b -> Parser c
 map2 f pa pb =
     Parser.map f pa |= pb
@@ -35,9 +38,9 @@ map2 f pa pb =
 
 traverse : (Tree a -> Parser (Tree b)) -> Forest a -> Parser (Forest b)
 traverse parseTree forest =
-    LL.foldr
-        (\a b -> map2 LL.cons (parseTree a) b)
-        (Parser.succeed LL.empty)
+    List.foldr
+        (\a b -> map2 (::) (parseTree a) b)
+        (Parser.succeed [])
         forest
 
 
@@ -45,7 +48,7 @@ traverse parseTree forest =
 -}
 treeParser : (Tree a -> Parser (Tree b)) -> b -> Tree a -> Parser (Tree b)
 treeParser parseSubTree item tree =
-    Parser.map (Tree.Tree item) (Tree.descendants tree |> traverse parseSubTree)
+    Parser.map (Tree.tree item) (Tree.children tree |> traverse parseSubTree)
 
 
 type alias ToValue a =
@@ -56,7 +59,7 @@ parseInputType : S.InputType -> S.Spec -> EditionTree -> Parser EditionTree
 parseInputType inputType spec tree =
     let
         n =
-            Tree.item tree
+            Tree.label tree
 
         inputParser : ToValue a -> Parser a -> Parser EditionTree
         inputParser toValue pa =
@@ -102,7 +105,7 @@ parseExpType : S.ExpType -> S.Spec -> EditionTree -> Parser EditionTree
 parseExpType expType spec tree =
     let
         n =
-            Tree.item tree
+            Tree.label tree
     in
     case expType of
         S.ExpBaseType (S.BaseInput x) ->
@@ -112,23 +115,23 @@ parseExpType expType spec tree =
             Parser.problem "Should have been handled by SelectorT Series"
 
         S.Union xs ->
-            Parser.map (Tree.Tree n) (parseUnionChoice spec xs)
+            Parser.map (Tree.tree n) (parseUnionChoice spec xs)
 
         S.SList x ->
-            Parser.map (Tree.Tree n) (parseSList spec x)
+            Parser.map (Tree.tree n) (parseSList spec x)
 
 
 parseEditionNode : S.Spec -> EditionTree -> Parser EditionTree
 parseEditionNode spec tree =
     let
         n =
-            Tree.item tree
+            Tree.label tree
     in
     case n.editionType of
         ET.ReturnTypeT _ ->
             -- XXX Should handle ReturnType and ReturnTypes
             Parser.map
-                (LL.singleton >> Tree.Tree n)
+                (List.singleton >> Tree.tree n)
                 (ET.SelectorT S.Series
                     |> ET.buildEditionTree spec
                     |> parseEditionNode spec
@@ -137,7 +140,7 @@ parseEditionNode spec tree =
 
         ET.SelectorT x ->
             Parser.map
-                (LL.singleton >> Tree.Tree n)
+                (List.singleton >> Tree.tree n)
                 (parseOperator spec x)
                 |> Parser.map (log "SelectorT")
 
@@ -146,7 +149,7 @@ parseEditionNode spec tree =
                 |> Parser.map (log "ArgTypeT")
 
         ET.OptArgsT _ ->
-            Parser.map (Tree.Tree n) (parseOptArgs spec <| Tree.descendants tree)
+            Parser.map (Tree.tree n) (parseOptArgs spec <| Tree.children tree)
 
         ET.ArgT _ ->
             treeParser (parseEditionNode spec) n tree
@@ -163,7 +166,7 @@ parseUnionChoice spec =
         >> List.map (ET.buildEditionTree spec >> parseEditionNode spec)
         >> Parser.oneOf
         >> Parser.map (log "UnionChosen")
-        >> Parser.map LL.singleton
+        >> Parser.map List.singleton
 
 
 parseSList : Spec -> S.ExpType -> Parser (Forest EditionNode)
@@ -177,11 +180,11 @@ parseSList spec expType =
                 |> ET.buildEditionTree spec
                 |> parseEditionNode spec
     in
-    Parser.loop LL.empty
+    Parser.loop []
         (\xs ->
             Parser.oneOf
-                [ prs |> Parser.map (\x -> LL.cons x xs |> Parser.Loop)
-                , Parser.succeed (LL.reverse xs |> Parser.Done)
+                [ prs |> Parser.map (\x -> x :: xs |> Parser.Loop)
+                , Parser.succeed (List.reverse xs |> Parser.Done)
                 ]
         )
 
@@ -207,9 +210,9 @@ parseOptArgs spec forest =
     let
         optArgs : OptArgs
         optArgs =
-            LL.foldr
+            List.foldr
                 (\a b ->
-                    case Tree.item a |> .editionType of
+                    case Tree.label a |> .editionType of
                         ET.OptArgT (ET.OptArg k _) ->
                             ( k, a ) :: b
 
@@ -228,7 +231,7 @@ parseOptArgs spec forest =
                 finalOptArg ( k, v ) b =
                     (Dict.get k d |> Maybe.withDefault v) :: b
             in
-            List.foldr finalOptArg [] optArgs |> LL.fromList
+            List.foldr finalOptArg [] optArgs
     in
     Parser.loop []
         (\xs ->
@@ -273,7 +276,7 @@ parseOperator spec baseType =
                     ET.buildEditionTree spec editionType
                         |> log "ChosenOperator"
             in
-            treeParser (parseEditionNode spec) (Tree.item opTree) opTree
+            treeParser (parseEditionNode spec) (Tree.label opTree) opTree
     in
     (Parser.succeed identity
         |. Parser.symbol "("
