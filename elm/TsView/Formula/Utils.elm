@@ -1,5 +1,7 @@
 module TsView.Formula.Utils exposing
-    ( buildForest
+    ( boolParser
+    , boolToString
+    , buildForest
     , buildTree
     , numberParser
     , stringParser
@@ -67,3 +69,21 @@ numberParser pa =
         )
         |= minusSign
         |= pa
+
+
+boolParser : Parser Bool
+boolParser =
+    Parser.oneOf
+        [ Parser.succeed True |. Parser.keyword "#t"
+        , Parser.succeed False |. Parser.keyword "#f"
+        ]
+
+
+boolToString : Bool -> String
+boolToString x =
+    case x of
+        True ->
+            "True"
+
+        False ->
+            "False"

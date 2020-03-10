@@ -9,17 +9,24 @@ import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 import TsView.Formula.EditionTree.Type as ET exposing (EditionNode)
 import TsView.Formula.Spec.Type as S exposing (Spec)
-import TsView.Formula.Utils exposing (numberParser, stringParser)
+import TsView.Formula.Utils
+    exposing
+        ( boolParser
+        , boolToString
+        , numberParser
+        , stringParser
+        )
 
 
-log : String -> EditionTree -> EditionTree
-log mess tree =
-    let
-        _ =
-            Debug.log
-                (String.join "\n" [ "", "=> " ++ mess, inspectEditionTree tree, "" ])
-                "____"
-    in
+logEditionTree : String -> EditionTree -> EditionTree
+logEditionTree mess tree =
+    -- Uncomment for logging
+    --    let
+    --        _ =
+    --            Debug.log
+    --                (String.join "\n" [ "", "=> " ++ mess, inspectEditionTree tree, "" ])
+    --                "____"
+    --    in
     tree
 
 
@@ -76,8 +83,8 @@ parseInputType inputType spec tree =
     in
     case inputType of
         S.Bool ->
-            stringParser
-                |> inputParser (\x -> ( x, ET.BoolValue True ))
+            boolParser
+                |> inputParser (\x -> ( boolToString x, ET.BoolValue x ))
 
         S.Int ->
             numberParser Parser.int
@@ -136,23 +143,29 @@ parseEditionNode spec tree =
                     |> ET.buildEditionTree spec
                     |> parseEditionNode spec
                 )
-                |> Parser.map (log "Formula Result")
+                |> Parser.map (logEditionTree "Formula Result")
 
         ET.SelectorT x ->
             Parser.map
                 (List.singleton >> Tree.tree n)
                 (parseOperator spec x)
-                |> Parser.map (log "SelectorT")
+                |> Parser.map (logEditionTree "SelectorT")
+
+        ET.InputSelectorT x ->
+            Parser.oneOf
+                [ treeParser (parseEditionNode spec) n tree
+                , Parser.map
+                    (List.singleton >> Tree.tree n)
+                    (parseOperator spec (S.BaseInput x) |> Parser.backtrackable)
+                ]
+                |> Parser.map (logEditionTree "InputSelectorT")
 
         ET.ArgTypeT (ET.ArgType x) ->
             parseExpType x spec tree
-                |> Parser.map (log "ArgTypeT")
+                |> Parser.map (logEditionTree "ArgTypeT")
 
         ET.OptArgsT _ ->
             Parser.map (Tree.tree n) (parseOptArgs spec <| Tree.children tree)
-
-        ET.ArgT _ ->
-            treeParser (parseEditionNode spec) n tree
 
         _ ->
             treeParser (parseEditionNode spec) n tree
@@ -161,11 +174,10 @@ parseEditionNode spec tree =
 parseUnionChoice : Spec -> Nonempty S.ExpType -> Parser (Forest EditionNode)
 parseUnionChoice spec =
     NE.toList
-        >> Debug.log "Union"
         >> List.map (ET.ArgType >> ET.probeArgSelector spec)
         >> List.map (ET.buildEditionTree spec >> parseEditionNode spec)
         >> Parser.oneOf
-        >> Parser.map (log "UnionChosen")
+        >> Parser.map (logEditionTree "UnionChosen")
         >> Parser.map List.singleton
 
 
@@ -274,7 +286,7 @@ parseOperator spec baseType =
             let
                 opTree =
                     ET.buildEditionTree spec editionType
-                        |> log "ChosenOperator"
+                        |> logEditionTree "ChosenOperator"
             in
             treeParser (parseEditionNode spec) (Tree.label opTree) opTree
     in
@@ -300,7 +312,7 @@ parseFormula spec formulaCode =
                     |. Parser.end
                 )
     in
-    Debug.log "PARSING" formulaCode
+    formulaCode
         |> runParser
         |> Either.fromResult
         |> Either.mapLeft Parser.deadEndsToString
