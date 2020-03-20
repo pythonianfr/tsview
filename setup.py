@@ -47,7 +47,7 @@ setup(name='tsview',
                    'a flask blueprint'),
       long_description=doc.read_text(),
       long_description_content_type='text/markdown',
-      url='https://bitbucket.org/pythonian/tsview',
+      url='https://hg.sr.ht/~pythonian/tsview',
 
       packages=['tsview'],
       zip_safe=False,
