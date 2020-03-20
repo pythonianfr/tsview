@@ -4,7 +4,7 @@ TSVIEW
 This is a [tshistory][tshistory] plugin which provides a `view` subcommand to the
 `tsh` command.
 
-[tshistory]: https://bitbucket.org/pythonian/tshistory
+[tshistory]: https://hg.sr.ht/~pythonian/tshistory
 
 It works like this:
 
@@ -26,7 +26,7 @@ given date range):
 
 This applies also to formulas if you use [tshistory_formula][tshistory_formula] !
 
-[tshistory_formula]: https://bitbucket.org/pythonian/tshistory_formula
+[tshistory_formula]: https://hg.sr.ht/~pythonian/tshistory_formula
 
 We also get a browser for the whole history _log_, by a
 slight modification of the url, from `http://192.168.56.1:5678/tsview`
