@@ -132,8 +132,8 @@ def tsview(tsa,
 
         return 'You do not have the rename capability.'
 
-    @bp.route('/tsformula')
-    def tsformula():
+    @bp.route('/spec')
+    def spec():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
@@ -142,17 +142,22 @@ def tsview(tsa,
                 typ = "List[%s]" % typ
             return (name, typ)
 
-        spec = sorted([
+        return json.dumps(sorted([
             (op_name, [
                 check_arg(name, typ)
                 for name, typ in op_spec.items()
             ])
             for op_name, op_spec in json.loads(jsontypes()).items()],
                       key=lambda x: ("\x00",) if x[0] == 'series' else x
-        )
+        ))
+
+    @bp.route('/tsformula')
+    def tsformula():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
         return render_template('tsformula.html',
                                homeurl=homeurl(),
-                               spec=json.dumps(spec),
+                               spec=spec(),
                                name=json.dumps(request.args.get('name')))
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
