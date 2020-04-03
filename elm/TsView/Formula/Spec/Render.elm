@@ -7,6 +7,7 @@ module TsView.Formula.Spec.Render exposing
 
 import List.Nonempty as NE exposing (Nonempty)
 import TsView.Formula.Spec.Type as S
+import TsView.Formula.Utils exposing (boolToString)
 
 
 strInputType : S.InputType -> String
@@ -69,8 +70,37 @@ renderSection title rdrType =
 renderOperator : S.Operator -> List ( Int, String )
 renderOperator op =
     let
-        rdrKArg ( k, x ) =
-            k ++ ": " ++ strExpType x
+        rdrDft v =
+            case v of
+                S.BoolValue x ->
+                    boolToString x
+
+                S.IntValue x ->
+                    String.fromInt x
+
+                S.NumberValue x ->
+                    String.fromFloat x
+
+                S.StringValue x ->
+                    "\"" ++ x ++ "\""
+
+                S.TimestampValue x ->
+                    x
+
+                _ ->
+                    ""
+
+        rdrKArg ( k, x, v ) =
+            let
+                dft =
+                    case v of
+                        S.Empty ->
+                            ""
+
+                        _ ->
+                            " Default=" ++ rdrDft v
+            in
+            k ++ ": " ++ strExpType x ++ dft
     in
     List.concat
         [ List.singleton ( 1, op.name )

@@ -4,6 +4,7 @@ module TsView.Formula.Spec.Type exposing
     , InputType(..)
     , Operator
     , Spec
+    , Value(..)
     , getOperators
     , noSpec
     , specToList
@@ -33,10 +34,19 @@ type ExpType
     | Union (Nonempty ExpType)
 
 
+type Value
+    = Empty
+    | BoolValue Bool
+    | IntValue Int
+    | NumberValue Float
+    | StringValue String
+    | TimestampValue String
+
+
 type alias Operator =
     { name : String
     , args : List ExpType
-    , kargs : List ( String, ExpType )
+    , kargs : List ( String, ExpType, Value )
     , return : ExpType
     }
 
@@ -52,7 +62,7 @@ noSpec =
 
 specToList : Spec -> List ( BaseType, Nonempty Operator )
 specToList =
-    Assoc.toList >> List.reverse
+    Assoc.toList
 
 
 getOperators : BaseType -> Spec -> Maybe (Nonempty Operator)

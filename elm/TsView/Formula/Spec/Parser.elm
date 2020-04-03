@@ -8,8 +8,8 @@ import Either exposing (Either(..))
 import Json.Decode as D exposing (Decoder)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
-import TsView.Formula.Parser exposing (stringParser)
 import TsView.Formula.Spec.Type as S
+import TsView.Formula.Utils exposing (valueParser)
 
 
 type alias RawOperator =
@@ -18,7 +18,7 @@ type alias RawOperator =
 
 type alias ParsedArguments =
     { args : List ( String, S.ExpType )
-    , kargs : List ( String, S.ExpType )
+    , kargs : List ( String, S.ExpType, S.Value )
     , errors : List String
     }
 
@@ -83,11 +83,42 @@ expTypeParser =
         ]
 
 
+parseDefault : Parser ( S.ExpType, S.Value )
+parseDefault =
+    let
+        parseNone =
+            Parser.succeed S.Empty |. Parser.keyword "None"
+
+        parseDefaultValue : S.ExpType -> Parser ( S.ExpType, S.Value )
+        parseDefaultValue expType =
+            Parser.map (Tuple.pair expType) <|
+                case expType of
+                    S.ExpBaseType (S.BaseInput S.Bool) ->
+                        Parser.oneOf
+                            [ Parser.succeed True |. Parser.keyword "True"
+                            , Parser.succeed False |. Parser.keyword "False"
+                            ]
+                            |> Parser.map S.BoolValue
+
+                    S.ExpBaseType (S.BaseInput x) ->
+                        Parser.oneOf
+                            [ parseNone
+                            , valueParser x |> Parser.map Tuple.second
+                            ]
+
+                    _ ->
+                        parseNone
+    in
+    expTypeParser
+        |. Parser.symbol "="
+        |> Parser.andThen parseDefaultValue
+
+
 parseArgument : ( String, String ) -> ParsedArguments -> ParsedArguments
 parseArgument ( name, val ) parsed =
     let
-        addKArg x =
-            { parsed | kargs = ( name, x ) :: parsed.kargs }
+        addKArg ( x, v ) =
+            { parsed | kargs = ( name, x, v ) :: parsed.kargs }
 
         addArg x =
             { parsed | args = ( name, x ) :: parsed.args }
@@ -95,9 +126,9 @@ parseArgument ( name, val ) parsed =
         parseOptArg =
             Parser.oneOf
                 [ Parser.succeed addKArg
-                    |. Parser.keyword "Optional"
+                    |. Parser.keyword "Default"
                     |. Parser.symbol "["
-                    |= expTypeParser
+                    |= parseDefault
                     |. Parser.symbol "]"
                 , Parser.succeed addArg
                     |= expTypeParser

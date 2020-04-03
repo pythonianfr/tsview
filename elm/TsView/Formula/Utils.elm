@@ -5,12 +5,14 @@ module TsView.Formula.Utils exposing
     , buildTree
     , numberParser
     , stringParser
+    , valueParser
     )
 
 import Parser exposing ((|.), (|=), Parser)
 import Set
 import Tree exposing (Tree)
 import Tree.Zipper as Zipper exposing (Zipper)
+import TsView.Formula.Spec.Type as S
 
 
 buildTree : (a -> List a) -> a -> Tree a
@@ -87,3 +89,36 @@ boolToString x =
 
         False ->
             "False"
+
+
+valueParser : S.InputType -> Parser ( String, S.Value )
+valueParser inputType =
+    let
+        andThen f =
+            Parser.andThen (f >> Parser.succeed)
+    in
+    case inputType of
+        S.Bool ->
+            boolParser
+                |> andThen (\x -> ( boolToString x, S.BoolValue x ))
+
+        S.Int ->
+            numberParser Parser.int
+                |> andThen (\x -> ( String.fromInt x, S.IntValue x ))
+
+        S.Number ->
+            numberParser Parser.float
+                |> andThen (\x -> ( String.fromFloat x, S.NumberValue x ))
+
+        S.String ->
+            stringParser
+                |> andThen (\x -> ( x, S.StringValue x ))
+
+        S.Timestamp ->
+            -- XXX should be a date parser ?
+            stringParser
+                |> andThen (\x -> ( x, S.TimestampValue x ))
+
+        S.SearchString ->
+            stringParser
+                |> andThen (\x -> ( x, S.StringValue x ))

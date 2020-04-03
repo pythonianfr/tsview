@@ -35,15 +35,15 @@ tests =
       ],
       [
         "fill",
-        "Optional[Union[str, Number]]"
+        "Default[Union[str, Number]=None]"
       ],
       [
         "prune",
-        "Optional[int]"
+        "Default[int=None]"
       ],
       [
         "weight",
-        "Optional[Number]"
+        "Default[Number=None]"
       ],
       [
         "return",
@@ -79,11 +79,11 @@ Series
       ],
       [
         "fill",
-        "Optional[Union[str, Number]]"
+        "Default[Union[str, Number]=None]"
       ],
       [
         "weight",
-        "Optional[Number]"
+        "Default[Number=None]"
       ],
       [
         "return",
@@ -96,11 +96,11 @@ Series
     [
       [
         "naive",
-        "bool"
+        "Default[bool=False]"
       ],
       [
         "tz",
-        "Optional[str]"
+        "Default[str=\\"UTC\\"]"
       ],
       [
         "return",
@@ -118,6 +118,27 @@ Series
       [
         "return",
         "Series"
+      ]
+    ]
+  ],
+  [
+    "timedelta",
+    [
+      [
+        "return",
+        "Timestamp"
+      ],
+      [
+        "date",
+        "Timestamp"
+      ],
+      [
+        "years",
+        "Default[int=0]"
+      ],
+      [
+        "months",
+        "Default[int=0]"
       ]
     ]
   ]
@@ -140,10 +161,16 @@ Series
 -----
 Timestamp
     today
-        arguments:
-            Bool
         keyword_arguments:
-            tz: String
+            naive: Bool Default=False
+            tz: String Default="UTC"
+        return: Timestamp
+    timedelta
+        arguments:
+            Timestamp
+        keyword_arguments:
+            years: Int Default=0
+            months: Int Default=0
         return: Timestamp
 -----
 """
@@ -161,6 +188,10 @@ parsing =
                     renderSpec
 
         checkStr x _ =
-            Expect.equal (rdr x.jsonSpec) (String.trim x.result)
+            let
+                res =
+                    rdr x.jsonSpec
+            in
+            Expect.equal res (String.trim x.result)
     in
     List.map (\x -> checkStr x |> test x.name) tests |> Test.concat
