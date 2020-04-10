@@ -1,36 +1,92 @@
 module Info exposing (main)
 
 import Browser
+import Common
 import Dict exposing (Dict)
 import Html exposing (..)
+import Http
+import Json.Decode as D
 import Url.Builder as UB
 
 
-type Meta
-    = String
-    | Int
-    | Bool
+type alias Metadata =
+    { tzaware : Bool
+    , index_type : String
+    , index_dtype : String
+    , value_type : String
+    , value_dtype : String
+    , supervision_status : String
+    }
 
 
 type alias Model =
     { baseurl : String
     , name : String
-    , metadata : Dict String Meta
+    , error : String
+    , metadata : Metadata
     }
 
+
 type Msg
-    = Ok
+    = GotMeta (Result String Metadata)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        GotMeta (Ok result) ->
+            ( { model | metadata = result }
+            , Cmd.none
+            )
+
+        GotMeta (Err result) ->
+            ( { model | error = result }
+            , Cmd.none
+            )
+
+
+showbool b =
+    if b then "true" else "false"
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [text ("Series " ++ model.name)]
+        [h1 [] [text ("Series " ++ model.name)]
+        , h2 [] [text "Metadata"]
+        , div [] [text model.error]
+        , ul [] [
+              li [] [text ("tz aware    → " ++ showbool model.metadata.tzaware)]
+             , li [] [text ("supervision → " ++ model.metadata.supervision_status)]
+             , li [] [text ("index type  → " ++ model.metadata.index_type)]
+             , li [] [text ("value type  → " ++ model.metadata.value_type)]
+             ]
+        ]
+
+
+decodemeta : D.Decoder Metadata
+decodemeta =
+    D.map6 Metadata
+        (D.at ["tzaware"] D.bool)
+        (D.at ["index_type"] D.string)
+        (D.at ["index_dtype"] D.string)
+        (D.at ["value_type"] D.string)
+        (D.at ["index_dtype"] D.string)
+        (D.at ["supervision_status"] D.string)
+
+
+getmetadata : String -> String-> Cmd Msg
+getmetadata urlprefix name  =
+    Http.get
+        { expect =
+              (Common.expectJsonMessage GotMeta)
+              decodemeta
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", "series", "metadata" ]
+                [ UB.string "name" name
+                , UB.int "all" 1 ]
+        }
 
 
 type alias Input =
@@ -46,9 +102,10 @@ main =
                ( Model
                      input.baseurl
                      input.name
-                     Dict.empty
+                     ""
+                     (Metadata False "" "" "" "" "")
                ,
-                   Cmd.none
+                   getmetadata input.baseurl input.name
                )
            sub model = Sub.none
        in
