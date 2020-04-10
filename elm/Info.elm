@@ -23,7 +23,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , error : String
-    , metadata : Metadata
+    , meta : Metadata
     }
 
 
@@ -35,7 +35,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotMeta (Ok result) ->
-            ( { model | metadata = result }
+            ( { model | meta = result }
             , Cmd.none
             )
 
@@ -62,10 +62,10 @@ view model =
         , h2 [] [text "Metadata"]
         , div [] [text model.error]
         , ul [] [
-              li [] [text ("tz aware    → " ++ showbool model.metadata.tzaware)]
-             , li [] [text ("supervision → " ++ showsupervision model.metadata.supervision_status)]
-             , li [] [text ("index type  → " ++ model.metadata.index_type)]
-             , li [] [text ("value type  → " ++ model.metadata.value_type)]
+              li [] [text ("tz aware    → " ++ showbool model.meta.tzaware)]
+             , li [] [text ("supervision → " ++ showsupervision model.meta.supervision_status)]
+             , li [] [text ("index type  → " ++ model.meta.index_type)]
+             , li [] [text ("value type  → " ++ model.meta.value_type)]
              ]
         ]
 
