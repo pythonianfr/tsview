@@ -32,6 +32,19 @@ type alias Model =
 type Msg
     = GotMeta (Result String Metadata)
     | GotFormula (Result Http.Error String)
+    | CodeHighlight (Result Http.Error String)
+
+
+pygmentyze model formula =
+    Http.post
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "tsformula", "pygmentize" ]
+              []
+        , body = Http.stringBody "text/plain" formula
+        , expect = Http.expectString CodeHighlight
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -55,12 +68,22 @@ update msg model =
             )
 
         GotFormula (Ok formula) ->
+            (model
+            , pygmentyze model formula
+            )
+
+        GotFormula (Err _) ->
+            ( { model | formula_error = "formula fetching failed"}
+            , Cmd.none
+            )
+
+        CodeHighlight (Ok formula) ->
             ( { model | formula = Just formula }
             , Cmd.none
             )
 
-        GotFormula (Err _) ->
-            ( { model | formula_error = "request failed"}
+        CodeHighlight (Err _) ->
+            ( { model | formula_error = "formula coloration failed"}
             , Cmd.none
             )
 
