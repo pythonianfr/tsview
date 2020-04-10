@@ -22,25 +22,45 @@ type alias Metadata =
 type alias Model =
     { baseurl : String
     , name : String
-    , error : String
+    , meta_error : String
     , meta : Metadata
+    , formula_error : String
+    , formula : Maybe String
     }
 
 
 type Msg
     = GotMeta (Result String Metadata)
+    | GotFormula (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotMeta (Ok result) ->
-            ( { model | meta = result }
+            let
+                newmodel = { model | meta = result }
+                cmd = if
+                    supervision newmodel == "formula" then
+                   getformula model.baseurl model.name else
+                   Cmd.none
+            in
+                ( newmodel
+                , cmd
+                )
+
+        GotMeta (Err result) ->
+            ( { model | meta_error = result }
             , Cmd.none
             )
 
-        GotMeta (Err result) ->
-            ( { model | error = result }
+        GotFormula (Ok formula) ->
+            ( { model | formula = Just formula }
+            , Cmd.none
+            )
+
+        GotFormula (Err _) ->
+            ( { model | formula_error = "request failed"}
             , Cmd.none
             )
 
@@ -49,10 +69,20 @@ showbool b =
     if b then "true" else "false"
 
 
-showsupervision s =
-    case s of
+supervision model =
+    case model.meta.supervision_status of
         Nothing -> "formula"
         Just x -> x
+
+
+viewformula model =
+    case model.formula of
+        Nothing -> div [] []
+        Just formula ->
+            div [] [
+                 h2 [] [text "Formula"]
+                 , span [] [text formula]
+                ]
 
 
 view : Model -> Html Msg
@@ -60,13 +90,14 @@ view model =
     div []
         [h1 [] [text ("Series " ++ model.name)]
         , h2 [] [text "Metadata"]
-        , div [] [text model.error]
+        , div [] [text model.meta_error]
         , ul [] [
               li [] [text ("tz aware    → " ++ showbool model.meta.tzaware)]
-             , li [] [text ("supervision → " ++ showsupervision model.meta.supervision_status)]
+             , li [] [text ("supervision → " ++ supervision model)]
              , li [] [text ("index type  → " ++ model.meta.index_type)]
              , li [] [text ("value type  → " ++ model.meta.value_type)]
              ]
+        , viewformula model
         ]
 
 
@@ -95,6 +126,18 @@ getmetadata urlprefix name  =
         }
 
 
+getformula : String -> String-> Cmd Msg
+getformula urlprefix name  =
+    Http.get
+        { expect =
+              Http.expectString GotFormula
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", "series", "formula" ]
+                [ UB.string "name" name]
+        }
+
+
 type alias Input =
     { baseurl : String
     , name : String
@@ -110,6 +153,8 @@ main =
                      input.name
                      ""
                      (Metadata False "" "" "" "" (Just ""))
+                     ""
+                     Nothing
                ,
                    getmetadata input.baseurl input.name
                )
