@@ -15,7 +15,7 @@ type alias Metadata =
     , index_dtype : String
     , value_type : String
     , value_dtype : String
-    , supervision_status : String
+    , supervision_status : Maybe String
     }
 
 
@@ -49,6 +49,12 @@ showbool b =
     if b then "true" else "false"
 
 
+showsupervision s =
+    case s of
+        Nothing -> "formula"
+        Just x -> x
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -57,7 +63,7 @@ view model =
         , div [] [text model.error]
         , ul [] [
               li [] [text ("tz aware    → " ++ showbool model.metadata.tzaware)]
-             , li [] [text ("supervision → " ++ model.metadata.supervision_status)]
+             , li [] [text ("supervision → " ++ showsupervision model.metadata.supervision_status)]
              , li [] [text ("index type  → " ++ model.metadata.index_type)]
              , li [] [text ("value type  → " ++ model.metadata.value_type)]
              ]
@@ -67,12 +73,12 @@ view model =
 decodemeta : D.Decoder Metadata
 decodemeta =
     D.map6 Metadata
-        (D.at ["tzaware"] D.bool)
-        (D.at ["index_type"] D.string)
-        (D.at ["index_dtype"] D.string)
-        (D.at ["value_type"] D.string)
-        (D.at ["index_dtype"] D.string)
-        (D.at ["supervision_status"] D.string)
+        (D.field "tzaware" D.bool)
+        (D.field "index_type" D.string)
+        (D.field "index_dtype" D.string)
+        (D.field "value_type" D.string)
+        (D.field "index_dtype" D.string)
+        (D.maybe (D.field "supervision_status" D.string))
 
 
 getmetadata : String -> String-> Cmd Msg
@@ -103,7 +109,7 @@ main =
                      input.baseurl
                      input.name
                      ""
-                     (Metadata False "" "" "" "" "")
+                     (Metadata False "" "" "" "" (Just ""))
                ,
                    getmetadata input.baseurl input.name
                )
