@@ -165,7 +165,11 @@ def tsview(tsa,
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
-        return json.dumps(format_formula(request.data))
+        return json.dumps(
+            format_formula(
+                request.data.decode('utf-8')
+            )
+        )
 
     @bp.route('/tsformula/operators')
     def formula_operators():

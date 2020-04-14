@@ -8,12 +8,17 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 from plotly import utils
 
+from psyl.lisp import parse, pretty
+
 
 # formula helper
 
-def format_formula(formula):
+def format_formula(formula, softbreak=90):
     return highlight(
-        formula,
+        pretty(
+            parse(formula),
+            softbreak=softbreak
+        ),
         get_lexer_by_name("lisp"),
         HtmlFormatter()
     )

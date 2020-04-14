@@ -44,5 +44,14 @@ def test_log(client, tsa):
 def test_formula_formatter():
     f = '(add (series "foo") (+ 3 (series "bar")))'
     f2 = format_formula(f)
-    assert f2 == '<div class="highlight"><pre><span></span><span class="p">(</span><span class="nv">add</span> <span class="p">(</span><span class="nv">series</span> <span class="s">&quot;foo&quot;</span><span class="p">)</span> <span class="p">(</span><span class="nb">+</span> <span class="mi">3</span> <span class="p">(</span><span class="nv">series</span> <span class="s">&quot;bar&quot;</span><span class="p">)))</span>\n</pre></div>\n'
-
+    assert f2 == (
+        '<div class="highlight"><pre><span></span><span class="p">(</span><span '
+        'class="nv">add</span>\n'
+        '    <span class="p">(</span><span class="nv">series</span> <span '
+        'class="s">&quot;foo&quot;</span><span class="p">)</span>\n'
+        '    <span class="p">(</span><span class="nb">+</span>\n'
+        '        <span class="mi">3</span>\n'
+        '        <span class="p">(</span><span class="nv">series</span> <span '
+        'class="s">&quot;bar&quot;</span><span class="p">)))</span>\n'
+        '</pre></div>\n'
+    )

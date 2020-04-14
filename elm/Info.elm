@@ -4,6 +4,8 @@ import Browser
 import Common
 import Dict exposing (Dict)
 import Html exposing (..)
+import Html.Parser
+import Html.Parser.Util
 import Http
 import Json.Decode as D
 import Url.Builder as UB
@@ -31,8 +33,8 @@ type alias Model =
 
 type Msg
     = GotMeta (Result String Metadata)
-    | GotFormula (Result Http.Error String)
-    | CodeHighlight (Result Http.Error String)
+    | GotFormula (Result String String)
+    | CodeHighlight (Result String String)
 
 
 pygmentyze model formula =
@@ -43,7 +45,7 @@ pygmentyze model formula =
               [ "tsformula", "pygmentize" ]
               []
         , body = Http.stringBody "text/plain" formula
-        , expect = Http.expectString CodeHighlight
+        , expect = Common.expectJsonMessage CodeHighlight D.string
         }
 
 
@@ -72,8 +74,8 @@ update msg model =
             , pygmentyze model formula
             )
 
-        GotFormula (Err _) ->
-            ( { model | formula_error = "formula fetching failed"}
+        GotFormula (Err error) ->
+            ( { model | formula_error = error}
             , Cmd.none
             )
 
@@ -82,8 +84,8 @@ update msg model =
             , Cmd.none
             )
 
-        CodeHighlight (Err _) ->
-            ( { model | formula_error = "formula coloration failed"}
+        CodeHighlight (Err error) ->
+            ( { model | formula_error = error}
             , Cmd.none
             )
 
@@ -98,13 +100,22 @@ supervision model =
         Just x -> x
 
 
+tovirtualdom : String -> List (Html.Html msg)
+tovirtualdom html =
+    case Html.Parser.run html of
+        Ok nodes ->
+            Html.Parser.Util.toVirtualDom nodes
+        Err x ->
+            [div [] [text "could not parse the formula"]]
+
+
 viewformula model =
     case model.formula of
         Nothing -> div [] []
         Just formula ->
             div [] [
                  h2 [] [text "Formula"]
-                 , span [] [text formula]
+                , span [] (tovirtualdom formula)
                 ]
 
 
@@ -152,8 +163,7 @@ getmetadata urlprefix name  =
 getformula : String -> String-> Cmd Msg
 getformula urlprefix name  =
     Http.get
-        { expect =
-              Http.expectString GotFormula
+        { expect = Common.expectJsonMessage GotFormula D.string
         , url =
             UB.crossOrigin urlprefix
                 [ "api", "series", "formula" ]
