@@ -37,6 +37,7 @@ type alias Model =
     , meta_error : String
     , meta : Metadata
     , formula_error : String
+    , formula_expanded : Int
     , formula : Maybe String
     , log_error : String
     , log : List Logentry
@@ -80,7 +81,7 @@ update msg model =
                 newmodel = { model | meta = result }
                 cmd = if
                     supervision newmodel == "formula" then
-                   getformula model.baseurl model.name else
+                   getformula model else
                    getlog model.baseurl model.name
             in
                 ( newmodel
@@ -228,14 +229,16 @@ getmetadata urlprefix name  =
         }
 
 
-getformula : String -> String-> Cmd Msg
-getformula urlprefix name  =
+getformula : Model -> Cmd Msg
+getformula model  =
     Http.get
         { expect = Common.expectJsonMessage GotFormula D.string
         , url =
-            UB.crossOrigin urlprefix
+            UB.crossOrigin model.baseurl
                 [ "api", "series", "formula" ]
-                [ UB.string "name" name]
+                [ UB.string "name" model.name
+                , UB.int "expanded" model.formula_expanded
+                ]
         }
 
 
@@ -280,6 +283,7 @@ main =
                      ""
                      (Metadata False "" "" "" "" (Just ""))
                      ""
+                     0
                      Nothing
                      ""
                      []
