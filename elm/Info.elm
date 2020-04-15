@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Either exposing (Either)
 import Html exposing (..)
 import Html.Attributes as A
+import Html.Events exposing (onClick)
 import Html.Parser
 import Html.Parser.Util
 import Http
@@ -49,6 +50,7 @@ type Msg
     | GotFormula (Result String String)
     | CodeHighlight (Result String String)
     | GotLog (Result Http.Error String)
+    | ToggleExpansion
 
 
 pygmentyze model formula =
@@ -123,6 +125,16 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleExpansion ->
+            if model.formula_expanded == 1 then
+                ( { model | formula_expanded = 0 }
+                , getformula { model | formula_expanded = 0 }
+                )
+            else
+                ( { model | formula_expanded = 1 }
+                , getformula { model | formula_expanded = 1 }
+                )
+
 
 showbool b =
     if b then "true" else "false"
@@ -149,6 +161,23 @@ viewformula model =
         Just formula ->
             div [] [
                  h2 [] [text "Formula"]
+                , div [ A.class "custom-control custom-switch"
+                      , A.title "expand the formula"
+                      ]
+                     [ input
+                           [ A.attribute "type" "checkbox"
+                           , A.class "custom-control-input"
+                           , A.id "expand-formula"
+                           , onClick ToggleExpansion
+                           ] []
+                     , label
+                         [ A.class "custom-control-label"
+                         , A.for "expand-formula"
+                         ]
+                         [ text (if model.formula_expanded == 1
+                                 then "expanded" else "unexpanded")
+                         ]
+                     ]
                 , span [] (tovirtualdom formula)
                 ]
 
