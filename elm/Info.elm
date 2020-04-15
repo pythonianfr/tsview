@@ -162,7 +162,8 @@ viewformula model =
             div [] [
                  h2 [] [text "Formula"]
                 , div [ A.class "custom-control custom-switch"
-                      , A.title "expand the formula"
+                      , A.title (if model.formula_expanded == 0
+                                 then "expand the formula" else "unexpand the formula")
                       ]
                      [ input
                            [ A.attribute "type" "checkbox"
