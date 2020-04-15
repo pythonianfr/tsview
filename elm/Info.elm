@@ -3,7 +3,9 @@ module Info exposing (main)
 import Browser
 import Common
 import Dict exposing (Dict)
+import Either exposing (Either)
 import Html exposing (..)
+import Html.Attributes as A
 import Html.Parser
 import Html.Parser.Util
 import Http
@@ -21,6 +23,14 @@ type alias Metadata =
     }
 
 
+type alias Logentry =
+    { rev : Int
+    , author : String
+    , date : String
+    , meta : Dict String String
+    }
+
+
 type alias Model =
     { baseurl : String
     , name : String
@@ -28,6 +38,8 @@ type alias Model =
     , meta : Metadata
     , formula_error : String
     , formula : Maybe String
+    , log_error : String
+    , log : List Logentry
     }
 
 
@@ -35,6 +47,7 @@ type Msg
     = GotMeta (Result String Metadata)
     | GotFormula (Result String String)
     | CodeHighlight (Result String String)
+    | GotLog (Result Http.Error String)
 
 
 pygmentyze model formula =
@@ -49,6 +62,16 @@ pygmentyze model formula =
         }
 
 
+unwraperror : Http.Error -> String
+unwraperror resp =
+    case resp of
+        Http.BadUrl x -> "bad url: " ++ x
+        Http.Timeout -> "the query timed out"
+        Http.NetworkError -> "there was a network error"
+        Http.BadStatus val -> "we got a bad status answer: " ++ String.fromInt val
+        Http.BadBody body -> "we got a bad body: " ++ body
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -58,7 +81,7 @@ update msg model =
                 cmd = if
                     supervision newmodel == "formula" then
                    getformula model.baseurl model.name else
-                   Cmd.none
+                   getlog model.baseurl model.name
             in
                 ( newmodel
                 , cmd
@@ -86,6 +109,16 @@ update msg model =
 
         CodeHighlight (Err error) ->
             ( { model | formula_error = error}
+            , Cmd.none
+            )
+
+        GotLog (Ok logs) ->
+            ( { model | log = Result.withDefault [] (D.decodeString decodelog logs) }
+            , Cmd.none
+            )
+
+        GotLog (Err error) ->
+            ( { model | log_error = unwraperror error }
             , Cmd.none
             )
 
@@ -119,6 +152,40 @@ viewformula model =
                 ]
 
 
+dicttostring d =
+    let
+        builditem ab = Tuple.first ab ++ " → " ++ Tuple.second ab
+    in
+    String.join "," (List.map builditem (Dict.toList d))
+
+
+viewlogentry entry =
+    tr []
+        [ th [A.scope "row"] [text (String.fromInt entry.rev)]
+        , td [] [text entry.author]
+        , td [] [text entry.date]
+        , td [] [text (dicttostring entry.meta)]
+        ]
+
+
+viewlog model =
+    if List.length model.log > 0 then
+        div [] [
+             h2 [] [text "History Log"]
+            , table [A.class "table table-striped table-hover table-sm"]
+                 [ thead []
+                       [td [A.scope "col"] [text "#"]
+                       , td [A.scope "col"] [text "author"]
+                       , td [A.scope "col"] [text "date"]
+                       , td [A.scope "col"] [text "meta"]
+                       ]
+                 , tbody []
+                     (List.map viewlogentry (List.reverse model.log))
+                 ]
+            ]
+    else div [] []
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -132,6 +199,7 @@ view model =
              , li [] [text ("value type  → " ++ model.meta.value_type)]
              ]
         , viewformula model
+        , viewlog model
         ]
 
 
@@ -171,6 +239,31 @@ getformula urlprefix name  =
         }
 
 
+decodelogentry : D.Decoder Logentry
+decodelogentry =
+    D.map4 Logentry
+        (D.field "rev" D.int)
+        (D.field "author" D.string)
+        (D.field "date" D.string)
+        (D.field "meta" (D.dict D.string))
+
+
+decodelog : D.Decoder (List Logentry)
+decodelog =
+    D.list decodelogentry
+
+
+getlog : String -> String-> Cmd Msg
+getlog urlprefix name  =
+    Http.get
+        { expect = Http.expectString GotLog
+        , url = UB.crossOrigin urlprefix
+              [ "api", "series", "log" ]
+              [ UB.string "name" name
+              , UB.int "limit" 10 ]
+        }
+
+
 type alias Input =
     { baseurl : String
     , name : String
@@ -188,6 +281,8 @@ main =
                      (Metadata False "" "" "" "" (Just ""))
                      ""
                      Nothing
+                     ""
+                     []
                ,
                    getmetadata input.baseurl input.name
                )
