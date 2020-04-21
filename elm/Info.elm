@@ -24,6 +24,16 @@ type alias Metadata =
     }
 
 
+defaultmeta =
+    Metadata
+        False
+        ""
+        ""
+        ""
+        ""
+        (Just "")
+
+
 type alias Logentry =
     { rev : Int
     , author : String
@@ -46,7 +56,7 @@ type alias Model =
 
 
 type Msg
-    = GotMeta (Result String Metadata)
+    = GotMeta (Result Http.Error String)
     | GotFormula (Result String String)
     | CodeHighlight (Result String String)
     | GotLog (Result Http.Error String)
@@ -80,7 +90,9 @@ update msg model =
     case msg of
         GotMeta (Ok result) ->
             let
-                newmodel = { model | meta = result }
+                newmodel = {
+                    model | meta = Result.withDefault defaultmeta
+                        (D.decodeString decodemeta result) }
                 cmd = if
                     supervision newmodel == "formula" then
                    getformula model else
@@ -90,8 +102,8 @@ update msg model =
                 , cmd
                 )
 
-        GotMeta (Err result) ->
-            ( { model | meta_error = result }
+        GotMeta (Err err) ->
+            ( { model | meta_error = unwraperror err }
             , Cmd.none
             )
 
@@ -249,8 +261,7 @@ getmetadata : String -> String-> Cmd Msg
 getmetadata urlprefix name  =
     Http.get
         { expect =
-              (Common.expectJsonMessage GotMeta)
-              decodemeta
+              Http.expectString GotMeta
         , url =
             UB.crossOrigin urlprefix
                 [ "api", "series", "metadata" ]
