@@ -1,4 +1,4 @@
-FLAGS ?= --optimize
+FLAGS ?=# --optimize
 NODE_PATH ?= /usr/lib/node_modules
 
 all: delete rename info plot formula pygmentize

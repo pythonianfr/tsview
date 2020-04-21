@@ -23,6 +23,15 @@ type alias Metadata =
     , supervision_status : Maybe String
     }
 
+metanames =
+    [ "tzaware"
+    , "index_type"
+    , "index_dtype"
+    , "value_type"
+    , "value_dtype"
+    , "supervision_status"
+    ]
+
 
 defaultmeta =
     Metadata
@@ -32,6 +41,17 @@ defaultmeta =
         ""
         ""
         (Just "")
+
+
+type MetaVal
+    = MString String
+    | MInt Int
+    | MFloat Float
+    | MBool Bool
+
+
+type alias UserMetadata =
+    Dict String MetaVal
 
 
 type alias Logentry =
@@ -47,6 +67,8 @@ type alias Model =
     , name : String
     , meta_error : String
     , meta : Metadata
+    , usermeta_error : String
+    , usermeta : UserMetadata
     , formula_error : String
     , formula_expanded : Int
     , formula : Maybe String
@@ -90,9 +112,15 @@ update msg model =
     case msg of
         GotMeta (Ok result) ->
             let
-                newmodel = {
-                    model | meta = Result.withDefault defaultmeta
-                        (D.decodeString decodemeta result) }
+                usermeta = Dict.filter (\k v -> not (List.member k metanames))
+                           (Result.withDefault Dict.empty
+                                (D.decodeString decodeusermeta result))
+                newmodel =
+                    { model
+                        | meta = Result.withDefault defaultmeta
+                                 (D.decodeString decodemeta result)
+                        , usermeta = usermeta
+                    }
                 cmd = if
                     supervision newmodel == "formula" then
                    getformula model else
@@ -229,6 +257,26 @@ viewlog model =
     else div [] []
 
 
+viewusermeta model =
+    let
+        value val =
+            case val of
+                MBool v -> if v then "true" else "false"
+                MInt v -> String.fromInt v
+                MFloat v -> String.fromFloat v
+                MString v -> v
+
+        elt (k, v) =
+            li [] [text <| (k ++ " → " ++ (value v))]
+    in
+    if Dict.isEmpty model.usermeta then div [] [] else
+    div []
+        [ h2 [] [text "User Metadata"]
+        , div [] [text model.usermeta_error]
+        , ul [] (List.map elt (Dict.toList model.usermeta))
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -241,9 +289,25 @@ view model =
              , li [] [text ("index type  → " ++ model.meta.index_type)]
              , li [] [text ("value type  → " ++ model.meta.value_type)]
              ]
+        , viewusermeta model
         , viewformula model
         , viewlog model
         ]
+
+
+decodemetaval : D.Decoder MetaVal
+decodemetaval =
+    D.oneOf
+        [ D.map MString D.string
+        , D.map MInt D.int
+        , D.map MFloat D.float
+        , D.map MBool D.bool
+        ]
+
+
+decodeusermeta : D.Decoder UserMetadata
+decodeusermeta =
+    D.dict decodemetaval
 
 
 decodemeta : D.Decoder Metadata
@@ -323,6 +387,8 @@ main =
                      input.name
                      ""
                      (Metadata False "" "" "" "" (Just ""))
+                     ""
+                     Dict.empty
                      ""
                      0
                      Nothing
