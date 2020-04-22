@@ -257,6 +257,19 @@ viewlog model =
     else div [] []
 
 
+viewmeta model =
+    div []
+    [ h2 [] [text "Metadata"]
+    , div [] [text model.meta_error]
+    , ul [] [
+           li [] [text ("tz aware → " ++ showbool model.meta.tzaware)]
+          , li [] [text ("supervision → " ++ supervision model)]
+          , li [] [text ("index type → " ++ model.meta.index_type)]
+          , li [] [text ("value type → " ++ model.meta.value_type)]
+          ]
+    ]
+
+
 viewusermeta model =
     let
         value val =
@@ -281,14 +294,7 @@ view : Model -> Html Msg
 view model =
     div []
         [h1 [] [text ("Series " ++ model.name)]
-        , h2 [] [text "Metadata"]
-        , div [] [text model.meta_error]
-        , ul [] [
-              li [] [text ("tz aware    → " ++ showbool model.meta.tzaware)]
-             , li [] [text ("supervision → " ++ supervision model)]
-             , li [] [text ("index type  → " ++ model.meta.index_type)]
-             , li [] [text ("value type  → " ++ model.meta.value_type)]
-             ]
+        , viewmeta model
         , viewusermeta model
         , viewformula model
         , viewlog model
