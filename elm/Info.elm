@@ -1,7 +1,6 @@
 module Info exposing (main)
 
 import Browser
-import Common
 import Dict exposing (Dict)
 import Either exposing (Either)
 import Html exposing (..)
@@ -82,7 +81,7 @@ type alias Model =
 type Msg
     = GotMeta (Result Http.Error String)
     | GotFormula (Result Http.Error String)
-    | CodeHighlight (Result String String)
+    | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | ToggleExpansion
@@ -96,7 +95,7 @@ pygmentyze model formula =
               [ "tsformula", "pygmentize" ]
               []
         , body = Http.stringBody "text/plain" formula
-        , expect = Common.expectJsonMessage CodeHighlight D.string
+        , expect = Http.expectString CodeHighlight
         }
 
 
@@ -166,13 +165,16 @@ update msg model =
             , Cmd.none
             )
 
-        CodeHighlight (Ok formula) ->
+        CodeHighlight (Ok rawformula) ->
+            let
+                formula = Result.withDefault "" (D.decodeString D.string rawformula)
+            in
             ( { model | formula = Just formula }
             , Cmd.none
             )
 
         CodeHighlight (Err error) ->
-            ( { model | formula_error = error}
+            ( { model | formula_error = unwraperror error}
             , Cmd.none
             )
 
