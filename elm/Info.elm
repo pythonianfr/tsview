@@ -70,8 +70,10 @@ type alias Model =
     , usermeta_error : String
     , usermeta : UserMetadata
     , formula_error : String
-    , formula_expanded : Int
+    , formula_expanded : Bool
     , formula : Maybe String
+    , formula_components_error : String
+    , formula_components : List (String, String)
     , log_error : String
     , log : List Logentry
     }
@@ -81,6 +83,7 @@ type Msg
     = GotMeta (Result Http.Error String)
     | GotFormula (Result String String)
     | CodeHighlight (Result String String)
+    | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | ToggleExpansion
 
@@ -94,6 +97,19 @@ pygmentyze model formula =
               []
         , body = Http.stringBody "text/plain" formula
         , expect = Common.expectJsonMessage CodeHighlight D.string
+        }
+
+
+components model =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "tsinfo", "finder" ]
+              [ UB.string "name" model.name
+              , UB.int "expanded" (if model.formula_expanded then 1 else 0)
+              ]
+        , expect = Http.expectString Components
         }
 
 
@@ -137,7 +153,9 @@ update msg model =
 
         GotFormula (Ok formula) ->
             (model
-            , pygmentyze model formula
+            , Cmd.batch [ pygmentyze model formula
+                        , components model
+                        ]
             )
 
         GotFormula (Err error) ->
@@ -155,6 +173,20 @@ update msg model =
             , Cmd.none
             )
 
+        Components (Ok compos) ->
+            let
+                complist = Result.withDefault []
+                           (D.decodeString (D.keyValuePairs D.string) compos)
+            in
+            ( { model | formula_components = complist }
+            , Cmd.none
+            )
+
+        Components (Err error) ->
+            ( { model | formula_components_error = unwraperror error }
+            , Cmd.none
+            )
+
         GotLog (Ok logs) ->
             ( { model | log = Result.withDefault [] (D.decodeString decodelog logs) }
             , Cmd.none
@@ -166,13 +198,13 @@ update msg model =
             )
 
         ToggleExpansion ->
-            if model.formula_expanded == 1 then
-                ( { model | formula_expanded = 0 }
-                , getformula { model | formula_expanded = 0 }
+            if model.formula_expanded then
+                ( { model | formula_expanded = False }
+                , getformula { model | formula_expanded = False }
                 )
             else
-                ( { model | formula_expanded = 1 }
-                , getformula { model | formula_expanded = 1 }
+                ( { model | formula_expanded = True }
+                , getformula { model | formula_expanded = True }
                 )
 
 
@@ -202,8 +234,8 @@ viewformula model =
             div [] [
                  h2 [] [text "Formula"]
                 , div [ A.class "custom-control custom-switch"
-                      , A.title (if model.formula_expanded == 0
-                                 then "expand the formula" else "unexpand the formula")
+                      , A.title (if model.formula_expanded
+                                 then "unexpand the formula" else "expand the formula")
                       ]
                      [ input
                            [ A.attribute "type" "checkbox"
@@ -215,7 +247,7 @@ viewformula model =
                          [ A.class "custom-control-label"
                          , A.for "expand-formula"
                          ]
-                         [ text (if model.formula_expanded == 1
+                         [ text (if model.formula_expanded
                                  then "expanded" else "unexpanded")
                          ]
                      ]
@@ -290,6 +322,26 @@ viewusermeta model =
         ]
 
 
+viewcomponents model =
+    let
+        elt (name, expr) =
+            li []
+                [ a [ A.href (UB.crossOrigin model.baseurl
+                                  ["tsinfo"]
+                                  [UB.string "name" name]
+                           )
+                    ] [text name]
+                , span [] [text (" → " ++ expr)]
+                ]
+    in
+    if (List.length model.formula_components) > 0 then
+        div []
+            [ h2 [] [(text "Components")]
+            , ul [] (List.map elt model.formula_components)
+            ]
+    else div [] [text model.formula_components_error]
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -298,6 +350,7 @@ view model =
         , viewusermeta model
         , viewformula model
         , viewlog model
+        , viewcomponents model
         ]
 
 
@@ -348,7 +401,7 @@ getformula model  =
             UB.crossOrigin model.baseurl
                 [ "api", "series", "formula" ]
                 [ UB.string "name" model.name
-                , UB.int "expanded" model.formula_expanded
+                , UB.int "expanded" (if model.formula_expanded then 1 else 0)
                 ]
         }
 
@@ -396,8 +449,10 @@ main =
                      ""
                      Dict.empty
                      ""
-                     0
+                     False
                      Nothing
+                     ""
+                     []
                      ""
                      []
                ,

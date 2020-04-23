@@ -7,6 +7,8 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 from dash import _utils
 
+from psyl import lisp
+
 from tshistory.tsio import timeseries
 
 import tshistory_formula.funcs
@@ -183,6 +185,29 @@ def tsview(tsa,
                        FUNCS[name].__module__)
                 for name in sorted(FUNCS)
                 if FUNCS[name].__doc__ is not None
+            }
+        )
+
+    class finderargs(_argsdict):
+        types = {
+            'name': str,
+            'expanded': int
+        }
+        defaults = {
+            'expanded': False
+        }
+
+    @bp.route('/tsinfo/finder')
+    def formula_finder():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        args = finderargs(request.args)
+        return json.dumps(
+            {name: lisp.serialize(val)
+             for name, val in tsa.formula_components(
+                     args.name,
+                     args.expanded).items()
             }
         )
 
