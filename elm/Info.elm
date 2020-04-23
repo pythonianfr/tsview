@@ -81,7 +81,7 @@ type alias Model =
 
 type Msg
     = GotMeta (Result Http.Error String)
-    | GotFormula (Result String String)
+    | GotFormula (Result Http.Error String)
     | CodeHighlight (Result String String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
@@ -151,15 +151,18 @@ update msg model =
             , Cmd.none
             )
 
-        GotFormula (Ok formula) ->
-            (model
+        GotFormula (Ok rawformula) ->
+            let
+                formula = Result.withDefault "" (D.decodeString D.string rawformula)
+            in
+            ( model
             , Cmd.batch [ pygmentyze model formula
                         , components model
                         ]
             )
 
         GotFormula (Err error) ->
-            ( { model | formula_error = error}
+            ( { model | formula_error = unwraperror error}
             , Cmd.none
             )
 
@@ -396,7 +399,7 @@ getmetadata urlprefix name  =
 getformula : Model -> Cmd Msg
 getformula model  =
     Http.get
-        { expect = Common.expectJsonMessage GotFormula D.string
+        { expect = Http.expectString  GotFormula
         , url =
             UB.crossOrigin model.baseurl
                 [ "api", "series", "formula" ]
