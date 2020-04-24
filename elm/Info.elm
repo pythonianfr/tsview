@@ -109,6 +109,43 @@ type Msg
     | ToggleExpansion
 
 
+getmetadata : String -> String-> Cmd Msg
+getmetadata urlprefix name  =
+    Http.get
+        { expect =
+              Http.expectString GotMeta
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", "series", "metadata" ]
+                [ UB.string "name" name
+                , UB.int "all" 1 ]
+        }
+
+
+getformula : Model -> Cmd Msg
+getformula model  =
+    Http.get
+        { expect = Http.expectString  GotFormula
+        , url =
+            UB.crossOrigin model.baseurl
+                [ "api", "series", "formula" ]
+                [ UB.string "name" model.name
+                , UB.int "expanded" (if model.formula_expanded then 1 else 0)
+                ]
+        }
+
+
+getlog : String -> String-> Cmd Msg
+getlog urlprefix name  =
+    Http.get
+        { expect = Http.expectString GotLog
+        , url = UB.crossOrigin urlprefix
+              [ "api", "series", "log" ]
+              [ UB.string "name" name
+              , UB.int "limit" 10 ]
+        }
+
+
 pygmentyze model formula =
     Http.post
         { url =
@@ -391,43 +428,6 @@ view model =
         , viewcomponents model
         , viewerrors model
         ]
-
-
-getmetadata : String -> String-> Cmd Msg
-getmetadata urlprefix name  =
-    Http.get
-        { expect =
-              Http.expectString GotMeta
-        , url =
-            UB.crossOrigin urlprefix
-                [ "api", "series", "metadata" ]
-                [ UB.string "name" name
-                , UB.int "all" 1 ]
-        }
-
-
-getformula : Model -> Cmd Msg
-getformula model  =
-    Http.get
-        { expect = Http.expectString  GotFormula
-        , url =
-            UB.crossOrigin model.baseurl
-                [ "api", "series", "formula" ]
-                [ UB.string "name" model.name
-                , UB.int "expanded" (if model.formula_expanded then 1 else 0)
-                ]
-        }
-
-
-getlog : String -> String-> Cmd Msg
-getlog urlprefix name  =
-    Http.get
-        { expect = Http.expectString GotLog
-        , url = UB.crossOrigin urlprefix
-              [ "api", "series", "log" ]
-              [ UB.string "name" name
-              , UB.int "limit" 10 ]
-        }
 
 
 type alias Input =
