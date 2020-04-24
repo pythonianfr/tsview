@@ -159,7 +159,7 @@ pygmentyze model formula =
         }
 
 
-components model =
+getcomponents model =
     Http.get
         { url =
               UB.crossOrigin
@@ -215,14 +215,17 @@ update msg model =
             )
 
         GotFormula (Ok rawformula) ->
-            let
-                formula = Result.withDefault "" (D.decodeString D.string rawformula)
-            in
-            ( model
-            , Cmd.batch [ pygmentyze model formula
-                        , components model
-                        ]
-            )
+            case D.decodeString D.string rawformula of
+                Ok formula ->
+                    ( model
+                    , Cmd.batch [ pygmentyze model formula
+                                , getcomponents model
+                                ]
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
 
         GotFormula (Err error) ->
             ( adderror model <| unwraperror error
@@ -230,36 +233,47 @@ update msg model =
             )
 
         CodeHighlight (Ok rawformula) ->
-            let
-                formula = Result.withDefault "" (D.decodeString D.string rawformula)
-            in
-            ( { model | formula = Just formula }
-            , Cmd.none
-            )
+            case D.decodeString D.string rawformula of
+                Ok formula ->
+                    ( { model | formula = Just formula }
+                    , Cmd.none
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
 
         CodeHighlight (Err error) ->
             ( adderror model <| unwraperror error
             , Cmd.none
             )
 
-        Components (Ok compos) ->
-            let
-                complist = Result.withDefault []
-                           (D.decodeString (D.keyValuePairs D.string) compos)
-            in
-            ( { model | formula_components = complist }
-            , Cmd.none
-            )
+        Components (Ok rawcomponents) ->
+            case D.decodeString (D.keyValuePairs D.string) rawcomponents of
+                Ok components ->
+                    ( { model | formula_components = components }
+                    , Cmd.none
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
 
         Components (Err error) ->
             ( adderror model <| unwraperror error
             , Cmd.none
             )
 
-        GotLog (Ok logs) ->
-            ( { model | log = Result.withDefault [] (D.decodeString decodelog logs) }
-            , Cmd.none
-            )
+        GotLog (Ok rawlog) ->
+            case D.decodeString decodelog rawlog of
+                Ok log ->
+                    ( { model | log = log }
+                    , Cmd.none
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
 
         GotLog (Err error) ->
             ( adderror model <| unwraperror error
