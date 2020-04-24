@@ -13,7 +13,7 @@ import Catalog
 import Json.Decode as Decode exposing (Decoder)
 import KeywordSelector
 import LruCache exposing (LruCache)
-import Plotter exposing (scatterplot, plotargs)
+import Plotter exposing (scatterplot, plotargs, Series)
 import SeriesSelector
 import Tachyons.Classes as T
 import Task exposing (Task)
@@ -39,25 +39,21 @@ type Error
     | CatalogError Catalog.Error
 
 
-type alias Serie =
-    Dict.Dict String Float
-
-
 type alias NamedSeries =
-    ( String, Serie )
+    ( String, Series )
 
 
 type alias NamedError =
     ( String, String )
 
 
-serieDecoder : Decoder Serie
+serieDecoder : Decoder Series
 serieDecoder =
     Decode.dict Decode.float
 
 
 type alias SeriesCache =
-    LruCache String Serie
+    LruCache String Series
 
 
 type Msg
@@ -102,7 +98,7 @@ fetchSeries selectedNames model =
 
         missingNames = Either.lefts cachedSeries
 
-        getSerie : String -> Task String Serie
+        getSerie : String -> Task String Series
         getSerie serieName =
             Http.task
                 { method = "GET"
@@ -119,7 +115,7 @@ fetchSeries selectedNames model =
                         Common.decodeJsonMessage serieDecoder
                 }
 
-        getMissingSeries : Task (List String) (List (Either String Serie))
+        getMissingSeries : Task (List String) (List (Either String Series))
         getMissingSeries =
             Common.taskSequenceEither <| List.map getSerie missingNames
 

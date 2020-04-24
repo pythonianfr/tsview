@@ -10,6 +10,13 @@ import Html.Parser
 import Html.Parser.Util
 import Http
 import Json.Decode as D
+import Plotter exposing
+    ( getplotdata
+    , seriesdecoder
+    , scatterplot
+    , plotargs
+    , Series
+    )
 import Url.Builder as UB
 
 
@@ -98,6 +105,7 @@ type alias Model =
     , formula : Maybe String
     , formula_components : List (String, String)
     , log : List Logentry
+    , plotdata : Series
     }
 
 
@@ -107,6 +115,7 @@ type Msg
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
+    | GotPlotData (Result Http.Error String)
     | ToggleExpansion
 
 
@@ -210,6 +219,22 @@ update msg model =
                     )
 
         GotMeta (Err err) ->
+            ( adderror model <|unwraperror err
+            , Cmd.none
+            )
+
+        GotPlotData (Ok rawdata) ->
+            case D.decodeString seriesdecoder rawdata of
+                Ok val ->
+                    ( { model | plotdata = val }
+                    , Cmd.none
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
+
+        GotPlotData (Err err) ->
             ( adderror model <|unwraperror err
             , Cmd.none
             )
@@ -440,6 +465,23 @@ viewerrors model =
     else span [] []
 
 
+viewplot model =
+    let
+        plot = scatterplot model.name
+               (Dict.keys model.plotdata)
+               (Dict.values model.plotdata)
+               "lines"
+        args = plotargs "plot" [plot]
+    in
+    div []
+        [ h2 [] [ text "Plot" ]
+        , div [ A.id "plot" ] []
+        -- the "plot-figure" node is pre-built in the template side
+        -- (html component)
+        , node "plot-figure" [ A.attribute "args" args ] []
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -449,6 +491,7 @@ view model =
         , viewformula model
         , viewlog model
         , viewcomponents model
+        , viewplot model
         , viewerrors model
         ]
 
@@ -473,8 +516,12 @@ main =
                      Nothing
                      []
                      []
+                     Dict.empty
                ,
-                   getmetadata input.baseurl input.name
+                   Cmd.batch
+                       [ getmetadata input.baseurl input.name
+                       , getplotdata input.baseurl input.name GotPlotData
+                       ]
                )
            sub model = Sub.none
        in

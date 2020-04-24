@@ -1,6 +1,8 @@
-module Plotter exposing (scatterplot, plotargs)
+module Plotter exposing (getplotdata, scatterplot, plotargs, seriesdecoder, Series)
 
+import Dict exposing (Dict)
 import Http
+import Json.Decode as D
 import Json.Encode as E
 import Url.Builder as UB
 
@@ -25,6 +27,14 @@ encodetrace t =
         ]
 
 
+type alias Series =
+    Dict.Dict String Float
+
+
+seriesdecoder =
+    D.dict D.float
+
+
 type alias TraceArgs =
     String -> List String -> List Float -> String -> Trace
 
@@ -45,10 +55,10 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getdata model name callback =
+getplotdata baseurl name callback =
     Http.get
-        { url = UB.crossOrigin model.baseurl
+        { url = UB.crossOrigin baseurl
               ["api", "series", "state"]
               [ UB.string "name" name ]
-        , expect = callback
+        , expect = Http.expectString callback
         }
