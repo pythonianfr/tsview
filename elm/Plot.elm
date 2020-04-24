@@ -11,9 +11,9 @@ import Html.Styled.Events exposing (onClick)
 import Http
 import Catalog
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
 import KeywordSelector
 import LruCache exposing (LruCache)
+import Plotter exposing (scatterplot, plotargs)
 import SeriesSelector
 import Tachyons.Classes as T
 import Task exposing (Task)
@@ -70,49 +70,6 @@ type Msg
     | KindChange String Bool
     | SourceChange String Bool
     | ToggleMenu
-
-
-type alias Trace =
-    { type_ : String
-    , name : String
-    , x : List String
-    , y : List Float
-    , mode : String
-    }
-
-
-encodeTrace : Trace -> Encode.Value
-encodeTrace t =
-    Encode.object
-        [ ( "type", Encode.string t.type_ )
-        , ( "name", Encode.string t.name )
-        , ( "x", Encode.list Encode.string t.x )
-        , ( "y", Encode.list Encode.float t.y )
-        , ( "mode", Encode.string t.mode )
-        ]
-
-
-type alias TraceArgs =
-    String -> List String -> List Float -> String -> Trace
-
-
-scatterPlot : TraceArgs
-scatterPlot =
-    Trace "scattergl"
-
-
-type alias PlotArgs =
-    { div : String
-    , data : List Trace
-    }
-
-
-encodePlotArgs : PlotArgs -> Encode.Value
-encodePlotArgs x =
-    Encode.object
-        [ ( "div", Encode.string x.div )
-        , ( "data", Encode.list encodeTrace x.data )
-        ]
 
 
 plotFigure : List (Attribute msg) -> List (Html msg) -> Html msg
@@ -398,7 +355,7 @@ view model =
                 data =
                     List.map
                         (\( name, serie ) ->
-                             scatterPlot
+                             scatterplot
                              name
                              (Dict.keys serie)
                              (Dict.values serie)
@@ -406,7 +363,7 @@ view model =
                         )
                         model.selectedNamedSeries
             in
-                PlotArgs plotDiv data |> encodePlotArgs |> Encode.encode 0
+                plotargs plotDiv data
 
         selector =
             let
