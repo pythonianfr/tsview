@@ -49,12 +49,42 @@ type alias UserMetadata =
     Dict String MetaVal
 
 
+decodemetaval : D.Decoder MetaVal
+decodemetaval =
+    D.oneOf
+        [ D.map MString D.string
+        , D.map MInt D.int
+        , D.map MFloat D.float
+        , D.map MBool D.bool
+        , D.map MList (D.succeed [])
+        ]
+
+
+decodemeta : D.Decoder UserMetadata
+decodemeta =
+    D.dict decodemetaval
+
+
 type alias Logentry =
     { rev : Int
     , author : String
     , date : String
     , meta : UserMetadata
     }
+
+
+decodelogentry : D.Decoder Logentry
+decodelogentry =
+    D.map4 Logentry
+        (D.field "rev" D.int)
+        (D.field "author" D.string)
+        (D.field "date" D.string)
+        (D.field "meta" (D.dict decodemetaval))
+
+
+decodelog : D.Decoder (List Logentry)
+decodelog =
+    D.list decodelogentry
 
 
 type alias Model =
@@ -363,22 +393,6 @@ view model =
         ]
 
 
-decodemetaval : D.Decoder MetaVal
-decodemetaval =
-    D.oneOf
-        [ D.map MString D.string
-        , D.map MInt D.int
-        , D.map MFloat D.float
-        , D.map MBool D.bool
-        , D.map MList (D.succeed [])
-        ]
-
-
-decodemeta : D.Decoder UserMetadata
-decodemeta =
-    D.dict decodemetaval
-
-
 getmetadata : String -> String-> Cmd Msg
 getmetadata urlprefix name  =
     Http.get
@@ -403,20 +417,6 @@ getformula model  =
                 , UB.int "expanded" (if model.formula_expanded then 1 else 0)
                 ]
         }
-
-
-decodelogentry : D.Decoder Logentry
-decodelogentry =
-    D.map4 Logentry
-        (D.field "rev" D.int)
-        (D.field "author" D.string)
-        (D.field "date" D.string)
-        (D.field "meta" (D.dict decodemetaval))
-
-
-decodelog : D.Decoder (List Logentry)
-decodelog =
-    D.list decodelogentry
 
 
 getlog : String -> String-> Cmd Msg
