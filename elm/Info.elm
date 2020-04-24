@@ -386,8 +386,12 @@ dget name dict =
 viewmeta model =
     let
         hidden = ["index_names", "index_dtype", "value_dtype"]
+        fixval name val =
+            if name == "supervision_status" && val == ""
+            then "formula"
+            else val
         elt name =
-            li [] [text (name ++ " → " ++ (dget name model.meta))]
+            li [] [text (name ++ " → " ++ (fixval name <| (dget name model.meta)))]
     in
     div []
     [ h2 [] [text "Metadata"]
