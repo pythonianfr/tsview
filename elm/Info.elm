@@ -19,7 +19,7 @@ metanames =
     , "index_dtype"
     , "value_type"
     , "value_dtype"
-    , "supervision_status"
+    , "supervision_status" -- hijacked to detect formula-ness
     , "index_names" -- deprecated but might still be there
     ]
 
@@ -56,6 +56,7 @@ decodemetaval =
         , D.map MInt D.int
         , D.map MFloat D.float
         , D.map MBool D.bool
+        -- terminal unprocessed node (only for the deprecated index_names entry)
         , D.map MList (D.succeed [])
         ]
 
