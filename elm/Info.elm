@@ -13,16 +13,6 @@ import Json.Decode as D
 import Url.Builder as UB
 
 
-type alias Metadata =
-    { tzaware : Bool
-    , index_type : String
-    , index_dtype : String
-    , value_type : String
-    , value_dtype : String
-    , supervision_status : Maybe String
-    }
-
-
 metanames =
     [ "tzaware"
     , "index_type"
@@ -30,17 +20,8 @@ metanames =
     , "value_type"
     , "value_dtype"
     , "supervision_status"
+    , "index_names" -- deprecated but might still be there
     ]
-
-
-defaultmeta =
-    Metadata
-        False
-        ""
-        ""
-        ""
-        ""
-        (Just "")
 
 
 type MetaVal
@@ -48,6 +29,20 @@ type MetaVal
     | MInt Int
     | MFloat Float
     | MBool Bool
+    | MList (List MetaVal)
+
+
+metavaltostring mv =
+    case mv of
+        MString s -> s
+        MInt i -> String.fromInt i
+        MFloat f -> String.fromFloat f
+        MBool b -> showbool b
+        MList l -> String.join ", " <| List.map metavaltostring l
+
+
+type alias StdMetadata =
+    Dict String MetaVal
 
 
 type alias UserMetadata =
@@ -66,7 +61,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , errors : List String
-    , meta : Metadata
+    , meta : StdMetadata
     , usermeta : UserMetadata
     , formula_expanded : Bool
     , formula : Maybe String
@@ -123,24 +118,24 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotMeta (Ok result) ->
-            let
-                usermeta = Dict.filter (\k v -> not (List.member k metanames))
-                           (Result.withDefault Dict.empty
-                                (D.decodeString decodeusermeta result))
-                newmodel =
-                    { model
-                        | meta = Result.withDefault defaultmeta
-                                 (D.decodeString decodemeta result)
-                        , usermeta = usermeta
-                    }
-                cmd = if
-                    supervision newmodel == "formula" then
-                   getformula model else
-                   getlog model.baseurl model.name
-            in
-                ( newmodel
-                , cmd
-                )
+            case D.decodeString decodemeta result of
+                Ok allmeta ->
+                    let
+                        stdmeta = Dict.filter (\k v -> (List.member k metanames)) allmeta
+                        usermeta = Dict.filter (\k v -> not (List.member k metanames)) allmeta
+                        newmodel =
+                            { model
+                                | meta = stdmeta
+                                , usermeta = usermeta
+                            }
+                        cmd = if supervision newmodel == "formula"
+                              then getformula model
+                              else getlog model.baseurl model.name
+                    in ( newmodel, cmd )
+                Err err ->
+                    ( { model | errors = List.append model.errors [D.errorToString err] }
+                    , Cmd.none
+                    )
 
         GotMeta (Err err) ->
             ( { model | errors = List.append model.errors [unwraperror err] }
@@ -215,9 +210,9 @@ showbool b =
 
 
 supervision model =
-    case model.meta.supervision_status of
+    case Dict.get "supervision_status" model.meta of
         Nothing -> "formula"
-        Just x -> x
+        Just x -> metavaltostring x
 
 
 tovirtualdom : String -> List (Html.Html msg)
@@ -262,12 +257,7 @@ metadicttostring d =
         builditem ab =
             let
                 first = Tuple.first ab
-                second =
-                    case Tuple.second ab of
-                        MInt i -> String.fromInt i
-                        MFloat f -> String.fromFloat f
-                        MBool b -> if b then "true" else "false"
-                        MString s -> s
+                second = metavaltostring (Tuple.second ab)
             in
                 first ++ " → " ++ second
     in
@@ -301,29 +291,28 @@ viewlog model =
     else div [] []
 
 
+dget name dict =
+    case Dict.get name dict of
+        Nothing -> ""
+        Just something -> metavaltostring something
+
+
 viewmeta model =
+    let
+        hidden = ["index_names", "index_dtype", "value_dtype"]
+        elt name =
+            li [] [text (name ++ " → " ++ (dget name model.meta))]
+    in
     div []
     [ h2 [] [text "Metadata"]
-    , ul [] [
-           li [] [text ("tz aware → " ++ showbool model.meta.tzaware)]
-          , li [] [text ("supervision → " ++ supervision model)]
-          , li [] [text ("index type → " ++ model.meta.index_type)]
-          , li [] [text ("value type → " ++ model.meta.value_type)]
-          ]
+    , ul [] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) metanames
     ]
 
 
 viewusermeta model =
     let
-        value val =
-            case val of
-                MBool v -> if v then "true" else "false"
-                MInt v -> String.fromInt v
-                MFloat v -> String.fromFloat v
-                MString v -> v
-
         elt (k, v) =
-            li [] [text <| (k ++ " → " ++ (value v))]
+            li [] [text <| (k ++ " → " ++ (metavaltostring v))]
     in
     if Dict.isEmpty model.usermeta then div [] [] else
     div []
@@ -381,23 +370,13 @@ decodemetaval =
         , D.map MInt D.int
         , D.map MFloat D.float
         , D.map MBool D.bool
+        , D.map MList (D.succeed [])
         ]
 
 
-decodeusermeta : D.Decoder UserMetadata
-decodeusermeta =
-    D.dict decodemetaval
-
-
-decodemeta : D.Decoder Metadata
+decodemeta : D.Decoder UserMetadata
 decodemeta =
-    D.map6 Metadata
-        (D.field "tzaware" D.bool)
-        (D.field "index_type" D.string)
-        (D.field "index_dtype" D.string)
-        (D.field "value_type" D.string)
-        (D.field "index_dtype" D.string)
-        (D.maybe (D.field "supervision_status" D.string))
+    D.dict decodemetaval
 
 
 getmetadata : String -> String-> Cmd Msg
@@ -465,7 +444,7 @@ main =
                      input.baseurl
                      input.name
                      []
-                     (Metadata False "" "" "" "" (Just ""))
+                     Dict.empty
                      Dict.empty
                      False
                      Nothing
