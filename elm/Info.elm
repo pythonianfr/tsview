@@ -182,6 +182,10 @@ unwraperror resp =
         Http.BadBody body -> "we got a bad body: " ++ body
 
 
+adderror model error =
+    { model | errors = List.append model.errors [error] }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -201,12 +205,12 @@ update msg model =
                               else getlog model.baseurl model.name
                     in ( newmodel, cmd )
                 Err err ->
-                    ( { model | errors = List.append model.errors [D.errorToString err] }
+                    ( adderror model <| D.errorToString err
                     , Cmd.none
                     )
 
         GotMeta (Err err) ->
-            ( { model | errors = List.append model.errors [unwraperror err] }
+            ( adderror model <|unwraperror err
             , Cmd.none
             )
 
@@ -221,7 +225,7 @@ update msg model =
             )
 
         GotFormula (Err error) ->
-            ( { model | errors = List.append model.errors [unwraperror error] }
+            ( adderror model <| unwraperror error
             , Cmd.none
             )
 
@@ -234,7 +238,7 @@ update msg model =
             )
 
         CodeHighlight (Err error) ->
-            ( { model | errors = List.append model.errors [unwraperror error] }
+            ( adderror model <| unwraperror error
             , Cmd.none
             )
 
@@ -248,7 +252,7 @@ update msg model =
             )
 
         Components (Err error) ->
-            ( { model | errors = List.append model.errors [unwraperror error] }
+            ( adderror model <| unwraperror error
             , Cmd.none
             )
 
@@ -258,7 +262,7 @@ update msg model =
             )
 
         GotLog (Err error) ->
-            ( { model | errors = List.append model.errors [unwraperror error] }
+            ( adderror model <| unwraperror error
             , Cmd.none
             )
 
