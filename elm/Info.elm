@@ -65,16 +65,12 @@ type alias Logentry =
 type alias Model =
     { baseurl : String
     , name : String
-    , meta_error : String
+    , errors : List String
     , meta : Metadata
-    , usermeta_error : String
     , usermeta : UserMetadata
-    , formula_error : String
     , formula_expanded : Bool
     , formula : Maybe String
-    , formula_components_error : String
     , formula_components : List (String, String)
-    , log_error : String
     , log : List Logentry
     }
 
@@ -147,7 +143,7 @@ update msg model =
                 )
 
         GotMeta (Err err) ->
-            ( { model | meta_error = unwraperror err }
+            ( { model | errors = List.append model.errors [unwraperror err] }
             , Cmd.none
             )
 
@@ -162,7 +158,7 @@ update msg model =
             )
 
         GotFormula (Err error) ->
-            ( { model | formula_error = unwraperror error}
+            ( { model | errors = List.append model.errors [unwraperror error] }
             , Cmd.none
             )
 
@@ -175,7 +171,7 @@ update msg model =
             )
 
         CodeHighlight (Err error) ->
-            ( { model | formula_error = unwraperror error}
+            ( { model | errors = List.append model.errors [unwraperror error] }
             , Cmd.none
             )
 
@@ -189,7 +185,7 @@ update msg model =
             )
 
         Components (Err error) ->
-            ( { model | formula_components_error = unwraperror error }
+            ( { model | errors = List.append model.errors [unwraperror error] }
             , Cmd.none
             )
 
@@ -199,7 +195,7 @@ update msg model =
             )
 
         GotLog (Err error) ->
-            ( { model | log_error = unwraperror error }
+            ( { model | errors = List.append model.errors [unwraperror error] }
             , Cmd.none
             )
 
@@ -308,7 +304,6 @@ viewlog model =
 viewmeta model =
     div []
     [ h2 [] [text "Metadata"]
-    , div [] [text model.meta_error]
     , ul [] [
            li [] [text ("tz aware → " ++ showbool model.meta.tzaware)]
           , li [] [text ("supervision → " ++ supervision model)]
@@ -333,7 +328,6 @@ viewusermeta model =
     if Dict.isEmpty model.usermeta then div [] [] else
     div []
         [ h2 [] [text "User Metadata"]
-        , div [] [text model.usermeta_error]
         , ul [] (List.map elt (Dict.toList model.usermeta))
         ]
 
@@ -350,12 +344,21 @@ viewcomponents model =
                 , span [] [text (" → " ++ expr)]
                 ]
     in
-    if (List.length model.formula_components) > 0 then
+    if supervision model == "formula" then
         div []
             [ h2 [] [(text "Components")]
             , ul [] (List.map elt model.formula_components)
             ]
-    else div [] [text model.formula_components_error]
+    else div [] [ ]
+
+
+viewerrors model =
+    if List.length model.errors > 0 then
+    div []
+        [ h2 [] [text "Errors"]
+        , p [] (List.map text model.errors)
+        ]
+    else span [] []
 
 
 view : Model -> Html Msg
@@ -367,6 +370,7 @@ view model =
         , viewformula model
         , viewlog model
         , viewcomponents model
+        , viewerrors model
         ]
 
 
@@ -460,16 +464,12 @@ main =
                ( Model
                      input.baseurl
                      input.name
-                     ""
+                     []
                      (Metadata False "" "" "" "" (Just ""))
-                     ""
                      Dict.empty
-                     ""
                      False
                      Nothing
-                     ""
                      []
-                     ""
                      []
                ,
                    getmetadata input.baseurl input.name
