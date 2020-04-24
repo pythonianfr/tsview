@@ -22,6 +22,7 @@ type alias Metadata =
     , supervision_status : Maybe String
     }
 
+
 metanames =
     [ "tzaware"
     , "index_type"
@@ -57,7 +58,7 @@ type alias Logentry =
     { rev : Int
     , author : String
     , date : String
-    , meta : Dict String String
+    , meta : UserMetadata
     }
 
 
@@ -260,9 +261,19 @@ viewformula model =
                 ]
 
 
-dicttostring d =
+metadicttostring d =
     let
-        builditem ab = Tuple.first ab ++ " → " ++ Tuple.second ab
+        builditem ab =
+            let
+                first = Tuple.first ab
+                second =
+                    case Tuple.second ab of
+                        MInt i -> String.fromInt i
+                        MFloat f -> String.fromFloat f
+                        MBool b -> if b then "true" else "false"
+                        MString s -> s
+            in
+                first ++ " → " ++ second
     in
     String.join "," (List.map builditem (Dict.toList d))
 
@@ -272,7 +283,7 @@ viewlogentry entry =
         [ th [A.scope "row"] [text (String.fromInt entry.rev)]
         , td [] [text entry.author]
         , td [] [text entry.date]
-        , td [] [text (dicttostring entry.meta)]
+        , td [] [text (metadicttostring entry.meta)]
         ]
 
 
@@ -417,7 +428,7 @@ decodelogentry =
         (D.field "rev" D.int)
         (D.field "author" D.string)
         (D.field "date" D.string)
-        (D.field "meta" (D.dict D.string))
+        (D.field "meta" (D.dict decodemetaval))
 
 
 decodelog : D.Decoder (List Logentry)
