@@ -1,4 +1,4 @@
-module Info exposing (main)
+module Info exposing (main, MetaVal(..), decodemetaval) -- for the tests, move in a lib later
 
 import Array exposing (Array)
 import Browser
@@ -65,7 +65,7 @@ decodemetaval =
         , D.map MFloat D.float
         , D.map MBool D.bool
         -- terminal unprocessed node (only for the deprecated index_names entry)
-        , D.map MList (D.succeed [])
+        , D.map MList (D.list (D.lazy (\_  -> decodemetaval)))
         ]
 
 
