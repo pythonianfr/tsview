@@ -55,10 +55,18 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getplotdata baseurl name callback =
+getplotdata baseurl name idate callback =
+    let
+        query = [ UB.string "name" name ]
+        fullquery date =
+            case date of
+                Nothing -> query
+                Just d -> List.append query
+                          [ UB.string "insertion_date" d ]
+    in
     Http.get
         { url = UB.crossOrigin baseurl
               ["api", "series", "state"]
-              [ UB.string "name" name ]
+              (fullquery idate)
         , expect = Http.expectString callback
         }

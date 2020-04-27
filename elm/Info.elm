@@ -1,15 +1,15 @@
 module Info exposing (main)
 
+import Array exposing (Array)
 import Browser
 import Dict exposing (Dict)
 import Either exposing (Either)
 import Html exposing (..)
 import Html.Attributes as A
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 import Html.Parser
 import Html.Parser.Util
 import Http
-import Iso8601
 import Json.Decode as D
 import Plotter exposing
     ( getplotdata
@@ -112,7 +112,8 @@ type alias Model =
     , formula_components : List (String, String)
     , log : List Logentry
     , plotdata : Series
-    , insertion_dates : List Time.Posix
+    , insertion_dates : Array String
+    , date_index : Int
     }
 
 
@@ -125,6 +126,7 @@ type Msg
     | GotPlotData (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
+    | ChangedIdate String
 
 
 getmetadata : String -> String-> Cmd Msg
@@ -227,9 +229,10 @@ update msg model =
                                 | meta = stdmeta
                                 , usermeta = usermeta
                             }
+                        next = getidates model
                         cmd = if supervision newmodel == "formula"
-                              then getformula model
-                              else getlog model.baseurl model.name
+                              then Cmd.batch [ getformula model, next ]
+                              else Cmd.batch [ getlog model.baseurl model.name, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     ( adderror model <| D.errorToString err
@@ -263,7 +266,6 @@ update msg model =
                     ( model
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
-                                , getidates model
                                 ]
                     )
                 Err err ->
@@ -326,15 +328,11 @@ update msg model =
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString decodeidates rawdates of
-                Ok strdates ->
-                    let
-                        toposix rawdate =
-                            case Iso8601.toTime rawdate of
-                                Ok v -> v
-                                Err e -> Time.millisToPosix 0
-                        idates = List.map toposix strdates
-                    in
-                    ( { model | insertion_dates = idates }
+                Ok dates ->
+                    ( { model
+                          | insertion_dates = Array.fromList dates
+                          , date_index = List.length dates - 1
+                      }
                     , Cmd.none
                     )
                 Err err ->
@@ -356,6 +354,19 @@ update msg model =
                 ( { model | formula_expanded = True }
                 , getformula { model | formula_expanded = True }
                 )
+
+        ChangedIdate strindex ->
+            let
+                index = Maybe.withDefault
+                       model.date_index -- keep current
+                       (String.toInt strindex)
+            in
+            case Array.get index model.insertion_dates of
+                Nothing -> ( model, Cmd.none )
+                Just date ->
+                    ( { model | date_index = index }
+                    , getplotdata model.baseurl model.name (Just date) GotPlotData
+                    )
 
 
 showbool b =
@@ -507,6 +518,24 @@ viewerrors model =
     else span [] []
 
 
+viewdatesrange model =
+    let
+        numidates = Array.length model.insertion_dates
+    in
+    if numidates < 2
+    then div [] []
+    else div []
+        [ input
+              [ A.attribute "type" "range"
+              , A.min "0"
+              , A.max (String.fromInt numidates)
+              , A.value (String.fromInt model.date_index)
+              , A.class "form-control-range"
+              , onInput ChangedIdate
+              ] []
+        ]
+
+
 viewplot model =
     let
         plot = scatterplot model.name
@@ -517,6 +546,7 @@ viewplot model =
     in
     div []
         [ h2 [] [ text "Plot" ]
+        , viewdatesrange model
         , div [ A.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
         -- (html component)
@@ -559,11 +589,12 @@ main =
                      []
                      []
                      Dict.empty
-                     []
+                     Array.empty
+                     0
                ,
                    Cmd.batch
                        [ getmetadata input.baseurl input.name
-                       , getplotdata input.baseurl input.name GotPlotData
+                       , getplotdata input.baseurl input.name Nothing GotPlotData
                        ]
                )
            sub model = Sub.none
