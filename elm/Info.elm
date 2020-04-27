@@ -9,6 +9,7 @@ import Html.Events exposing (onClick)
 import Html.Parser
 import Html.Parser.Util
 import Http
+import Iso8601
 import Json.Decode as D
 import Plotter exposing
     ( getplotdata
@@ -95,6 +96,11 @@ decodelog =
     D.list decodelogentry
 
 
+decodeidates : D.Decoder (List String)
+decodeidates =
+    D.list D.string
+
+
 type alias Model =
     { baseurl : String
     , name : String
@@ -106,6 +112,7 @@ type alias Model =
     , formula_components : List (String, String)
     , log : List Logentry
     , plotdata : Series
+    , insertion_dates : List Time.Posix
     }
 
 
@@ -116,6 +123,7 @@ type Msg
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
+    | InsertionDates (Result Http.Error String)
     | ToggleExpansion
 
 
@@ -178,6 +186,16 @@ getcomponents model =
               , UB.int "expanded" (if model.formula_expanded then 1 else 0)
               ]
         , expect = Http.expectString Components
+        }
+
+getidates model =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "tsinfo", "idates" ]
+              [ UB.string "name" model.name ]
+        , expect = Http.expectString InsertionDates
         }
 
 
@@ -245,6 +263,7 @@ update msg model =
                     ( model
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
+                                , getidates model
                                 ]
                     )
                 Err err ->
@@ -301,6 +320,29 @@ update msg model =
                     )
 
         GotLog (Err error) ->
+            ( adderror model <| unwraperror error
+            , Cmd.none
+            )
+
+        InsertionDates (Ok rawdates) ->
+            case D.decodeString decodeidates rawdates of
+                Ok strdates ->
+                    let
+                        toposix rawdate =
+                            case Iso8601.toTime rawdate of
+                                Ok v -> v
+                                Err e -> Time.millisToPosix 0
+                        idates = List.map toposix strdates
+                    in
+                    ( { model | insertion_dates = idates }
+                    , Cmd.none
+                    )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
+
+        InsertionDates (Err error) ->
             ( adderror model <| unwraperror error
             , Cmd.none
             )
@@ -517,6 +559,7 @@ main =
                      []
                      []
                      Dict.empty
+                     []
                ,
                    Cmd.batch
                        [ getmetadata input.baseurl input.name

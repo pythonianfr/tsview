@@ -21,6 +21,7 @@
             "mgold/elm-nonempty-list": "4.0.2",
             "pzp1997/assoc-list": "1.0.0",
             "rtfeldman/elm-css": "16.0.1",
+            "rtfeldman/elm-iso8601-date-strings": "1.1.3",
             "toastal/either": "3.5.1",
             "turboMaCk/lazy-tree-with-zipper": "3.1.1",
             "zwilias/elm-rosetree": "1.5.0"
