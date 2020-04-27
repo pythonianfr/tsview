@@ -521,6 +521,10 @@ viewerrors model =
 viewdatesrange model =
     let
         numidates = Array.length model.insertion_dates
+        currdate =
+            case Array.get model.date_index model.insertion_dates of
+                Nothing -> ""
+                Just date -> date
     in
     if numidates < 2
     then div [] []
@@ -531,6 +535,7 @@ viewdatesrange model =
               , A.max (String.fromInt numidates)
               , A.value (String.fromInt model.date_index)
               , A.class "form-control-range"
+              , A.title currdate
               , onInput ChangedIdate
               ] []
         ]
