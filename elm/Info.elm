@@ -421,10 +421,8 @@ viewmeta model =
     ]
 
 
-viewusermeta model =
+viewusermetaheader model =
     let
-        elt (k, v) =
-            li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
         editaction =
             if model.canwrite && not model.editing then
                 button
@@ -435,10 +433,73 @@ viewusermeta model =
                 [text "edit"]
             else span [] []
     in
-    if Dict.isEmpty model.usermeta then div [] [] else
+        h2  []
+            [ text "User Metadata"
+            , span [] [text " "]
+            , editaction
+            ]
+
+
+viewusermeta model =
+    if model.editing then editusermeta model else
+    let
+        elt (k, v) =
+            li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
+    in
     div []
-        [ h2 [] [text "User Metadata", span [] [text " "], editaction]
+        [ viewusermetaheader model
         , ul [] (List.map elt (Dict.toList model.usermeta))
+        ]
+
+
+editusermeta model =
+    let
+        fields key val delete =
+            div [ A.class "form-row" ]
+                [ div [ A.class "col-3" ]
+                      [ input [ A.attribute "type" "text"
+                              , A.class "form-control"
+                              , A.placeholder "key"
+                              , A.value key
+                              ] []
+                      ]
+                , div [ A.class "col-6" ]
+                    [ input [ A.attribute "type" "text"
+                            , A.class "form-control"
+                            , A.placeholder "value"
+                            , A.value <| val
+                            ] []
+                    ]
+                , div [A.class "col" ] <|
+                    if not delete then []
+                    else
+                        [ button
+                              [ A.attribute "type" "button"
+                              , A.class "btn btn-warning"
+                              ]
+                              [ text "delete" ]
+                        ]
+                ]
+        editfields ab =
+            fields (Tuple.first ab) (M.metavaltostring <| Tuple.second ab) True
+    in
+    div []
+        [ viewusermetaheader model
+        , form [] <| (List.map editfields (Dict.toList model.usermeta)) ++
+            [ button
+                  [ A.attribute "type" "button"
+                  , A.class "btn btn-primary col-sm-10"
+                  ]
+                  [ text "save entries"]
+            ]
+        , form []
+            [ fields "" "" False
+            , button
+                  [ A.attribute "type" "button"
+                  , A.class "btn btn-primary col-sm-10"
+                  ]
+                  [ text "add entry"]
+            ]
         ]
 
 
