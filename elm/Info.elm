@@ -30,25 +30,6 @@ type alias Logentry =
     }
 
 
-decodelogentry : D.Decoder Logentry
-decodelogentry =
-    D.map4 Logentry
-        (D.field "rev" D.int)
-        (D.field "author" D.string)
-        (D.field "date" D.string)
-        (D.field "meta" (D.dict M.decodemetaval))
-
-
-decodelog : D.Decoder (List Logentry)
-decodelog =
-    D.list decodelogentry
-
-
-decodeidates : D.Decoder (List String)
-decodeidates =
-    D.list D.string
-
-
 type alias Model =
     { baseurl : String
     , name : String
@@ -75,6 +56,25 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     | ChangedIdate String
+
+
+decodelogentry : D.Decoder Logentry
+decodelogentry =
+    D.map4 Logentry
+        (D.field "rev" D.int)
+        (D.field "author" D.string)
+        (D.field "date" D.string)
+        (D.field "meta" (D.dict M.decodemetaval))
+
+
+decodelog : D.Decoder (List Logentry)
+decodelog =
+    D.list decodelogentry
+
+
+decodeidates : D.Decoder (List String)
+decodeidates =
+    D.list D.string
 
 
 getformula : Model -> Cmd Msg
