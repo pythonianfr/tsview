@@ -311,7 +311,10 @@ update msg model =
                     )
 
         MetaEditAsked ->
-            ( { model | editing = True }
+            let
+                editing = not model.editing
+            in
+            ( { model | editing = editing }
             , Cmd.none
             )
 
@@ -425,7 +428,7 @@ viewusermeta model =
         elt (k, v) =
             li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
         editaction =
-            if model.canwrite then
+            if model.canwrite && not model.editing then
                 button
                 [ A.attribute "type" "button"
                 , A.class "btn btn-primary"
