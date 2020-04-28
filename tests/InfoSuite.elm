@@ -2,7 +2,7 @@ module InfoSuite exposing (testMetaVal)
 
 import Either
 import Expect
-import Info exposing (MetaVal(..), decodemetaval)
+import Metadata exposing (MetaVal(..), decodemetaval)
 import Json.Decode as D
 import Test exposing (Test, test)
 

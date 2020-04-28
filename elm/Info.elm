@@ -1,4 +1,4 @@
-module Info exposing (main, MetaVal(..), decodemetaval) -- for the tests, move in a lib later
+module Info exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -11,6 +11,7 @@ import Html.Parser
 import Html.Parser.Util
 import Http
 import Json.Decode as D
+import Metadata as M
 import Plotter exposing
     ( getplotdata
     , seriesdecoder
@@ -21,64 +22,11 @@ import Plotter exposing
 import Url.Builder as UB
 
 
-metanames =
-    [ "tzaware"
-    , "index_type"
-    , "index_dtype"
-    , "value_type"
-    , "value_dtype"
-    , "supervision_status" -- hijacked to detect formula-ness
-    , "index_names" -- deprecated but might still be there
-    ]
-
-
-type MetaVal
-    = MString String
-    | MInt Int
-    | MFloat Float
-    | MBool Bool
-    | MList (List MetaVal)
-
-
-metavaltostring mv =
-    case mv of
-        MString s -> s
-        MInt i -> String.fromInt i
-        MFloat f -> String.fromFloat f
-        MBool b -> showbool b
-        MList l -> String.join ", " <| List.map metavaltostring l
-
-
-type alias StdMetadata =
-    Dict String MetaVal
-
-
-type alias UserMetadata =
-    Dict String MetaVal
-
-
-decodemetaval : D.Decoder MetaVal
-decodemetaval =
-    D.oneOf
-        [ D.map MString D.string
-        , D.map MInt D.int
-        , D.map MFloat D.float
-        , D.map MBool D.bool
-        -- terminal unprocessed node (only for the deprecated index_names entry)
-        , D.map MList (D.list (D.lazy (\_  -> decodemetaval)))
-        ]
-
-
-decodemeta : D.Decoder UserMetadata
-decodemeta =
-    D.dict decodemetaval
-
-
 type alias Logentry =
     { rev : Int
     , author : String
     , date : String
-    , meta : UserMetadata
+    , meta : M.UserMetadata
     }
 
 
@@ -88,7 +36,7 @@ decodelogentry =
         (D.field "rev" D.int)
         (D.field "author" D.string)
         (D.field "date" D.string)
-        (D.field "meta" (D.dict decodemetaval))
+        (D.field "meta" (D.dict M.decodemetaval))
 
 
 decodelog : D.Decoder (List Logentry)
@@ -105,8 +53,8 @@ type alias Model =
     { baseurl : String
     , name : String
     , errors : List String
-    , meta : StdMetadata
-    , usermeta : UserMetadata
+    , meta : M.StdMetadata
+    , usermeta : M.UserMetadata
     , formula_expanded : Bool
     , formula : Maybe String
     , formula_components : List (String, String)
@@ -127,19 +75,6 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     | ChangedIdate String
-
-
-getmetadata : String -> String-> Cmd Msg
-getmetadata urlprefix name  =
-    Http.get
-        { expect =
-              Http.expectString GotMeta
-        , url =
-            UB.crossOrigin urlprefix
-                [ "api", "series", "metadata" ]
-                [ UB.string "name" name
-                , UB.int "all" 1 ]
-        }
 
 
 getformula : Model -> Cmd Msg
@@ -219,11 +154,11 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotMeta (Ok result) ->
-            case D.decodeString decodemeta result of
+            case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
-                        stdmeta = Dict.filter (\k v -> (List.member k metanames)) allmeta
-                        usermeta = Dict.filter (\k v -> not (List.member k metanames)) allmeta
+                        stdmeta = Dict.filter (\k v -> (List.member k M.metanames)) allmeta
+                        usermeta = Dict.filter (\k v -> not (List.member k M.metanames)) allmeta
                         newmodel =
                             { model
                                 | meta = stdmeta
@@ -369,14 +304,10 @@ update msg model =
                     )
 
 
-showbool b =
-    if b then "true" else "false"
-
-
 supervision model =
     case Dict.get "supervision_status" model.meta of
         Nothing -> "formula"
-        Just x -> metavaltostring x
+        Just x -> M.metavaltostring x
 
 
 tovirtualdom : String -> List (Html.Html msg)
@@ -421,7 +352,7 @@ metadicttostring d =
         builditem ab =
             let
                 first = Tuple.first ab
-                second = metavaltostring (Tuple.second ab)
+                second = M.metavaltostring (Tuple.second ab)
             in
                 first ++ " → " ++ second
     in
@@ -458,7 +389,7 @@ viewlog model =
 dget name dict =
     case Dict.get name dict of
         Nothing -> ""
-        Just something -> metavaltostring something
+        Just something -> M.metavaltostring something
 
 
 viewmeta model =
@@ -473,14 +404,14 @@ viewmeta model =
     in
     div []
     [ h2 [] [text "Metadata"]
-    , ul [] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) metanames
+    , ul [] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
     ]
 
 
 viewusermeta model =
     let
         elt (k, v) =
-            li [] [text <| (k ++ " → " ++ (metavaltostring v))]
+            li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
     in
     if Dict.isEmpty model.usermeta then div [] [] else
     div []
@@ -598,7 +529,7 @@ main =
                      0
                ,
                    Cmd.batch
-                       [ getmetadata input.baseurl input.name
+                       [ M.getmetadata input.baseurl input.name GotMeta
                        , getplotdata input.baseurl input.name Nothing GotPlotData
                        ]
                )
