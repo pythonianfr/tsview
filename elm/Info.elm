@@ -33,6 +33,7 @@ type alias Logentry =
 type alias Model =
     { baseurl : String
     , name : String
+    , canwrite : Bool
     , errors : List String
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
@@ -48,6 +49,7 @@ type alias Model =
 
 type Msg
     = GotMeta (Result Http.Error String)
+    | GetPermissions (Result Http.Error String)
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
@@ -75,6 +77,13 @@ decodelog =
 decodeidates : D.Decoder (List String)
 decodeidates =
     D.list D.string
+
+
+getwriteperms urlprefix =
+    Http.get
+        { expect = Http.expectString GetPermissions
+        , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] []
+        }
 
 
 getformula : Model -> Cmd Msg
@@ -176,6 +185,22 @@ update msg model =
 
         GotMeta (Err err) ->
             ( adderror model <|unwraperror err
+            , Cmd.none
+            )
+
+        GetPermissions (Ok rawperm) ->
+            case D.decodeString D.bool rawperm of
+                Ok perms ->
+                   ( { model | canwrite = perms }
+                   , Cmd.none
+                   )
+                Err err ->
+                    ( adderror model <| D.errorToString err
+                    , Cmd.none
+                    )
+
+        GetPermissions (Err err) ->
+            ( adderror model <| unwraperror err
             , Cmd.none
             )
 
@@ -517,6 +542,7 @@ main =
                ( Model
                      input.baseurl
                      input.name
+                     False
                      []
                      Dict.empty
                      Dict.empty
@@ -531,6 +557,7 @@ main =
                    Cmd.batch
                        [ M.getmetadata input.baseurl input.name GotMeta
                        , getplotdata input.baseurl input.name Nothing GotPlotData
+                       , getwriteperms input.baseurl
                        ]
                )
            sub model = Sub.none

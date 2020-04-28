@@ -61,7 +61,7 @@ def homeurl():
     return baseurl
 
 
-PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete')
+PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete', 'editmetadata')
 
 
 def tsview(tsa,
@@ -231,6 +231,12 @@ def tsview(tsa,
                 idate.isoformat()
                 for idate in tsa.insertion_dates(args.name)
             ]
+        )
+
+    @bp.route('/tsinfo/canwrite')
+    def canwrite():
+        return json.dumps(
+            has_permission('editmetadata')
         )
 
     return bp
