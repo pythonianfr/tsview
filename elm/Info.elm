@@ -288,13 +288,11 @@ update msg model =
             doerr <| unwraperror error
 
         ToggleExpansion ->
-            if model.formula_expanded then
-                ( { model | formula_expanded = False }
-                , getformula { model | formula_expanded = False }
-                )
-            else
-                ( { model | formula_expanded = True }
-                , getformula { model | formula_expanded = True }
+            let
+                state = model.formula_expanded
+            in
+                ( { model | formula_expanded = not state }
+                , getformula { model | formula_expanded = not state }
                 )
 
         ChangedIdate strindex ->
