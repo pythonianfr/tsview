@@ -513,7 +513,7 @@ viewerrors model =
     if List.length model.errors > 0 then
     div []
         [ h2 [] [text "Errors"]
-        , p [] (List.map text model.errors)
+        , div [] (List.map (\x -> p [] [text x]) model.errors)
         ]
     else span [] []
 
