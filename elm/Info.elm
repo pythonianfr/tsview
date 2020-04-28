@@ -33,14 +33,21 @@ type alias Logentry =
 type alias Model =
     { baseurl : String
     , name : String
+    -- metadata edition
     , canwrite : Bool
+    , editing : Bool
+    -- all errors
     , errors : List String
+    -- metadata, ventilated by std (system) and user
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
+    -- formula
     , formula_expanded : Bool
     , formula : Maybe String
     , formula_components : List (String, String)
+    -- log
     , log : List Logentry
+    -- plot
     , plotdata : Series
     , insertion_dates : Array String
     , date_index : Int
@@ -58,6 +65,7 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     | ChangedIdate String
+    | MetaEditAsked
 
 
 decodelogentry : D.Decoder Logentry
@@ -328,6 +336,11 @@ update msg model =
                     , getplotdata model.baseurl model.name (Just date) GotPlotData
                     )
 
+        MetaEditAsked ->
+            ( { model | editing = True }
+            , Cmd.none
+            )
+
 
 supervision model =
     case Dict.get "supervision_status" model.meta of
@@ -437,10 +450,19 @@ viewusermeta model =
     let
         elt (k, v) =
             li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
+        editaction =
+            if model.canwrite then
+                button
+                [ A.attribute "type" "button"
+                , A.class "btn btn-primary"
+                , onClick MetaEditAsked
+                ]
+                [text "edit"]
+            else span [] []
     in
     if Dict.isEmpty model.usermeta then div [] [] else
     div []
-        [ h2 [] [text "User Metadata"]
+        [ h2 [] [text "User Metadata", span [] [text " "], editaction]
         , ul [] (List.map elt (Dict.toList model.usermeta))
         ]
 
@@ -542,6 +564,7 @@ main =
                ( Model
                      input.baseurl
                      input.name
+                     False
                      False
                      []
                      Dict.empty
