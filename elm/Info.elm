@@ -169,6 +169,12 @@ adderror model error =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        doerr error =
+            ( adderror model error
+            , Cmd.none
+            )
+    in
     case msg of
         GotMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -187,14 +193,10 @@ update msg model =
                               else Cmd.batch [ getlog model.baseurl model.name, next ]
                     in ( newmodel, cmd )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         GotMeta (Err err) ->
-            ( adderror model <|unwraperror err
-            , Cmd.none
-            )
+            doerr  <| unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -203,14 +205,10 @@ update msg model =
                    , Cmd.none
                    )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         GetPermissions (Err err) ->
-            ( adderror model <| unwraperror err
-            , Cmd.none
-            )
+            doerr  <| unwraperror err
 
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
@@ -219,14 +217,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         GotPlotData (Err err) ->
-            ( adderror model <|unwraperror err
-            , Cmd.none
-            )
+            doerr <|unwraperror err
 
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -237,14 +231,10 @@ update msg model =
                                 ]
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         GotFormula (Err error) ->
-            ( adderror model <| unwraperror error
-            , Cmd.none
-            )
+            doerr  <| unwraperror error
 
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -253,14 +243,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         CodeHighlight (Err error) ->
-            ( adderror model <| unwraperror error
-            , Cmd.none
-            )
+            doerr <| unwraperror error
 
         Components (Ok rawcomponents) ->
             case D.decodeString (D.keyValuePairs D.string) rawcomponents of
@@ -269,14 +255,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         Components (Err error) ->
-            ( adderror model <| unwraperror error
-            , Cmd.none
-            )
+            doerr <| unwraperror error
 
         GotLog (Ok rawlog) ->
             case D.decodeString decodelog rawlog of
@@ -285,14 +267,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         GotLog (Err error) ->
-            ( adderror model <| unwraperror error
-            , Cmd.none
-            )
+            doerr <| unwraperror error
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString decodeidates rawdates of
@@ -304,14 +282,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err err ->
-                    ( adderror model <| D.errorToString err
-                    , Cmd.none
-                    )
+                    doerr <| D.errorToString err
 
         InsertionDates (Err error) ->
-            ( adderror model <| unwraperror error
-            , Cmd.none
-            )
+            doerr <| unwraperror error
 
         ToggleExpansion ->
             if model.formula_expanded then
