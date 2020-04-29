@@ -6,7 +6,7 @@ import Dict exposing (Dict)
 import Either exposing (Either)
 import Html exposing (..)
 import Html.Attributes as A
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Html.Parser
 import Html.Parser.Util
 import Http
@@ -51,6 +51,8 @@ type alias Model =
     , plotdata : Series
     , insertion_dates : Array String
     , date_index : Int
+    -- user meta edition
+    , metaitem : (String, String)
     }
 
 
@@ -68,6 +70,9 @@ type Msg
     -- metadata edition
     | MetaEditAsked
     | MetaItemToDelete String
+    | EditedValue String
+    | EditedKey String
+    | AddMetaItem
 
 
 decodelogentry : D.Decoder Logentry
@@ -325,6 +330,31 @@ update msg model =
             , Cmd.none
             )
 
+        EditedKey key ->
+            ( { model | metaitem = ( key, Tuple.second model.metaitem ) }
+              , Cmd.none
+            )
+
+        EditedValue val ->
+            ( { model | metaitem = ( Tuple.first model.metaitem, val ) }
+            , Cmd.none
+            )
+
+        AddMetaItem ->
+            -- eat the metaitems
+            let
+                newmeta = Dict.insert
+                          (Tuple.first model.metaitem)
+                          (M.MString <| Tuple.second model.metaitem)
+                          model.usermeta
+            in
+            ( { model
+                  | metaitem = ("", "")
+                  , usermeta = newmeta
+              }
+            , Cmd.none
+            )
+
 
 supervision model =
     case Dict.get "supervision_status" model.meta of
@@ -463,14 +493,15 @@ viewusermeta model =
 
 editusermeta model =
     let
-        fields key val delete =
+        deletefields key val =
             div [ A.class "form-row" ]
                 [ div [ A.class "col-3" ]
-                      [ input [ A.attribute "type" "text"
-                              , A.class "form-control"
-                              , A.placeholder "key"
-                              , A.value key
-                              ] []
+                      [ input
+                            [ A.attribute "type" "text"
+                            , A.class "form-control"
+                            , A.placeholder "key"
+                            , A.value key
+                            ] []
                       ]
                 , div [ A.class "col-6" ]
                     [ input [ A.attribute "type" "text"
@@ -479,19 +510,36 @@ editusermeta model =
                             , A.value <| val
                             ] []
                     ]
-                , div [A.class "col" ] <|
-                    if not delete then []
-                    else
-                        [ button
-                              [ A.attribute "type" "button"
-                              , A.class "btn btn-warning"
-                              , onClick (MetaItemToDelete key)
-                              ]
-                              [ text "delete" ]
-                        ]
+                , div [A.class "col" ]
+                      [ button
+                            [ A.attribute "type" "button"
+                            , A.class "btn btn-warning"
+                            , onClick (MetaItemToDelete key)
+                            ]
+                            [ text "delete" ]
+                      ]
                 ]
-        editfields ab =
-            fields (Tuple.first ab) (M.metavaltostring <| Tuple.second ab) True
+        addfields key val =
+            div [ A.class "form-row" ]
+                [ div [ A.class "col-3" ]
+                      [ input
+                            [ A.attribute "type" "text"
+                            , A.class "form-control"
+                            , A.placeholder "key"
+                            , A.value key
+                            , onInput EditedKey
+                            ] []
+                      ]
+                , div [ A.class "col-6" ]
+                    [ input [ A.attribute "type" "text"
+                            , A.class "form-control"
+                            , A.placeholder "value"
+                            , A.value <| val
+                            , onInput EditedValue
+                            ] []
+                    ]
+                ]
+        editfields ab = deletefields (Tuple.first ab) (M.metavaltostring <| Tuple.second ab)
     in
     div []
         [ viewusermetaheader model
@@ -503,10 +551,10 @@ editusermeta model =
                   ]
                   [ text "save entries"]
             ] else []
-        , form []
-            [ fields "" "" False
+        , form [ onSubmit AddMetaItem ]
+            [ addfields (Tuple.first model.metaitem) (Tuple.second model.metaitem)
             , button
-                  [ A.attribute "type" "button"
+                  [ A.attribute "type" "submit"
                   , A.class "btn btn-primary col-sm-10"
                   ]
                   [ text "add entry"]
@@ -623,6 +671,7 @@ main =
                      Dict.empty
                      Array.empty
                      0
+                     ("", "")
                ,
                    Cmd.batch
                        [ M.getmetadata input.baseurl input.name GotMeta
