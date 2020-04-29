@@ -359,6 +359,8 @@ update msg model =
 
         AddMetaItem ->
             -- eat the metaitems
+            if (first model.metaitem == "") || (snd model.metaitem == "")
+            then nocmd model else
             let
                 edited = Dict.insert
                          (first model.metaitem)
