@@ -174,13 +174,14 @@ adderror model error =
     { model | errors = List.append model.errors [error] }
 
 
+nocmd model = ( model, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         doerr error =
-            ( adderror model error
-            , Cmd.none
-            )
+            nocmd <| adderror model error
     in
     case msg of
         GotMeta (Ok result) ->
@@ -208,9 +209,7 @@ update msg model =
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
                 Ok perms ->
-                   ( { model | canwrite = perms }
-                   , Cmd.none
-                   )
+                   nocmd { model | canwrite = perms }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -220,9 +219,7 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    ( { model | plotdata = val }
-                    , Cmd.none
-                    )
+                    nocmd { model | plotdata = val }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -246,9 +243,7 @@ update msg model =
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    ( { model | formula = Just formula }
-                    , Cmd.none
-                    )
+                    nocmd { model | formula = Just formula }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -258,9 +253,7 @@ update msg model =
         Components (Ok rawcomponents) ->
             case D.decodeString (D.keyValuePairs D.string) rawcomponents of
                 Ok components ->
-                    ( { model | formula_components = components }
-                    , Cmd.none
-                    )
+                    nocmd { model | formula_components = components }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -270,9 +263,7 @@ update msg model =
         GotLog (Ok rawlog) ->
             case D.decodeString decodelog rawlog of
                 Ok log ->
-                    ( { model | log = log }
-                    , Cmd.none
-                    )
+                    nocmd { model | log = log }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -282,12 +273,10 @@ update msg model =
         InsertionDates (Ok rawdates) ->
             case D.decodeString decodeidates rawdates of
                 Ok dates ->
-                    ( { model
-                          | insertion_dates = Array.fromList dates
-                          , date_index = List.length dates - 1
-                      }
-                    , Cmd.none
-                    )
+                    nocmd { model
+                              | insertion_dates = Array.fromList dates
+                              , date_index = List.length dates - 1
+                          }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -318,27 +307,16 @@ update msg model =
         -- user metadata edition
 
         MetaEditAsked ->
-            let
-                editing = not model.editing
-            in
-            ( { model | editing = editing }
-            , Cmd.none
-            )
+            nocmd { model | editing = not model.editing }
 
         MetaItemToDelete key ->
-            ( { model | usermeta = Dict.remove key model.usermeta }
-            , Cmd.none
-            )
+            nocmd { model | usermeta = Dict.remove key model.usermeta }
 
         EditedKey key ->
-            ( { model | metaitem = ( key, Tuple.second model.metaitem ) }
-              , Cmd.none
-            )
+            nocmd { model | metaitem = ( key, Tuple.second model.metaitem ) }
 
         EditedValue val ->
-            ( { model | metaitem = ( Tuple.first model.metaitem, val ) }
-            , Cmd.none
-            )
+            nocmd { model | metaitem = ( Tuple.first model.metaitem, val ) }
 
         AddMetaItem ->
             -- eat the metaitems
