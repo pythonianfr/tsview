@@ -198,6 +198,10 @@ adderror model error =
 nocmd model = ( model, Cmd.none )
 
 
+first = Tuple.first
+snd = Tuple.second
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -415,11 +419,7 @@ viewformula model =
 metadicttostring d =
     let
         builditem ab =
-            let
-                first = Tuple.first ab
-                second = M.metavaltostring (Tuple.second ab)
-            in
-                first ++ " → " ++ second
+            first ab |> (++) " → " |> (++) (M.metavaltostring <| snd ab)
     in
     String.join "," (List.map builditem (Dict.toList d))
 
@@ -567,7 +567,7 @@ editusermeta model =
                             [ text "save entries"]
                       ] else []
         , form [ onSubmit AddMetaItem ]
-            [ addfields (Tuple.first model.metaitem) (Tuple.second model.metaitem)
+            [ addfields (first model.metaitem) (snd model.metaitem)
             , button
                   [ A.attribute "type" "submit"
                   , A.class "btn btn-primary col-sm-10"
