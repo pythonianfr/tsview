@@ -54,6 +54,7 @@ type alias Model =
     , date_index : Int
     -- user meta edition
     , metaitem : (String, String)
+    , editeditems : Dict String String
     }
 
 
@@ -71,8 +72,9 @@ type Msg
     -- metadata edition
     | MetaEditAsked
     | MetaItemToDelete String
-    | EditedValue String
-    | EditedKey String
+    | EditedValue String String
+    | NewValue String
+    | NewKey String
     | AddMetaItem
     | SaveMeta
     | MetaSaved (Result Http.Error String)
@@ -168,7 +170,10 @@ savemeta model =
         { method = "PUT"
         , body = Http.jsonBody <| E.object
                  [ ("name", E.string model.name )
-                 , ("metadata" , E.string <| M.encodemeta model.usermeta )
+                 , ("metadata" , E.string
+                        <| E.encode 0
+                        <| (E.dict identity E.string) model.editeditems
+                   )
                  ]
         , headers = []
         , timeout = Nothing
@@ -332,28 +337,40 @@ update msg model =
         -- user metadata edition
 
         MetaEditAsked ->
-            nocmd { model | editing = not model.editing }
+            let
+                edited =
+                    Dict.toList model.usermeta
+                        |> List.map (\x -> (first x, M.metavaltostring <| snd x))
+                        |> Dict.fromList
+            in
+            nocmd { model
+                      | editing = not model.editing
+                      , editeditems = edited
+                  }
 
         MetaItemToDelete key ->
-            nocmd { model | usermeta = Dict.remove key model.usermeta }
+            nocmd { model | editeditems = Dict.remove key model.editeditems }
 
-        EditedKey key ->
+        EditedValue key value ->
+            nocmd { model | editeditems = Dict.insert key value model.editeditems }
+
+        NewKey key ->
             nocmd { model | metaitem = ( key, Tuple.second model.metaitem ) }
 
-        EditedValue val ->
+        NewValue val ->
             nocmd { model | metaitem = ( Tuple.first model.metaitem, val ) }
 
         AddMetaItem ->
             -- eat the metaitems
             let
-                newmeta = Dict.insert
-                          (Tuple.first model.metaitem)
-                          (M.MString <| Tuple.second model.metaitem)
-                          model.usermeta
+                edited = Dict.insert
+                         (first model.metaitem)
+                         (snd model.metaitem)
+                         model.editeditems
             in
             ( { model
                   | metaitem = ("", "")
-                  , usermeta = newmeta
+                  , editeditems = edited
               }
             , Cmd.none
             )
@@ -364,9 +381,16 @@ update msg model =
             )
 
         MetaSaved (Ok _) ->
+            let
+                newmeta = Dict.toList model.editeditems
+                          |> List.map (\x  -> (first x, M.MString (snd x)))
+                          |> Dict.fromList
+            in
             nocmd { model
-                  | editing = False
-                  , metaitem = ("", "")
+                      | editing = False
+                      , usermeta = newmeta
+                      , editeditems = Dict.empty
+                      , metaitem = ("", "")
                   }
 
         MetaSaved (Err err) ->
@@ -520,7 +544,8 @@ editusermeta model =
                     [ input [ A.attribute "type" "text"
                             , A.class "form-control"
                             , A.placeholder "value"
-                            , A.value <| val
+                            , A.value val
+                            , onInput <| EditedValue key
                             ] []
                     ]
                 , div [A.class "col" ]
@@ -540,7 +565,7 @@ editusermeta model =
                             , A.class "form-control"
                             , A.placeholder "key"
                             , A.value key
-                            , onInput EditedKey
+                            , onInput NewKey
                             ] []
                       ]
                 , div [ A.class "col-6" ]
@@ -548,17 +573,17 @@ editusermeta model =
                             , A.class "form-control"
                             , A.placeholder "value"
                             , A.value <| val
-                            , onInput EditedValue
+                            , onInput NewValue
                             ] []
                     ]
                 ]
-        editfields ab = deletefields (Tuple.first ab) (M.metavaltostring <| Tuple.second ab)
+        editfields ab = deletefields (first ab) (snd ab)
     in
     div []
         [ viewusermetaheader model
         , form
               [ onSubmit SaveMeta ]
-              <| (List.map editfields (Dict.toList model.usermeta)) ++
+              <| (List.map editfields (Dict.toList model.editeditems)) ++
                   if not <| Dict.isEmpty model.usermeta then
                       [ button
                             [ A.attribute "type" "submit"
@@ -687,6 +712,7 @@ main =
                      Array.empty
                      0
                      ("", "")
+                     Dict.empty
                ,
                    Cmd.batch
                        [ M.getmetadata input.baseurl input.name GotMeta
