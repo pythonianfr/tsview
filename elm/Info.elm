@@ -512,7 +512,7 @@ editusermeta model =
                       [ input
                             [ A.attribute "type" "text"
                             , A.class "form-control"
-                            , A.placeholder "key"
+                            , A.disabled True
                             , A.value key
                             ] []
                       ]
