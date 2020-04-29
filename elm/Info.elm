@@ -170,10 +170,7 @@ savemeta model =
         { method = "PUT"
         , body = Http.jsonBody <| E.object
                  [ ("name", E.string model.name )
-                 , ("metadata" , E.string
-                        <| E.encode 0
-                        <| (E.dict identity E.string) model.editeditems
-                   )
+                 , ("metadata" , E.string <| M.encodemeta model.usermeta )
                  ]
         , headers = []
         , timeout = Nothing
@@ -376,7 +373,21 @@ update msg model =
             )
 
         SaveMeta ->
-            ( model, savemeta model )
+            let
+                decode rawitem =
+                    case D.decodeString M.decodemetaval rawitem of
+                        Ok item -> item
+                        Err err ->
+                            -- form strings are not json strings
+                            -- this is why plain string parsing will fail ...
+                            M.MString rawitem
+                newmeta =
+                    Dict.toList model.editeditems
+                        |> List.map (\x -> (first x, decode <| snd x))
+                        |> Dict.fromList
+                newmodel = { model | usermeta = newmeta }
+            in
+            ( newmodel, savemeta newmodel )
 
         MetaSaved (Ok _) ->
             let
@@ -473,10 +484,22 @@ viewlog model =
     else div [] []
 
 
-dget name dict =
-    case Dict.get name dict of
+dget name metadict =
+    case Dict.get name metadict of
         Nothing -> ""
         Just something -> M.metavaltostring something
+
+
+metatype val =
+    case val of
+        Nothing -> "virt"
+        Just x ->
+            case x of
+                M.MString _ -> "str"
+                M.MInt _ -> "int"
+                M.MFloat _ -> "float"
+                M.MBool _ -> "bool"
+                M.MList _ -> "list"
 
 
 viewmeta model =
@@ -487,7 +510,13 @@ viewmeta model =
             then "formula"
             else val
         elt name =
-            li [] [text (name ++ " → " ++ (fixval name <| (dget name model.meta)))]
+            li [] [text (name
+                             ++ " → "
+                             ++ (fixval name <| (dget name model.meta))
+                             ++ " ["
+                             ++ (metatype <| Dict.get name model.meta)
+                             ++ "]"
+                        )]
     in
     div []
     [ h2 [] [text "Metadata"]
@@ -518,7 +547,13 @@ viewusermeta model =
     if model.editing then editusermeta model else
     let
         elt (k, v) =
-            li [] [text <| (k ++ " → " ++ (M.metavaltostring v))]
+            li [] [text <| k
+                       ++ " → "
+                       ++ (M.metavaltostring v)
+                       ++ " ["
+                       ++ (metatype <| Just v)
+                       ++ "]"
+                  ]
     in
     div []
         [ viewusermetaheader model
