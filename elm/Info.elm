@@ -376,9 +376,7 @@ update msg model =
             )
 
         SaveMeta ->
-            ( model
-            , savemeta model
-            )
+            ( model, savemeta model )
 
         MetaSaved (Ok _) ->
             let
@@ -416,8 +414,8 @@ viewformula model =
     case model.formula of
         Nothing -> div [] []
         Just formula ->
-            div [] [
-                 h2 [] [text "Formula"]
+            div []
+                [ h2 [] [text "Formula"]
                 , div [ A.class "custom-control custom-switch"
                       , A.title (if model.formula_expanded
                                  then "unexpand the formula" else "expand the formula")
@@ -459,18 +457,18 @@ viewlogentry entry =
 
 viewlog model =
     if List.length model.log > 0 then
-        div [] [
-             h2 [] [text "History Log"]
+        div []
+            [ h2 [] [text "History Log"]
             , table [A.class "table table-striped table-hover table-sm"]
-                 [ thead []
-                       [td [A.scope "col"] [text "#"]
-                       , td [A.scope "col"] [text "author"]
-                       , td [A.scope "col"] [text "date"]
-                       , td [A.scope "col"] [text "meta"]
-                       ]
-                 , tbody []
-                     (List.map viewlogentry (List.reverse model.log))
-                 ]
+                [ thead []
+                      [td [A.scope "col"] [text "#"]
+                      , td [A.scope "col"] [text "author"]
+                      , td [A.scope "col"] [text "date"]
+                      , td [A.scope "col"] [text "meta"]
+                      ]
+                , tbody []
+                    (List.map viewlogentry (List.reverse model.log))
+                ]
             ]
     else div [] []
 
@@ -610,7 +608,8 @@ viewcomponents model =
                                   ["tsinfo"]
                                   [UB.string "name" name]
                            )
-                    ] [text name]
+                    ]
+                      [text name]
                 , span [] [text (" → " ++ expr)]
                 ]
     in
@@ -619,7 +618,7 @@ viewcomponents model =
             [ h2 [] [(text "Components")]
             , ul [] (List.map elt model.formula_components)
             ]
-    else div [] [ ]
+    else div [] []
 
 
 viewerrors model =
@@ -641,17 +640,18 @@ viewdatesrange model =
     in
     if numidates < 2
     then div [] []
-    else div []
-        [ input
-              [ A.attribute "type" "range"
-              , A.min "0"
-              , A.max (String.fromInt numidates)
-              , A.value (String.fromInt model.date_index)
-              , A.class "form-control-range"
-              , A.title currdate
-              , onInput ChangedIdate
-              ] []
-        ]
+    else
+        div []
+            [ input
+                  [ A.attribute "type" "range"
+                  , A.min "0"
+                  , A.max (String.fromInt numidates)
+                  , A.value (String.fromInt model.date_index)
+                  , A.class "form-control-range"
+                  , A.title currdate
+                  , onInput ChangedIdate
+                  ] []
+            ]
 
 
 viewplot model =
@@ -675,7 +675,7 @@ viewplot model =
 view : Model -> Html Msg
 view model =
     div []
-        [h1 [] [text ("Series " ++ model.name)]
+        [ h1 [] [text ("Series " ++ model.name) ]
         , viewmeta model
         , viewusermeta model
         , viewformula model
