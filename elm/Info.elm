@@ -65,7 +65,9 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     | ChangedIdate String
+    -- metadata edition
     | MetaEditAsked
+    | MetaItemToDelete String
 
 
 decodelogentry : D.Decoder Logentry
@@ -308,11 +310,18 @@ update msg model =
                     , getplotdata model.baseurl model.name (Just date) GotPlotData
                     )
 
+        -- user metadata edition
+
         MetaEditAsked ->
             let
                 editing = not model.editing
             in
             ( { model | editing = editing }
+            , Cmd.none
+            )
+
+        MetaItemToDelete key ->
+            ( { model | usermeta = Dict.remove key model.usermeta }
             , Cmd.none
             )
 
@@ -476,6 +485,7 @@ editusermeta model =
                         [ button
                               [ A.attribute "type" "button"
                               , A.class "btn btn-warning"
+                              , onClick (MetaItemToDelete key)
                               ]
                               [ text "delete" ]
                         ]
@@ -486,12 +496,13 @@ editusermeta model =
     div []
         [ viewusermetaheader model
         , form [] <| (List.map editfields (Dict.toList model.usermeta)) ++
+            if not <| Dict.isEmpty model.usermeta then
             [ button
                   [ A.attribute "type" "button"
                   , A.class "btn btn-primary col-sm-10"
                   ]
                   [ text "save entries"]
-            ]
+            ] else []
         , form []
             [ fields "" "" False
             , button
