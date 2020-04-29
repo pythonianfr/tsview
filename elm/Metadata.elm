@@ -1,6 +1,7 @@
 module Metadata exposing (MetaVal(..)
                          , decodemeta
                          , decodemetaval
+                         , encodemeta
                          , getmetadata
                          , metanames
                          , metavaltostring
@@ -10,6 +11,7 @@ module Metadata exposing (MetaVal(..)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as D
+import Json.Encode as E
 import Url.Builder as UB
 
 
@@ -79,3 +81,22 @@ decodemetaval =
 decodemeta : D.Decoder UserMetadata
 decodemeta =
     D.dict decodemetaval
+
+
+metavalencoder : MetaVal -> E.Value
+metavalencoder val =
+    case val of
+        MString s -> E.string s
+        MInt i -> E.int i
+        MFloat f -> E.float f
+        MBool b -> E.bool b
+        -- just satisfy the compiler, we don't go there (yet)
+        _ -> E.null
+
+
+metaencoder =
+    E.dict identity metavalencoder
+
+
+encodemeta meta =
+    E.encode 0 (metaencoder meta)

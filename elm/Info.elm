@@ -11,6 +11,7 @@ import Html.Parser
 import Html.Parser.Util
 import Http
 import Json.Decode as D
+import Json.Encode as E
 import Metadata as M
 import Plotter exposing
     ( getplotdata
@@ -73,6 +74,8 @@ type Msg
     | EditedValue String
     | EditedKey String
     | AddMetaItem
+    | SaveMeta
+    | MetaSaved (Result Http.Error String)
 
 
 decodelogentry : D.Decoder Logentry
@@ -157,6 +160,24 @@ getidates model =
               [ "tsinfo", "idates" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString InsertionDates
+        }
+
+
+savemeta model =
+    Http.request
+        { method = "PUT"
+        , body = Http.jsonBody <| E.object
+                 [ ("name", E.string model.name )
+                 , ("metadata" , E.string <| M.encodemeta model.usermeta )
+                 ]
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "series", "metadata" ] [ ]
+        , expect = Http.expectString MetaSaved
         }
 
 
@@ -332,6 +353,20 @@ update msg model =
               }
             , Cmd.none
             )
+
+        SaveMeta ->
+            ( model
+            , savemeta model
+            )
+
+        MetaSaved (Ok _) ->
+            nocmd { model
+                  | editing = False
+                  , metaitem = ("", "")
+                  }
+
+        MetaSaved (Err err) ->
+            doerr <| unwraperror err
 
 
 supervision model =
@@ -521,14 +556,16 @@ editusermeta model =
     in
     div []
         [ viewusermetaheader model
-        , form [] <| (List.map editfields (Dict.toList model.usermeta)) ++
-            if not <| Dict.isEmpty model.usermeta then
-            [ button
-                  [ A.attribute "type" "button"
-                  , A.class "btn btn-primary col-sm-10"
-                  ]
-                  [ text "save entries"]
-            ] else []
+        , form
+              [ onSubmit SaveMeta ]
+              <| (List.map editfields (Dict.toList model.usermeta)) ++
+                  if not <| Dict.isEmpty model.usermeta then
+                      [ button
+                            [ A.attribute "type" "submit"
+                            , A.class "btn btn-primary col-sm-10"
+                            ]
+                            [ text "save entries"]
+                      ] else []
         , form [ onSubmit AddMetaItem ]
             [ addfields (Tuple.first model.metaitem) (Tuple.second model.metaitem)
             , button
