@@ -557,10 +557,16 @@ viewusermeta model =
                        ++ "]"
                   ]
     in
-    div []
-        [ viewusermetaheader model
-        , ul [] (List.map elt (Dict.toList model.usermeta))
-        ]
+    if not <| Dict.isEmpty model.usermeta then
+        div []
+            [ viewusermetaheader model
+            , ul [] (List.map elt (Dict.toList model.usermeta))
+            ]
+    else
+        div []
+            [  viewusermetaheader model
+            , text "No user-defined metadata yet."
+            ]
 
 
 editusermeta model =
