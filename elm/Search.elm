@@ -88,12 +88,19 @@ viewnamefilter =
     ] []
 
 
-viewfiltered filtered =
+viewfiltered model =
     let
         item elt =
-            (elt, li [] [ text elt ])
+            (elt, li []
+                 [ a [ A.href (UB.crossOrigin
+                                   model.baseurl
+                                   [ "tsinfo" ]
+                                   [ UB.string "name" elt ]
+                              )
+                     ] [ text elt ]
+                 ])
     in
-    K.node "ul" [] <| List.map item <| List.sort filtered
+    K.node "ul" [] <| List.map item <| List.sort model.filtered
 
 
 view : Model -> Html Msg
@@ -101,7 +108,7 @@ view model =
     div []
         [ h1 [] [ text "Series Catalog" ]
         , viewnamefilter
-        , viewfiltered model.filtered
+        , viewfiltered model
         ]
 
 
