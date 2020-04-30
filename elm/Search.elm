@@ -5,11 +5,12 @@ import Catalog as Cat
 import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes as A
-import Html.Events exposing (onInput)
+import Html.Events exposing (onInput, onClick)
 import Html.Keyed as K
 import Http
 import Json.Decode as D
 import Metadata as M
+import Set exposing (Set)
 import Url.Builder as UB
 import Util as U
 
@@ -19,6 +20,8 @@ type alias Model =
     , catalog : Cat.Model
     , metadata : Dict String M.MetaVal
     , filtered : List String
+    , selectedkinds : List String
+    , selectedsources : List String
     , errors : List String
     }
 
@@ -27,6 +30,7 @@ type Msg
     = GotCatalog Cat.Msg
     | GotMeta (Result Http.Error String)
     | NameFilter String
+    | KindUpdated String
 
 
 getmeta baseurl =
@@ -46,6 +50,35 @@ decodemeta allmeta =
     D.decodeString all allmeta
 
 
+insert list item =
+    List.append list [item]
+
+
+remove list item =
+    List.filter ((/=) item) list
+
+
+filter list item =
+    List.filter (String.contains item) list
+
+
+filterseries model catalog =
+    -- filter by source and kinds
+    -- NOTE: factor me with SeriesSelector.filterseries !
+    let
+        seriesbykind kind =
+            Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
+        filteredseries =
+            List.concat (List.map seriesbykind model.selectedkinds)
+        filterbysource source =
+            let
+                series = Maybe.withDefault Set.empty (Dict.get source catalog.seriesBySource)
+            in
+                List.filter (\x -> Set.member x series) filteredseries
+    in
+        List.sort (List.concat (List.map filterbysource model.selectedsources))
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -55,6 +88,8 @@ update msg model =
                 newmodel = { model
                                | catalog = cat
                                , filtered = cat.series
+                               , selectedkinds = Dict.keys cat.seriesByKind
+                               , selectedsources = Dict.keys cat.seriesBySource
                            }
             in
             if List.isEmpty newmodel.catalog.series then
@@ -75,10 +110,25 @@ update msg model =
             U.nocmd <| U.adderror model <| U.unwraperror err
 
         NameFilter value ->
-            U.nocmd { model | filtered = List.filter
-                          (\x -> String.contains value x)
-                          model.catalog.series
+            let
+                series = filterseries model model.catalog
+            in
+            U.nocmd { model | filtered = filter series value }
+
+        KindUpdated kind ->
+            let
+                newkinds =
+                    if List.member kind model.selectedkinds
+                    then remove model.selectedkinds kind
+                    else insert model.selectedkinds kind
+                newmodel = { model | selectedkinds = newkinds }
+                series = filterseries newmodel newmodel.catalog
+            in
+            U.nocmd { model
+                        | selectedkinds = List.sort newkinds
+                        , filtered = series
                     }
+
 
 viewnamefilter =
     input
@@ -86,6 +136,27 @@ viewnamefilter =
     , A.placeholder "filter by name"
     , onInput NameFilter
     ] []
+
+
+viewkindfilter model =
+    let
+        kinds = Dict.keys model.catalog.seriesByKind
+        checkbox kind =
+            div [ A.class "form-check form-check-inline" ]
+                [ input
+                      [ A.attribute "type" "checkbox"
+                      , A.class "form-check-input"
+                      , A.value kind
+                      , A.checked <| List.member kind model.selectedkinds
+                      , onClick <| KindUpdated kind
+                      ] []
+                , label
+                      [ A.class "form-check-label"
+                      , A.for kind ]
+                      [ text kind ]
+                ]
+    in
+    div [] (List.map checkbox kinds)
 
 
 viewfiltered model =
@@ -108,6 +179,7 @@ view model =
     div []
         [ h1 [] [ text "Series Catalog" ]
         , viewnamefilter
+        , viewkindfilter model
         , viewfiltered model
         ]
 
@@ -129,6 +201,8 @@ main =
                          []
                      )
                      Dict.empty
+                     []
+                     []
                      []
                      []
                ,
