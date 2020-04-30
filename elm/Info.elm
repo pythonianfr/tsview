@@ -21,6 +21,7 @@ import Plotter exposing
     , Series
     )
 import Url.Builder as UB
+import Util as U
 
 
 type alias Logentry =
@@ -184,16 +185,6 @@ savemeta model =
         }
 
 
-unwraperror : Http.Error -> String
-unwraperror resp =
-    case resp of
-        Http.BadUrl x -> "bad url: " ++ x
-        Http.Timeout -> "the query timed out"
-        Http.NetworkError -> "there was a network error"
-        Http.BadStatus val -> "we got a bad status answer: " ++ String.fromInt val
-        Http.BadBody body -> "we got a bad body: " ++ body
-
-
 adderror model error =
     { model | errors = List.append model.errors [error] }
 
@@ -232,7 +223,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         GotMeta (Err err) ->
-            doerr  <| unwraperror err
+            doerr  <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -242,7 +233,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         GetPermissions (Err err) ->
-            doerr  <| unwraperror err
+            doerr  <| U.unwraperror err
 
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
@@ -252,7 +243,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         GotPlotData (Err err) ->
-            doerr <|unwraperror err
+            doerr <|U.unwraperror err
 
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -266,7 +257,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         GotFormula (Err error) ->
-            doerr  <| unwraperror error
+            doerr  <| U.unwraperror error
 
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -276,7 +267,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         CodeHighlight (Err error) ->
-            doerr <| unwraperror error
+            doerr <| U.unwraperror error
 
         Components (Ok rawcomponents) ->
             case D.decodeString (D.keyValuePairs D.string) rawcomponents of
@@ -286,7 +277,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         Components (Err error) ->
-            doerr <| unwraperror error
+            doerr <| U.unwraperror error
 
         GotLog (Ok rawlog) ->
             case D.decodeString decodelog rawlog of
@@ -296,7 +287,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         GotLog (Err error) ->
-            doerr <| unwraperror error
+            doerr <| U.unwraperror error
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString decodeidates rawdates of
@@ -309,7 +300,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         InsertionDates (Err error) ->
-            doerr <| unwraperror error
+            doerr <| U.unwraperror error
 
         ToggleExpansion ->
             let
@@ -397,7 +388,7 @@ update msg model =
                   }
 
         MetaSaved (Err err) ->
-            doerr <| unwraperror err
+            doerr <| U.unwraperror err
 
 
 -- views

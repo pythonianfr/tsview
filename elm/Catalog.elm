@@ -10,6 +10,7 @@ import List.Extra exposing (unique)
 import Set exposing (Set)
 import Tachyons.Classes as T
 import Url.Builder as UB
+import Util as U
 
 
 type alias RawSeries =
@@ -24,12 +25,12 @@ type alias Model =
     { series : List String
     , seriesBySource : Dict String (Set String)
     , seriesByKind : Dict String (Set String)
-    , error : Maybe Error
+    , errors : List String
     }
 
 
 type Msg
-    = Received (Result String RawSeries)
+    = Received (Result Http.Error String)
 
 
 -- catalog update
@@ -37,10 +38,13 @@ type Msg
 update msg model =
     case msg of
         Received (Ok x) ->
-            new x
+            case decodecatalog x of
+                Ok cat -> new cat
+                Err err ->
+                    Model [] Dict.empty Dict.empty [ D.errorToString err ]
 
-        Received (Err x) ->
-            Model [] Dict.empty Dict.empty (Just (Error x))
+        Received (Err err) ->
+            Model [] Dict.empty Dict.empty [ U.unwraperror err ]
 
 
 -- view
@@ -100,7 +104,7 @@ new raw =
         seriesBySource = newsources raw
         seriesByKind = newkinds raw
     in
-        Model series seriesBySource seriesByKind Nothing
+        Model series seriesBySource seriesByKind []
 
 
 removeSeries name catalog =
@@ -118,12 +122,14 @@ decodetuple =
         (D.index 1 D.string)
 
 
+decodecatalog rawcat =
+    D.decodeString (D.dict (D.list decodetuple)) rawcat
+
+
 get : String -> Int -> Cmd Msg
 get urlprefix allsources =
     Http.get
-        { expect =
-              (Common.expectJsonMessage Received)
-              (D.dict (D.list decodetuple))
+        { expect = Http.expectString Received
         , url =
             UB.crossOrigin urlprefix
                 [ "api", "series", "catalog" ]
