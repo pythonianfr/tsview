@@ -717,7 +717,12 @@ viewplot model =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [] [text ("Series " ++ model.name) ]
+        [ h1 []
+              [ text "Series "
+              , span
+                    [ A.class "font-italic" ]
+                    [ text model.name ]
+              ]
         , viewmeta model
         , viewusermeta model
         , viewformula model
