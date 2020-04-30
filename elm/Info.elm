@@ -207,8 +207,8 @@ update msg model =
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
-                        stdmeta = Dict.filter (\k v -> (List.member k M.metanames)) allmeta
-                        usermeta = Dict.filter (\k v -> not (List.member k M.metanames)) allmeta
+                        (stdmeta, usermeta) =
+                            Dict.partition (\k v -> (List.member k M.metanames)) allmeta
                         newmodel =
                             { model
                                 | meta = stdmeta
