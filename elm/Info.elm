@@ -400,6 +400,34 @@ update msg model =
             doerr <| unwraperror err
 
 
+-- views
+
+viewseealso model =
+    div []
+        [ p [] [ span [] [ text " ⇒ " ]
+               , a
+                     [ A.href <| UB.crossOrigin
+                           model.baseurl
+                           [ "tshistory", model.name ] []
+                     , A.target "_blank"
+                     ]
+                     [ text "browse history" ]
+               , if (supervision model) /= "formula" then
+                     p [] [ span [] [ text " ⇒ " ]
+                          , a
+                                [ A.href <| UB.crossOrigin
+                                      model.baseurl
+                                      [ "tseditor" ]
+                                      [ UB.string "name" model.name ]
+                                , A.target "_blank"
+                                ]
+                                [ text "edit values" ]
+                          ]
+                 else span [] []
+               ]
+        ]
+
+
 supervision model =
     case Dict.get "supervision_status" model.meta of
         Nothing -> "formula"
@@ -723,6 +751,7 @@ view model =
                     [ A.class "font-italic" ]
                     [ text model.name ]
               ]
+        , viewseealso model
         , viewmeta model
         , viewusermeta model
         , viewformula model
