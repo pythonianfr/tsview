@@ -6,7 +6,7 @@ import Dict exposing(Dict)
 import Set exposing (Set)
 import Html.Styled exposing (Html, div, text, span)
 import Http
-import Json.Decode as Decode
+import Json.Decode as D
 import List.Extra exposing (unique)
 import Tachyons.Classes as T
 import Url.Builder as UB
@@ -113,9 +113,9 @@ removeSeries name catalog =
 -- catalog fetching
 
 decodetuple =
-    Decode.map2 Tuple.pair
-        (Decode.index 0 Decode.string)
-        (Decode.index 1 Decode.string)
+    D.map2 Tuple.pair
+        (D.index 0 D.string)
+        (D.index 1 D.string)
 
 
 get : String -> Int -> Cmd Msg
@@ -123,7 +123,7 @@ get urlprefix allsources =
     Http.get
         { expect =
               (Common.expectJsonMessage Received)
-              (Decode.dict (Decode.list decodetuple))
+              (D.dict (D.list decodetuple))
         , url =
             UB.crossOrigin urlprefix
                 [ "api", "series", "catalog" ]
