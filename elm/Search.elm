@@ -14,20 +14,25 @@ type alias Model =
 
 
 type Msg
-    = Ok
+    = GotCatalog Cat.Msg
 
 
 nocmd model = ( model, Cmd.none )
 
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    nocmd model
+    case msg of
+        GotCatalog catmsg ->
+            nocmd { model | catalog = Cat.update catmsg model.catalog }
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ text "Series Catalog" ]
+        [ h1 [] [ text "Series Catalog" ]
+        , p [] [ text (String.fromInt (List.length model.catalog.series) ++ " items") ]
+        ]
 
 
 type alias Input =
@@ -46,7 +51,7 @@ main =
                          Dict.empty
                          []
                ,
-                   Cmd.none
+                   Cmd.map GotCatalog <| Cat.get input.baseurl 1
                )
            sub model = Sub.none
        in
