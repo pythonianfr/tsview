@@ -42,5 +42,6 @@ cleanbuild:
 	rm tsview/tsview_static/delete_elm.js -f
 	rm tsview/tsview_static/rename_elm.js -f
 	rm tsview/tsview_static/plot_elm.js -f
+	rm tsview/tsview_static/info_elm.js -f
 	rm tsview/tsview_static/formula_elm.js -f
 	rm elm/FormulaParserValidation/tsformula_elm_parser.js -f
