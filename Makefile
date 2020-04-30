@@ -1,7 +1,7 @@
 FLAGS ?=# --optimize
 NODE_PATH ?= /usr/lib/node_modules
 
-all: delete rename info plot formula pygmentize
+all: delete rename info search plot formula pygmentize
 
 delete:
 	elm make elm/Delete.elm $(FLAGS) --output tsview/tsview_static/delete_elm.js
@@ -11,6 +11,9 @@ rename:
 
 info:
 	elm make elm/Info.elm $(FLAGS) --output tsview/tsview_static/info_elm.js
+
+search:
+	elm make elm/Search.elm $(FLAGS) --output tsview/tsview_static/search_elm.js
 
 plot:
 	elm make elm/Plot.elm $(FLAGS) --output tsview/tsview_static/plot_elm.js
@@ -43,5 +46,6 @@ cleanbuild:
 	rm tsview/tsview_static/rename_elm.js -f
 	rm tsview/tsview_static/plot_elm.js -f
 	rm tsview/tsview_static/info_elm.js -f
+	rm tsview/tsview_static/search_elm.js -f
 	rm tsview/tsview_static/formula_elm.js -f
 	rm elm/FormulaParserValidation/tsformula_elm_parser.js -f

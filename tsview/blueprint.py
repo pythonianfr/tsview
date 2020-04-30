@@ -239,4 +239,14 @@ def tsview(tsa,
             has_permission('editmetadata')
         )
 
+    @bp.route('/tssearch')
+    def tssearch():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'tssearch.html',
+            homeurl=homeurl()
+        )
+
     return bp
