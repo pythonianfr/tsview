@@ -334,15 +334,9 @@ update msg model =
         -- user metadata edition
 
         MetaEditAsked ->
-            let
-                edited =
-                    Dict.toList model.usermeta
-                        |> List.map (\x -> (first x, M.metavaltostring <| snd x))
-                        |> Dict.fromList
-            in
             nocmd { model
                       | editing = not model.editing
-                      , editeditems = edited
+                      , editeditems = Dict.map (\k v -> M.metavaltostring v) model.usermeta
                   }
 
         MetaItemToDelete key ->
@@ -383,11 +377,7 @@ update msg model =
                             -- form strings are not json strings
                             -- this is why plain string parsing will fail ...
                             M.MString rawitem
-                newmeta =
-                    Dict.toList model.editeditems
-                        |> List.map (\x -> (first x, decode <| snd x))
-                        |> Dict.fromList
-                newmodel = { model | usermeta = newmeta }
+                newmodel = { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
             in
             ( newmodel, savemeta newmodel )
 
