@@ -71,6 +71,7 @@ type Msg
     | ChangedIdate String
     -- metadata edition
     | MetaEditAsked
+    | MetaEditCancel
     | MetaItemToDelete String
     | EditedValue String String
     | NewValue String
@@ -335,8 +336,15 @@ update msg model =
 
         MetaEditAsked ->
             nocmd { model
-                      | editing = not model.editing
+                      | editing = True
                       , editeditems = Dict.map (\k v -> M.metavaltostring v) model.usermeta
+                  }
+
+        MetaEditCancel ->
+            nocmd { model
+                      | editing = False
+                      , editeditems = Dict.empty
+                      , metaitem = ("", "")
                   }
 
         MetaItemToDelete key ->
@@ -513,13 +521,21 @@ viewmeta model =
 viewusermetaheader model =
     let
         editaction =
-            if model.canwrite && not model.editing then
-                button
-                [ A.attribute "type" "button"
-                , A.class "btn btn-primary"
-                , onClick MetaEditAsked
-                ]
-                [text "edit"]
+            if model.canwrite then
+                if not model.editing then
+                    button
+                    [ A.attribute "type" "button"
+                    , A.class "btn btn-primary"
+                    , onClick MetaEditAsked
+                    ]
+                    [text "edit"]
+                else
+                    button
+                    [ A.attribute "type" "button"
+                    , A.class "btn btn-warning"
+                    , onClick MetaEditCancel
+                    ]
+                    [text "cancel"]
             else span [] []
     in
         h2  []
