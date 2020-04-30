@@ -7,6 +7,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 from dash import _utils
 
+from sqlhelp import select
 from psyl import lisp
 
 from tshistory.tsio import timeseries
@@ -247,6 +248,43 @@ def tsview(tsa,
         return render_template(
             'tssearch.html',
             homeurl=homeurl()
+        )
+
+    @bp.route('/tssearch/allmetadata')
+    def all_metadata():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        # here we take a big bad shortcut ...
+        # we want to think on how to expose that
+        # in tshistory rest api
+        # and for all sources ...
+        # for now we are single source only
+        engine = tsa.engine
+
+        q1 = select(
+            'seriesname', 'metadata'
+        ).table(
+            f'"{tsa.namespace}".registry'
+        )
+
+        m1 = [
+            (name, meta)
+            for name, meta in q1.do(engine).fetchall()
+        ]
+
+        q2 = select(
+            'name', 'metadata'
+        ).table(
+            f'"{tsa.namespace}".formula'
+        )
+
+        m2 = [
+            (name, meta)
+            for name, meta in q2.do(engine).fetchall()
+        ]
+        return json.dumps(
+            dict(m1 + m2)
         )
 
     return bp
