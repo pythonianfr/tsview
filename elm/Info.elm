@@ -619,13 +619,12 @@ editusermeta model =
         , form
               [ onSubmit SaveMeta ]
               <| (List.map editfields (Dict.toList model.editeditems)) ++
-                  if not <| Dict.isEmpty model.usermeta then
-                      [ button
-                            [ A.attribute "type" "submit"
-                            , A.class "btn btn-primary col-sm-10"
-                            ]
-                            [ text "save entries"]
-                      ] else []
+                  [ button
+                        [ A.attribute "type" "submit"
+                        , A.class "btn btn-primary col-sm-10"
+                        ]
+                        [ text "save entries"]
+                  ]
         , form [ onSubmit AddMetaItem ]
             [ addfields (first model.metaitem) (snd model.metaitem)
             , button
