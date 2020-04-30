@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes as A
 import Html.Events exposing (onInput)
+import Html.Keyed as K
 import Http
 import Json.Decode as D
 import Metadata as M
@@ -79,22 +80,28 @@ update msg model =
                           model.catalog.series
                     }
 
+viewnamefilter =
+    input
+    [ A.class "form-control"
+    , A.placeholder "filter by name"
+    , onInput NameFilter
+    ] []
+
+
+viewfiltered filtered =
+    let
+        item elt =
+            (elt, li [] [ text elt ])
+    in
+    K.node "ul" [] <| List.map item <| List.sort filtered
+
 
 view : Model -> Html Msg
 view model =
-    let
-        item elt =
-            li [] [ text elt ]
-    in
     div []
         [ h1 [] [ text "Series Catalog" ]
-        , input
-              [ A.class "form-control"
-              , A.placeholder "filter by name"
-              , onInput NameFilter
-              ] []
-        , ul []
-            <| List.map item <| List.sort model.filtered
+        , viewnamefilter
+        , viewfiltered model.filtered
         ]
 
 
