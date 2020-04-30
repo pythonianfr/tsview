@@ -31,6 +31,7 @@ type Msg
     | GotMeta (Result Http.Error String)
     | NameFilter String
     | KindUpdated String
+    | SourceUpdated String
 
 
 getmeta baseurl =
@@ -129,6 +130,20 @@ update msg model =
                         , filtered = series
                     }
 
+        SourceUpdated source ->
+            let
+                newsources =
+                    if List.member source model.selectedsources
+                    then remove model.selectedsources source
+                    else insert model.selectedsources source
+                newmodel = { model | selectedsources = newsources }
+                series = filterseries newmodel newmodel.catalog
+            in
+            U.nocmd { model
+                        | selectedsources = List.sort newsources
+                        , filtered = series
+                    }
+
 
 viewnamefilter =
     input
@@ -159,6 +174,27 @@ viewkindfilter model =
     div [] (List.map checkbox kinds)
 
 
+viewsourcefilter model =
+    let
+        sources = Dict.keys model.catalog.seriesBySource
+        checkbox source =
+            div [ A.class "form-check form-check-inline" ]
+                [ input
+                      [ A.attribute "type" "checkbox"
+                      , A.class "form-check-input"
+                      , A.value source
+                      , A.checked <| List.member source model.selectedsources
+                      , onClick <| SourceUpdated source
+                      ] []
+                , label
+                      [ A.class "form-check-label"
+                      , A.for source ]
+                      [ text source ]
+                ]
+    in
+    div [] (List.map checkbox sources)
+
+
 viewfiltered model =
     let
         item elt =
@@ -179,6 +215,7 @@ view model =
     div []
         [ h1 [] [ text "Series Catalog" ]
         , viewnamefilter
+        , viewsourcefilter model
         , viewkindfilter model
         , viewfiltered model
         ]
