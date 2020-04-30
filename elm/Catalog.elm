@@ -1,13 +1,13 @@
 module Catalog exposing
     (Model, Msg, Error, viewError, get, new, update, removeSeries)
 
-import Common exposing (classes)
+import Common
 import Dict exposing(Dict)
-import Set exposing (Set)
 import Html.Styled exposing (Html, div, text, span)
 import Http
 import Json.Decode as D
 import List.Extra exposing (unique)
+import Set exposing (Set)
 import Tachyons.Classes as T
 import Url.Builder as UB
 
@@ -49,7 +49,7 @@ viewError : Error -> Html msg
 viewError error =
     let
         bold x =
-            span [ classes [ T.b, T.mr4 ] ] [ text x ]
+            span [ Common.classes [ T.b, T.mr4 ] ] [ text x ]
     in
         case error of
             Error x ->
