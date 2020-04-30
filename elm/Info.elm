@@ -392,14 +392,8 @@ update msg model =
             ( newmodel, savemeta newmodel )
 
         MetaSaved (Ok _) ->
-            let
-                newmeta = Dict.toList model.editeditems
-                          |> List.map (\x  -> (first x, M.MString (snd x)))
-                          |> Dict.fromList
-            in
             nocmd { model
                       | editing = False
-                      , usermeta = newmeta
                       , editeditems = Dict.empty
                       , metaitem = ("", "")
                   }
