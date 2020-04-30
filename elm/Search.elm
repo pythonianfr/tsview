@@ -68,9 +68,14 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let
+        item elt =
+            li [] [ text elt ]
+    in
     div []
         [ h1 [] [ text "Series Catalog" ]
-        , p [] [ text (String.fromInt (List.length model.catalog.series) ++ " items") ]
+        , ul []
+            <| List.map item <| List.sort model.catalog.series
         ]
 
 
