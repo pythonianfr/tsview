@@ -5,6 +5,7 @@ import Catalog as Cat
 import Dict exposing (Dict)
 import Html exposing (..)
 import Url.Builder as UB
+import Util as U
 
 
 type alias Model =
@@ -17,14 +18,11 @@ type Msg
     = GotCatalog Cat.Msg
 
 
-nocmd model = ( model, Cmd.none )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotCatalog catmsg ->
-            nocmd { model | catalog = Cat.update catmsg model.catalog }
+            U.nocmd { model | catalog = Cat.update catmsg model.catalog }
 
 
 view : Model -> Html Msg
