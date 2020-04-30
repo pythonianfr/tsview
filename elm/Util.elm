@@ -1,9 +1,13 @@
-module Util exposing (unwraperror, nocmd)
+module Util exposing (unwraperror, nocmd, adderror)
 
 import Http
 
 
 nocmd model = ( model, Cmd.none )
+
+
+adderror model error =
+    { model | errors = List.append model.errors [error] }
 
 
 unwraperror : Http.Error -> String

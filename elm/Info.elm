@@ -185,10 +185,6 @@ savemeta model =
         }
 
 
-adderror model error =
-    { model | errors = List.append model.errors [error] }
-
-
 first = Tuple.first
 snd = Tuple.second
 
@@ -197,7 +193,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         doerr error =
-            U.nocmd <| adderror model error
+            U.nocmd <| U.adderror model error
     in
     case msg of
         GotMeta (Ok result) ->
