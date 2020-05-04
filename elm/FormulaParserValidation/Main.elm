@@ -1,15 +1,14 @@
 port module FormulaParserValidation.Main exposing (main)
 
-import Either exposing (Either(..))
+import Either
 import Json.Decode as D exposing (Decoder)
-import Lazy.Tree.Zipper as Zipper
 import List.Nonempty as NE exposing (Nonempty)
 import Platform exposing (worker)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 import TsView.Formula.EditionTree.Parser exposing (parseFormula)
 import TsView.Formula.EditionTree.Type as ET
 import TsView.Formula.Spec.Parser exposing (parseSpecValue)
-import TsView.Formula.Spec.Render as SR exposing (renderSpec)
+import TsView.Formula.Spec.Render exposing (renderSpec)
 import TsView.Formula.Spec.Type as S exposing (Spec)
 
 
@@ -31,7 +30,7 @@ inspect spec all =
 
         render : ( S.BaseType, Nonempty ET.EditionType ) -> List String
         render ( baseType, ops ) =
-            [ SR.strBaseType baseType, String.repeat 5 "-" ] ++ renderOps ops
+            [ S.strBaseType baseType, String.repeat 5 "-" ] ++ renderOps ops
     in
     if all then
         List.foldl (\a b -> b ++ render a) sep (ET.specToList spec)

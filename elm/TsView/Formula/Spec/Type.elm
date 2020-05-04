@@ -5,9 +5,15 @@ module TsView.Formula.Spec.Type exposing
     , Operator
     , Spec
     , Value(..)
+    , getOperator
     , getOperators
+    , matchBaseType
+    , matchExpType
     , noSpec
     , specToList
+    , strBaseType
+    , strExpType
+    , strInputType
     )
 
 import AssocList as Assoc
@@ -68,3 +74,80 @@ specToList =
 getOperators : BaseType -> Spec -> Maybe (Nonempty Operator)
 getOperators =
     Assoc.get
+
+
+getOperator : BaseType -> String -> Spec -> Maybe Operator
+getOperator baseType operatorName spec =
+    let
+        mkOperators =
+            NE.toList >> List.map (\op -> ( op.name, op )) >> Assoc.fromList
+    in
+    getOperators baseType spec
+        |> Maybe.andThen (mkOperators >> Assoc.get operatorName)
+
+
+strInputType : InputType -> String
+strInputType iType =
+    case iType of
+        Int ->
+            "Int"
+
+        Number ->
+            "Number"
+
+        String ->
+            "String"
+
+        Bool ->
+            "Bool"
+
+        Timestamp ->
+            "Timestamp"
+
+        SearchString ->
+            "SearchString"
+
+
+strBaseType : BaseType -> String
+strBaseType bType =
+    case bType of
+        BaseInput x ->
+            strInputType x
+
+        Series ->
+            "Series"
+
+
+strExpType : ExpType -> String
+strExpType eType =
+    case eType of
+        ExpBaseType x ->
+            strBaseType x
+
+        SList x ->
+            "List[" ++ strExpType x ++ "]"
+
+        Union xs ->
+            let
+                typesToStr =
+                    NE.map strExpType >> NE.toList >> String.join ", "
+            in
+            "Union[" ++ typesToStr xs ++ "]"
+
+
+matchType : (a -> String) -> Nonempty a -> String -> Maybe a
+matchType toStr xs s =
+    NE.toList xs
+        |> List.map (\x -> ( toStr x, x ))
+        |> Assoc.fromList
+        |> Assoc.get s
+
+
+matchBaseType : Nonempty BaseType -> String -> Maybe BaseType
+matchBaseType =
+    matchType strBaseType
+
+
+matchExpType : Nonempty ExpType -> String -> Maybe ExpType
+matchExpType =
+    matchType strExpType
