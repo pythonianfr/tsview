@@ -6,22 +6,20 @@ module TsView.Formula.EditionTree.Main exposing
     , view
     )
 
-import Either exposing (Either(..))
 import Html exposing (Html)
-import Json.Decode as D
-import TsView.Formula.EditionTree.Type as T
+import Json.Decode exposing (Value)
+import TsView.Formula.EditionTree.Type as ET
 import TsView.Formula.EditionTree.Update as Update
 import TsView.Formula.EditionTree.View as View
-import TsView.Formula.Spec.Parser exposing (parseSpecValue)
 import TsView.Formula.Spec.Type as S
 
 
 type alias Msg =
-    T.Msg
+    ET.Msg
 
 
 type alias Model =
-    T.Model
+    ET.Model
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -30,18 +28,10 @@ update =
 
 
 view : Model -> Html Msg
-view =
-    View.view
+view model =
+    View.viewEditionNode model.spec model.tree
 
 
-init : D.Value -> Model
-init =
-    let
-        initModel ( spec, errors ) =
-            T.Model spec errors
-    in
-    parseSpecValue
-        >> Either.unpack
-            (\( spec, errors ) -> ( spec, Just errors ))
-            (\spec -> ( spec, Nothing ))
-        >> initModel
+init : S.Spec -> Model
+init spec =
+    ET.Model spec (ET.buildInitialTree spec)
