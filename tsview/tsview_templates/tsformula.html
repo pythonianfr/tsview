@@ -33,7 +33,7 @@
                 flags: {
                     urlPrefix : "{{ homeurl }}",
                     jsonSpec : {{ spec | safe }},
-                    formula : { name : "dev", code : '(priority (add (series "gas.cwe_uk.demand.stat_diff.mcmd.fcst") (series "gas.cee.demand.stat_diff.mcmd.fcst") (series "gas.iberia.demand.stat_diff.mcmd.fcst")) (+ 13 (* -0.07 (add (series "gas.western_europe.supply.mcmd.fcst") (* -1 (series "gas.western_europe.demand.mcmd.fcst")) (* -1 (series "gas.western_europe.exports.mcmd.fcst"))))))' }
+                    formula : {{ formula | safe }}
                 }
             });
         </script>

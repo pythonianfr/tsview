@@ -147,10 +147,17 @@ def tsview(tsa,
     def tsformula():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
+        name = request.args.get('name')
+        formula = None
+        if name:
+            formula = dict(
+                name=name,
+                code=tsa.formula(name) or ''
+            )
         return render_template('tsformula.html',
                                homeurl=homeurl(),
                                spec=spec(),
-                               name=json.dumps(request.args.get('name')))
+                               formula=json.dumps(formula))
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
     def tsformula_pygmentize():
