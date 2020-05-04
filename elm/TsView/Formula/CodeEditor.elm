@@ -1,0 +1,296 @@
+module TsView.Formula.CodeEditor exposing
+    ( Formula
+    , Model
+    , Msg(..)
+    , init
+    , update
+    , view
+    )
+
+import Cmd.Extra exposing (withNoCmd)
+import Either
+import Html as H exposing (Html)
+import Html.Attributes as A
+import Html.Events as Events
+import Maybe.Extra as Maybe
+import TsView.AceEditor as AceEditor
+import TsView.Formula.EditionTree.Parser exposing (parseFormula)
+import TsView.Formula.EditionTree.Render exposing (renderString)
+import TsView.Formula.EditionTree.Type as ET exposing (EditionTree)
+import TsView.Formula.Spec.Type as S
+import TsView.Formula.Utils exposing (icon, sendCmd)
+
+
+type alias Formula =
+    { name : String
+    , code : String
+    }
+
+
+type alias PartialFormula =
+    { formula : Formula
+    , errMess : Maybe String
+    }
+
+
+noFormula : Formula
+noFormula =
+    Formula "" ""
+
+
+type State
+    = ReadOnly
+    | Edition
+
+
+type alias Model =
+    { urlPrefix : String
+    , state : State
+    , spec : S.Spec
+    , current : PartialFormula
+    , user : PartialFormula
+    , reload : Bool
+    }
+
+
+type Msg
+    = ParsedFormula EditionTree
+    | Render EditionTree
+    | ParseFormula String
+    | AceEditorMsg AceEditor.Msg
+    | ChangeState State
+    | UpdateName String
+    | UpdateUserFormula
+
+
+updateName : String -> (Formula -> Formula)
+updateName x s =
+    { s | name = x }
+
+
+updateCode : String -> (Formula -> Formula)
+updateCode x s =
+    { s | code = x }
+
+
+updateFormula : (Formula -> Formula) -> (PartialFormula -> PartialFormula)
+updateFormula modify s =
+    { s | formula = modify s.formula }
+
+
+updateErrMess : Maybe String -> (PartialFormula -> PartialFormula)
+updateErrMess x s =
+    { s | errMess = x }
+
+
+updateState : State -> (Model -> Model)
+updateState x s =
+    { s | state = x }
+
+
+updateCurrent : (PartialFormula -> PartialFormula) -> (Model -> Model)
+updateCurrent modify s =
+    { s | current = modify s.current }
+
+
+updateUser : (PartialFormula -> PartialFormula) -> (Model -> Model)
+updateUser modify s =
+    { s | user = modify s.user }
+
+
+updateCurrentCode : EditionTree -> (Model -> Model)
+updateCurrentCode tree =
+    let
+        code =
+            renderString tree
+    in
+    updateCode code |> updateFormula |> updateCurrent
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        ParseFormula code ->
+            let
+                newModel =
+                    (updateCode code |> updateFormula |> updateUser) model
+            in
+            Either.unpack
+                (\s ->
+                    let
+                        f : Model -> Model
+                        f =
+                            updateState Edition
+                                >> (updateErrMess (Just s) |> updateUser)
+                    in
+                    ( f newModel
+                    , Cmd.none
+                    )
+                )
+                (\tree ->
+                    let
+                        f : Model -> Model
+                        f =
+                            updateCurrentCode tree
+                                >> (updateErrMess Nothing |> updateUser)
+                    in
+                    ( f newModel
+                    , sendCmd ParsedFormula tree
+                    )
+                )
+                (parseFormula model.spec code)
+
+        Render tree ->
+            updateCurrentCode tree model |> withNoCmd
+
+        UpdateName s ->
+            (updateName s |> updateFormula |> updateCurrent) model
+                |> withNoCmd
+
+        AceEditorMsg (AceEditor.Edited code) ->
+            update (ParseFormula code) { model | reload = False }
+
+        UpdateUserFormula ->
+            let
+                f =
+                    always model.current.formula |> updateFormula |> updateUser
+            in
+            f { model | reload = True }
+                |> update (ParseFormula model.current.formula.code)
+
+        ChangeState state ->
+            let
+                f : Model -> Model
+                f =
+                    (always model.current.formula |> updateFormula |> updateUser)
+                        >> (updateErrMess Nothing |> updateUser)
+                        >> updateState state
+            in
+            f model |> withNoCmd
+
+        ParsedFormula _ ->
+            model |> withNoCmd
+
+
+init : String -> S.Spec -> Maybe Formula -> ( Model, Cmd Msg )
+init urlPrefix spec initialFormulaM =
+    let
+        doInit model =
+            Maybe.unwrap
+                ( model, Cmd.none )
+                (\code -> update (ParseFormula code) model)
+                (Maybe.map .code initialFormulaM)
+
+        initialFormula =
+            Maybe.withDefault noFormula initialFormulaM
+    in
+    Model
+        urlPrefix
+        ReadOnly
+        spec
+        (PartialFormula initialFormula Nothing)
+        (PartialFormula initialFormula Nothing)
+        False
+        |> doInit
+
+
+viewHeader : State -> Html Msg
+viewHeader state =
+    let
+        ( newState, iconCls ) =
+            case state of
+                ReadOnly ->
+                    ( Edition, "far fa-edit" )
+
+                Edition ->
+                    ( ReadOnly, "fas fa-stop-circle" )
+    in
+    H.header
+        [ A.class "code_left" ]
+        [ H.span [] [ H.text "Formula edition" ]
+        , H.a [ Events.onClick (ChangeState newState) ] [ icon iconCls ]
+        ]
+
+
+viewError : Maybe String -> List (Html Msg)
+viewError =
+    Maybe.map (\x -> H.span [ A.class "error" ] [ H.text x ])
+        >> Maybe.toList
+
+
+viewReadOnly : Model -> List (Html Msg)
+viewReadOnly model =
+    let
+        { name, code } =
+            model.current.formula
+    in
+    [ viewHeader model.state
+    , H.div
+        [ A.class "code_left" ]
+        [ AceEditor.readOnly AceEditor.default code
+        ]
+    , H.footer [ A.class "code_left" ]
+        (List.append
+            [ H.button [] [ H.text "Save As" ]
+            , H.input [ A.value name, Events.onInput UpdateName ] []
+            ]
+            (viewError model.current.errMess)
+        )
+    ]
+
+
+viewEdition : Model -> List (Html Msg)
+viewEdition model =
+    let
+        cfg =
+            AceEditor.default
+
+        editorHeight =
+            A.attribute "style" "--min-height-editor: 36vh"
+    in
+    [ viewHeader model.state
+    , H.div
+        [ A.class "code_left", editorHeight ]
+        [ AceEditor.edit cfg model.user.formula.code model.reload
+            |> H.map AceEditorMsg
+        ]
+    , H.footer
+        [ A.class "code_left" ]
+        (viewError model.user.errMess)
+    , H.aside
+        [ A.class "code_left center_item" ]
+        [ icon "fas fa-long-arrow-alt-down fa-2x" ]
+    , H.header
+        [ A.class "code_center" ]
+        []
+    , H.div
+        [ A.class "code_center center_item" ]
+        [ H.a
+            [ Events.onClick UpdateUserFormula ]
+            [ icon "far fa-arrow-alt-circle-left fa-2x" ]
+        ]
+    , H.header
+        [ A.class "code_right" ]
+        [ H.span [] [ H.text "Current formula" ] ]
+    , H.div
+        [ A.class "code_right", editorHeight ]
+        [ AceEditor.readOnly cfg model.current.formula.code
+        ]
+    , H.footer
+        [ A.class "code_right" ]
+        []
+    , H.aside
+        [ A.class "code_right center_item" ]
+        [ icon "fas fa-level-up-alt fa-2x" ]
+    ]
+
+
+view : Model -> Html Msg
+view model =
+    H.section [ A.class "code_editor" ] <|
+        case model.state of
+            ReadOnly ->
+                viewReadOnly model
+
+            Edition ->
+                viewEdition model
