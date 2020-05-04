@@ -49,7 +49,7 @@ inputTypeParser =
         , Parser.succeed S.Timestamp
             |. Parser.keyword "Timestamp"
         , Parser.succeed S.SearchString
-            |. Parser.keyword "search_str"
+            |. Parser.keyword "seriesname"
         ]
 
 

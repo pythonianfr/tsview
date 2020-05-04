@@ -27,7 +27,7 @@ tests =
     [
       [
         "name",
-        "search_str"
+        "seriesname"
       ],
       [
         "date",
@@ -75,7 +75,7 @@ Series
     [
       [
         "name",
-        "search_str"
+        "seriesname"
       ],
       [
         "fill",
