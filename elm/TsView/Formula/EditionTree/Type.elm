@@ -1,16 +1,19 @@
 module TsView.Formula.EditionTree.Type exposing
     ( Arg(..)
-    , ArgType(..)
+    , EditAction(..)
     , EditionNode
+    , EditionTree
     , EditionType(..)
+    , Forest
+    , Input
     , Model
-    , Msg
+    , Msg(..)
     , Operator(..)
     , OptArg(..)
     , OptArgs(..)
-    , Value(..)
     , buildEditionTree
     , buildInitialTree
+    , emptyInput
     , fromEditionType
     , fromSpecOperator
     , probeArgSelector
@@ -26,16 +29,16 @@ import TsView.Formula.Spec.Type as S
 import TsView.Formula.Utils exposing (buildForest, buildTree)
 
 
-type ArgType
-    = ArgType S.ExpType
+type alias Forest a =
+    List (Tree a)
 
 
 type Arg
-    = Arg ArgType
+    = Arg S.ExpType
 
 
 type OptArg
-    = OptArg String ArgType
+    = OptArg String S.ExpType S.Value
 
 
 type OptArgs
@@ -51,19 +54,19 @@ fromSpecOperator : S.Operator -> Operator
 fromSpecOperator op =
     let
         optArgs =
-            List.map (\( k, x ) -> OptArg k (ArgType x)) op.kargs
+            List.map (\( k, x, v ) -> OptArg k x v) op.kargs
                 |> NE.fromList
                 |> Maybe.map OptArgs
                 |> Maybe.withDefault NoOptArgs
     in
     Operator
         op.name
-        (List.map (ArgType >> Arg) op.args)
+        (List.map Arg op.args)
         optArgs
 
 
 type EditionType
-    = ArgTypeT ArgType
+    = ExpTypeT S.ExpType
     | SelectorT S.BaseType
     | InputSelectorT S.InputType
     | ArgT Arg
@@ -75,31 +78,21 @@ type EditionType
 
 noEditionType : EditionType
 noEditionType =
-    ArgTypeT <| ArgType <| S.ExpBaseType <| S.BaseInput <| S.Bool
+    ExpTypeT <| S.ExpBaseType <| S.BaseInput <| S.Bool
 
 
 type alias EditionFlags =
     { isOpen : Bool
-    , isRemovable : Bool
     }
 
 
-type Value
-    = Empty
-    | BoolValue Bool
-    | IntValue Int
-    | NumberValue Float
-    | StringValue String
-    | TimestampValue String
-
-
 type alias Input =
-    ( String, Either String Value )
+    ( String, Either String S.Value )
 
 
 emptyInput : Input
 emptyInput =
-    ( "", Right Empty )
+    ( "", Right S.Empty )
 
 
 type alias EditionNode =
@@ -109,18 +102,31 @@ type alias EditionNode =
     }
 
 
+type alias EditionTree =
+    Tree EditionNode
+
+
 fromEditionType : EditionType -> EditionNode
 fromEditionType editionType =
-    EditionNode (EditionFlags True False) editionType emptyInput
+    EditionNode (EditionFlags True) editionType emptyInput
 
 
-type alias Msg =
-    ()
+type EditAction
+    = ReadInput String
+    | ListAdd
+    | ListRemove
+
+
+type Msg
+    = Edit EditionTree
+    | RenderFormula EditionTree
+    | ToggleNode (Zipper EditionNode)
+    | EditNode (Zipper EditionNode) EditAction
 
 
 type alias Model =
     { spec : S.Spec
-    , errors : Maybe (Nonempty String)
+    , tree : EditionTree
     }
 
 
@@ -136,24 +142,24 @@ probeSelector spec baseType =
                     InputSelectorT x
 
                 Nothing ->
-                    ArgTypeT <| ArgType <| S.ExpBaseType <| baseType
+                    ExpTypeT <| S.ExpBaseType <| baseType
 
 
-probeArgSelector : S.Spec -> ArgType -> EditionType
-probeArgSelector spec ((ArgType expType) as argType) =
+probeArgSelector : S.Spec -> S.ExpType -> EditionType
+probeArgSelector spec expType =
     case expType of
         S.ExpBaseType x ->
             probeSelector spec x
 
         _ ->
-            ArgTypeT argType
+            ExpTypeT expType
 
 
 fromExpType : S.Spec -> S.ExpType -> List EditionType
 fromExpType spec expType =
     let
         toArg =
-            ArgType >> probeArgSelector spec >> List.singleton
+            probeArgSelector spec >> List.singleton
     in
     case expType of
         S.Union xs ->
@@ -173,7 +179,7 @@ listTypes spec editionType =
     -- edition tree node
     case editionType of
         ReturnTypeT xs ->
-            [ SelectorT (NE.head xs) ]
+            [ NE.head xs |> probeSelector spec ]
 
         SelectorT baseType ->
             S.getOperators baseType spec
@@ -182,7 +188,10 @@ listTypes spec editionType =
                 |> Maybe.withDefault []
 
         InputSelectorT inputType ->
-            [ S.BaseInput inputType |> S.ExpBaseType |> ArgType |> ArgTypeT ]
+            [ S.BaseInput inputType |> S.ExpBaseType |> ExpTypeT ]
+
+        OperatorT (Operator _ args NoOptArgs) ->
+            List.map ArgT args
 
         OperatorT (Operator _ args optArgs) ->
             List.map ArgT args ++ [ OptArgsT optArgs ]
@@ -196,10 +205,10 @@ listTypes spec editionType =
         ArgT (Arg x) ->
             [ probeArgSelector spec x ]
 
-        OptArgT (OptArg _ x) ->
+        OptArgT (OptArg _ x _) ->
             [ probeArgSelector spec x ]
 
-        ArgTypeT (ArgType x) ->
+        ExpTypeT x ->
             fromExpType spec x
 
 
@@ -221,30 +230,22 @@ buildEditionNode zipper =
 
                 _ ->
                     True
-
-        isRemovable =
-            case Zipper.parent zipper |> Maybe.map Zipper.label of
-                Just (ArgTypeT (ArgType (S.SList _))) ->
-                    True
-
-                _ ->
-                    False
     in
     Tree.tree
         (EditionNode
-            (EditionFlags isOpen isRemovable)
+            (EditionFlags isOpen)
             editionType
             emptyInput
         )
         (buildForest buildEditionNode zipper)
 
 
-buildEditionTree : S.Spec -> EditionType -> Tree EditionNode
+buildEditionTree : S.Spec -> EditionType -> EditionTree
 buildEditionTree spec editionType =
     buildTypeTree spec editionType |> Zipper.fromTree |> buildEditionNode
 
 
-buildInitialTree : S.Spec -> Tree EditionNode
+buildInitialTree : S.Spec -> EditionTree
 buildInitialTree spec =
     S.specToList spec
         |> List.map Tuple.first
