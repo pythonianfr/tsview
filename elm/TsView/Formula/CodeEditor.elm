@@ -8,10 +8,14 @@ module TsView.Formula.CodeEditor exposing
     )
 
 import Cmd.Extra exposing (withNoCmd)
+import Common exposing (expectJsonMessage)
 import Either
 import Html as H exposing (Html)
 import Html.Attributes as A
 import Html.Events as Events
+import Http
+import Json.Decode as D
+import Json.Encode as E
 import Maybe.Extra as Maybe
 import TsView.AceEditor as AceEditor
 import TsView.Formula.EditionTree.Parser exposing (parseFormula)
@@ -19,6 +23,7 @@ import TsView.Formula.EditionTree.Render exposing (renderString)
 import TsView.Formula.EditionTree.Type as ET exposing (EditionTree)
 import TsView.Formula.Spec.Type as S
 import TsView.Formula.Utils exposing (icon, sendCmd)
+import Url.Builder as UB
 
 
 type alias Formula =
@@ -61,6 +66,8 @@ type Msg
     | ChangeState State
     | UpdateName String
     | UpdateUserFormula
+    | OnSave
+    | SaveDone (Result String String)
 
 
 updateName : String -> (Formula -> Formula)
@@ -168,6 +175,41 @@ update msg model =
             in
             f model |> withNoCmd
 
+        OnSave ->
+            let
+                formula =
+                    model.current.formula
+            in
+            ( model
+            , Http.request
+                { method = "PATCH"
+                , headers = []
+                , url =
+                    UB.crossOrigin
+                        model.urlPrefix
+                        [ "api", "series", "formula" ]
+                        []
+                , body =
+                    Http.jsonBody
+                        (E.object
+                            [ ( "name", E.string formula.name )
+                            , ( "text", E.string formula.code )
+                            , ( "reject_unknown", E.bool False )
+                            , ( "force_update", E.bool True )
+                            ]
+                        )
+                , expect = expectJsonMessage SaveDone D.string
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+            )
+
+        SaveDone (Ok _) ->
+            (updateErrMess Nothing |> updateCurrent) model |> withNoCmd
+
+        SaveDone (Err s) ->
+            (updateErrMess (Just s) |> updateCurrent) model |> withNoCmd
+
         ParsedFormula _ ->
             model |> withNoCmd
 
@@ -231,7 +273,7 @@ viewReadOnly model =
         ]
     , H.footer [ A.class "code_left" ]
         (List.append
-            [ H.button [] [ H.text "Save As" ]
+            [ H.button [ Events.onClick OnSave ] [ H.text "Save As" ]
             , H.input [ A.value name, Events.onInput UpdateName ] []
             ]
             (viewError model.current.errMess)
