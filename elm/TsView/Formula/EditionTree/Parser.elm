@@ -7,15 +7,9 @@ import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
 import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
-import TsView.Formula.EditionTree.Type as ET exposing (EditionNode)
+import TsView.Formula.EditionTree.Type as ET exposing (EditionNode, Forest)
 import TsView.Formula.Spec.Type as S exposing (Spec)
-import TsView.Formula.Utils
-    exposing
-        ( boolParser
-        , boolToString
-        , numberParser
-        , stringParser
-        )
+import TsView.Formula.Utils exposing (valueParser)
 
 
 logEditionTree : String -> EditionTree -> EditionTree
@@ -32,10 +26,6 @@ logEditionTree mess tree =
 
 type alias EditionTree =
     Tree EditionNode
-
-
-type alias Forest a =
-    List (Tree a)
 
 
 map2 : (a -> b -> c) -> Parser a -> Parser b -> Parser c
@@ -58,54 +48,22 @@ treeParser parseSubTree item tree =
     Parser.map (Tree.tree item) (Tree.children tree |> traverse parseSubTree)
 
 
-type alias ToValue a =
-    a -> ( String, ET.Value )
-
-
 parseInputType : S.InputType -> S.Spec -> EditionTree -> Parser EditionTree
 parseInputType inputType spec tree =
     let
         n =
             Tree.label tree
 
-        inputParser : ToValue a -> Parser a -> Parser EditionTree
-        inputParser toValue pa =
-            pa
-                |. Parser.spaces
-                |> Parser.andThen
-                    (\a ->
-                        let
-                            edited =
-                                { n | input = toValue a |> Tuple.mapSecond Right }
-                        in
-                        treeParser (parseEditionNode spec) edited tree
-                    )
+        toInput : ( String, S.Value ) -> ET.Input
+        toInput =
+            Tuple.mapSecond Right
     in
-    case inputType of
-        S.Bool ->
-            boolParser
-                |> inputParser (\x -> ( boolToString x, ET.BoolValue x ))
-
-        S.Int ->
-            numberParser Parser.int
-                |> inputParser (\x -> ( String.fromInt x, ET.IntValue x ))
-
-        S.Number ->
-            numberParser Parser.float
-                |> inputParser (\x -> ( String.fromFloat x, ET.NumberValue x ))
-
-        S.String ->
-            stringParser
-                |> inputParser (\x -> ( x, ET.StringValue x ))
-
-        S.Timestamp ->
-            -- XXX should be a date parser ?
-            stringParser
-                |> inputParser (\x -> ( x, ET.TimestampValue x ))
-
-        S.SearchString ->
-            stringParser
-                |> inputParser (\x -> ( x, ET.StringValue x ))
+    valueParser inputType
+        |. Parser.spaces
+        |> Parser.andThen
+            (\x ->
+                treeParser (parseEditionNode spec) { n | input = toInput x } tree
+            )
 
 
 parseExpType : S.ExpType -> S.Spec -> EditionTree -> Parser EditionTree
@@ -160,7 +118,7 @@ parseEditionNode spec tree =
                 ]
                 |> Parser.map (logEditionTree "InputSelectorT")
 
-        ET.ArgTypeT (ET.ArgType x) ->
+        ET.ExpTypeT x ->
             parseExpType x spec tree
                 |> Parser.map (logEditionTree "ArgTypeT")
 
@@ -174,7 +132,7 @@ parseEditionNode spec tree =
 parseUnionChoice : Spec -> Nonempty S.ExpType -> Parser (Forest EditionNode)
 parseUnionChoice spec =
     NE.toList
-        >> List.map (ET.ArgType >> ET.probeArgSelector spec)
+        >> List.map (ET.probeArgSelector spec)
         >> List.map (ET.buildEditionTree spec >> parseEditionNode spec)
         >> Parser.oneOf
         >> Parser.map (logEditionTree "UnionChosen")
@@ -187,7 +145,6 @@ parseSList spec expType =
         prs : Parser EditionTree
         prs =
             expType
-                |> ET.ArgType
                 |> ET.probeArgSelector spec
                 |> ET.buildEditionTree spec
                 |> parseEditionNode spec
@@ -225,7 +182,7 @@ parseOptArgs spec forest =
             List.foldr
                 (\a b ->
                     case Tree.label a |> .editionType of
-                        ET.OptArgT (ET.OptArg k _) ->
+                        ET.OptArgT (ET.OptArg k _ _) ->
                             ( k, a ) :: b
 
                         _ ->

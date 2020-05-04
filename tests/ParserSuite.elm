@@ -1,85 +1,133 @@
-module ParserSuite exposing (parsing, testStringParser)
+module ParserSuite exposing (testParsing)
 
-import Either exposing (Either(..))
+import Either
 import Expect
-import Lazy.Tree.Zipper exposing (fromTree)
-import List.Nonempty as NE exposing (Nonempty)
-import Parser exposing ((|.), (|=), Parser)
-import Test exposing (Test, concat, test)
-import TsView.Formula.Parser as P exposing (parseSpec, stringParser)
-import TsView.Formula.Renderer exposing (renderString)
-import TsView.Formula.Spec as S
-
-
-spec : S.Spec
-spec =
-    NE.Nonempty
-        (S.Operator
-            "series"
-            [ S.Arg S.SearchString ]
-            (S.OptArgs
-                [ S.OptArg "fill" <| S.Union (NE.Nonempty S.String [ S.Int ])
-                , S.OptArg "weight" S.Float
-                ]
-            )
-        )
-        [ S.Operator
-            "+"
-            [ S.Arg S.Float
-            , S.Arg <| S.Union (NE.Nonempty S.Float [ S.Series ])
-            ]
-            (S.OptArgs [ S.OptArg "a" S.Int ])
-        , S.Operator
-            "*"
-            [ S.Arg S.Float
-            , S.Arg <| S.Union (NE.Nonempty S.Series [ S.Float ])
-            ]
-            (S.OptArgs [])
-        , S.Operator
-            "priority"
-            [ S.Arg <| S.SList <| S.Union (NE.Nonempty S.Series [ S.Float ])
-            ]
-            (S.OptArgs
-                [ S.OptArg "k1" <| S.Union (NE.Nonempty S.String [ S.Float ])
-                , S.OptArg "k2" <| S.Union (NE.Nonempty S.Float [ S.Date ])
-                ]
-            )
-        ]
-
-
-render : String -> Either String String
-render =
-    parseSpec spec
-        >> Either.andThen (fromTree >> renderString >> Right)
+import Test exposing (Test, test)
+import TsView.Formula.EditionTree.Parser exposing (parseFormula)
+import TsView.Formula.EditionTree.Render exposing (renderString)
+import TsView.Formula.Spec.Parser exposing (parseSpecString)
 
 
 type alias T =
     { name : String
     , input : String
-    , output : Either String String
+    , output : String
     }
+
+
+jsonSpec : String
+jsonSpec =
+    """
+[
+  [
+    "series",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "name",
+        "seriesname"
+      ],
+      [
+        "fill",
+        "Default[Union[str, int]=None]"
+      ],
+      [
+        "weight",
+        "Default[Number=None]"
+      ]
+    ]
+  ],
+  [
+    "+",
+    [
+      [
+        "return",
+        "Union[Number, Series]"
+      ],
+      [
+        "a",
+        "Number"
+      ],
+      [
+        "b",
+        "Union[Number, Series]"
+      ],
+      [
+        "a",
+        "Default[int=None]"
+      ],
+      [
+        "flag",
+        "Default[bool=False]"
+      ]
+    ]
+  ],
+  [
+    "*",
+    [
+      [
+        "return",
+        "Union[Number, Series]"
+      ],
+      [
+        "a",
+        "Number"
+      ],
+      [
+        "b",
+        "Union[Series, Number]"
+      ]
+    ]
+  ],
+  [
+    "priority",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "serieslist",
+        "List[Union[Series, Number]]"
+      ],
+      [
+        "k1",
+        "Default[Union[str, Number]=None]"
+      ],
+      [
+        "k2",
+        "Default[Union[Number, Timestamp]=None]"
+      ]
+    ]
+  ]
+]
+"""
 
 
 formulaTests : List T
 formulaTests =
-    [ T "+ Right" "( +   2.  6.7 )" <| Right "(+ 2 6.7)"
-    , T "+ Right series" "( +   2  (+ 1 6) )" <| Right """
+    [ T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
+    , T "+ series OK" "( +   2  (+ 1 6) #:flag #t )" """
 (+
     2
-    (+ 1 6))
+    (+ 1 6)
+    #:flag #t)
 """
-    , T "+ too many args" "(+ 3 4 5)" <| Left "FAILED"
-    , T "@ unsupported op" "(@ 3 4)" <| Left "FAILED"
-    , T "+ wrong args" "(+ ab 4)" <| Left "FAILED"
-    , T "* Right" "(* -9.26e-08 (+ 9.259e-02 -109))" <| Right """
+    , T "+ too many args" "(+ 3 4 5)" "FAILED"
+    , T "@ unsupported op" "(@ 3 4)" "FAILED"
+    , T "+ wrong args" "(+ ab 4)" "FAILED"
+    , T "* Right" "(* -9.26e-08 (+ 9.259e-02 -109))" """
 (*
     -9.26e-8
     (+ 0.09259 -109))
 """
-    , T "priority Right" "( priority  4 3  6 7 )" <| Right "(priority 4 3 6 7)"
-    , T "priority Right series" """
+    , T "priority OK" "( priority  4 3  6 7 )" "(priority 4 3 6 7)"
+    , T "priority series OK" """
 ( priority  (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:a 8))
-""" <| Right """
+""" """
 (priority
     (* 4 9)
     (*
@@ -87,12 +135,12 @@ formulaTests =
         (+ 2 6))
     (+ 7 1 #:a 8))
 """
-    , T "#a:7 Right" "(+  3 4  #:a  7)" <| Right "(+ 3 4 #:a 7)"
-    , T "#a duplicated" "(+  3 4  #:a  7 #:a 5)" <| Left "FAILED"
-    , T "#k1, k2" " (priority  3  4 10  #:k2  7.3 #:k1  \"x\" )" <| Right """
+    , T "#a:7 OK" "(+  3 4  #:a  7)" "(+ 3 4 #:a 7)"
+    , T "#a duplicated" "(+  3 4  #:a  7 #:a 5)" "FAILED"
+    , T "#k1, k2 OK" " (priority  3  4 10  #:k2  7.3 #:k1  \"x\" )" """
 (priority 3 4 10 #:k1 "x" #:k2 7.3)
 """
-    , T "full" """
+    , T "full OK" """
 (priority
     (+  3 (series "a.b" #:weight 3.5 )  )
     (priority
@@ -106,7 +154,7 @@ formulaTests =
     (series "gaz.de"  #:fill  79 )
     #:k1 4.7
 )
-    """ <| Right """
+    """ """
 (priority
     (+
         3
@@ -131,35 +179,25 @@ formulaTests =
     ]
 
 
-parsing : Test
-parsing =
+testParsing : Test
+testParsing =
     let
-        f x =
-            Expect.equal (render x.input) (Either.map String.trim x.output)
+        specEither =
+            parseSpecString jsonSpec |> Either.voidLeft "spec parsing failed"
+
+        render : String -> String
+        render input =
+            specEither
+                |> Either.andThen (\spec -> parseFormula spec input)
+                |> Either.unpack identity renderString
     in
-    List.map (\x -> test x.name (\_ -> f x)) formulaTests |> concat
-
-
-testStringParser : Test
-testStringParser =
-    let
-        input =
-            """
-"serie-2020"
-"""
-
-        inputParser : Parser String
-        inputParser =
-            Parser.succeed identity
-                |. Parser.spaces
-                |= stringParser
-                |. Parser.spaces
-                |. Parser.end
-
-        run i r =
-            \_ -> Expect.equal (Parser.run inputParser i) (Ok r)
-    in
-    concat
-        [ test "stringParser multi" (run input "serie-2020")
-        , test "stringParser single" (run "\"s1.x\"" "s1.x")
-        ]
+    List.map
+        (\x ->
+            let
+                res =
+                    Expect.equal (render x.input) (String.trim x.output)
+            in
+            test x.name (always res)
+        )
+        formulaTests
+        |> Test.concat
