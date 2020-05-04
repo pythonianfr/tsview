@@ -1,13 +1,37 @@
-module TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
+module TsView.Formula.EditionTree.Inspect exposing
+    ( inspectEditionTree
+    , logEditionTree
+    )
 
 import Either exposing (Either(..))
 import List.Nonempty as NE exposing (Nonempty)
 import Tree exposing (Tree)
-import TsView.Formula.EditionTree.Type as T exposing (EditionNode)
-import TsView.Formula.Spec.Render as SR
+import TsView.Formula.EditionTree.Type as ET exposing (EditionNode)
+import TsView.Formula.Spec.Type as S
 
 
-inspectType : Int -> T.EditionType -> Maybe ( Int, String )
+logEditionTree : String -> Tree EditionNode -> Tree EditionNode
+logEditionTree mess tree =
+    let
+        dummyLog a b =
+            --Debug.log a b
+            ()
+
+        _ =
+            dummyLog
+                (String.join "\n"
+                    [ ""
+                    , "=> " ++ mess
+                    , inspectEditionTree tree
+                    , ""
+                    ]
+                )
+                "____"
+    in
+    tree
+
+
+inspectType : Int -> ET.EditionType -> Maybe ( Int, String )
 inspectType i t =
     let
         noIndent x =
@@ -17,66 +41,66 @@ inspectType i t =
             Just ( i + 1, x )
     in
     case t of
-        T.ReturnTypeT xs ->
+        ET.ReturnTypeT xs ->
             let
                 vals =
                     NE.toList xs
-                        |> List.map SR.strBaseType
+                        |> List.map S.strBaseType
                         |> String.join ", "
             in
             indent <| "ReturnTypes : " ++ vals
 
-        T.SelectorT x ->
-            indent <| "Operator selector : " ++ SR.strBaseType x
+        ET.SelectorT x ->
+            indent <| "Operator selector : " ++ S.strBaseType x
 
-        T.InputSelectorT x ->
-            indent <| "Input operator selector : " ++ SR.strInputType x
+        ET.InputSelectorT x ->
+            indent <| "Input operator selector : " ++ S.strInputType x
 
-        T.OperatorT (T.Operator name _ _) ->
+        ET.OperatorT (ET.Operator name _ _) ->
             indent <| "Operator : " ++ name
 
-        T.OptArgsT T.NoOptArgs ->
+        ET.OptArgsT ET.NoOptArgs ->
             Nothing
 
-        T.OptArgsT _ ->
+        ET.OptArgsT _ ->
             indent "Options :"
 
-        T.ArgT x ->
+        ET.ArgT x ->
             indent "Argument"
 
-        T.OptArgT (T.OptArg name _) ->
+        ET.OptArgT (ET.OptArg name _ _) ->
             indent <| "OptionalArgument " ++ name
 
-        T.ArgTypeT (T.ArgType x) ->
-            indent <| "ExpType : " ++ SR.strExpType x
+        ET.ExpTypeT x ->
+            indent <| "ExpType : " ++ S.strExpType x
 
 
-valueToString : T.Value -> Maybe String
+valueToString : S.Value -> Maybe String
 valueToString value =
     case value of
-        T.Empty ->
+        S.Empty ->
             Nothing
 
-        T.BoolValue True ->
-            Just "True"
+        S.BoolValue True ->
+            Just "Srue"
 
-        T.BoolValue False ->
+        S.BoolValue False ->
             Just "False"
 
-        T.IntValue x ->
+        S.IntValue x ->
             Just <| String.fromInt x
 
-        T.NumberValue x ->
+        S.NumberValue x ->
             Just <| String.fromFloat x
 
-        T.StringValue x ->
+        S.StringValue x ->
             Just <| "\"" ++ x ++ "\""
 
-        T.TimestampValue x ->
+        S.TimestampValue x ->
             Just x
 
 
-inspectValue : String -> T.Value -> String
+inspectValue : String -> S.Value -> String
 inspectValue line =
     valueToString
         >> Maybe.map (\x -> line ++ " = " ++ x)
@@ -91,7 +115,7 @@ inspectNode i node =
                 (\s ->
                     Tuple.second node.input
                         |> Either.map (inspectValue s)
-                        |> Either.fromRight s
+                        |> Either.unpack identity identity
                 )
             )
 
