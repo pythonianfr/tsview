@@ -2,17 +2,39 @@
 <html>
     <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="stylesheet" href="https://unpkg.com/tachyons@4.10.0/css/tachyons.min.css"/>
-    <link rel="stylesheet" href="./tsview_static/pygmentize.css"/>
+    <link
+        href="./tsview_static/fontawesome-free-5.13.0-web/css/fontawesome.css"
+        rel="stylesheet"/>
+    <link
+        href="./tsview_static/fontawesome-free-5.13.0-web/css/regular.css"
+        rel="stylesheet"/>
+    <link
+        href="./tsview_static/fontawesome-free-5.13.0-web/css/solid.css"
+        rel="stylesheet"/>
+    <link
+        href="./tsview_static/formula_elm.css"
+        rel="stylesheet"/>
+    <script
+        src="./tsview_static/ace-builds-1.4.11/src-noconflict/ace.js"
+        type="text/javascript"
+        charset="utf-8">
+    </script>
+    <script
+        src="https://unpkg.com/@webcomponents/custom-elements@1.4.1/custom-elements.min.js">
+    </script>
+    <script src="./tsview_static/ace_editor.js"></script>
     </head>
     <body>
         <div id="app"></div>
         <script src="./tsview_static/formula_elm.js"></script>
         <script>
-            var app = Elm.TsView.Formula.Editor.init({
+            var app = Elm.TsView.Formula.Main.init({
                 node: document.getElementById("app"),
-                flags: ["{{ homeurl }}", {{ spec | safe }}, {{ name | safe }}]
+                flags: {
+                    urlPrefix : "{{ homeurl }}",
+                    jsonSpec : {{ spec | safe }},
+                    formula : { name : "dev", code : '(priority (add (series "gas.cwe_uk.demand.stat_diff.mcmd.fcst") (series "gas.cee.demand.stat_diff.mcmd.fcst") (series "gas.iberia.demand.stat_diff.mcmd.fcst")) (+ 13 (* -0.07 (add (series "gas.western_europe.supply.mcmd.fcst") (* -1 (series "gas.western_europe.demand.mcmd.fcst")) (* -1 (series "gas.western_europe.exports.mcmd.fcst"))))))' }
+                }
             });
         </script>
     </body>

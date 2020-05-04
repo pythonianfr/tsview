@@ -1,0 +1,159 @@
+
+:root {
+    box-sizing: border-box;
+}
+
+*,
+::before,
+::after {
+    box-sizing: inherit;
+}
+
+.main {
+    margin: 1em 1em;
+}
+
+.main > * + * {
+    margin-top: 1.5em;
+}
+
+.code_editor {
+    display: grid;
+    grid-template-columns:
+        [left-start] 1fr
+        [center-start left-end] auto
+        [right-start center-end] 1fr
+        [right-end]
+    ;
+    grid-auto-flow: column;
+}
+
+.code_left {
+    grid-column: left;
+    grid-row: span 1;
+}
+
+.code_center {
+    grid-column: center;
+    grid-row: span 1;
+}
+
+.code_right {
+    grid-column: right;
+    grid-row: span 1;
+}
+
+.code_editor pre {
+    min-height: var(--min-height-editor, 20vh);
+}
+
+.center_item {
+    justify-self: center;
+    align-self: center;
+}
+
+header[class~="code_right"],
+header[class~="code_left"] {
+    padding: 0.6em 1.2em;
+    border-top: 1px solid rgba( 0, 0, 0, .7 );
+    background-color: #ccc;
+    border-top-right-radius: .2em;
+    border-top-left-radius: .2em;
+    border-top: 1px solid rgba( 0, 0, 0, .7 );
+    border-right: 1px solid rgba( 0, 0, 0, .7 );
+    border-left: 1px solid rgba( 0, 0, 0, .7 );
+}
+
+div[class~="code_right"],
+div[class~="code_left"] {
+    border-right: 1px solid rgba( 0, 0, 0, .7 );
+    border-left: 1px solid rgba( 0, 0, 0, .7 );
+}
+
+div[class~="code_center"] {
+    margin: 0 1em;
+}
+
+footer[class~="code_right"],
+footer[class~="code_left"] {
+    padding: 0.6em 1.2em;
+    background-color: #ccc;
+    border-bottom-right-radius: .2em;
+    border-bottom-left-radius: .2em;
+    border-bottom: 1px solid rgba( 0, 0, 0, .7 );
+    border-right: 1px solid rgba( 0, 0, 0, .7 );
+    border-left: 1px solid rgba( 0, 0, 0, .7 );
+}
+
+.code_editor > header {
+    line-height: 1.8em;
+}
+
+.code_editor > header > span {
+    float: left;
+    width: 20%;
+}
+
+.code_editor a,
+.code_editor button {
+    cursor: pointer;
+}
+
+.code_editor > header > select {
+    font-size: 0.8rem;
+}
+
+.code_editor > footer > button {
+    width: 20%;
+}
+
+.code_editor > footer > input {
+    margin-left: 0.6em;
+    width: calc(80% - 0.6em);
+}
+
+.code_editor > aside {
+    padding: 1em;
+}
+
+.ui_editor {
+    display: inline-grid;
+    grid-gap: 0.3em;
+    grid-template-columns:
+        [expanded-start] auto
+        [editor-start expanded-end] minmax(40vw, auto)
+        [editor-end]
+    ;
+    grid-auto-rows: 1fr;
+    align-items: center;
+}
+
+.col_expand {
+    grid-column: expanded;
+    grid-row: span 1;
+}
+
+.col_editor {
+    grid-column: editor;
+    grid-row: span 1;
+}
+
+.col_editor * + * {
+    margin-left: 0.6em;
+}
+
+.header {
+    padding: 0.3em 0.8em;
+    color: #001b44;
+    background-color: #ccc;
+    border-radius: .2em;
+}
+
+.margin_button {
+    margin: 0 1em;
+}
+
+.error {
+    display: block;
+    padding: .8em .3em;
+}
