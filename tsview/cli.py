@@ -5,9 +5,9 @@ import webbrowser
 
 import click
 
-from tshistory.api import timeseries
+from tshistory import api
 from tshistory.util import find_dburi
-from tshistory_formula.tsio import timeseries as tshclass
+from tshistory_formula.tsio import timeseries
 
 from tsview.app import kickoff
 
@@ -20,19 +20,18 @@ def host():
 
 @click.command()
 @click.argument('db-uri')
-@click.option('--handler',
-              type=click.Choice(['default', 'formula']),
-              default='default')
 @click.option('--debug', is_flag=True, default=False)
-def view(db_uri, handler, debug=False):
+def view(db_uri, debug=False):
     """visualize time series through the web"""
-    uri = find_dburi(db_uri)
-    tsa = timeseries(uri)
+    tsa = api.timeseries(
+            find_dburi(db_uri),
+            handler=timeseries
+        )
     ipaddr = host()
     port = int(getenv('TSVIEW_PORT', 5678))
 
     if debug:
-        kickoff(ipaddr, port, tsa, tshclass)
+        kickoff(ipaddr, port, tsa)
         return
 
     server = Thread(

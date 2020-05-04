@@ -1,6 +1,5 @@
 from flask import Flask
 
-from tshistory.api import timeseries
 from tshistory_rest.blueprint import blueprint as rest_blueprint
 
 from tsview.blueprint import tsview
