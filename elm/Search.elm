@@ -3,7 +3,7 @@ module Search exposing (main)
 import Browser
 import Catalog as Cat
 import Dict exposing (Dict)
-import Html exposing (..)
+import Html as H
 import Html.Attributes as A
 import Html.Events exposing (onInput, onClick)
 import Html.Keyed as K
@@ -146,7 +146,7 @@ update msg model =
 
 
 viewnamefilter =
-    input
+    H.input
     [ A.class "form-control"
     , A.placeholder "filter by name"
     , onInput NameFilter
@@ -157,63 +157,64 @@ viewkindfilter model =
     let
         kinds = Dict.keys model.catalog.seriesByKind
         checkbox kind =
-            div [ A.class "form-check form-check-inline" ]
-                [ input
+            H.div [ A.class "form-check form-check-inline" ]
+                [ H.input
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
                       , A.value kind
                       , A.checked <| List.member kind model.selectedkinds
                       , onClick <| KindUpdated kind
                       ] []
-                , label
+                , H.label
                       [ A.class "form-check-label"
                       , A.for kind ]
-                      [ text kind ]
+                      [ H.text kind ]
                 ]
     in
-    div [] (List.map checkbox kinds)
+    H.div [] (List.map checkbox kinds)
 
 
 viewsourcefilter model =
     let
         sources = Dict.keys model.catalog.seriesBySource
         checkbox source =
-            div [ A.class "form-check form-check-inline" ]
-                [ input
+            H.div
+                [ A.class "form-check form-check-inline" ]
+                [ H.input
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
                       , A.value source
                       , A.checked <| List.member source model.selectedsources
                       , onClick <| SourceUpdated source
                       ] []
-                , label
+                , H.label
                       [ A.class "form-check-label"
                       , A.for source ]
-                      [ text source ]
+                      [ H.text source ]
                 ]
     in
-    div [] (List.map checkbox sources)
+    H.div [] (List.map checkbox sources)
 
 
 viewfiltered model =
     let
         item elt =
-            (elt, li []
-                 [ a [ A.href (UB.crossOrigin
-                                   model.baseurl
-                                   [ "tsinfo" ]
-                                   [ UB.string "name" elt ]
-                              )
-                     ] [ text elt ]
+            (elt, H.li []
+                 [ H.a [ A.href (UB.crossOrigin
+                                     model.baseurl
+                                     [ "tsinfo" ]
+                                     [ UB.string "name" elt ]
+                                )
+                       ] [ H.text elt ]
                  ])
     in
     K.node "ul" [] <| List.map item <| List.sort model.filtered
 
 
-view : Model -> Html Msg
+view : Model -> H.Html Msg
 view model =
-    div []
-        [ h1 [] [ text "Series Catalog" ]
+    H.div []
+        [ H.h1 [] [ H.text "Series Catalog" ]
         , viewnamefilter
         , viewsourcefilter model
         , viewkindfilter model
