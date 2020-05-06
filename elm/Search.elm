@@ -241,6 +241,7 @@ update msg model =
             U.nocmd { model | metaitem = (value, U.snd model.metaitem) }
 
         AddMetaItem ->
+            if model.metaitem == ("", "") then U.nocmd model else
             U.nocmd { model
                         | metaitem = ("", "")
                         , filterbymeta = List.append model.filterbymeta [model.metaitem]
@@ -308,38 +309,47 @@ viewsourcefilter model =
 
 viewmetafilter model =
     let
-        addfields k v =
+        fields k v keycb valuecb =
             H.div [ A.class "form-row" ]
                 [ H.span [] [ H.text "metadata:" ]
                 , H.div [ A.class "col-3" ]
                     [ H.input
-                          [ A.attribute "type" "text"
-                          , A.class "form-control"
-                          , A.placeholder "key"
-                          , A.value k
-                          , onInput NewKey
-                          ] []
+                          ([ A.attribute "type" "text"
+                           , A.class "form-control"
+                           , A.placeholder "key"
+                           , A.value k
+                           ] ++ case keycb of
+                                    Nothing -> []
+                                    Just cb -> [ cb ]
+                          ) []
                     ]
                 , H.div [ A.class "col-6" ]
                     [ H.input
-                          [ A.attribute "type" "text"
-                          , A.class "form-control"
-                          , A.placeholder "value"
-                          , A.value v
-                          , onInput NewValue
-                          ] []
+                          ([ A.attribute "type" "text"
+                           , A.class "form-control"
+                           , A.placeholder "value"
+                           , A.value v
+                           ] ++ case valuecb of
+                                    Nothing -> []
+                                    Just cb -> [ cb ]
+                          ) []
                     ]
                 ]
     in
     H.form
         [ onSubmit AddMetaItem ]
-        [ addfields (U.first model.metaitem) (U.snd model.metaitem)
-        , H.button
-              [ A.attribute "type" "submit"
-              , A.class "btn btn-primary col-sm-10"
-              ]
-              [ H.text "add entry"]
-        ]
+        ([ fields
+               (U.first model.metaitem)
+               (U.snd model.metaitem)
+               (Just <| onInput NewKey)
+               (Just <| onInput NewValue)
+         , H.button
+             [ A.attribute "type" "submit"
+             , A.class "btn btn-primary col-sm-10"
+             ]
+             [ H.text "add entry"]
+         ] ++ List.map (\x -> fields (U.first x) (U.snd x) Nothing Nothing) model.filterbymeta
+        )
 
 
 viewfilteredqty model =
