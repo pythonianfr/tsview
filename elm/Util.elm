@@ -1,9 +1,18 @@
-module Util exposing (unwraperror, nocmd, adderror)
+module Util exposing ( adderror
+                     , first
+                     , nocmd
+                     , snd
+                     , unwraperror
+                     )
 
 import Http
 
 
 nocmd model = ( model, Cmd.none )
+
+
+first = Tuple.first
+snd = Tuple.second
 
 
 adderror model error =

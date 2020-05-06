@@ -5,7 +5,10 @@ import Catalog as Cat
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as A
-import Html.Events exposing (onInput, onClick)
+import Html.Events exposing ( onClick
+                            , onInput
+                            , onSubmit
+                            )
 import Html.Keyed as K
 import Http
 import Json.Decode as D
@@ -28,6 +31,9 @@ type alias Model =
     , selectedsources : List String
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
+    -- filter state/metadata
+    , metaitem : (String, String)
+    , filterbymeta : List (String, String)
     , errors : List String
     }
 
@@ -40,6 +46,10 @@ type Msg
     | FormulaFilter String
     | KindUpdated String
     | SourceUpdated String
+    -- metadata filter
+    | NewValue String
+    | NewKey String
+    | AddMetaItem
 
 
 getmeta baseurl =
@@ -222,6 +232,20 @@ update msg model =
             in
             U.nocmd <| allfilters newmodel
 
+        -- metadata filtering
+
+        NewValue value ->
+            U.nocmd { model | metaitem = (U.first model.metaitem, value) }
+
+        NewKey value ->
+            U.nocmd { model | metaitem = (value, U.snd model.metaitem) }
+
+        AddMetaItem ->
+            U.nocmd { model
+                        | metaitem = ("", "")
+                        , filterbymeta = List.append model.filterbymeta [model.metaitem]
+                    }
+
 
 viewnamefilter =
     H.input
@@ -282,6 +306,42 @@ viewsourcefilter model =
     H.div [] (List.map checkbox sources)
 
 
+viewmetafilter model =
+    let
+        addfields k v =
+            H.div [ A.class "form-row" ]
+                [ H.span [] [ H.text "metadata:" ]
+                , H.div [ A.class "col-3" ]
+                    [ H.input
+                          [ A.attribute "type" "text"
+                          , A.class "form-control"
+                          , A.placeholder "key"
+                          , A.value k
+                          , onInput NewKey
+                          ] []
+                    ]
+                , H.div [ A.class "col-6" ]
+                    [ H.input
+                          [ A.attribute "type" "text"
+                          , A.class "form-control"
+                          , A.placeholder "value"
+                          , A.value v
+                          , onInput NewValue
+                          ] []
+                    ]
+                ]
+    in
+    H.form
+        [ onSubmit AddMetaItem ]
+        [ addfields (U.first model.metaitem) (U.snd model.metaitem)
+        , H.button
+              [ A.attribute "type" "submit"
+              , A.class "btn btn-primary col-sm-10"
+              ]
+              [ H.text "add entry"]
+        ]
+
+
 viewfilteredqty model =
     H.p
         []
@@ -314,6 +374,7 @@ view model =
         , viewformulafilter
         , viewsourcefilter model
         , viewkindfilter model
+        , viewmetafilter model
         , viewfilteredqty model
         , viewfiltered model
         ]
@@ -342,6 +403,8 @@ main =
                      []
                      Nothing
                      Nothing
+                     ("", "")
+                     []
                      []
                ,
                    Cmd.map GotCatalog <| Cat.get input.baseurl 1

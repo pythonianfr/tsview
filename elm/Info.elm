@@ -185,10 +185,6 @@ savemeta model =
         }
 
 
-first = Tuple.first
-snd = Tuple.second
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -341,16 +337,16 @@ update msg model =
             U.nocmd { model | metaitem = ( key, Tuple.second model.metaitem ) }
 
         NewValue val ->
-            U.nocmd { model | metaitem = ( Tuple.first model.metaitem, val ) }
+            U.nocmd { model | metaitem = ( U.first model.metaitem, val ) }
 
         AddMetaItem ->
             -- eat the metaitems
-            if (first model.metaitem == "") || (snd model.metaitem == "")
+            if (U.first model.metaitem == "") || (U.snd model.metaitem == "")
             then U.nocmd model else
             let
                 edited = Dict.insert
-                         (first model.metaitem)
-                         (snd model.metaitem)
+                         (U.first model.metaitem)
+                         (U.snd model.metaitem)
                          model.editeditems
             in
             ( { model
@@ -458,7 +454,7 @@ viewformula model =
 metadicttostring d =
     let
         builditem ab =
-            first ab |> (++) " → " |> (++) (M.metavaltostring <| snd ab)
+            U.first ab |> (++) " → " |> (++) (M.metavaltostring <| U.snd ab)
     in
     String.join "," (List.map builditem (Dict.toList d))
 
@@ -630,7 +626,7 @@ editusermeta model =
                             ] []
                     ]
                 ]
-        editfields ab = deletefields (first ab) (snd ab)
+        editfields ab = deletefields (U.first ab) (U.snd ab)
     in
     div []
         [ viewusermetaheader model
@@ -644,7 +640,7 @@ editusermeta model =
                         [ text "save entries"]
                   ]
         , form [ onSubmit AddMetaItem ]
-            [ addfields (first model.metaitem) (snd model.metaitem)
+            [ addfields (U.first model.metaitem) (U.snd model.metaitem)
             , button
                   [ A.attribute "type" "submit"
                   , A.class "btn btn-primary col-sm-10"
