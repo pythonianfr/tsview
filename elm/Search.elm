@@ -376,6 +376,15 @@ viewfiltered model =
     K.node "ul" [] <| List.map item <| List.sort model.filtered
 
 
+viewerrors model =
+    if List.length model.errors > 0 then
+    H.div []
+        [ H.h2 [] [ H.text "Errors" ]
+        , H.div [] (List.map (\x -> H.p [] [ H.text x ]) model.errors)
+        ]
+    else H.span [] []
+
+
 view : Model -> H.Html Msg
 view model =
     H.div []
@@ -387,6 +396,7 @@ view model =
         , viewmetafilter model
         , viewfilteredqty model
         , viewfiltered model
+        , viewerrors model
         ]
 
 
