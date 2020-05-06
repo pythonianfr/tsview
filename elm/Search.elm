@@ -17,11 +17,17 @@ import Util as U
 
 type alias Model =
     { baseurl : String
+    -- base catalog elements
     , catalog : Cat.Model
     , metadata : Dict String M.MetaVal
+    , formula : Dict String String
+    -- filtered series
     , filtered : List String
+    -- filter state
     , selectedkinds : List String
     , selectedsources : List String
+    , filterbyname : Maybe String
+    , filterbyformula : Maybe String
     , errors : List String
     }
 
@@ -29,7 +35,9 @@ type alias Model =
 type Msg
     = GotCatalog Cat.Msg
     | GotMeta (Result Http.Error String)
+    | GotAllFormula (Result Http.Error String)
     | NameFilter String
+    | FormulaFilter String
     | KindUpdated String
     | SourceUpdated String
 
@@ -51,6 +59,23 @@ decodemeta allmeta =
     D.decodeString all allmeta
 
 
+getformula baseurl =
+    Http.get
+        { expect =
+              Http.expectString GotAllFormula
+        , url =
+            UB.crossOrigin baseurl
+                [ "tssearch", "allformula" ] []
+        }
+
+
+decodeformulae allformula =
+    let
+        all = D.dict D.string
+    in
+    D.decodeString all allformula
+
+
 insert list item =
     List.append list [item]
 
@@ -59,14 +84,33 @@ remove list item =
     List.filter ((/=) item) list
 
 
-filter list item =
-    List.filter (String.contains item) list
+namefilter model =
+    case model.filterbyname of
+        Nothing -> model
+        Just item ->
+            { model | filtered = List.filter (String.contains item) model.filtered }
 
 
-filterseries model catalog =
+formulafilter model =
+    case model.filterbyformula of
+        Nothing -> model
+        Just item ->
+            let
+                formula name =
+                    Maybe.withDefault "" <| Dict.get name model.formula
+                informula name =
+                    -- formula part -> name
+                    String.contains item <| formula name
+                series = List.filter informula model.filtered
+            in
+            { model | filtered = series }
+
+
+catalogfilter model =
     -- filter by source and kinds
     -- NOTE: factor me with SeriesSelector.filterseries !
     let
+        catalog = model.catalog
         seriesbykind kind =
             Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
         filteredseries =
@@ -77,7 +121,14 @@ filterseries model catalog =
             in
                 List.filter (\x -> Set.member x series) filteredseries
     in
-        List.sort (List.concat (List.map filterbysource model.selectedsources))
+        { model | filtered = List.sort
+              <| List.concat
+              <| List.map filterbysource model.selectedsources
+        }
+
+
+allfilters model =
+    model |> catalogfilter >> namefilter >> formulafilter
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -97,7 +148,10 @@ update msg model =
                 U.nocmd newmodel
             else
                 ( newmodel
-                , getmeta model.baseurl
+                , Cmd.batch
+                    [ getmeta model.baseurl
+                    , getformula model.baseurl
+                    ]
                 )
 
         GotMeta (Ok rawmeta) ->
@@ -110,11 +164,29 @@ update msg model =
         GotMeta (Err err) ->
             U.nocmd <| U.adderror model <| U.unwraperror err
 
+        GotAllFormula (Ok rawformulae) ->
+            case decodeformulae rawformulae of
+                Ok formulae ->
+                    U.nocmd { model | formula = formulae }
+                Err err ->
+                    U.nocmd <| U.adderror model <| D.errorToString err
+
+        GotAllFormula (Err err) ->
+            U.nocmd <| U.adderror model <| U.unwraperror err
+
         NameFilter value ->
             let
-                series = filterseries model model.catalog
+                filter = if value /= "" then Just value else Nothing
+                newmodel = { model | filterbyname = filter }
             in
-            U.nocmd { model | filtered = filter series value }
+            U.nocmd <| allfilters newmodel
+
+        FormulaFilter value ->
+            let
+                filter = if value /= "" then Just value else Nothing
+                newmodel = { model | filterbyformula = filter }
+            in
+            U.nocmd <| allfilters newmodel
 
         KindUpdated kind ->
             let
@@ -122,13 +194,9 @@ update msg model =
                     if List.member kind model.selectedkinds
                     then remove model.selectedkinds kind
                     else insert model.selectedkinds kind
-                newmodel = { model | selectedkinds = newkinds }
-                series = filterseries newmodel newmodel.catalog
+                newmodel = { model | selectedkinds = List.sort newkinds }
             in
-            U.nocmd { model
-                        | selectedkinds = List.sort newkinds
-                        , filtered = series
-                    }
+            U.nocmd <| allfilters newmodel
 
         SourceUpdated source ->
             let
@@ -137,12 +205,8 @@ update msg model =
                     then remove model.selectedsources source
                     else insert model.selectedsources source
                 newmodel = { model | selectedsources = newsources }
-                series = filterseries newmodel newmodel.catalog
             in
-            U.nocmd { model
-                        | selectedsources = List.sort newsources
-                        , filtered = series
-                    }
+            U.nocmd <| allfilters newmodel
 
 
 viewnamefilter =
@@ -150,6 +214,14 @@ viewnamefilter =
     [ A.class "form-control"
     , A.placeholder "filter by name"
     , onInput NameFilter
+    ] []
+
+
+viewformulafilter =
+    H.input
+    [ A.class "form-control"
+    , A.placeholder "filter on formula content"
+    , onInput FormulaFilter
     ] []
 
 
@@ -216,6 +288,7 @@ view model =
     H.div []
         [ H.h1 [] [ H.text "Series Catalog" ]
         , viewnamefilter
+        , viewformulafilter
         , viewsourcefilter model
         , viewkindfilter model
         , viewfiltered model
@@ -239,9 +312,12 @@ main =
                          []
                      )
                      Dict.empty
+                     Dict.empty
                      []
                      []
                      []
+                     Nothing
+                     Nothing
                      []
                ,
                    Cmd.map GotCatalog <| Cat.get input.baseurl 1

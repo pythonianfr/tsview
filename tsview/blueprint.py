@@ -294,4 +294,29 @@ def tsview(tsa,
             dict(m1 + m2)
         )
 
+    @bp.route('/tssearch/allformula')
+    def all_formula():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        # here we take a big bad shortcut ...
+        # we want to think on how to expose that
+        # in tshistory rest api
+        # and for all sources ...
+        # for now we are single source only
+        engine = tsa.engine
+
+        q = select(
+            'name', 'text'
+        ).table(
+            f'"{tsa.namespace}".formula'
+        )
+
+        return json.dumps(
+            {
+                name: formula
+                for name, formula in q.do(engine).fetchall()
+            }
+        )
+
     return bp
