@@ -84,6 +84,12 @@ remove list item =
     List.filter ((/=) item) list
 
 
+-- filters
+
+nullfilter model =
+    { model | filtered = List.sort model.catalog.series }
+
+
 namefilter model =
     case model.filterbyname of
         Nothing -> model
@@ -106,29 +112,39 @@ formulafilter model =
             { model | filtered = series }
 
 
-catalogfilter model =
-    -- filter by source and kinds
-    -- NOTE: factor me with SeriesSelector.filterseries !
+sourcefilter model =
     let
-        catalog = model.catalog
-        seriesbykind kind =
-            Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
-        filteredseries =
-            List.concat (List.map seriesbykind model.selectedkinds)
-        filterbysource source =
-            let
-                series = Maybe.withDefault Set.empty (Dict.get source catalog.seriesBySource)
-            in
-                List.filter (\x -> Set.member x series) filteredseries
+        seriesforsource source =
+                Set.toList
+                    <| Maybe.withDefault Set.empty
+                    <| Dict.get source model.catalog.seriesBySource
+        allseriesbysource =
+            Set.fromList <| List.concat <| List.map seriesforsource model.selectedsources
     in
-        { model | filtered = List.sort
-              <| List.concat
-              <| List.map filterbysource model.selectedsources
-        }
+    { model | filtered = List.filter
+                         (\item -> (Set.member item allseriesbysource))
+                         model.filtered
+    }
+
+
+kindfilter model =
+    let
+        seriesbykind kind =
+            Set.toList
+                <| Maybe.withDefault Set.empty
+                <| Dict.get kind model.catalog.seriesByKind
+        allseriesbykind =
+            Set.fromList <| List.concat <| List.map seriesbykind model.selectedkinds
+
+    in
+    { model | filtered = List.filter
+                         (\item -> (Set.member item allseriesbykind))
+                         model.filtered
+    }
 
 
 allfilters model =
-    model |> catalogfilter >> namefilter >> formulafilter
+    model |> nullfilter >> sourcefilter >> kindfilter >> namefilter >> formulafilter
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
