@@ -113,6 +113,7 @@ formulafilter model =
 
 
 catalogfilter series authority keys =
+    if keys == Dict.keys authority then series else
     let
         seriesforkey key =
                 Set.toList
