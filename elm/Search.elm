@@ -112,34 +112,31 @@ formulafilter model =
             { model | filtered = series }
 
 
-sourcefilter model =
+catalogfilter series authority keys =
     let
-        seriesforsource source =
+        seriesforkey key =
                 Set.toList
                     <| Maybe.withDefault Set.empty
-                    <| Dict.get source model.catalog.seriesBySource
-        allseriesbysource =
-            Set.fromList <| List.concat <| List.map seriesforsource model.selectedsources
+                    <| Dict.get key authority
+        allseries =
+            Set.fromList <| List.concat <| List.map seriesforkey keys
     in
-    { model | filtered = List.filter
-                         (\item -> (Set.member item allseriesbysource))
+    List.filter (\item -> (Set.member item allseries)) series
+
+
+sourcefilter model =
+    { model | filtered = catalogfilter
                          model.filtered
+                         model.catalog.seriesBySource
+                         model.selectedsources
     }
 
 
 kindfilter model =
-    let
-        seriesbykind kind =
-            Set.toList
-                <| Maybe.withDefault Set.empty
-                <| Dict.get kind model.catalog.seriesByKind
-        allseriesbykind =
-            Set.fromList <| List.concat <| List.map seriesbykind model.selectedkinds
-
-    in
-    { model | filtered = List.filter
-                         (\item -> (Set.member item allseriesbykind))
+    { model | filtered = catalogfilter
                          model.filtered
+                         model.catalog.seriesByKind
+                         model.selectedkinds
     }
 
 
