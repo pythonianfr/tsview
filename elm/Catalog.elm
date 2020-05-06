@@ -1,5 +1,13 @@
 module Catalog exposing
-    (Model, Msg, Error, viewError, get, new, update, removeSeries)
+    (Model
+    , Msg
+    , Error
+    , viewError
+    , get
+    , new
+    , update
+    , removeSeries
+    )
 
 import Common
 import Dict exposing(Dict)
