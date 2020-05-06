@@ -268,6 +268,15 @@ viewsourcefilter model =
     H.div [] (List.map checkbox sources)
 
 
+viewfilteredqty model =
+    H.p
+        []
+        [ H.text ("Found "
+                      ++ String.fromInt (List.length model.filtered)
+                      ++ " items.")
+        ]
+
+
 viewfiltered model =
     let
         item elt =
@@ -291,6 +300,7 @@ view model =
         , viewformulafilter
         , viewsourcefilter model
         , viewkindfilter model
+        , viewfilteredqty model
         , viewfiltered model
         ]
 
