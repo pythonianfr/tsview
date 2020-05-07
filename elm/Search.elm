@@ -50,6 +50,7 @@ type Msg
     | NewValue String
     | NewKey String
     | AddMetaItem
+    | MetaItemToDelete (String, String)
 
 
 getmeta baseurl =
@@ -277,6 +278,12 @@ update msg model =
            in
            U.nocmd <| allfilters newmodel
 
+        MetaItemToDelete (key, value) ->
+            U.nocmd <| allfilters
+                { model
+                    | filterbymeta = List.filter (\x -> x /= (key, value)) model.filterbymeta
+                }
+
 
 viewnamefilter =
     H.input
@@ -339,20 +346,29 @@ viewsourcefilter model =
 
 viewmetafilter model =
     let
-        fields k v keycb valuecb =
-            H.div [ A.class "form-row" ]
-                [ H.span [] [ H.text "metadata:" ]
-                , H.div [ A.class "col-3" ]
-                    [ H.input
-                          ([ A.attribute "type" "text"
-                           , A.class "form-control"
-                           , A.placeholder "key"
-                           , A.value k
-                           ] ++ case keycb of
-                                    Nothing -> []
-                                    Just cb -> [ cb ]
-                          ) []
-                    ]
+        delete key value =
+            H.button
+                [ A.attribute "type" "button"
+                , A.class "btn btn-warning"
+                , onClick (MetaItemToDelete (key, value))
+                ]
+                [ H.text "delete" ]
+        fields k v deleteaction keycb valuecb =
+            H.div
+                [ A.class "form-row" ]
+                (List.append
+                [ H.div
+                      [ A.class "col-3" ]
+                      [ H.input
+                            ([ A.attribute "type" "text"
+                             , A.class "form-control"
+                             , A.placeholder "key"
+                             , A.value k
+                             ] ++ case keycb of
+                                      Nothing -> []
+                                      Just cb -> [ cb ]
+                            ) []
+                      ]
                 , H.div [ A.class "col-6" ]
                     [ H.input
                           ([ A.attribute "type" "text"
@@ -364,13 +380,18 @@ viewmetafilter model =
                                     Just cb -> [ cb ]
                           ) []
                     ]
-                ]
+                ] [
+                 case deleteaction of
+                     Nothing -> H.div [] []
+                     Just action -> action k v
+                ])
     in
     H.form
         [ onSubmit AddMetaItem ]
         ([ fields
                (U.first model.metaitem)
                (U.snd model.metaitem)
+               Nothing
                (Just <| onInput NewKey)
                (Just <| onInput NewValue)
          , H.button
@@ -378,7 +399,9 @@ viewmetafilter model =
              , A.class "btn btn-primary col-sm-10"
              ]
              [ H.text "add entry"]
-         ] ++ List.map (\x -> fields (U.first x) (U.snd x) Nothing Nothing) model.filterbymeta
+         ] ++ List.map
+             (\x -> fields (U.first x) (U.snd x) (Just delete) Nothing Nothing)
+             model.filterbymeta
         )
 
 
