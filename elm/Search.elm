@@ -22,7 +22,7 @@ type alias Model =
     { baseurl : String
     -- base catalog elements
     , catalog : Cat.Model
-    , metadata : Dict String M.MetaVal
+    , metadata : Dict String (Dict String M.MetaVal)
     , formula : Dict String String
     -- filtered series
     , filtered : List String
@@ -64,7 +64,7 @@ getmeta baseurl =
 
 decodemeta allmeta =
     let
-        all = D.dict M.decodemetaval
+        all = D.dict (D.dict M.decodemetaval)
     in
     D.decodeString all allmeta
 

@@ -278,6 +278,7 @@ def tsview(tsa,
         m1 = [
             (name, meta)
             for name, meta in q1.do(engine).fetchall()
+            if meta
         ]
 
         q2 = select(
@@ -289,6 +290,7 @@ def tsview(tsa,
         m2 = [
             (name, meta)
             for name, meta in q2.do(engine).fetchall()
+            if meta
         ]
         return json.dumps(
             dict(m1 + m2)
