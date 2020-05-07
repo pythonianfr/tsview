@@ -151,8 +151,35 @@ kindfilter model =
     }
 
 
+metafilter model =
+    if List.length model.filterbymeta == 0 then model else
+        let
+            match meta query =
+                case query of
+                    (key, "") -> Dict.member key meta
+                    ("", value) -> List.member value
+                                   <| List.map M.metavaltostring
+                                   <|Dict.values meta
+                    (key, value) -> case Dict.get key meta of
+                                        Nothing -> False
+                                        Just metavalue ->
+                                            value == M.metavaltostring metavalue
+            bymeta name =
+                case Dict.get name model.metadata of
+                    Nothing -> False
+                    Just meta ->
+                        List.any (match meta) model.filterbymeta
+        in
+        { model | filtered = List.filter bymeta model.filtered }
+
+
 allfilters model =
-    model |> nullfilter >> sourcefilter >> kindfilter >> namefilter >> formulafilter
+    model |> nullfilter
+             >> sourcefilter
+             >> kindfilter
+             >> namefilter
+             >> formulafilter
+             >> metafilter
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -242,10 +269,13 @@ update msg model =
 
         AddMetaItem ->
             if model.metaitem == ("", "") then U.nocmd model else
-            U.nocmd { model
-                        | metaitem = ("", "")
-                        , filterbymeta = List.append model.filterbymeta [model.metaitem]
-                    }
+            let
+                newmodel = { model
+                               | metaitem = ("", "")
+                               , filterbymeta = List.append model.filterbymeta [model.metaitem]
+                           }
+           in
+           U.nocmd <| allfilters newmodel
 
 
 viewnamefilter =
