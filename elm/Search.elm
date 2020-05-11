@@ -346,6 +346,13 @@ viewsourcefilter model =
 
 viewmetafilter model =
     let
+        addentry =
+            H.button
+                [ A.attribute "type" "button"
+                , A.class "btn btn-primary"
+                , onClick AddMetaItem
+                ]
+                [ H.text "add" ]
         delete key value =
             H.button
                 [ A.attribute "type" "button"
@@ -382,23 +389,18 @@ viewmetafilter model =
                     ]
                 ] [
                  case deleteaction of
-                     Nothing -> H.div [] []
+                     Nothing -> addentry
                      Just action -> action k v
                 ])
     in
     H.form
-        [ onSubmit AddMetaItem ]
+        [ ]
         ([ fields
                (U.first model.metaitem)
                (U.snd model.metaitem)
                Nothing
                (Just <| onInput NewKey)
                (Just <| onInput NewValue)
-         , H.button
-             [ A.attribute "type" "submit"
-             , A.class "btn btn-primary col-sm-10"
-             ]
-             [ H.text "add entry"]
          ] ++ List.map
              (\x -> fields (U.first x) (U.snd x) (Just delete) Nothing Nothing)
              model.filterbymeta
