@@ -24,3 +24,7 @@ label.option {
     display: inline-block;
     padding: .25em;
 }
+
+.tsview-form-input {
+    padding: 1rem;
+}

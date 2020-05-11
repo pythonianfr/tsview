@@ -444,12 +444,15 @@ view : Model -> H.Html Msg
 view model =
     H.div []
         [ H.h1 [] [ H.text "Series Catalog" ]
-        , viewnamefilter
-        , viewformulafilter
-        , viewsourcefilter model
-        , viewkindfilter model
-        , viewmetafilter model
-        , viewfilteredqty model
+        , H.div
+              [ A.class "tsview-form-input" ]
+              [ viewnamefilter
+              , viewformulafilter
+              , viewsourcefilter model
+              , viewkindfilter model
+              , viewmetafilter model
+              , viewfilteredqty model
+              ]
         , viewfiltered model
         , viewerrors model
         ]
