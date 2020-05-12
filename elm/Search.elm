@@ -45,6 +45,7 @@ type alias Model =
     , errors : List String
     -- debouncing
     , namefilterdeb : Debouncer Msg
+    , formulafilterdeb : Debouncer Msg
     }
 
 
@@ -63,6 +64,7 @@ type Msg
     | MetaItemToDelete (String, String)
     -- debouncer
     | DebounceNameFilter (Debouncer.Msg Msg)
+    | DebounceFormulaFilter (Debouncer.Msg Msg)
 
 
 getmeta baseurl =
@@ -196,10 +198,17 @@ allfilters model =
 
 -- debouncing
 
-updatedebouncer =
+updatednamefilterbouncer =
     { mapMsg = DebounceNameFilter
     , getDebouncer = .namefilterdeb
     , setDebouncer = \deb model -> { model | namefilterdeb = deb }
+    }
+
+
+updatedformulafilterbouncer =
+    { mapMsg = DebounceFormulaFilter
+    , getDebouncer = .formulafilterdeb
+    , setDebouncer = \deb model -> { model | formulafilterdeb = deb }
     }
 
 
@@ -307,9 +316,11 @@ update msg model =
 
         -- Debouncing
 
-        DebounceNameFilter submsg ->
-            Debouncer.update update updatedebouncer submsg model
+        DebounceNameFilter val ->
+            Debouncer.update update updatednamefilterbouncer val model
 
+        DebounceFormulaFilter val ->
+            Debouncer.update update updatedformulafilterbouncer val model
 
 
 viewnamefilter =
@@ -324,11 +335,14 @@ viewnamefilter =
 
 
 viewformulafilter =
-    H.input
-    [ A.class "form-control"
-    , A.placeholder "filter on formula content"
-    , onInput FormulaFilter
-    ] []
+    let input =
+            H.input
+                [ A.class "form-control"
+                , A.placeholder "filter on formula content"
+                , onInput FormulaFilter
+                ] []
+    in
+    H.map (provideInput >> DebounceFormulaFilter) input
 
 
 viewkindfilter model =
@@ -495,6 +509,10 @@ type alias Input =
 main : Program Input  Model Msg
 main =
        let
+           debouncerconfig =
+               Debouncer.manual |>
+               settleWhenQuietFor (Just <| fromSeconds 0.3) |>
+               toDebouncer
            init input =
                ( Model
                      input.baseurl
@@ -514,10 +532,8 @@ main =
                      ("", "")
                      []
                      []
-                     (Debouncer.manual |>
-                          settleWhenQuietFor (Just <| fromSeconds 0.3) |>
-                          toDebouncer
-                     )
+                     debouncerconfig
+                     debouncerconfig
                ,
                    Cmd.map GotCatalog <| Cat.get input.baseurl 1
                )
