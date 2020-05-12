@@ -303,7 +303,7 @@ main =
             ( Model
                   prefix
                   Select
-                  (Catalog.new Dict.empty)
+                  Catalog.empty
                   SeriesSelector.null
                   ""
                   Nothing

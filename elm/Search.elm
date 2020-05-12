@@ -516,12 +516,7 @@ main =
            init input =
                ( Model
                      input.baseurl
-                     ( Cat.Model
-                         []
-                         Dict.empty
-                         Dict.empty
-                         []
-                     )
+                     Cat.empty
                      Dict.empty
                      Dict.empty
                      []

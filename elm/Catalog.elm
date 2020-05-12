@@ -2,6 +2,7 @@ module Catalog exposing
     (Model
     , Msg
     , Error
+    , empty
     , viewError
     , get
     , new
@@ -35,6 +36,10 @@ type alias Model =
     , seriesByKind : Dict String (Set String)
     , errors : List String
     }
+
+
+empty =
+    Model [] Dict.empty Dict.empty []
 
 
 type Msg

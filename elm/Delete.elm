@@ -224,7 +224,7 @@ main =
         init prefix =
             ( Model
                   prefix
-                  (Catalog.new Dict.empty)
+                  Catalog.empty
                   SeriesSelector.null
                   Nothing
             ,
