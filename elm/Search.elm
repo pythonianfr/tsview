@@ -2,6 +2,13 @@ module Search exposing (main)
 
 import Browser
 import Catalog as Cat
+import Debouncer.Messages as Debouncer exposing
+    (Debouncer
+    , fromSeconds
+    , provideInput
+    , settleWhenQuietFor
+    , toDebouncer
+    )
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as A
@@ -35,6 +42,8 @@ type alias Model =
     , metaitem : (String, String)
     , filterbymeta : List (String, String)
     , errors : List String
+    -- debouncing
+    , namefilterdeb : Debouncer Msg
     }
 
 
@@ -51,6 +60,8 @@ type Msg
     | NewKey String
     | AddMetaItem
     | MetaItemToDelete (String, String)
+    -- debouncer
+    | DebounceNameFilter (Debouncer.Msg Msg)
 
 
 getmeta baseurl =
@@ -182,6 +193,15 @@ allfilters model =
              >> formulafilter
              >> metafilter
 
+-- debouncing
+
+updatedebouncer =
+    { mapMsg = DebounceNameFilter
+    , getDebouncer = .namefilterdeb
+    , setDebouncer = \deb model -> { model | namefilterdeb = deb }
+    }
+
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -284,13 +304,22 @@ update msg model =
                     | filterbymeta = List.filter (\x -> x /= (key, value)) model.filterbymeta
                 }
 
+        -- Debouncing
+
+        DebounceNameFilter submsg ->
+            Debouncer.update update updatedebouncer submsg model
+
+
 
 viewnamefilter =
-    H.input
-    [ A.class "form-control"
-    , A.placeholder "filter by name"
-    , onInput NameFilter
-    ] []
+    let input =
+            H.input
+                [ A.class "form-control"
+                , A.placeholder "filter by name"
+                , onInput NameFilter
+                ] []
+    in
+    H.map (provideInput >> DebounceNameFilter) input
 
 
 viewformulafilter =
@@ -484,6 +513,10 @@ main =
                      ("", "")
                      []
                      []
+                     (Debouncer.manual |>
+                          settleWhenQuietFor (Just <| fromSeconds 0.3) |>
+                          toDebouncer
+                     )
                ,
                    Cmd.map GotCatalog <| Cat.get input.baseurl 1
                )
