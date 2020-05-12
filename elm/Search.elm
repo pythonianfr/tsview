@@ -17,6 +17,7 @@ import Html.Events exposing ( onClick
                             , onSubmit
                             )
 import Html.Keyed as K
+import Html.Lazy as L
 import Http
 import Json.Decode as D
 import Metadata as M
@@ -445,19 +446,19 @@ viewfilteredqty model =
         ]
 
 
-viewfiltered model =
+viewfiltered baseurl filtered =
     let
         item elt =
             (elt, H.li []
                  [ H.a [ A.href (UB.crossOrigin
-                                     model.baseurl
+                                     baseurl
                                      [ "tsinfo" ]
                                      [ UB.string "name" elt ]
                                 )
                        ] [ H.text elt ]
                  ])
     in
-    K.node "ul" [] <| List.map item <| List.sort model.filtered
+    K.node "ul" [] <| List.map item <| List.sort filtered
 
 
 viewerrors model =
@@ -482,7 +483,7 @@ view model =
               , viewmetafilter model
               , viewfilteredqty model
               ]
-        , viewfiltered model
+        , L.lazy2 viewfiltered model.baseurl model.filtered
         , viewerrors model
         ]
 
