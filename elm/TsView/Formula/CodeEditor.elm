@@ -273,7 +273,10 @@ viewReadOnly model =
         ]
     , H.footer [ A.class "code_left" ]
         (List.append
-            [ H.button [ Events.onClick OnSave ] [ H.text "Save As" ]
+            [ H.button [ A.class "btn btn-primary"
+                       , Events.onClick OnSave
+                       ]
+                  [ H.text "save as" ]
             , H.input [ A.value name, Events.onInput UpdateName ] []
             ]
             (viewError model.current.errMess)
