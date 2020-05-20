@@ -385,34 +385,28 @@ update msg model =
 viewseealso model =
     div []
         [ p [] [ span [] [ text " ⇒ " ]
-               , a
-                     [ A.href <| UB.crossOrigin
-                           model.baseurl
-                           [ "tshistory", model.name ] []
-                     , A.target "_blank"
-                     ]
-                     [ text "browse history" ]
+               , a [ A.href <| UB.crossOrigin
+                         model.baseurl
+                         [ "tshistory", model.name ] []
+                   , A.target "_blank"
+                   ] [ text "browse history" ]
                , if (supervision model) /= "formula" then
                      p [] [ span [] [ text " ⇒ " ]
-                          , a
-                                [ A.href <| UB.crossOrigin
-                                      model.baseurl
-                                      [ "tseditor" ]
-                                      [ UB.string "name" model.name ]
-                                , A.target "_blank"
-                                ]
-                                [ text "edit values" ]
+                          , a [ A.href <| UB.crossOrigin
+                                    model.baseurl
+                                    [ "tseditor" ]
+                                    [ UB.string "name" model.name ]
+                              , A.target "_blank"
+                              ] [ text "edit values" ]
                           ]
                  else
                      p [] [ span [] [ text " ⇒ " ]
-                          , a
-                                [ A.href <| UB.crossOrigin
-                                      model.baseurl
-                                      [ "tsformula" ]
-                                      [ UB.string "name" model.name ]
-                                , A.target "_blank"
-                                ]
-                                [ text "edit formula" ]
+                          , a [ A.href <| UB.crossOrigin
+                                    model.baseurl
+                                    [ "tsformula" ]
+                                    [ UB.string "name" model.name ]
+                              , A.target "_blank"
+                              ] [ text "edit formula" ]
                           ]
                ]
         ]
