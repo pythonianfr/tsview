@@ -403,7 +403,17 @@ viewseealso model =
                                 ]
                                 [ text "edit values" ]
                           ]
-                 else span [] []
+                 else
+                     p [] [ span [] [ text " ⇒ " ]
+                          , a
+                                [ A.href <| UB.crossOrigin
+                                      model.baseurl
+                                      [ "tsformula" ]
+                                      [ UB.string "name" model.name ]
+                                , A.target "_blank"
+                                ]
+                                [ text "edit formula" ]
+                          ]
                ]
         ]
 
