@@ -44,7 +44,7 @@
 }
 
 .code_editor pre {
-    min-height: var(--min-height-editor, 20vh);
+    min-height: var(--min-height-editor, 36vh);
 }
 
 .center_item {
