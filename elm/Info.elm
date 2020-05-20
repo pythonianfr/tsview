@@ -7,8 +7,6 @@ import Either exposing (Either)
 import Html exposing (..)
 import Html.Attributes as A
 import Html.Events exposing (onClick, onInput, onSubmit)
-import Html.Parser
-import Html.Parser.Util
 import Http
 import Json.Decode as D
 import Json.Encode as E
@@ -418,15 +416,6 @@ supervision model =
         Just x -> M.metavaltostring x
 
 
-tovirtualdom : String -> List (Html.Html msg)
-tovirtualdom html =
-    case Html.Parser.run html of
-        Ok nodes ->
-            Html.Parser.Util.toVirtualDom nodes
-        Err x ->
-            [div [] [text "could not parse the formula"]]
-
-
 viewformula model =
     case model.formula of
         Nothing -> div [] []
@@ -451,7 +440,7 @@ viewformula model =
                                  then "expanded" else "unexpanded")
                          ]
                      ]
-                , span [] (tovirtualdom formula)
+                , span [] (U.tovirtualdom formula "could not parse the formula")
                 ]
 
 

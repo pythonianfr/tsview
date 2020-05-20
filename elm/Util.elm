@@ -1,10 +1,15 @@
-module Util exposing ( adderror
-                     , first
-                     , nocmd
-                     , snd
-                     , unwraperror
-                     )
+module Util exposing
+    ( adderror
+    , first
+    , nocmd
+    , snd
+    , tovirtualdom
+    , unwraperror
+    )
 
+import Html
+import Html.Parser
+import Html.Parser.Util
 import Http
 
 
@@ -28,3 +33,11 @@ unwraperror resp =
         Http.BadStatus val -> "we got a bad status answer: " ++ String.fromInt val
         Http.BadBody body -> "we got a bad body: " ++ body
 
+
+tovirtualdom : String -> String -> List (Html.Html msg)
+tovirtualdom html errmsg =
+    case Html.Parser.run html of
+        Ok nodes ->
+            Html.Parser.Util.toVirtualDom nodes
+        Err x ->
+            [Html.div [] [ Html.text errmsg ] ]
