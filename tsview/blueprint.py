@@ -124,6 +124,8 @@ def tsview(tsa,
 
         return 'You do not have the rename capability.'
 
+    # formula editor
+
     @bp.route('/spec')
     def spec():
         if not has_permission('viewseries'):
@@ -184,6 +186,27 @@ def tsview(tsa,
                 if FUNCS[name].__doc__ is not None
             }
         )
+
+    @bp.route('/tsformula/try')
+    def tryformula():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        # here we take a big bad shortcut ...
+        # we want to think on how to expose that
+        # in tshistory rest api
+        # and for all sources ...
+        # for now we are single source only
+
+        return tsa.tsh.eval_formula(
+            tsa.engine,
+            request.args['formula']
+        ).to_json(
+            orient='index',
+            date_format='iso'
+        )
+
+    # info
 
     @bp.route('/tsinfo')
     def tsinfo():
@@ -246,6 +269,8 @@ def tsview(tsa,
         return json.dumps(
             has_permission('editmetadata')
         )
+
+    # catalog
 
     @bp.route('/tssearch')
     def tssearch():

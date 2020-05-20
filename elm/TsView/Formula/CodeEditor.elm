@@ -9,6 +9,7 @@ module TsView.Formula.CodeEditor exposing
 
 import Cmd.Extra exposing (withNoCmd)
 import Common exposing (expectJsonMessage)
+import Dict exposing (Dict)
 import Either
 import Html as H exposing (Html)
 import Html.Attributes as A
@@ -17,6 +18,12 @@ import Http
 import Json.Decode as D
 import Json.Encode as E
 import Maybe.Extra as Maybe
+import Plotter exposing
+    ( seriesdecoder
+    , scatterplot
+    , plotargs
+    , Series
+    )
 import TsView.AceEditor as AceEditor
 import TsView.Formula.EditionTree.Parser exposing (parseFormula)
 import TsView.Formula.EditionTree.Render exposing (renderString)
@@ -24,6 +31,7 @@ import TsView.Formula.EditionTree.Type as ET exposing (EditionTree)
 import TsView.Formula.Spec.Type as S
 import TsView.Formula.Utils exposing (icon, sendCmd)
 import Url.Builder as UB
+import Util as U
 
 
 type alias Formula =
@@ -50,11 +58,15 @@ type State
 
 type alias Model =
     { urlPrefix : String
+    , errors : List String
     , state : State
     , spec : S.Spec
     , current : PartialFormula
     , user : PartialFormula
     , reload : Bool
+    -- plot
+    , name : String
+    , plotdata : Series
     }
 
 
@@ -68,6 +80,7 @@ type Msg
     | UpdateUserFormula
     | OnSave
     | SaveDone (Result String String)
+    | GotPlotData (Result Http.Error String)
 
 
 updateName : String -> (Formula -> Formula)
@@ -114,8 +127,21 @@ updateCurrentCode tree =
     updateCode code |> updateFormula |> updateCurrent
 
 
+getplotdata model =
+    Http.get
+        { url = UB.crossOrigin model.urlPrefix
+              [ "tsformula", "try" ]
+              [ UB.string "formula" model.current.formula.code ]
+        , expect = Http.expectString GotPlotData
+        }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        doerr error =
+            U.nocmd <| U.adderror model error
+    in
     case msg of
         ParseFormula code ->
             let
@@ -136,13 +162,14 @@ update msg model =
                 )
                 (\tree ->
                     let
-                        f : Model -> Model
-                        f =
-                            updateCurrentCode tree
-                                >> (updateErrMess Nothing |> updateUser)
+                        mod =
+                            (updateCurrentCode tree
+                                >> (updateErrMess Nothing |> updateUser)) model
                     in
-                    ( f newModel
-                    , sendCmd ParsedFormula tree
+                    ( mod
+                    , Cmd.batch [ getplotdata mod
+                                , sendCmd ParsedFormula tree
+                                ]
                     )
                 )
                 (parseFormula model.spec code)
@@ -210,8 +237,18 @@ update msg model =
         SaveDone (Err s) ->
             (updateErrMess (Just s) |> updateCurrent) model |> withNoCmd
 
+        GotPlotData (Ok rawdata) ->
+            case D.decodeString seriesdecoder rawdata of
+                Ok val ->
+                    U.nocmd { model | plotdata = val }
+                Err err ->
+                    doerr <| D.errorToString err
+
         ParsedFormula _ ->
             model |> withNoCmd
+
+        GotPlotData (Err err) ->
+            doerr <| U.unwraperror err
 
 
 init : String -> S.Spec -> Maybe Formula -> ( Model, Cmd Msg )
@@ -228,12 +265,19 @@ init urlPrefix spec initialFormulaM =
     in
     Model
         urlPrefix
+        []
         ReadOnly
         spec
         (PartialFormula initialFormula Nothing)
         (PartialFormula initialFormula Nothing)
         False
+        "<noname>"
+        Dict.empty
         |> doInit
+
+
+editorHeight =
+    A.attribute "style" "--min-height-editor: 36vh"
 
 
 viewHeader : State -> Html Msg
@@ -260,6 +304,23 @@ viewError =
         >> Maybe.toList
 
 
+viewplot model =
+    let
+        plot = scatterplot model.name
+               (Dict.keys model.plotdata)
+               (Dict.values model.plotdata)
+               "lines"
+        args = plotargs "plot" [plot]
+    in
+    H.div []
+        [ H.h2 [] [ H.text "Plot" ]
+        , H.div [ A.id "plot" ] []
+        -- the "plot-figure" node is pre-built in the template side
+        -- (html component)
+        , H.node "plot-figure" [ A.attribute "args" args ] []
+        ]
+
+
 viewReadOnly : Model -> List (Html Msg)
 viewReadOnly model =
     let
@@ -281,6 +342,8 @@ viewReadOnly model =
             ]
             (viewError model.current.errMess)
         )
+    , H.div [ ]
+        [ viewplot model ]
     ]
 
 
@@ -290,8 +353,6 @@ viewEdition model =
         cfg =
             AceEditor.default
 
-        editorHeight =
-            A.attribute "style" "--min-height-editor: 36vh"
     in
     [ viewHeader model.state
     , H.div

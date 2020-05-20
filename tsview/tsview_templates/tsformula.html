@@ -33,6 +33,26 @@
         src="https://unpkg.com/@webcomponents/custom-elements@1.4.1/custom-elements.min.js">
     </script>
     <script src="./tsview_static/ace_editor.js"></script>
+    <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
+    <script>
+      class PlotFigure extends HTMLElement {
+          static get observedAttributes() {
+              return ['args'];
+          }
+          attributeChangedCallback(name, old_value, new_value) {
+              if ( name == 'args' ) {
+                  let args = JSON.parse(new_value);
+                  Plotly.react(
+                      args.div,
+                      args.data,
+                      {showlegend: false},
+                      {displaylogo: false, displayModeBar: false}
+                  );
+              }
+          }
+      }
+      window.customElements.define("plot-figure", PlotFigure);
+    </script>
     </head>
     <body>
         <div id="app"></div>
