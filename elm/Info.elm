@@ -724,7 +724,7 @@ viewplot model =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ A.style "margin" ".5em" ]
         [ h1 []
               [ text "Series "
               , span
