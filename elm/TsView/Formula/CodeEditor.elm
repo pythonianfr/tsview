@@ -56,8 +56,14 @@ type State
     | Edition
 
 
+type Tab
+    = Editor
+    | Plot
+
+
 type alias Model =
     { urlPrefix : String
+    , tab : Tab
     , errors : List String
     , state : State
     , spec : S.Spec
@@ -81,6 +87,7 @@ type Msg
     | OnSave
     | SaveDone (Result String String)
     | GotPlotData (Result Http.Error String)
+    | SwitchTab Tab
 
 
 updateName : String -> (Formula -> Formula)
@@ -250,6 +257,11 @@ update msg model =
         GotPlotData (Err err) ->
             doerr <| U.unwraperror err
 
+        SwitchTab tab ->
+            case tab of
+                Editor -> U.nocmd { model | tab = Plot }
+                Plot -> U.nocmd { model | tab = Editor }
+
 
 init : String -> S.Spec -> Maybe Formula -> ( Model, Cmd Msg )
 init urlPrefix spec initialFormulaM =
@@ -265,6 +277,7 @@ init urlPrefix spec initialFormulaM =
     in
     Model
         urlPrefix
+        Editor
         []
         ReadOnly
         spec
@@ -278,6 +291,29 @@ init urlPrefix spec initialFormulaM =
 
 editorHeight =
     A.attribute "style" "--min-height-editor: 36vh"
+
+
+viewtabs model =
+    H.ul
+        [ A.id "tabs"
+        , A.class "nav nav-tabs"
+        , A.attribute "role" "tablist"
+        ]
+        [ H.li [ A.class "nav-item" ]
+          [ H.a [ A.class <| "nav-link" ++ (if model.tab == Editor then " active" else "")
+                , A.attribute "data-toggle" "tab"
+                , A.attribute "role" "tab"
+                , Events.onClick (SwitchTab Plot)
+                ] [ H.text "Editor" ]
+          ]
+        , H.li [ A.class "nav-item" ]
+          [ H.a [ A.class <| "nav-link" ++ (if model.tab == Plot then " active" else "")
+                , A.attribute "data-toggle" "tab"
+                , A.attribute "role" "tab"
+                , Events.onClick (SwitchTab Editor)
+                ] [ H.text "Plot" ]
+          ]
+        ]
 
 
 viewHeader : State -> Html Msg
@@ -342,8 +378,6 @@ viewReadOnly model =
             ]
             (viewError model.current.errMess)
         )
-    , H.div [ ]
-        [ viewplot model ]
     ]
 
 
@@ -393,10 +427,31 @@ viewEdition model =
 
 view : Model -> Html Msg
 view model =
-    H.section [ A.class "code_editor" ] <|
-        case model.state of
-            ReadOnly ->
-                viewReadOnly model
+    H.div []
+        [ viewtabs model
+        , case model.tab of
+              Editor ->
+                  H.div [ A.class "tab-content" ]
+                      [ H.div [ A.id "editor"
+                              , A.class "tab-pane active"
+                              , A.attribute "role" "tab-panel"
+                              ]
+                            [ H.section [ A.class "code_editor" ] <|
+                                  case model.state of
+                                      ReadOnly ->
+                                          viewReadOnly model
 
-            Edition ->
-                viewEdition model
+                                      Edition ->
+                                          viewEdition model
+                            ]
+                      ]
+
+              Plot ->
+                  H.div [ A.class "tab-content" ]
+                      [ H.div [ A.id "editor"
+                              , A.class "tab-pane active"
+                              , A.attribute "role" "tab-panel"
+                              ]
+                            [ viewplot model ]
+                      ]
+        ]
