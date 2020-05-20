@@ -20,8 +20,6 @@ import Json.Encode as E
 import Maybe.Extra as Maybe
 import Plotter exposing
     ( seriesdecoder
-    , scatterplot
-    , plotargs
     , Series
     )
 import TsView.AceEditor as AceEditor
@@ -293,29 +291,6 @@ editorHeight =
     A.attribute "style" "--min-height-editor: 36vh"
 
 
-viewtabs model =
-    H.ul
-        [ A.id "tabs"
-        , A.class "nav nav-tabs"
-        , A.attribute "role" "tablist"
-        ]
-        [ H.li [ A.class "nav-item" ]
-          [ H.a [ A.class <| "nav-link" ++ (if model.tab == Editor then " active" else "")
-                , A.attribute "data-toggle" "tab"
-                , A.attribute "role" "tab"
-                , Events.onClick (SwitchTab Plot)
-                ] [ H.text "Editor" ]
-          ]
-        , H.li [ A.class "nav-item" ]
-          [ H.a [ A.class <| "nav-link" ++ (if model.tab == Plot then " active" else "")
-                , A.attribute "data-toggle" "tab"
-                , A.attribute "role" "tab"
-                , Events.onClick (SwitchTab Editor)
-                ] [ H.text "Plot" ]
-          ]
-        ]
-
-
 viewHeader : State -> Html Msg
 viewHeader state =
     let
@@ -338,23 +313,6 @@ viewError : Maybe String -> List (Html Msg)
 viewError =
     Maybe.map (\x -> H.span [ A.class "error" ] [ H.text x ])
         >> Maybe.toList
-
-
-viewplot model =
-    let
-        plot = scatterplot model.name
-               (Dict.keys model.plotdata)
-               (Dict.values model.plotdata)
-               "lines"
-        args = plotargs "plot" [plot]
-    in
-    H.div []
-        [ H.h2 [] [ H.text "Plot" ]
-        , H.div [ A.id "plot" ] []
-        -- the "plot-figure" node is pre-built in the template side
-        -- (html component)
-        , H.node "plot-figure" [ A.attribute "args" args ] []
-        ]
 
 
 viewReadOnly : Model -> List (Html Msg)
@@ -427,31 +385,10 @@ viewEdition model =
 
 view : Model -> Html Msg
 view model =
-    H.div []
-        [ viewtabs model
-        , case model.tab of
-              Editor ->
-                  H.div [ A.class "tab-content" ]
-                      [ H.div [ A.id "editor"
-                              , A.class "tab-pane active"
-                              , A.attribute "role" "tab-panel"
-                              ]
-                            [ H.section [ A.class "code_editor" ] <|
-                                  case model.state of
-                                      ReadOnly ->
-                                          viewReadOnly model
+    H.section [ A.class "code_editor" ] <|
+        case model.state of
+            ReadOnly ->
+                viewReadOnly model
 
-                                      Edition ->
-                                          viewEdition model
-                            ]
-                      ]
-
-              Plot ->
-                  H.div [ A.class "tab-content" ]
-                      [ H.div [ A.id "editor"
-                              , A.class "tab-pane active"
-                              , A.attribute "role" "tab-panel"
-                              ]
-                            [ viewplot model ]
-                      ]
-        ]
+            Edition ->
+                viewEdition model
