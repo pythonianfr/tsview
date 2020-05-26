@@ -7,7 +7,7 @@ module TsView.Formula.EditionTree.View exposing
 import Either
 import Html as H
 import Html.Attributes as A
-import Html.Events as Events
+import Html.Events as HE
 import Json.Decode as Decode
 import List.Nonempty as NE
 import Maybe.Extra as Maybe
@@ -290,7 +290,7 @@ renderExpand ( node, zipper ) =
         navTag =
             H.a
                 [ A.class "col_expand center_item"
-                , Events.onClick <| ET.ToggleNode zipper
+                , HE.onClick <| ET.ToggleNode zipper
                 ]
                 [ if node.editionFlags.isOpen then
                     icon "fas fa-chevron-up"
@@ -351,7 +351,7 @@ renderSelect zipper labels =
 
         msgDecoder : Decode.Decoder ET.Msg
         msgDecoder =
-            Decode.map (ET.ReadInput >> ET.EditNode zipper) Events.targetValue
+            Decode.map (ET.ReadInput >> ET.EditNode zipper) HE.targetValue
 
         renderOption x =
             H.option
@@ -359,7 +359,7 @@ renderSelect zipper labels =
                 [ H.text x ]
     in
     H.select
-        [ Events.on "change" msgDecoder ]
+        [ HE.on "change" msgDecoder ]
         (List.map renderOption <| NE.toList labels)
 
 
@@ -367,7 +367,7 @@ listButton : ZEN -> ET.EditAction -> String -> HMsg
 listButton zipper action iconCls =
     H.span []
         [ H.button
-            [ Events.onClick <| ET.EditNode zipper action ]
+            [ HE.onClick <| ET.EditNode zipper action ]
             [ icon iconCls ]
         ]
 
@@ -382,7 +382,7 @@ input inputType zipper =
             H.span []
                 [ H.input
                     [ A.value s
-                    , Events.onInput (ET.ReadInput >> ET.EditNode zipper)
+                    , HE.onInput (ET.ReadInput >> ET.EditNode zipper)
                     ]
                     []
                 , H.text " "
