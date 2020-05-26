@@ -70,6 +70,7 @@ update msg model =
                 Editor -> U.nocmd { model | tab = Plot }
                 Plot -> U.nocmd { model | tab = Editor }
 
+
 viewtabs model =
     H.ul
         [ A.id "tabs"
@@ -93,26 +94,30 @@ viewtabs model =
         ]
 
 
-viewplot model =
+viewplot cemodel =
     let
-        plot = scatterplot model.name
-               (Dict.keys model.plotdata)
-               (Dict.values model.plotdata)
-               "lines"
+        plot =
+            scatterplot cemodel.name
+            (Dict.keys cemodel.plotdata)
+            (Dict.values cemodel.plotdata)
+            "lines"
         args = plotargs "plot" [plot]
     in
-    H.div []
-        [ H.div [ A.id "plot" ] []
-        -- the "plot-figure" node is pre-built in the template side
-        -- (html component)
-        , H.node "plot-figure" [ A.attribute "args" args ] []
-        ]
+    -- the "plot-figure" node is pre-built in the template side
+    -- (html component)
+    H.node "plot-figure" [ A.attribute "args" args ] []
 
 
 view : Model -> Html Msg
 view model =
     H.div [ A.style "margin" ".5em" ]
         [ viewtabs model
+        -- the plot div hates being set too dynamically so
+        -- we put it on the toplevel and show/hide it depending
+        -- on the tab
+        , case model.tab of
+              Editor -> H.div [ A.id "plot", A.style "display" "none" ] []
+              Plot -> H.div [ A.id "plot" ] []
         , case model.tab of
               Editor ->
                   H.article [ A.class "main" ]

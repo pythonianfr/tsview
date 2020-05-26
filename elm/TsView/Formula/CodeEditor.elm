@@ -85,7 +85,6 @@ type Msg
     | OnSave
     | SaveDone (Result String String)
     | GotPlotData (Result Http.Error String)
-    | SwitchTab Tab
 
 
 updateName : String -> (Formula -> Formula)
@@ -254,11 +253,6 @@ update msg model =
 
         GotPlotData (Err err) ->
             doerr <| U.unwraperror err
-
-        SwitchTab tab ->
-            case tab of
-                Editor -> U.nocmd { model | tab = Plot }
-                Plot -> U.nocmd { model | tab = Editor }
 
 
 init : String -> S.Spec -> Maybe Formula -> ( Model, Cmd Msg )
