@@ -463,7 +463,8 @@ viewfilteredqty model =
 viewfiltered baseurl filtered =
     let
         item elt =
-            (elt, H.li []
+            (elt, H.li
+                 [ A.class "list-group-item" ]
                  [ H.a [ A.href (UB.crossOrigin
                                      baseurl
                                      [ "tsinfo" ]
@@ -472,7 +473,9 @@ viewfiltered baseurl filtered =
                        ] [ H.text elt ]
                  ])
     in
-    K.node "ul" [] <| List.map item <| List.sort filtered
+    K.node "ul"
+        [ A.class "list-group list-group-flush" ]
+        <| List.map item <| List.sort filtered
 
 
 viewerrors model =
