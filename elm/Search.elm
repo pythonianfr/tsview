@@ -489,7 +489,7 @@ viewerrors model =
 
 view : Model -> H.Html Msg
 view model =
-    H.div []
+    H.div [ A.style "margin" ".5em" ]
         [ H.h1 [] [ H.text "Series Catalog" ]
         , H.div
               [ A.class "tsview-form-input" ]
