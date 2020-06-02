@@ -357,7 +357,9 @@ viewkindfilter model =
     let
         kinds = Dict.keys model.catalog.seriesByKind
         checkbox kind =
-            H.div [ A.class "form-check form-check-inline" ]
+            H.div
+                [ A.class "form-check form-check-inline"
+                , A.title "filter by series type"]
                 [ H.input
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
@@ -379,7 +381,8 @@ viewsourcefilter model =
         sources = Dict.keys model.catalog.seriesBySource
         checkbox source =
             H.div
-                [ A.class "form-check form-check-inline" ]
+                [ A.class "form-check form-check-inline"
+                , A.title "filter by series source"]
                 [ H.input
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
@@ -446,7 +449,7 @@ viewmetafilter model =
                 ])
     in
     H.form
-        [ ]
+        [ A.title "filter by metadata" ]
         ([ fields
                (U.first model.metaitem)
                (U.snd model.metaitem)
