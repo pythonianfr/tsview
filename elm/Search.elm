@@ -452,12 +452,16 @@ viewmetafilter model =
 
 
 viewfilteredqty model =
-    H.p
-        []
-        [ H.text ("Found "
-                      ++ String.fromInt (List.length model.filtered)
-                      ++ " items.")
-        ]
+    let
+        len = List.length model.filtered
+        msg = if len == 0
+              then "no item."
+              else
+                  (if len == 1
+                   then "1 item."
+                   else String.fromInt len ++ " items.")
+    in
+    H.p [] [ H.text ("Found " ++ msg) ]
 
 
 viewfiltered baseurl filtered =
