@@ -434,7 +434,13 @@ viewformula model =
     let
         maybeformula =
             case model.formula_expanded of
-                True -> model.expanded_formula
+                True ->
+                    case model.expanded_formula of
+                        Nothing ->
+                            -- let's keep showinng the old one
+                            -- till the new has landed
+                            model.formula
+                        Just formula -> model.expanded_formula
                 False -> model.formula
     in
     case maybeformula of
