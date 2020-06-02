@@ -44,6 +44,7 @@ type alias Model =
     -- formula
     , formula_expanded : Bool
     , formula : Maybe String
+    , expanded_formula : Maybe String
     , formula_components : List (String, String)
     -- log
     , log : List Logentry
@@ -249,7 +250,11 @@ update msg model =
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    U.nocmd { model | formula = Just formula }
+                    case model.formula_expanded of
+                        True ->
+                            U.nocmd { model | expanded_formula = Just formula }
+                        False ->
+                            U.nocmd { model | formula = Just formula }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -294,7 +299,11 @@ update msg model =
                 state = model.formula_expanded
             in
                 ( { model | formula_expanded = not state }
-                , getformula { model | formula_expanded = not state }
+                , case model.expanded_formula of
+                      Nothing ->
+                          getformula { model | formula_expanded = not state }
+                      Just _ ->
+                          Cmd.none
                 )
 
         ChangedIdate strindex ->
@@ -417,7 +426,13 @@ supervision model =
 
 
 viewformula model =
-    case model.formula of
+    let
+        maybeformula =
+            case model.formula_expanded of
+                True -> model.expanded_formula
+                False -> model.formula
+    in
+    case maybeformula of
         Nothing -> div [] []
         Just formula ->
             div []
@@ -754,6 +769,7 @@ main =
                      Dict.empty
                      Dict.empty
                      False
+                     Nothing
                      Nothing
                      []
                      []
