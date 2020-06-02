@@ -118,8 +118,12 @@ nullfilter model =
 namefilter model =
     case model.filterbyname of
         Nothing -> model
-        Just item ->
-            { model | filtered = List.filter (String.contains item) model.filtered }
+        Just match ->
+            let
+                fragments = String.split " " match
+                matchfragments item =
+                    List.all (\elt -> String.contains elt item) fragments
+            in { model | filtered = List.filter matchfragments model.filtered }
 
 
 formulafilter model =
