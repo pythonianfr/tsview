@@ -688,7 +688,7 @@ viewdatesrange model =
             [ input
                   [ A.attribute "type" "range"
                   , A.min "0"
-                  , A.max (String.fromInt numidates)
+                  , A.max (String.fromInt (numidates - 1))
                   , A.value (String.fromInt model.date_index)
                   , A.class "form-control-range"
                   , A.title currdate
