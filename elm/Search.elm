@@ -115,27 +115,31 @@ nullfilter model =
     { model | filtered = List.sort model.catalog.series }
 
 
+fragmentsmatcher query item =
+    -- predicate for item containing all query space-separated parts
+    List.all
+        (\queryfragment -> String.contains queryfragment item)
+        (String.split " " query)
+
+
 namefilter model =
     case model.filterbyname of
         Nothing -> model
         Just match ->
-            let
-                fragments = String.split " " match
-                matchfragments item =
-                    List.all (\elt -> String.contains elt item) fragments
-            in { model | filtered = List.filter matchfragments model.filtered }
+            { model | filtered = List.filter (fragmentsmatcher match) model.filtered }
 
 
 formulafilter model =
     case model.filterbyformula of
         Nothing -> model
-        Just item ->
+        Just match ->
             let
+                fragments = String.split " " match
                 formula name =
                     Maybe.withDefault "" <| Dict.get name model.formula
                 informula name =
                     -- formula part -> name
-                    String.contains item <| formula name
+                    fragmentsmatcher match <| formula name
                 series = List.filter informula model.filtered
             in
             { model | filtered = series }
