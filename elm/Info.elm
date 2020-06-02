@@ -46,6 +46,7 @@ type alias Model =
     , formula : Maybe String
     , expanded_formula : Maybe String
     , formula_components : List (String, String)
+    , expanded_formula_components : List (String, String)
     -- log
     , log : List Logentry
     -- plot
@@ -264,7 +265,11 @@ update msg model =
         Components (Ok rawcomponents) ->
             case D.decodeString (D.keyValuePairs D.string) rawcomponents of
                 Ok components ->
-                    U.nocmd { model | formula_components = components }
+                    case model.formula_expanded of
+                        True ->
+                            U.nocmd { model | expanded_formula_components = components }
+                        False ->
+                            U.nocmd { model | formula_components = components }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -674,7 +679,11 @@ viewcomponents model =
     if supervision model == "formula" then
         div []
             [ h2 [] [(text "Components")]
-            , ul [] (List.map elt model.formula_components)
+            , ul [] (List.map elt
+                         (case model.formula_expanded of
+                              True -> model.expanded_formula_components
+                              False -> model.formula_components)
+                    )
             ]
     else div [] []
 
@@ -771,6 +780,7 @@ main =
                      False
                      Nothing
                      Nothing
+                     []
                      []
                      []
                      Dict.empty
