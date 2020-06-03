@@ -58,7 +58,7 @@ def homeurl():
     homeurl = url_for('tsview.home')
     baseurl = homeurl[:homeurl.rindex('/')]
     if len(baseurl):
-        return baseurl + '/'
+        return baseurl
     return baseurl
 
 
