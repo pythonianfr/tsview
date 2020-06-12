@@ -8,6 +8,7 @@ import dash_html_components as html
 import dash
 import pandas as pd
 
+from tshistory.util import tzaware_serie
 from tshistory.api import timeseries
 
 
@@ -17,13 +18,16 @@ COLOR_AFTER = 'rgb(204, 12, 20)'
 COLOR_LAST = 'rgb(0, 0, 0)'
 
 
-def unpack_dates(graphdata):
+def unpack_dates(graphdata, tzaware):
     fromdate = None
     todate = None
+    tz = None
+    if tzaware:
+        tz = 'UTC'
     if graphdata and 'xaxis.range[0]' in graphdata:
-        fromdate = pd.to_datetime(graphdata['xaxis.range[0]'])
+        fromdate = pd.Timestamp(graphdata['xaxis.range[0]'], tz=tz)
     if graphdata and 'xaxis.range[1]' in graphdata:
-        todate = pd.to_datetime(graphdata['xaxis.range[1]'])
+        todate = pd.Timestamp(graphdata['xaxis.range[1]'], tz=tz)
     return fromdate, todate
 
 
@@ -119,6 +123,9 @@ def historic(app,
             ).items()
         }
 
+    def tzaware(id_serie):
+        return tsa.metadata(id_serie, True)['tzaware']
+
     def history(id_serie, fromdate=None, todate=None):
         return _history(id_serie, fromdate, todate)
 
@@ -148,7 +155,7 @@ def historic(app,
             return Slider(id='idate_slider', value=None)
 
         id_serie = parse_url(url_string)
-        fromdate, todate = unpack_dates(graphdata)
+        fromdate, todate = unpack_dates(graphdata, tzaware(id_serie))
         idates = insertion_dates(id_serie, fromdate, todate)
         showlabel = len(idates) < 25
         slider = Slider(
@@ -210,16 +217,15 @@ def historic(app,
                 'layout': {}
             }
 
-        fromdate, todate = unpack_dates(graphdata)
-        idx = idx if idx else 0
-
         id_serie = parse_url(url_string)
+        fromdate, todate = unpack_dates(graphdata, tzaware(id_serie))
         ts_final = tsa.get(id_serie,
                            from_value_date=fromdate,
                            to_value_date=todate)
         versions = history(id_serie, fromdate, todate)
         idates = list(versions.keys())
 
+        idx = idx if idx else 0
         if idx > len(idates):
             # may happen when the input div are not refreshed at the same time
             idx = len(idates) - 1
@@ -323,7 +329,7 @@ def historic(app,
                 'layout': go.Layout()
             }
 
-        fromdate, todate = unpack_dates(graphdata)
+        fromdate, todate = unpack_dates(graphdata, tzaware(id_serie))
 
         versions = history(id_serie, fromdate, todate)
         index = []
