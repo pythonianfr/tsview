@@ -203,7 +203,7 @@ metafilter model =
                 case Dict.get name model.metadata of
                     Nothing -> False
                     Just meta ->
-                        List.any (match meta) model.filterbymeta
+                        List.all (match meta) model.filterbymeta
         in
         { model | filtered = List.filter bymeta model.filtered }
 
