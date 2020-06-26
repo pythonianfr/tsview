@@ -178,50 +178,55 @@ lower str =
     String.toLower str
 
 
+filternothing list =
+    List.filterMap identity list
+
+
 metafilter model =
     if List.length model.filterbymeta == 0 then model else
         let
-            matchkey key meta =
-                let lkey = lower key in
-                List.any
-                    (\x -> String.contains lkey <| lower x)
-                    <| Dict.keys meta
+            lowerkeys metadict =
+                List.map lower <| Dict.keys metadict
 
-            matchvalue value meta =
+            lowervalue  =
+                M.metavaltostring >> lower
+
+            lowervalues metadict =
+                List.map lowervalue <| Dict.values metadict
+
+            matchkeys key metadict =
+                let lkey = lower key in
+                List.any (\x -> String.contains lkey x) <| lowerkeys metadict
+
+            matchvalue val metaval =
+                String.contains val metaval
+
+            matchvalues value meta =
                 let lvalue = lower value in
-                List.any
-                    (\x -> String.contains lvalue <| lower x)
-                    <| List.map M.metavaltostring
-                    <| Dict.values meta
+                List.any (matchvalue lvalue) <| lowervalues meta
 
             match meta query =
                 case query of
                     (key, "") ->
-                        matchkey key meta
+                        matchkeys key meta
 
                     ("", value) ->
-                        matchvalue value meta
+                        matchvalues value meta
 
                     (key, value) ->
                         let
                             lvalue = lower value
                             lkey = lower key
+
                             keys =
-                                List.map lower <| List.filter
+                                List.filter
                                     (\x -> String.contains lkey x)
-                                    (List.map lower <| Dict.keys meta)
-                            valuematch mvalue =
-                                case mvalue of
-                                    Nothing ->
-                                        False
-                                    Just avalue ->
-                                        String.contains lvalue
-                                            <| lower
-                                            <| M.metavaltostring avalue
-                        in List.map
-                            (\k -> valuematch <| Dict.get k meta)
-                            keys
-                            |> List.any identity
+                                    (lowerkeys meta)
+                            values =
+                                List.map lowervalue <|
+                                filternothing <| List.map (\x -> Dict.get x meta) keys
+
+                        in List.any (matchvalue lvalue) values
 
             bymeta name =
                 case Dict.get name model.metadata of
