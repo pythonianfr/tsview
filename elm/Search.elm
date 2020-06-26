@@ -181,17 +181,26 @@ lower str =
 metafilter model =
     if List.length model.filterbymeta == 0 then model else
         let
+            matchkey key meta =
+                let lkey = lower key in
+                List.any
+                    (\x -> String.contains lkey <| lower x)
+                    <| Dict.keys meta
+
+            matchvalue value meta =
+                let lvalue = lower value in
+                List.any
+                    (\x -> String.contains lvalue <| lower x)
+                    <| List.map M.metavaltostring
+                    <| Dict.values meta
+
             match meta query =
                 case query of
                     (key, "") ->
-                        let lkey = lower key in
-                        List.any (\x -> String.contains lkey <| lower x) <| Dict.keys meta
+                        matchkey key meta
 
                     ("", value) ->
-                        let lvalue = lower value in
-                        List.any (\x -> String.contains lvalue <| lower x)
-                            <| List.map M.metavaltostring
-                            <| Dict.values meta
+                        matchvalue value meta
 
                     (key, value) ->
                         case Dict.get key meta of
