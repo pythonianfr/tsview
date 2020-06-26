@@ -203,10 +203,25 @@ metafilter model =
                         matchvalue value meta
 
                     (key, value) ->
-                        case Dict.get key meta of
-                            Nothing -> False
-                            Just metavalue ->
-                                value == M.metavaltostring metavalue
+                        let
+                            lvalue = lower value
+                            lkey = lower key
+                            keys =
+                                List.map lower <| List.filter
+                                    (\x -> String.contains lkey x)
+                                    (List.map lower <| Dict.keys meta)
+                            valuematch mvalue =
+                                case mvalue of
+                                    Nothing ->
+                                        False
+                                    Just avalue ->
+                                        String.contains lvalue
+                                            <| lower
+                                            <| M.metavaltostring avalue
+                        in List.map
+                            (\k -> valuematch <| Dict.get k meta)
+                            keys
+                            |> List.any identity
 
             bymeta name =
                 case Dict.get name model.metadata of
