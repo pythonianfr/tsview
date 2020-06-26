@@ -174,12 +174,18 @@ kindfilter model =
     }
 
 
+lower str =
+    String.toLower str
+
+
 metafilter model =
     if List.length model.filterbymeta == 0 then model else
         let
             match meta query =
                 case query of
-                    (key, "") -> Dict.member key meta
+                    (key, "") ->
+                        let lkey = lower(key) in
+                        List.any (\x -> String.contains lkey <| lower x) <| Dict.keys meta
                     ("", value) -> List.member value
                                    <| List.map M.metavaltostring
                                    <|Dict.values meta
