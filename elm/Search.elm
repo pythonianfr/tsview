@@ -184,11 +184,12 @@ metafilter model =
             match meta query =
                 case query of
                     (key, "") ->
-                        let lkey = lower(key) in
+                        let lkey = lower key in
                         List.any (\x -> String.contains lkey <| lower x) <| Dict.keys meta
 
                     ("", value) ->
-                        List.member value
+                        let lvalue = lower value in
+                        List.any (\x -> String.contains lvalue <| lower x)
                             <| List.map M.metavaltostring
                             <| Dict.values meta
 
