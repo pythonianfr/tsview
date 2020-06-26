@@ -186,13 +186,18 @@ metafilter model =
                     (key, "") ->
                         let lkey = lower(key) in
                         List.any (\x -> String.contains lkey <| lower x) <| Dict.keys meta
-                    ("", value) -> List.member value
-                                   <| List.map M.metavaltostring
-                                   <|Dict.values meta
-                    (key, value) -> case Dict.get key meta of
-                                        Nothing -> False
-                                        Just metavalue ->
-                                            value == M.metavaltostring metavalue
+
+                    ("", value) ->
+                        List.member value
+                            <| List.map M.metavaltostring
+                            <| Dict.values meta
+
+                    (key, value) ->
+                        case Dict.get key meta of
+                            Nothing -> False
+                            Just metavalue ->
+                                value == M.metavaltostring metavalue
+
             bymeta name =
                 case Dict.get name model.metadata of
                     Nothing -> False
