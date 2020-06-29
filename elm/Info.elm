@@ -2,6 +2,13 @@ module Info exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Debouncer.Messages as Debouncer exposing
+    (Debouncer
+    , fromSeconds
+    , provideInput
+    , settleWhenQuietFor
+    , toDebouncer
+    )
 import Dict exposing (Dict)
 import Either exposing (Either)
 import Html exposing (..)
@@ -53,6 +60,7 @@ type alias Model =
     , plotdata : Series
     , insertion_dates : Array String
     , date_index : Int
+    , date_index_deb : Debouncer Msg
     -- user meta edition
     , metaitem : (String, String)
     , editeditems : Dict String String
@@ -70,6 +78,7 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     | ChangedIdate String
+    | DebounceChangedIdate (Debouncer.Msg Msg)
     -- metadata edition
     | MetaEditAsked
     | MetaEditCancel
@@ -183,6 +192,13 @@ savemeta model =
               [ "api", "series", "metadata" ] [ ]
         , expect = Http.expectString MetaSaved
         }
+
+
+updatedchangedidatebouncer =
+    { mapMsg = DebounceChangedIdate
+    , getDebouncer = .date_index_deb
+    , setDebouncer = \deb model -> { model | date_index_deb = deb }
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -310,6 +326,10 @@ update msg model =
                       Just _ ->
                           Cmd.none
                 )
+
+        DebounceChangedIdate val ->
+            Debouncer.update update updatedchangedidatebouncer val model
+
 
         ChangedIdate strindex ->
             let
@@ -714,7 +734,8 @@ viewdatesrange model =
     if numidates < 2
     then div [] []
     else
-        div []
+        Html.map (provideInput >> DebounceChangedIdate) <|
+            div []
             [ input
                   [ A.attribute "type" "range"
                   , A.min "0"
@@ -774,6 +795,11 @@ type alias Input =
 main : Program Input  Model Msg
 main =
        let
+           debouncerconfig =
+               Debouncer.manual
+                   |> settleWhenQuietFor (Just <| fromSeconds 0.025)
+                   |> toDebouncer
+
            init input =
                ( Model
                      input.baseurl
@@ -792,6 +818,7 @@ main =
                      Dict.empty
                      Array.empty
                      0
+                     debouncerconfig
                      ("", "")
                      Dict.empty
                ,
