@@ -415,32 +415,36 @@ update msg model =
 -- views
 
 viewseealso model =
+    let
+        editorlabel =
+            if (supervision model) /= "formula" then "edit values" else "show values"
+    in
     div []
-        [ p [] [ span [] [ text " ⇒ " ]
+        [ div [] [ span [] [ text " ⇒ " ]
                , a [ A.href <| UB.crossOrigin
                          model.baseurl
                          [ "tshistory", model.name ] []
                    , A.target "_blank"
                    ] [ text "browse history" ]
-               , if (supervision model) /= "formula" then
-                     p [] [ span [] [ text " ⇒ " ]
-                          , a [ A.href <| UB.crossOrigin
-                                    model.baseurl
-                                    [ "tseditor" ]
-                                    [ UB.string "name" model.name ]
-                              , A.target "_blank"
-                              ] [ text "edit values" ]
-                          ]
-                 else
-                     p [] [ span [] [ text " ⇒ " ]
-                          , a [ A.href <| UB.crossOrigin
-                                    model.baseurl
-                                    [ "tsformula" ]
-                                    [ UB.string "name" model.name ]
-                              , A.target "_blank"
-                              ] [ text "edit formula" ]
-                          ]
                ]
+        , div [] [ span [] [ text " ⇒ " ]
+               , a [ A.href <| UB.crossOrigin
+                         model.baseurl
+                         [ "tseditor" ]
+                         [ UB.string "name" model.name ]
+                   , A.target "_blank"
+                   ] [ text editorlabel ]
+               ]
+        , if (supervision model) == "formula" then
+              div [] [ span [] [ text " ⇒ " ]
+                   , a [ A.href <| UB.crossOrigin
+                             model.baseurl
+                             [ "tsformula" ]
+                             [ UB.string "name" model.name ]
+                       , A.target "_blank"
+                       ] [ text "edit formula" ]
+                   ]
+          else span [] []
         ]
 
 
