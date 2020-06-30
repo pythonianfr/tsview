@@ -705,18 +705,19 @@ viewcomponents model =
             [ text seriesname ]
 
         tuple2node tuple =
-            span [] [ alink (Tuple.first tuple)
-                    , span [] [ text " → " ]
-                    , node2html <| Tuple.second tuple
-                    ]
+            li [] [ alink (Tuple.first tuple)
+                  , span [] [ text " → " ]
+                  , node2html <| Tuple.second tuple
+                  ]
 
         node2html node =
             case node.value of
                 JT.TString str -> li [] [ alink str ]
                 JT.TFloat num -> li [] [ text <|  String.fromFloat num ]
                 JT.TBool bool -> li [] [ text <| if bool then "True" else "False" ]
-                JT.TList list -> ul [] <| List.map node2html list
-                JT.TDict dict -> span [] <| (Dict.toList dict |> List.map tuple2node)
+                JT.TList list -> ul [ A.class "square" ] <| List.map node2html list
+                JT.TDict dict ->
+                    ul [ A.class "square" ] <| (Dict.toList dict |> List.map tuple2node)
                 JT.TNull -> span [] []
 
         components comp =

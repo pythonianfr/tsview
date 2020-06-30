@@ -28,3 +28,8 @@ label.option {
 .tsview-form-input {
     padding: 1rem;
 }
+
+.square {
+    list-style: square inside;
+    padding-left: 1em;
+}
