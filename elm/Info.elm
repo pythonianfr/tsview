@@ -91,8 +91,8 @@ type Msg
     | MetaSaved (Result Http.Error String)
 
 
-decodelogentry : D.Decoder Logentry
-decodelogentry =
+logentrydecoder : D.Decoder Logentry
+logentrydecoder =
     D.map4 Logentry
         (D.field "rev" D.int)
         (D.field "author" D.string)
@@ -100,13 +100,13 @@ decodelogentry =
         (D.field "meta" (D.dict M.decodemetaval))
 
 
-decodelog : D.Decoder (List Logentry)
-decodelog =
-    D.list decodelogentry
+logdecoder : D.Decoder (List Logentry)
+logdecoder =
+    D.list logentrydecoder
 
 
-decodeidates : D.Decoder (List String)
-decodeidates =
+idatesdecoder : D.Decoder (List String)
+idatesdecoder =
     D.list D.string
 
 
@@ -293,7 +293,7 @@ update msg model =
             doerr <| U.unwraperror error
 
         GotLog (Ok rawlog) ->
-            case D.decodeString decodelog rawlog of
+            case D.decodeString logdecoder rawlog of
                 Ok log ->
                     U.nocmd { model | log = log }
                 Err err ->
@@ -303,7 +303,7 @@ update msg model =
             doerr <| U.unwraperror error
 
         InsertionDates (Ok rawdates) ->
-            case D.decodeString decodeidates rawdates of
+            case D.decodeString idatesdecoder rawdates of
                 Ok dates ->
                     U.nocmd { model
                                 | insertion_dates = Array.fromList dates
