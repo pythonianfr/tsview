@@ -236,11 +236,10 @@ def tsview(tsa,
 
         args = finderargs(request.args)
         return json.dumps(
-            {name: lisp.serialize(val)
-             for name, val in tsa.formula_components(
-                     args.name,
-                     args.expanded).items()
-            }
+            tsa.formula_components(
+                args.name,
+                args.expanded
+            )
         )
 
     class idatesargs(_argsdict):

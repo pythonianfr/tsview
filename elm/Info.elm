@@ -17,6 +17,7 @@ import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import Json.Decode as D
 import Json.Encode as E
+import JsonTree as JT exposing (TaggedValue(..))
 import Metadata as M
 import Plotter exposing
     ( getplotdata
@@ -52,8 +53,8 @@ type alias Model =
     , formula_expanded : Bool
     , formula : Maybe String
     , expanded_formula : Maybe String
-    , formula_components : List (String, String)
-    , expanded_formula_components : List (String, String)
+    , formula_components : Maybe JT.Node
+    , expanded_formula_components : Maybe JT.Node
     -- log
     , log : List Logentry
     -- plot
@@ -279,13 +280,13 @@ update msg model =
             doerr <| U.unwraperror error
 
         Components (Ok rawcomponents) ->
-            case D.decodeString (D.keyValuePairs D.string) rawcomponents of
+            case JT.parseString rawcomponents of
                 Ok components ->
                     case model.formula_expanded of
                         True ->
-                            U.nocmd { model | expanded_formula_components = components }
+                            U.nocmd { model | expanded_formula_components = Just components }
                         False ->
-                            U.nocmd { model | formula_components = components }
+                            U.nocmd { model | formula_components = Just components }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -695,25 +696,43 @@ editusermeta model =
 
 viewcomponents model =
     let
-        elt (name, expr) =
-            li []
-                [ a [ A.href (UB.crossOrigin model.baseurl
-                                  ["tsinfo"]
-                                  [UB.string "name" name]
-                           )
+        alink seriesname =
+            a [ A.href (UB.crossOrigin model.baseurl
+                            [ "tsinfo" ]
+                            [ UB.string "name" seriesname ]
+                       )
+              ]
+            [ text seriesname ]
+
+        tuple2node tuple =
+            span [] [ alink (Tuple.first tuple)
+                    , span [] [ text " → " ]
+                    , node2html <| Tuple.second tuple
                     ]
-                      [text name]
-                , span [] [text (" → " ++ expr)]
-                ]
+
+        node2html node =
+            case node.value of
+                JT.TString str -> li [] [ alink str ]
+                JT.TFloat num -> li [] [ text <|  String.fromFloat num ]
+                JT.TBool bool -> li [] [ text <| if bool then "True" else "False" ]
+                JT.TList list -> ul [] <| List.map node2html list
+                JT.TDict dict -> span [] <| (Dict.toList dict |> List.map tuple2node)
+                JT.TNull -> span [] []
+
+        components comp =
+            case comp of
+                Nothing ->
+                    span [] [ text "" ]
+                Just node ->
+                    node2html node
     in
     if supervision model == "formula" then
         div []
             [ h2 [] [(text "Components")]
-            , ul [] (List.map elt
-                         (case model.formula_expanded of
+            , components (case model.formula_expanded of
                               True -> model.expanded_formula_components
-                              False -> model.formula_components)
-                    )
+                              False -> model.formula_components
+                         )
             ]
     else div [] []
 
@@ -820,8 +839,8 @@ main =
                      False
                      Nothing
                      Nothing
-                     []
-                     []
+                     Nothing
+                     Nothing
                      -- log
                      []
                      -- plot
