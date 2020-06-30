@@ -808,21 +808,28 @@ main =
                ( Model
                      input.baseurl
                      input.name
+                     -- metadata edition
                      False
                      False
+                     -- all errors
                      []
+                     -- metadata
                      Dict.empty
                      Dict.empty
+                     -- formula
                      False
                      Nothing
                      Nothing
                      []
                      []
+                     -- log
                      []
+                     -- plot
                      Dict.empty
                      Array.empty
                      0
                      debouncerconfig
+                     -- user meta edittion
                      ("", "")
                      Dict.empty
                ,
