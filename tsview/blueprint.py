@@ -219,29 +219,6 @@ def tsview(tsa,
             name=request.args.get('name')
         )
 
-    class finderargs(_argsdict):
-        types = {
-            'name': str,
-            'expanded': int
-        }
-        defaults = {
-            'expanded': False
-        }
-
-
-    @bp.route('/tsinfo/finder')
-    def formula_finder():
-        if not has_permission('viewseries'):
-            return 'Nothing to see there.'
-
-        args = finderargs(request.args)
-        return json.dumps(
-            tsa.formula_components(
-                args.name,
-                args.expanded
-            )
-        )
-
     class idatesargs(_argsdict):
         types = {
             'name': str
@@ -255,7 +232,7 @@ def tsview(tsa,
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
-        args = finderargs(request.args)
+        args = idatesargs(request.args)
         return json.dumps(
             [
                 idate.isoformat()

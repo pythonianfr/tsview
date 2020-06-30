@@ -159,7 +159,7 @@ getcomponents model =
         { url =
               UB.crossOrigin
               model.baseurl
-              [ "tsinfo", "finder" ]
+              [ "api", "series", "formula_components" ]
               [ UB.string "name" model.name
               , UB.int "expanded" (if model.formula_expanded then 1 else 0)
               ]
