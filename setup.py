@@ -39,9 +39,9 @@ doc = Path(__file__).parent / 'README.md'
 
 
 setup(name='tsview',
-      version='0.10.0',
+      version='0.11.0',
       author='Pythonian',
-      author_email='aurelien.campeas@pythonian.fr',
+      author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
                    'to visualize time series from a repository and '
                    'a flask blueprint'),
