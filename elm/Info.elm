@@ -221,9 +221,7 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = getidates model
-                        cmd = if supervision newmodel == "formula"
-                              then Cmd.batch [ getformula model, next ]
-                              else Cmd.batch [ getlog model.baseurl model.name, next ]
+                        cmd = Cmd.batch [ getformula model, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr <| D.errorToString err
@@ -259,11 +257,14 @@ update msg model =
                                 , getcomponents model
                                 ]
                     )
-                Err err ->
-                    doerr <| D.errorToString err
+                Err _ ->
+                    -- there is no formula -> there must be logs !
+                    ( model
+                    , getlog model.baseurl model.name
+                    )
 
         GotFormula (Err error) ->
-            doerr  <| U.unwraperror error
+            doerr <| U.unwraperror error
 
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
