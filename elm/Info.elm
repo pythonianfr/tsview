@@ -822,7 +822,7 @@ main =
        let
            debouncerconfig =
                Debouncer.manual
-                   |> settleWhenQuietFor (Just <| fromSeconds 0.025)
+                   |> settleWhenQuietFor (Just <| fromSeconds 0.015)
                    |> toDebouncer
 
            init input =
