@@ -293,10 +293,10 @@ renderExpand ( node, zipper ) =
                 , HE.onClick <| ET.ToggleNode zipper
                 ]
                 [ if node.editionFlags.isOpen then
-                    icon "fas fa-chevron-up"
+                    H.text "-"
 
                   else
-                    icon "fas fa-chevron-down"
+                    H.text "+"
                 ]
                 |> List.singleton
     in
@@ -364,11 +364,11 @@ renderSelect zipper labels =
 
 
 listButton : ZEN -> ET.EditAction -> String -> HMsg
-listButton zipper action iconCls =
+listButton zipper action symbol =
     H.span []
         [ H.button
             [ HE.onClick <| ET.EditNode zipper action ]
-            [ icon iconCls ]
+            [ H.text symbol ]
         ]
 
 
@@ -421,7 +421,7 @@ renderEditor { spec } ( node, zipper ) =
             [ H.span [] [ H.text "Options" ] ]
 
         ET.OptArgT (ET.OptArg name _ _) ->
-            [ icon "fas fa-circle fa-xs", H.span [] [ H.text name ] ]
+            [ H.text " • ", H.span [] [ H.text name ] ]
 
         ET.ExpTypeT (S.SList _) ->
             [ H.span [] [ H.text "List" ] ]
@@ -450,10 +450,10 @@ renderEditionNode ({ indent } as cfg) rowTree =
         listActionNode =
             case rowType of
                 SListAdd ->
-                    [ listButton zipper ET.ListAdd "fas fa-plus-circle" ]
+                    [ listButton zipper ET.ListAdd "+" ]
 
                 SListItem ->
-                    [ listButton zipper ET.ListRemove "fas fa-minus-circle" ]
+                    [ listButton zipper ET.ListRemove "-" ]
 
                 _ ->
                     []

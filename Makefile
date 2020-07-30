@@ -2,10 +2,7 @@ FLAGS ?= --optimize
 NODE_PATH ?= /usr/lib/node_modules
 
 ACE_TAR ?= v1.4.11.tar.gz
-ACE_URL ?= https://github.com/ajaxorg/ace-builds/archive/
-
-FA_ZIP ?= fontawesome-free-5.13.0-web.zip
-FA_URL ?= https://github.com/FortAwesome/Font-Awesome/releases/download/5.13.0/
+ACE_URL ?= https://github.com/ajaxorg/ace-builds/archive
 
 all: delete rename info search plot formula pygmentize
 
@@ -28,11 +25,7 @@ tsview/tsview_static/ace:
 	(cd tsview/tsview_static && curl -L -O $(ACE_URL)/$(ACE_TAR) && tar xzf $(ACE_TAR))
 	touch tsview/tsview_static/ace
 
-tsview/tsview_static/fa:
-	(cd tsview/tsview_static && curl -L -O $(FA_URL)/$(FA_ZIP) && unzip $(FA_ZIP))
-	touch tsview/tsview_static/fa
-
-formula: tsview/tsview_static/ace tsview/tsview_static/fa
+formula: tsview/tsview_static/ace
 	elm make elm/TsView/Formula/Main.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
 
 pygmentize:

@@ -288,18 +288,18 @@ editorHeight =
 viewHeader : State -> Html Msg
 viewHeader state =
     let
-        ( newState, iconCls ) =
+        ( newState, sign ) =
             case state of
                 ReadOnly ->
-                    ( Edition, "far fa-edit" )
+                    ( Edition, "✎" )
 
                 Edition ->
-                    ( ReadOnly, "fas fa-stop-circle" )
+                    ( ReadOnly, "💾" )
     in
     H.header
         [ A.class "code_left" ]
         [ H.span [] [ H.text "Formula edition" ]
-        , H.a [ Events.onClick (ChangeState newState) ] [ icon iconCls ]
+        , H.a [ Events.onClick (ChangeState newState) ] [ H.text sign ]
         ]
 
 
@@ -351,7 +351,7 @@ viewEdition model =
         (viewError model.user.errMess)
     , H.aside
         [ A.class "code_left center_item" ]
-        [ icon "fas fa-long-arrow-alt-down fa-2x" ]
+        [ H.text "↓" ]
     , H.header
         [ A.class "code_center" ]
         []
@@ -359,7 +359,7 @@ viewEdition model =
         [ A.class "code_center center_item" ]
         [ H.a
             [ Events.onClick UpdateUserFormula ]
-            [ icon "far fa-arrow-alt-circle-left fa-2x" ]
+            [ H.text "←" ]
         ]
     , H.header
         [ A.class "code_right" ]
@@ -373,7 +373,7 @@ viewEdition model =
         []
     , H.aside
         [ A.class "code_right center_item" ]
-        [ icon "fas fa-level-up-alt fa-2x" ]
+        [ H.text "⬈" ]
     ]
 
 
