@@ -4,7 +4,7 @@ import Dict
 import Either exposing (Either(..))
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
-import Parser exposing ((|.), (|=), Parser)
+import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
 import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 import TsView.Formula.EditionTree.Type as ET exposing (EditionNode, Forest)
@@ -272,5 +272,64 @@ parseFormula spec formulaCode =
     formulaCode
         |> runParser
         |> Either.fromResult
-        |> Either.mapLeft Parser.deadEndsToString
-        |> Either.voidLeft "FAILED"
+        |> Either.mapLeft deadEndsToString
+
+
+deadEndsToString : List DeadEnd -> String
+deadEndsToString deadEnds =
+    let
+        deadEndToString : DeadEnd -> String
+        deadEndToString deadEnd =
+            let
+                position : String
+                position =
+                    "row:"
+                        ++ String.fromInt deadEnd.row
+                        ++ " col:"
+                        ++ String.fromInt deadEnd.col
+                        ++ "\n"
+            in
+            case deadEnd.problem of
+                Expecting str ->
+                    "Expecting " ++ str ++ "at " ++ position
+
+                ExpectingInt ->
+                    "ExpectingInt at " ++ position
+
+                ExpectingHex ->
+                    "ExpectingHex at " ++ position
+
+                ExpectingOctal ->
+                    "ExpectingOctal at " ++ position
+
+                ExpectingBinary ->
+                    "ExpectingBinary at " ++ position
+
+                ExpectingFloat ->
+                    "ExpectingFloat at " ++ position
+
+                ExpectingNumber ->
+                    "ExpectingNumber at " ++ position
+
+                ExpectingVariable ->
+                    "ExpectingVariable at " ++ position
+
+                ExpectingSymbol str ->
+                    "ExpectingSymbol " ++ str ++ " at " ++ position
+
+                ExpectingKeyword str ->
+                    "ExpectingKeyword " ++ str ++ "at " ++ position
+
+                ExpectingEnd ->
+                    "ExpectingEnd at " ++ position
+
+                UnexpectedChar ->
+                    "UnexpectedChar at " ++ position
+
+                Problem str ->
+                    "ProblemString " ++ str ++ " at " ++ position
+
+                BadRepeat ->
+                    "BadRepeat at " ++ position
+    in
+    List.foldl (++) "" (List.map deadEndToString deadEnds)
