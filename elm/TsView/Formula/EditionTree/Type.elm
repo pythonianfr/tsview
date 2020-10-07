@@ -34,7 +34,7 @@ type alias Forest a =
 
 
 type Arg
-    = Arg S.ExpType
+    = Arg String S.ExpType
 
 
 type OptArg
@@ -61,7 +61,7 @@ fromSpecOperator op =
     in
     Operator
         op.name
-        (List.map Arg op.args)
+        (List.map (\( k, v) -> Arg k v) op.args)
         optArgs
 
 
@@ -202,7 +202,7 @@ listTypes spec editionType =
         OptArgsT (OptArgs xs) ->
             NE.map OptArgT xs |> NE.toList
 
-        ArgT (Arg x) ->
+        ArgT (Arg _ x) ->
             [ probeArgSelector spec x ]
 
         OptArgT (OptArg _ x _) ->

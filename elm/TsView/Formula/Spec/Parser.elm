@@ -156,7 +156,7 @@ parseOperator ( name, rawArgs ) =
                 Left parsed.errors
 
         validArgs =
-            List.filter (Tuple.first >> (/=) "return") >> List.map Tuple.second
+            List.filter (Tuple.first >> (/=) "return")
 
         makeOperator parsed =
             Assoc.fromList parsed.args

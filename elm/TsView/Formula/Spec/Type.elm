@@ -51,7 +51,7 @@ type Value
 
 type alias Operator =
     { name : String
-    , args : List ExpType
+    , args : List (String, ExpType)
     , kargs : List ( String, ExpType, Value )
     , return : ExpType
     }

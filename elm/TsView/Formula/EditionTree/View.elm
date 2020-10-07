@@ -420,6 +420,12 @@ renderEditor { spec } ( node, zipper ) =
         ET.OptArgsT _ ->
             [ H.span [] [ H.text "Options" ] ]
 
+        ET.ArgT (ET.Arg _ (S.SList _)) ->
+            []
+
+        ET.ArgT (ET.Arg name _) ->
+            [ H.text " • ", H.span [] [ H.text name ] ]
+
         ET.OptArgT (ET.OptArg name _ _) ->
             [ H.text " • ", H.span [] [ H.text name ] ]
 
