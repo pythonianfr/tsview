@@ -189,7 +189,7 @@ testParsing =
         render input =
             specEither
                 |> Either.andThen (\spec -> parseFormula spec input)
-                |> Either.unpack identity renderString
+                |> Either.unpack (always "FAILED") renderString
     in
     List.map
         (\x ->
