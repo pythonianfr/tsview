@@ -50,7 +50,7 @@ renderOperator op =
     in
     List.concat
         [ List.singleton ( 1, op.name )
-        , renderSection "arguments:" S.strExpType op.args
+        , renderSection "arguments:" S.strExpType (List.map Tuple.second op.args)
         , renderSection "keyword_arguments:" rdrKArg op.kargs
         , List.singleton ( 2, "return: " ++ S.strExpType op.return )
         ]
