@@ -223,7 +223,7 @@ formulaTests =
             #:a 12)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
         #:k2 (timedelta
-            (today )
+            (today)
             #:years 5))
     (series "gaz.nl" #:fill "all" #:weight 3)
     (*

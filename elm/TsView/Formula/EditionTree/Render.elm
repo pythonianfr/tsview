@@ -1,5 +1,6 @@
 module TsView.Formula.EditionTree.Render exposing (renderString)
 
+import Bool.Extra as Bool
 import Either exposing (Either(..))
 import List.Nonempty as NE exposing (Nonempty)
 import Tree exposing (Tree)
@@ -100,11 +101,11 @@ renderTree indent tree =
     case n.editionType of
         ET.OperatorT (ET.Operator name _ _) ->
             let
-                prefix =
-                    "(" ++ name ++ " "
-
                 children =
                     renderChildren (indent + 1)
+
+                prefix =
+                    "(" ++ name ++ Bool.ifElse "" " " (List.isEmpty children)
             in
             if r.isBottom then
                 let
