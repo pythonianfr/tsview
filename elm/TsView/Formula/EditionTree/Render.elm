@@ -139,11 +139,8 @@ renderTree indent tree =
                 ( _, "nil" ) :: [] ->
                     []
 
-                ( _, x ) :: [] ->
-                    renderElement <| "#:" ++ name ++ " " ++ x
-
-                _ ->
-                    renderElement <| "Wrong OptArg rendering : " ++ name
+                ( _, x ) :: tail ->
+                    renderElement ("#:" ++ name ++ " " ++ x) ++ tail
 
         ET.ExpTypeT (S.ExpBaseType _) ->
             renderElement renderInput

@@ -102,6 +102,60 @@ jsonSpec =
         "Default[Union[Number, Timestamp]=None]"
       ]
     ]
+  ],
+  [
+    "timedelta",
+    [
+      [
+        "return",
+        "Timestamp"
+      ],
+      [
+        "date",
+        "Timestamp"
+      ],
+      [
+        "years",
+        "Default[int=0]"
+      ],
+      [
+        "months",
+        "Default[int=0]"
+      ],
+      [
+        "weeks",
+        "Default[int=0]"
+      ],
+      [
+        "days",
+        "Default[int=0]"
+      ],
+      [
+        "hours",
+        "Default[int=0]"
+      ],
+      [
+        "minutes",
+        "Default[int=0]"
+      ]
+    ]
+  ],
+  [
+    "today",
+    [
+      [
+        "return",
+        "Timestamp"
+      ],
+      [
+        "naive",
+        "Default[bool=False]"
+      ],
+      [
+        "tz",
+        "Default[str=None]"
+      ]
+    ]
   ]
 ]
 """
@@ -147,7 +201,7 @@ formulaTests =
         (* 10.3 (series "gaz.es"))
         (+ -1.7 (series "gaz.pt" #:weight .3) #:a 12)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
-        #:k2 "2020-01-24"
+        #:k2 (timedelta (today) #:years 5)
     )
     ( series "gaz.nl" #:weight 3. #:fill "all" )
     ( * 1.2 (series "gaz.fr" ) )
@@ -168,7 +222,9 @@ formulaTests =
             (series "gaz.pt" #:weight 0.3)
             #:a 12)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
-        #:k2 "2020-01-24")
+        #:k2 (timedelta
+            (today )
+            #:years 5))
     (series "gaz.nl" #:fill "all" #:weight 3)
     (*
         1.2
