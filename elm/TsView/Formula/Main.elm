@@ -115,6 +115,10 @@ view model =
         -- the plot div hates being set too dynamically so
         -- we put it on the toplevel and show/hide it depending
         -- on the tab
+        , case model.specerrors of
+              Nothing -> H.span [] []
+              Just errlist ->
+                  H.div [] <| List.map (\x -> H.span [] [ H.text x ]) <| NE.toList errlist
         , case model.tab of
               Editor -> H.div [ A.id "plot", A.style "display" "none" ] []
               Plot -> H.div [ A.id "plot" ] []
