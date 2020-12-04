@@ -148,6 +148,9 @@ parseArgument ( name, val ) parsed =
 parseOperator : RawOperator -> Either (List String) S.Operator
 parseOperator ( name, rawArgs ) =
     let
+        opPrefix =
+            "Erreur on operator " ++ name ++ " : "
+
         failOnErrors parsed =
             if List.isEmpty parsed.errors then
                 Right parsed
@@ -167,6 +170,7 @@ parseOperator ( name, rawArgs ) =
     List.foldr parseArgument (ParsedArguments [] [] []) rawArgs
         |> failOnErrors
         |> Either.andThen makeOperator
+        |> Either.mapLeft (List.map ((++) opPrefix))
 
 
 type alias ParsedSpec =
