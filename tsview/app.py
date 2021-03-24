@@ -1,6 +1,6 @@
 from flask import Flask
 
-from tshistory_rest.blueprint import blueprint as rest_blueprint
+from tshistory_rest.blueprint import httpapi
 
 from tsview.blueprint import tsview
 from tsview.history import historic
@@ -9,7 +9,7 @@ from tsview.history import historic
 def make_app(tsa):
     app = Flask('tsview')
     app.register_blueprint(
-        rest_blueprint(tsa),
+        httpapi(tsa),
         url_prefix='/api'
     )
     app.register_blueprint(
