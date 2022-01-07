@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 
 from tshistory import api
 from tshistory import schema
+from tshistory_formula import schema as fschema
 
 from tsview import app
 
@@ -22,8 +23,8 @@ def engine(request):
         'log_timezone': 'UTC'}
     )
     e = create_engine(DBURI)
-    sch = schema.tsschema()
-    sch.create(e)
+    schema.tsschema().create(e)
+    fschema.formula_schema().create(e)
     return e
 
 

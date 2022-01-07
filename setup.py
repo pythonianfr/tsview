@@ -62,7 +62,6 @@ setup(name='tsview',
           'dash-core-components==1.10.1',
           'dash-renderer==1.5.1',
           'dash-html-components==1.0.3',
-          'tshistory_rest',
           'tshistory_formula'
       ],
       package_data={'tsview': [
