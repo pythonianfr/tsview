@@ -39,7 +39,7 @@ doc = Path(__file__).parent / 'README.md'
 
 
 setup(name='tsview',
-      version='0.12.0',
+      version='0.13.0',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
