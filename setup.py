@@ -14,7 +14,7 @@ def compile_elm(edit_kind, src):
     src = WORKING_DIR / 'elm' / src
     out = STATIC_DIR / f'{edit_kind}_elm.js'
     cmd = f'elm make --optimize --output {out} {src}'
-    print(cmd, subprocess.call(cmd, shell=True))
+    subprocess.call(cmd, shell=True)
 
 
 class ElmBuild(build_ext):
@@ -25,14 +25,14 @@ class ElmBuild(build_ext):
                 ('delete', 'Delete.elm'),
                 ('rename', 'Rename.elm'),
                 ('plot', 'Plot.elm'),
-                ('formula', Path('TsView/Formula/Editor.elm')),
+                ('formula', Path('TsView/Formula/Main.elm')),
                 ('info', 'Info.elm'),
                 ('search', 'Search.elm'),
         ]:
             compile_elm(edit_kind, src)
         css = STATIC_DIR / 'pygmentize.css'
         cmd = f'pygmentize -S default -f html -a .highlight > {css}'
-        print(cmd, subprocess.call(cmd, shell=True))
+        subprocess.call(cmd, shell=True)
         super().run()
 
 
@@ -40,7 +40,7 @@ doc = Path(__file__).parent / 'README.md'
 
 
 setup(name='tsview',
-      version='0.13.0',
+      version='0.13.1',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
