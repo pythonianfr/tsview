@@ -26,6 +26,8 @@ class ElmBuild(build_ext):
                 ('rename', 'Rename.elm'),
                 ('plot', 'Plot.elm'),
                 ('formula', Path('TsView/Formula/Editor.elm')),
+                ('info', 'Info.elm'),
+                ('search', 'Search.elm'),
         ]:
             compile_elm(edit_kind, src)
         css = STATIC_DIR / 'pygmentize.css'
