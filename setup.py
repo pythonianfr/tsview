@@ -11,26 +11,25 @@ STATIC_DIR = WORKING_DIR / "tsview" / "tsview_static"
 
 def compile_elm(edit_kind, src):
     """Compile elm component to JS"""
-    src = WORKING_DIR / "elm" / src
-    out = STATIC_DIR / f"{edit_kind}_elm.js"
-    cmd = f"elm make --optimize --output {out} {src}"
+    src = WORKING_DIR / 'elm' / src
+    out = STATIC_DIR / f'{edit_kind}_elm.js'
+    cmd = f'elm make --optimize --output {out} {src}'
     print(cmd, subprocess.call(cmd, shell=True))
 
 
 class ElmBuild(build_ext):
-    """Build Elm components
-    """
+    """Build Elm components"""
 
     def run(self):
         for edit_kind, src in [
-            ("delete", "Delete.elm"),
-            ("rename", "Rename.elm"),
-            ("plot", "Plot.elm"),
-            ("formula", Path("TsView/Formula/Editor.elm")),
+                ('delete', 'Delete.elm'),
+                ('rename', 'Rename.elm'),
+                ('plot', 'Plot.elm'),
+                ('formula', Path('TsView/Formula/Editor.elm')),
         ]:
             compile_elm(edit_kind, src)
-        css = STATIC_DIR / "pygmentize.css"
-        cmd = f"pygmentize -S default -f html -a .highlight > {css}"
+        css = STATIC_DIR / 'pygmentize.css'
+        cmd = f'pygmentize -S default -f html -a .highlight > {css}'
         print(cmd, subprocess.call(cmd, shell=True))
         super().run()
 
