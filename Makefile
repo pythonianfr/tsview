@@ -21,11 +21,12 @@ search:
 plot:
 	elm make elm/Plot.elm $(FLAGS) --output tsview/tsview_static/plot_elm.js
 
-tsview/tsview_static/ace:
-	(cd tsview/tsview_static && curl -L -O $(ACE_URL)/$(ACE_TAR) && tar xzf $(ACE_TAR))
-	touch tsview/tsview_static/ace
+# now vendored in tsview_static
+# tsview/tsview_static/ace:
+# 	(cd tsview/tsview_static && curl -L -O $(ACE_URL)/$(ACE_TAR) && tar xzf $(ACE_TAR))
+# 	touch tsview/tsview_static/ace
 
-formula: tsview/tsview_static/ace
+formula:
 	elm make elm/TsView/Formula/Main.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
 
 pygmentize:
