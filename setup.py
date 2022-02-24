@@ -54,7 +54,7 @@ setup(name='tsview',
       zip_safe=False,
       install_requires=[
           'flask',
-          'werkzeug >= 1.0.0',
+          'werkzeug==1.0.1',
           'flask-caching',
           'pytest_sa_pg',
           'tshistory',
