@@ -126,6 +126,7 @@ getformula model  =
             UB.crossOrigin model.baseurl
                 [ "api", "series", "formula" ]
                 [ UB.string "name" model.name
+                , UB.int "display" 1
                 , UB.int "expanded" (if model.formula_expanded then 1 else 0)
                 ]
         }
