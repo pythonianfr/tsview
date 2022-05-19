@@ -74,6 +74,7 @@ type Msg
     = GotMeta (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
     | GotFormula (Result Http.Error String)
+    | HasCache (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
@@ -169,6 +170,18 @@ getcomponents model =
         , expect = Http.expectString Components
         }
 
+
+gethascache model =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "cache", "series-has-cache" ]
+              [ UB.string "name" model.name ]
+        , expect = Http.expectString HasCache
+        }
+
+
 getidates model =
     Http.get
         { url =
@@ -258,6 +271,7 @@ update msg model =
                     ( model
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
+                                , gethascache model
                                 ]
                     )
                 Err _ ->
@@ -267,6 +281,12 @@ update msg model =
                     )
 
         GotFormula (Err error) ->
+            doerr <| U.unwraperror error
+
+        HasCache (Ok rawhascache) ->
+            U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
+
+        HasCache (Err error) ->
             doerr <| U.unwraperror error
 
         CodeHighlight (Ok rawformula) ->
