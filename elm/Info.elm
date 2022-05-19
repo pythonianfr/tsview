@@ -55,6 +55,8 @@ type alias Model =
     , expanded_formula : Maybe String
     , formula_components : Maybe JT.Node
     , expanded_formula_components : Maybe JT.Node
+    -- cache
+    , has_cache : Bool
     -- log
     , log : List Logentry
     -- plot
@@ -740,6 +742,16 @@ viewcomponents model =
     else div [] []
 
 
+viewcache model =
+    if supervision model == "formula" then
+        div []
+            [ h2 [] [ (text "Cache") ]
+            , p [] [ text <| if model.has_cache then "Yes" else "No" ]
+            ]
+    else
+        div [] []
+
+
 viewerrors model =
     if List.length model.errors > 0 then
     div []
@@ -807,6 +819,7 @@ view model =
         , viewformula model
         , viewlog model
         , viewcomponents model
+        , viewcache model
         , viewplot model
         , viewerrors model
         ]
@@ -844,6 +857,8 @@ main =
                      Nothing
                      Nothing
                      Nothing
+                     -- cache
+                     False
                      -- log
                      []
                      -- plot
