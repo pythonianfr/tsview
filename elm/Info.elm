@@ -75,6 +75,8 @@ type Msg
     | GetPermissions (Result Http.Error String)
     | GotFormula (Result Http.Error String)
     | HasCache (Result Http.Error String)
+    | DeleteCache
+    | CacheDeleted (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
@@ -179,6 +181,23 @@ gethascache model =
               [ "api", "cache", "series-has-cache" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString HasCache
+        }
+
+
+deletecache model =
+    Http.request
+        { method = "DELETE"
+        , body = Http.jsonBody <| E.object
+                 [ ("name", E.string model.name ) ]
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "cache", "series-has-cache" ]
+              [ UB.string "name" model.name ]
+        , expect = Http.expectString CacheDeleted
         }
 
 
@@ -287,6 +306,19 @@ update msg model =
             U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
 
         HasCache (Err error) ->
+            doerr <| U.unwraperror error
+
+        DeleteCache ->
+            ( model
+            , deletecache model
+            )
+
+        CacheDeleted (Ok _) ->
+            ( model
+            , gethascache model
+            )
+
+        CacheDeleted (Err error) ->
             doerr <| U.unwraperror error
 
         CodeHighlight (Ok rawformula) ->
@@ -766,7 +798,12 @@ viewcache model =
     if supervision model == "formula" then
         div []
             [ h2 [] [ (text "Cache") ]
-            , p [] [ text <| if model.has_cache then "Yes" else "No" ]
+            , if model.has_cache
+              then ( button [ A.class "btn btn-danger"
+                            , A.attribute "type" "button"
+                            , A.title "This is an irreversible operation."
+                            , onClick DeleteCache ] [ text "delete" ] )
+              else ( p [] [ text "No" ] )
             ]
     else
         div [] []
