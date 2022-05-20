@@ -58,6 +58,7 @@ type alias Model =
     -- cache
     , has_cache : Bool
     , view_nocache : Bool
+    , policy : M.StdMetadata
     -- log
     , log : List Logentry
     -- plot
@@ -78,6 +79,7 @@ type Msg
     | HasCache (Result Http.Error String)
     | DeleteCache
     | CacheDeleted (Result Http.Error String)
+    | GotCachePolicy (Result Http.Error String)
     | ViewNocache
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
@@ -205,6 +207,17 @@ deletecache model =
               [ "api", "cache", "series-has-cache" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString CacheDeleted
+        }
+
+
+getcachepolicy model =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "cache", "series-policy" ]
+              [ UB.string "name" model.name ]
+        , expect = Http.expectString GotCachePolicy
         }
 
 
@@ -340,6 +353,16 @@ update msg model =
                 , getidates mod
                 ]
             )
+
+        GotCachePolicy (Ok rawpol) ->
+            case D.decodeString M.decodemeta rawpol of
+                Ok policy ->
+                    U.nocmd { model | policy = policy }
+                Err err ->
+                    doerr <| D.errorToString err
+
+        GotCachePolicy (Err error) ->
+            doerr <| U.unwraperror error
 
         -- code
 
@@ -818,6 +841,25 @@ viewcomponents model =
     else div [] []
 
 
+viewcachepolicy model =
+    let
+        names = ["name", "look_before", "look_after", "revdate_rule", "schedule_rule"]
+        fixval name val =
+            if name == "supervision_status" && val == ""
+            then "formula"
+            else val
+        elt name =
+            li [] [text (name
+                             ++ " → "
+                             ++ (dget name model.policy)
+                        )]
+    in
+    div [ ]
+    [ h2 [ ] [ text "Policy" ]
+    , ul [ A.class "highlight" ] <| List.map elt names
+    ]
+
+
 viewcache model =
     let
         hascache = span []
@@ -838,6 +880,9 @@ viewcache model =
                             , A.title "This is an irreversible operation."
                             , onClick DeleteCache ]
                          [ text "delete" ]
+                   , if Dict.isEmpty model.policy
+                     then span [] []
+                     else viewcachepolicy model
                    ]
     in
     if supervision model == "formula" then
@@ -960,6 +1005,7 @@ main =
                            -- cache
                            False
                            False
+                           Dict.empty
                            -- log
                            []
                            -- plot
@@ -976,6 +1022,7 @@ main =
                    [ M.getmetadata input.baseurl input.name GotMeta
                    , getplot model Nothing
                    , getwriteperms input.baseurl
+                   , getcachepolicy model
                    ]
                )
            sub model = Sub.none
