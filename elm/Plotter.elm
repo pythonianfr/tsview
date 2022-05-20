@@ -55,7 +55,7 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getplotdata baseurl name idate callback =
+getplotdata baseurl name idate callback nocache =
     let
         query = [ UB.string "name" name ]
         fullquery date =
@@ -67,6 +67,6 @@ getplotdata baseurl name idate callback =
     Http.get
         { url = UB.crossOrigin baseurl
               ["api", "series", "state"]
-              (fullquery idate)
+              ((fullquery idate) ++ [ UB.int "nocache" nocache])
         , expect = Http.expectString callback
         }

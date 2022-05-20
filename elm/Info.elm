@@ -57,6 +57,7 @@ type alias Model =
     , expanded_formula_components : Maybe JT.Node
     -- cache
     , has_cache : Bool
+    , view_nocache : Bool
     -- log
     , log : List Logentry
     -- plot
@@ -77,6 +78,7 @@ type Msg
     | HasCache (Result Http.Error String)
     | DeleteCache
     | CacheDeleted (Result Http.Error String)
+    | ViewNocache
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | GotLog (Result Http.Error String)
@@ -121,6 +123,11 @@ getwriteperms urlprefix =
         { expect = Http.expectString GetPermissions
         , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] []
         }
+
+
+getplot model idate =
+    getplotdata model.baseurl model.name idate GotPlotData <|
+        if model.view_nocache then 1 else 0
 
 
 getformula : Model -> Cmd Msg
@@ -207,7 +214,9 @@ getidates model =
               UB.crossOrigin
               model.baseurl
               [ "tsinfo", "idates" ]
-              [ UB.string "name" model.name ]
+              [ UB.string "name" model.name
+              , UB.int "nocache" <| if model.view_nocache then 1 else 0
+              ]
         , expect = Http.expectString InsertionDates
         }
 
@@ -302,6 +311,8 @@ update msg model =
         GotFormula (Err error) ->
             doerr <| U.unwraperror error
 
+        -- cache
+
         HasCache (Ok rawhascache) ->
             U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
 
@@ -314,12 +325,23 @@ update msg model =
             )
 
         CacheDeleted (Ok _) ->
-            ( model
+            ( { model | view_nocache = False }
             , gethascache model
             )
 
         CacheDeleted (Err error) ->
             doerr <| U.unwraperror error
+
+        ViewNocache ->
+            let mod = { model | view_nocache = not model.view_nocache } in
+            ( mod
+            , Cmd.batch
+                [ getplot mod Nothing
+                , getidates mod
+                ]
+            )
+
+        -- code
 
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -334,6 +356,8 @@ update msg model =
 
         CodeHighlight (Err error) ->
             doerr <| U.unwraperror error
+
+        -- components
 
         Components (Ok rawcomponents) ->
             case JT.parseString rawcomponents of
@@ -398,7 +422,7 @@ update msg model =
                 Nothing -> ( model, Cmd.none )
                 Just date ->
                     ( { model | date_index = index }
-                    , getplotdata model.baseurl model.name (Just date) GotPlotData
+                    , getplot model (Just date)
                     )
 
         -- user metadata edition
@@ -795,14 +819,32 @@ viewcomponents model =
 
 
 viewcache model =
+    let
+        hascache = span []
+                   [ button [ A.class "btn btn-primary"
+                            , A.attribute "type" "button"
+                            , onClick ViewNocache
+                            , A.title <| if model.view_nocache
+                                         then "currently cached"
+                                         else "currently uncached"
+                            ]
+                         [ text <| if model.view_nocache
+                                   then "view cached"
+                                   else "view uncached"
+                         ]
+                   , span [] [ text " " ]
+                   , button [ A.class "btn btn-danger"
+                            , A.attribute "type" "button"
+                            , A.title "This is an irreversible operation."
+                            , onClick DeleteCache ]
+                         [ text "delete" ]
+                   ]
+    in
     if supervision model == "formula" then
         div []
             [ h2 [] [ (text "Cache") ]
             , if model.has_cache
-              then ( button [ A.class "btn btn-danger"
-                            , A.attribute "type" "button"
-                            , A.title "This is an irreversible operation."
-                            , onClick DeleteCache ] [ text "delete" ] )
+              then hascache
               else ( p [] [ text "No" ] )
             ]
     else
@@ -897,41 +939,44 @@ main =
                    |> toDebouncer
 
            init input =
-               ( Model
-                     input.baseurl
-                     input.name
-                     -- metadata edition
-                     False
-                     False
-                     -- all errors
-                     []
-                     -- metadata
-                     Dict.empty
-                     Dict.empty
-                     -- formula
-                     False
-                     Nothing
-                     Nothing
-                     Nothing
-                     Nothing
-                     -- cache
-                     False
-                     -- log
-                     []
-                     -- plot
-                     Dict.empty
-                     Array.empty
-                     0
-                     debouncerconfig
-                     -- user meta edittion
-                     ("", "")
-                     Dict.empty
-               ,
-                   Cmd.batch
-                       [ M.getmetadata input.baseurl input.name GotMeta
-                       , getplotdata input.baseurl input.name Nothing GotPlotData
-                       , getwriteperms input.baseurl
-                       ]
+               let
+                   model = Model
+                           input.baseurl
+                           input.name
+                           -- metadata edition
+                           False
+                           False
+                           -- all errors
+                           []
+                           -- metadata
+                           Dict.empty
+                           Dict.empty
+                           -- formula
+                           False
+                           Nothing
+                           Nothing
+                           Nothing
+                           Nothing
+                           -- cache
+                           False
+                           False
+                           -- log
+                           []
+                           -- plot
+                           Dict.empty
+                           Array.empty
+                           0
+                           debouncerconfig
+                           -- user meta edittion
+                           ("", "")
+                           Dict.empty
+               in
+               ( model
+               , Cmd.batch
+                   [ M.getmetadata input.baseurl input.name GotMeta
+                   , getplot model Nothing
+                   , getwriteperms input.baseurl
+                   ]
                )
            sub model = Sub.none
        in
