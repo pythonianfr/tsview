@@ -348,7 +348,9 @@ update msg model =
 
         CacheDeleted (Ok _) ->
             ( { model | view_nocache = False }
-            , gethascache model
+            , Cmd.batch [ gethascache model
+                        , getplot model Nothing
+                        ]
             )
 
         CacheDeleted (Err error) ->
