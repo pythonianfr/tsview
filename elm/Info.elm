@@ -124,7 +124,7 @@ logdecoder =
 
 idatesdecoder : D.Decoder (List String)
 idatesdecoder =
-    D.list D.string
+    D.field "insertion_dates" (D.list D.string)
 
 
 getwriteperms urlprefix =
@@ -238,7 +238,7 @@ getidates model =
         { url =
               UB.crossOrigin
               model.baseurl
-              [ "tsinfo", "idates" ]
+              [ "api", "series", "insertion_dates" ]
               [ UB.string "name" model.name
               , UB.int "nocache" <| bool2int model.view_nocache
               ]
@@ -371,8 +371,8 @@ update msg model =
             let mod = { model | view_nocache = not model.view_nocache } in
             ( mod
             , Cmd.batch
-                [ getplot mod False
-                , getidates mod
+                [ getidates mod
+                , getplot mod False
                 ]
             )
 

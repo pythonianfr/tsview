@@ -219,27 +219,6 @@ def tsview(tsa,
             name=request.args.get('name')
         )
 
-    class idatesargs(_argsdict):
-        types = {
-            'name': str
-        }
-
-    @bp.route('/tsinfo/idates')
-    def idates():
-        # because {'insertion_dates: [...]}
-        # from the rest api, sucks ...
-        # flask_restplus bug ?
-        if not has_permission('viewseries'):
-            return 'Nothing to see there.'
-
-        args = idatesargs(request.args)
-        return json.dumps(
-            [
-                idate.isoformat()
-                for idate in tsa.insertion_dates(args.name)
-            ]
-        )
-
     @bp.route('/tsinfo/canwrite')
     def canwrite():
         return json.dumps(
