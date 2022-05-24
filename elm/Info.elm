@@ -884,11 +884,6 @@ viewcache model =
                                    else "view cached"
                          ]
                      ]
-                   , button [ A.class "btn btn-danger"
-                            , A.attribute "type" "button"
-                            , A.title "This is an irreversible operation."
-                            , onClick DeleteCache ]
-                         [ text "delete" ]
                    , if Dict.isEmpty model.policy
                      then span [] []
                      else viewcachepolicy model
@@ -896,7 +891,17 @@ viewcache model =
     in
     if supervision model == "formula" then
         div []
-            [ h2 [] [ (text "Cache") ]
+            [ h2 [] [ text "Cache"
+                    , span [ ] [ text " " ]
+                    , if model.has_cache then
+                          button [ A.class "btn btn-danger"
+                                 , A.attribute "type" "button"
+                                 , A.title "This is an irreversible operation."
+                                 , onClick DeleteCache ]
+                          [ text "delete" ]
+                      else
+                          span [] []
+                    ]
             , if model.has_cache
               then hascache
               else ( p [] [ text "No" ] )
