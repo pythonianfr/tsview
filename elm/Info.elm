@@ -59,6 +59,7 @@ type alias Model =
     , has_cache : Bool
     , view_nocache : Bool
     , policy : M.StdMetadata
+    , deleting_cache : Bool
     -- log
     , log : List Logentry
     -- plot
@@ -78,6 +79,8 @@ type Msg
     | GotFormula (Result Http.Error String)
     | HasCache (Result Http.Error String)
     | DeleteCache
+    | CacheCancelDeletion
+    | CacheConfirmDeletion
     | CacheDeleted (Result Http.Error String)
     | GotCachePolicy (Result Http.Error String)
     | ViewNocache
@@ -333,9 +336,15 @@ update msg model =
             doerr <| U.unwraperror error
 
         DeleteCache ->
-            ( model
+            U.nocmd { model | deleting_cache = True }
+
+        CacheConfirmDeletion ->
+            ( { model | deleting_cache = False }
             , deletecache model
             )
+
+        CacheCancelDeletion ->
+            U.nocmd { model | deleting_cache = False }
 
         CacheDeleted (Ok _) ->
             ( { model | view_nocache = False }
@@ -888,19 +897,35 @@ viewcache model =
                      then span [] []
                      else viewcachepolicy model
                    ]
+        deleteaction =
+            if model.has_cache then
+                if model.deleting_cache then
+                    span []
+                        [ button [ A.class "btn btn-danger"
+                                 , A.attribute "type" "button"
+                                 , onClick CacheConfirmDeletion ]
+                              [ text "confirm" ]
+                        , span [] [ text " " ]
+                        , button [ A.class "btn btn-warning"
+                                 , A.attribute "type" "button"
+                                 , onClick CacheCancelDeletion ]
+                              [ text "cancel" ]
+                        ]
+                else
+                    button [ A.class "btn btn-danger"
+                           , A.attribute "type" "button"
+                           , A.title "This is an irreversible operation."
+                           , onClick DeleteCache ]
+                    [ text "delete" ]
+            else
+                span [] []
+
     in
     if supervision model == "formula" then
         div []
             [ h2 [] [ text "Cache"
                     , span [ ] [ text " " ]
-                    , if model.has_cache then
-                          button [ A.class "btn btn-danger"
-                                 , A.attribute "type" "button"
-                                 , A.title "This is an irreversible operation."
-                                 , onClick DeleteCache ]
-                          [ text "delete" ]
-                      else
-                          span [] []
+                    , deleteaction
                     ]
             , if model.has_cache
               then hascache
@@ -1020,6 +1045,7 @@ main =
                            False
                            False
                            Dict.empty
+                           False
                            -- log
                            []
                            -- plot
