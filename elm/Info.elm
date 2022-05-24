@@ -881,32 +881,34 @@ viewcachepolicy model =
 
 viewcache model =
     let
-        hascache = span [ ]
-                   [ div [ A.class "custom-control custom-switch"
-                         , A.title <| if model.view_nocache
-                                      then "view cached"
-                                      else "view uncached"
-                         ]
-                     [ input
-                           [ A.attribute "type" "checkbox"
-                           , A.class "custom-control-input"
-                           , A.id "view-uncached"
-                           , A.checked <| not model.view_nocache
-                           , onClick ViewNocache
-                           ] [ ]
-                     , label
-                         [ A.class "custom-control-label"
-                         , A.for "view-uncached"
-                         ]
-                         [ text <| if model.view_nocache
-                                   then "view uncached"
-                                   else "view cached"
-                         ]
-                     ]
-                   , if Dict.isEmpty model.policy
-                     then span [ ] [ ]
-                     else viewcachepolicy model
-                   ]
+        cachecontrol =
+            span [ ]
+                [ div [ A.class "custom-control custom-switch"
+                      , A.title <| if model.view_nocache
+                                   then "view cached"
+                                   else "view uncached"
+                      ]
+                      [ input
+                            [ A.attribute "type" "checkbox"
+                            , A.class "custom-control-input"
+                            , A.id "view-uncached"
+                            , A.checked <| not model.view_nocache
+                            , onClick ViewNocache
+                            ] [ ]
+                      , label
+                            [ A.class "custom-control-label"
+                            , A.for "view-uncached"
+                            ]
+                            [ text <| if model.view_nocache
+                                      then "view uncached"
+                                      else "view cached"
+                            ]
+                      ]
+                , if Dict.isEmpty model.policy
+                  then span [ ] [ ]
+                  else viewcachepolicy model
+                ]
+
         deleteaction =
             if model.has_cache then
                 if model.deleting_cache then
@@ -938,7 +940,7 @@ viewcache model =
                     , deleteaction
                     ]
             , if model.has_cache
-              then hascache
+              then cachecontrol
               else ( p [ ] [ text "No" ] )
             ]
     else
