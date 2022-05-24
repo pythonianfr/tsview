@@ -130,7 +130,7 @@ idatesdecoder =
 getwriteperms urlprefix =
     Http.get
         { expect = Http.expectString GetPermissions
-        , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] []
+        , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] [ ]
         }
 
 
@@ -546,15 +546,15 @@ viewseealso model =
         editorlabel =
             if (supervision model) /= "formula" then "edit values" else "show values"
     in
-    div []
-        [ div [] [ span [] [ text " ⇒ " ]
+    div [ ]
+        [ div [ ] [ span [ ] [ text " ⇒ " ]
                , a [ A.href <| UB.crossOrigin
                          model.baseurl
-                         [ "tshistory", model.name ] []
+                         [ "tshistory", model.name ] [ ]
                    , A.target "_blank"
                    ] [ text "browse history" ]
                ]
-        , div [] [ span [] [ text " ⇒ " ]
+        , div [ ] [ span [ ] [ text " ⇒ " ]
                , a [ A.href <| UB.crossOrigin
                          model.baseurl
                          [ "tseditor" ]
@@ -563,7 +563,7 @@ viewseealso model =
                    ] [ text editorlabel ]
                ]
         , if (supervision model) == "formula" then
-              div [] [ span [] [ text " ⇒ " ]
+              div [ ] [ span [ ] [ text " ⇒ " ]
                    , a [ A.href <| UB.crossOrigin
                              model.baseurl
                              [ "tsformula" ]
@@ -571,7 +571,7 @@ viewseealso model =
                        , A.target "_blank"
                        ] [ text "edit formula" ]
                    ]
-          else span [] []
+          else span [ ] [ ]
         ]
 
 
@@ -595,29 +595,31 @@ viewformula model =
                 False -> model.formula
     in
     case maybeformula of
-        Nothing -> div [] []
+        Nothing -> div [ ] [ ]
         Just formula ->
-            div []
-                [ h2 [] [text "Formula"]
+            div [ ]
+                [ h2 [ ] [ text "Formula" ]
                 , div [ A.class "custom-control custom-switch"
-                      , A.title (if model.formula_expanded
-                                 then "unexpand the formula" else "expand the formula")
+                      , A.title <| if model.formula_expanded
+                                   then "unexpand the formula"
+                                   else "expand the formula"
                       ]
                      [ input
                            [ A.attribute "type" "checkbox"
                            , A.class "custom-control-input"
                            , A.id "expand-formula"
                            , onClick ToggleExpansion
-                           ] []
+                           ] [ ]
                      , label
                          [ A.class "custom-control-label"
                          , A.for "expand-formula"
                          ]
-                         [ text (if model.formula_expanded
-                                 then "expanded" else "unexpanded")
+                         [ text <| if model.formula_expanded
+                                   then "expanded"
+                                   else "unexpanded"
                          ]
                      ]
-                , span [] (U.tovirtualdom formula "could not parse the formula")
+                , span [ ] <| U.tovirtualdom formula "could not parse the formula"
                 ]
 
 
@@ -626,34 +628,33 @@ metadicttostring d =
         builditem ab =
             U.first ab |> (++) " → " |> (++) (M.metavaltostring <| U.snd ab)
     in
-    String.join "," (List.map builditem (Dict.toList d))
+    String.join "," <| List.map builditem (Dict.toList d)
 
 
 viewlogentry entry =
-    tr []
-        [ th [A.scope "row"] [text (String.fromInt entry.rev)]
-        , td [] [text entry.author]
-        , td [] [text entry.date]
-        , td [] [text (metadicttostring entry.meta)]
+    tr [ ]
+        [ th [ A.scope "row" ] [ text (String.fromInt entry.rev) ]
+        , td [ ] [ text entry.author ]
+        , td [ ] [ text entry.date ]
+        , td [ ] [ text <| metadicttostring entry.meta ]
         ]
 
 
 viewlog model =
     if List.length model.log > 0 then
-        div []
-            [ h2 [] [text "History Log"]
+        div [ ]
+            [ h2 [ ] [ text "History Log" ]
             , table [A.class "table table-striped table-hover table-sm"]
-                [ thead []
-                      [td [A.scope "col"] [text "#"]
-                      , td [A.scope "col"] [text "author"]
-                      , td [A.scope "col"] [text "date"]
-                      , td [A.scope "col"] [text "meta"]
+                [ thead [ ]
+                      [ td [ A.scope "col" ] [ text "#" ]
+                      , td [ A.scope "col" ] [ text "author" ]
+                      , td [ A.scope "col" ] [ text "date" ]
+                      , td [ A.scope "col" ] [ text "meta" ]
                       ]
-                , tbody []
-                    (List.map viewlogentry (List.reverse model.log))
+                , tbody [ ] <| List.map viewlogentry (List.reverse model.log)
                 ]
             ]
-    else div [] []
+    else div [ ] [ ]
 
 
 dget name metadict =
@@ -676,23 +677,23 @@ metatype val =
 
 viewmeta model =
     let
-        hidden = ["index_names", "index_type", "index_dtype", "value_dtype"]
+        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
         fixval name val =
             if name == "supervision_status" && val == ""
             then "formula"
             else val
         elt name =
-            li [] [text (name
-                             ++ " → "
-                             ++ (fixval name <| (dget name model.meta))
-                             ++ " ["
-                             ++ (metatype <| Dict.get name model.meta)
-                             ++ "]"
-                        )]
+            li [ ] [text <| name
+                        ++ " → "
+                        ++ (fixval name <| dget name model.meta)
+                        ++ " ["
+                        ++ (metatype <| Dict.get name model.meta)
+                        ++ "]"
+                   ]
     in
-    div []
-    [ h2 [] [text "Metadata"]
-    , ul [] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
+    div [ ]
+    [ h2 [ ] [text "Metadata"]
+    , ul [ ] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
     ]
 
 
@@ -705,20 +706,18 @@ viewusermetaheader model =
                     [ A.attribute "type" "button"
                     , A.class "btn btn-primary"
                     , onClick MetaEditAsked
-                    ]
-                    [text "edit"]
+                    ] [ text "edit" ]
                 else
                     button
                     [ A.attribute "type" "button"
                     , A.class "btn btn-warning"
                     , onClick MetaEditCancel
-                    ]
-                    [text "cancel"]
-            else span [] []
+                    ] [ text "cancel" ]
+            else span [ ] [ ]
     in
-        h2  []
+        h2  [ ]
             [ text "User Metadata"
-            , span [] [text " "]
+            , span [ ] [text " "]
             , editaction
             ]
 
@@ -727,22 +726,22 @@ viewusermeta model =
     if model.editing then editusermeta model else
     let
         elt (k, v) =
-            li [] [text <| k
-                       ++ " → "
-                       ++ (M.metavaltostring v)
-                       ++ " ["
-                       ++ (metatype <| Just v)
-                       ++ "]"
-                  ]
+            li [ ] [ text <| k
+                         ++ " → "
+                         ++ (M.metavaltostring v)
+                         ++ " ["
+                         ++ (metatype <| Just v)
+                         ++ "]"
+                   ]
     in
     if not <| Dict.isEmpty model.usermeta then
-        div []
+        div [ ]
             [ viewusermetaheader model
-            , ul [] (List.map elt (Dict.toList model.usermeta))
+            , ul [ ] <| List.map elt (Dict.toList model.usermeta)
             ]
     else
-        div []
-            [  viewusermetaheader model
+        div [ ]
+            [ viewusermetaheader model
             , text "No user-defined metadata yet."
             ]
 
@@ -757,7 +756,7 @@ editusermeta model =
                             , A.class "form-control"
                             , A.disabled True
                             , A.value key
-                            ] []
+                            ] [ ]
                       ]
                 , div [ A.class "col-6" ]
                     [ input [ A.attribute "type" "text"
@@ -765,15 +764,14 @@ editusermeta model =
                             , A.placeholder "value"
                             , A.value val
                             , onInput <| EditedValue key
-                            ] []
+                            ] [ ]
                     ]
                 , div [A.class "col" ]
                       [ button
                             [ A.attribute "type" "button"
                             , A.class "btn btn-warning"
                             , onClick (MetaItemToDelete key)
-                            ]
-                            [ text "delete" ]
+                            ] [ text "delete" ]
                       ]
                 ]
         addfields key val =
@@ -785,7 +783,7 @@ editusermeta model =
                             , A.placeholder "key"
                             , A.value key
                             , onInput NewKey
-                            ] []
+                            ] [ ]
                       ]
                 , div [ A.class "col-6" ]
                     [ input [ A.attribute "type" "text"
@@ -793,12 +791,12 @@ editusermeta model =
                             , A.placeholder "value"
                             , A.value <| val
                             , onInput NewValue
-                            ] []
+                            ] [ ]
                     ]
                 ]
         editfields ab = deletefields (U.first ab) (U.snd ab)
     in
-    div []
+    div [ ]
         [ viewusermetaheader model
         , form
               [ onSubmit SaveMeta ]
@@ -823,59 +821,57 @@ editusermeta model =
 viewcomponents model =
     let
         alink seriesname =
-            a [ A.href (UB.crossOrigin model.baseurl
-                            [ "tsinfo" ]
-                            [ UB.string "name" seriesname ]
-                       )
+            a [ A.href <| UB.crossOrigin model.baseurl
+                               [ "tsinfo" ]
+                               [ UB.string "name" seriesname ]
               ]
             [ text seriesname ]
 
         tuple2node tuple =
-            li [] [ alink (Tuple.first tuple)
-                  , span [] [ text " → " ]
+            li [ ] [ alink (Tuple.first tuple)
+                  , span [ ] [ text " → " ]
                   , node2html <| Tuple.second tuple
                   ]
 
         node2html node =
             case node.value of
-                JT.TString str -> li [] [ alink str ]
-                JT.TFloat num -> li [] [ text <|  String.fromFloat num ]
-                JT.TBool bool -> li [] [ text <| if bool then "True" else "False" ]
+                JT.TString str -> li [ ] [ alink str ]
+                JT.TFloat num -> li [ ] [ text <|  String.fromFloat num ]
+                JT.TBool bool -> li [ ] [ text <| if bool then "True" else "False" ]
                 JT.TList list -> ul [ A.class "square" ] <| List.map node2html list
                 JT.TDict dict ->
                     ul [ A.class "square" ] <| (Dict.toList dict |> List.map tuple2node)
-                JT.TNull -> span [] []
+                JT.TNull -> span [ ] [ ]
 
         components comp =
             case comp of
                 Nothing ->
-                    span [] [ text "" ]
+                    span [ ] [ text "" ]
                 Just node ->
                     node2html node
     in
     if supervision model == "formula" then
-        div []
-            [ h2 [] [(text "Components")]
-            , components (case model.formula_expanded of
-                              True -> model.expanded_formula_components
-                              False -> model.formula_components
-                         )
+        div [ ]
+            [ h2 [ ] [ text "Components" ]
+            , components <| case model.formula_expanded of
+                                True -> model.expanded_formula_components
+                                False -> model.formula_components
             ]
-    else div [] []
+    else div [ ] [ ]
 
 
 viewcachepolicy model =
     let
-        names = ["name", "look_before", "look_after", "revdate_rule", "schedule_rule"]
+        names = [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
         fixval name val =
             if name == "supervision_status" && val == ""
             then "formula"
             else val
         elt name =
-            li [] [text (name
-                             ++ " → "
-                             ++ (dget name model.policy)
-                        )]
+            li [ ] [text <| name
+                        ++ " → "
+                        ++ (dget name model.policy)
+                   ]
     in
     div [ ]
     [ h2 [ ] [ text "Policy" ]
@@ -885,7 +881,7 @@ viewcachepolicy model =
 
 viewcache model =
     let
-        hascache = span []
+        hascache = span [ ]
                    [ div [ A.class "custom-control custom-switch"
                          , A.title <| if model.view_nocache
                                       then "view cached"
@@ -897,7 +893,7 @@ viewcache model =
                            , A.id "view-uncached"
                            , A.checked <| not model.view_nocache
                            , onClick ViewNocache
-                           ] []
+                           ] [ ]
                      , label
                          [ A.class "custom-control-label"
                          , A.for "view-uncached"
@@ -908,18 +904,18 @@ viewcache model =
                          ]
                      ]
                    , if Dict.isEmpty model.policy
-                     then span [] []
+                     then span [ ] [ ]
                      else viewcachepolicy model
                    ]
         deleteaction =
             if model.has_cache then
                 if model.deleting_cache then
-                    span []
+                    span [ ]
                         [ button [ A.class "btn btn-danger"
                                  , A.attribute "type" "button"
                                  , onClick CacheConfirmDeletion ]
                               [ text "confirm" ]
-                        , span [] [ text " " ]
+                        , span [ ] [ text " " ]
                         , button [ A.class "btn btn-warning"
                                  , A.attribute "type" "button"
                                  , onClick CacheCancelDeletion ]
@@ -932,30 +928,30 @@ viewcache model =
                            , onClick DeleteCache ]
                     [ text "delete" ]
             else
-                span [] []
+                span [ ] [ ]
 
     in
     if supervision model == "formula" then
-        div []
-            [ h2 [] [ text "Cache"
+        div [ ]
+            [ h2 [ ] [ text "Cache"
                     , span [ ] [ text " " ]
                     , deleteaction
                     ]
             , if model.has_cache
               then hascache
-              else ( p [] [ text "No" ] )
+              else ( p [ ] [ text "No" ] )
             ]
     else
-        div [] []
+        div [ ] [ ]
 
 
 viewerrors model =
     if List.length model.errors > 0 then
-    div []
-        [ h2 [] [text "Errors"]
-        , div [] (List.map (\x -> p [] [text x]) model.errors)
+    div [ ]
+        [ h2 [ ] [ text "Errors" ]
+        , div [ ] <| List.map (\x -> p [ ] [ text x ]) model.errors
         ]
-    else span [] []
+    else span [ ] [ ]
 
 
 viewdatesrange model =
@@ -967,10 +963,10 @@ viewdatesrange model =
                 Just date -> date
     in
     if numidates < 2
-    then div [] []
+    then div [ ] [ ]
     else
         Html.map (provideInput >> DebounceChangedIdate) <|
-            div []
+            div [ ]
             [ input
                   [ A.attribute "type" "range"
                   , A.min "0"
@@ -979,7 +975,7 @@ viewdatesrange model =
                   , A.class "form-control-range"
                   , A.title currdate
                   , onInput ChangedIdate
-                  ] []
+                  ] [ ]
             ]
 
 
@@ -991,20 +987,20 @@ viewplot model =
                "lines"
         args = plotargs "plot" [plot]
     in
-    div []
-        [ h2 [] [ text "Plot" ]
+    div [ ]
+        [ h2 [ ] [ text "Plot" ]
         , viewdatesrange model
-        , div [ A.id "plot" ] []
+        , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
         -- (html component)
-        , node "plot-figure" [ A.attribute "args" args ] []
+        , node "plot-figure" [ A.attribute "args" args ] [ ]
         ]
 
 
 view : Model -> Html Msg
 view model =
     div [ A.style "margin" ".5em" ]
-        [ h1 []
+        [ h1 [ ]
               [ text "Series "
               , span
                     [ A.class "font-italic" ]
@@ -1045,7 +1041,7 @@ main =
                            False
                            False
                            -- all errors
-                           []
+                           [ ]
                            -- metadata
                            Dict.empty
                            Dict.empty
@@ -1061,7 +1057,7 @@ main =
                            Dict.empty
                            False
                            -- log
-                           []
+                           [ ]
                            -- plot
                            Dict.empty
                            Array.empty
