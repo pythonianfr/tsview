@@ -198,8 +198,7 @@ def tsview(tsa,
         # and for all sources ...
         # for now we are single source only
 
-        return tsa.tsh.eval_formula(
-            tsa.engine,
+        return tsa.eval_formula(
             request.args['formula']
         ).to_json(
             orient='index',
