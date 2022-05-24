@@ -104,6 +104,10 @@ type Msg
     | MetaSaved (Result Http.Error String)
 
 
+bool2int b =
+    if b then 1 else 0
+
+
 logentrydecoder : D.Decoder Logentry
 logentrydecoder =
     D.map4 Logentry
@@ -137,7 +141,7 @@ getplot model atidate =
     in
         getplotdata model.baseurl model.name
             (if atidate then idate else Nothing)
-            GotPlotData <| if model.view_nocache then 1 else 0
+            GotPlotData <| bool2int model.view_nocache
 
 
 getformula : Model -> Cmd Msg
@@ -149,7 +153,7 @@ getformula model  =
                 [ "api", "series", "formula" ]
                 [ UB.string "name" model.name
                 , UB.int "display" 1
-                , UB.int "expanded" (if model.formula_expanded then 1 else 0)
+                , UB.int "expanded" <| bool2int model.formula_expanded
                 ]
         }
 
@@ -184,7 +188,7 @@ getcomponents model =
               model.baseurl
               [ "api", "series", "formula_components" ]
               [ UB.string "name" model.name
-              , UB.int "expanded" (if model.formula_expanded then 1 else 0)
+              , UB.int "expanded" <| bool2int model.formula_expanded
               ]
         , expect = Http.expectString Components
         }
@@ -236,7 +240,7 @@ getidates model =
               model.baseurl
               [ "tsinfo", "idates" ]
               [ UB.string "name" model.name
-              , UB.int "nocache" <| if model.view_nocache then 1 else 0
+              , UB.int "nocache" <| bool2int model.view_nocache
               ]
         , expect = Http.expectString InsertionDates
         }
