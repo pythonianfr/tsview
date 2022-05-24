@@ -911,15 +911,15 @@ viewcache model =
             if model.has_cache then
                 if model.deleting_cache then
                     span [ ]
-                        [ button [ A.class "btn btn-danger"
-                                 , A.attribute "type" "button"
-                                 , onClick CacheConfirmDeletion ]
-                              [ text "confirm" ]
-                        , span [ ] [ text " " ]
-                        , button [ A.class "btn btn-warning"
+                        [ button [ A.class "btn btn-warning"
                                  , A.attribute "type" "button"
                                  , onClick CacheCancelDeletion ]
                               [ text "cancel" ]
+                        , span [ ] [ text " " ]
+                        , button [ A.class "btn btn-danger"
+                                 , A.attribute "type" "button"
+                                 , onClick CacheConfirmDeletion ]
+                              [ text "confirm" ]
                         ]
                 else
                     button [ A.class "btn btn-danger"
