@@ -863,18 +863,27 @@ viewcachepolicy model =
 viewcache model =
     let
         hascache = span []
-                   [ button [ A.class "btn btn-primary"
-                            , A.attribute "type" "button"
-                            , onClick ViewNocache
-                            , A.title <| if model.view_nocache
-                                         then "currently cached"
-                                         else "currently uncached"
-                            ]
-                         [ text <| if model.view_nocache
-                                   then "view cached"
-                                   else "view uncached"
+                   [ div [ A.class "custom-control custom-switch"
+                         , A.title <| if model.view_nocache
+                                      then "view cached"
+                                      else "view uncached"
                          ]
-                   , span [] [ text " " ]
+                     [ input
+                           [ A.attribute "type" "checkbox"
+                           , A.class "custom-control-input"
+                           , A.id "view-uncached"
+                           , A.checked <| not model.view_nocache
+                           , onClick ViewNocache
+                           ] []
+                     , label
+                         [ A.class "custom-control-label"
+                         , A.for "view-uncached"
+                         ]
+                         [ text <| if model.view_nocache
+                                   then "view uncached"
+                                   else "view cached"
+                         ]
+                     ]
                    , button [ A.class "btn btn-danger"
                             , A.attribute "type" "button"
                             , A.title "This is an irreversible operation."
