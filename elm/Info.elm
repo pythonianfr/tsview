@@ -130,9 +130,14 @@ getwriteperms urlprefix =
         }
 
 
-getplot model idate =
-    getplotdata model.baseurl model.name idate GotPlotData <|
-        if model.view_nocache then 1 else 0
+getplot model atidate =
+    let
+        idate =
+            Array.get model.date_index model.insertion_dates
+    in
+        getplotdata model.baseurl model.name
+            (if atidate then idate else Nothing)
+            GotPlotData <| if model.view_nocache then 1 else 0
 
 
 getformula : Model -> Cmd Msg
@@ -347,9 +352,11 @@ update msg model =
             U.nocmd { model | deleting_cache = False }
 
         CacheDeleted (Ok _) ->
-            ( { model | view_nocache = False }
-            , Cmd.batch [ gethascache model
-                        , getplot model Nothing
+            let newmodel = { model | view_nocache = False } in
+            ( newmodel
+            , Cmd.batch [ gethascache newmodel
+                        , getplot newmodel False
+                        , getidates newmodel
                         ]
             )
 
@@ -360,7 +367,7 @@ update msg model =
             let mod = { model | view_nocache = not model.view_nocache } in
             ( mod
             , Cmd.batch
-                [ getplot mod Nothing
+                [ getplot mod False
                 , getidates mod
                 ]
             )
@@ -451,12 +458,13 @@ update msg model =
                 index = Maybe.withDefault
                        model.date_index -- keep current
                        (String.toInt strindex)
+                newmodel = { model | date_index = index }
             in
             case Array.get index model.insertion_dates of
                 Nothing -> ( model, Cmd.none )
                 Just date ->
-                    ( { model | date_index = index }
-                    , getplot model (Just date)
+                    ( newmodel
+                    , getplot newmodel True
                     )
 
         -- user metadata edition
@@ -1062,7 +1070,7 @@ main =
                ( model
                , Cmd.batch
                    [ M.getmetadata input.baseurl input.name GotMeta
-                   , getplot model Nothing
+                   , getplot model False
                    , getwriteperms input.baseurl
                    , getcachepolicy model
                    ]
