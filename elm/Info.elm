@@ -882,31 +882,36 @@ viewcachepolicy model =
     ]
 
 
+viewtogglecached model =
+    div
+    [ A.class "custom-control custom-switch"
+    , A.title <| if model.view_nocache
+                 then "view cached"
+                 else "view uncached"
+    ]
+    [ input
+          [ A.attribute "type" "checkbox"
+          , A.class "custom-control-input"
+          , A.id "view-uncached"
+          , A.checked <| not model.view_nocache
+          , onClick ViewNocache
+          ] [ ]
+    , label
+          [ A.class "custom-control-label"
+          , A.for "view-uncached"
+          ]
+          [ text <| if model.view_nocache
+                    then "view uncached"
+                    else "view cached"
+          ]
+    ]
+
+
 viewcache model =
     let
         cachecontrol =
             span [ ]
-                [ div [ A.class "custom-control custom-switch"
-                      , A.title <| if model.view_nocache
-                                   then "view cached"
-                                   else "view uncached"
-                      ]
-                      [ input
-                            [ A.attribute "type" "checkbox"
-                            , A.class "custom-control-input"
-                            , A.id "view-uncached"
-                            , A.checked <| not model.view_nocache
-                            , onClick ViewNocache
-                            ] [ ]
-                      , label
-                            [ A.class "custom-control-label"
-                            , A.for "view-uncached"
-                            ]
-                            [ text <| if model.view_nocache
-                                      then "view uncached"
-                                      else "view cached"
-                            ]
-                      ]
+                [ viewtogglecached model
                 , if List.length model.log > 0
                   then viewlog model False
                   else span [ ] [ ]
