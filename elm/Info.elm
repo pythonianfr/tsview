@@ -362,6 +362,7 @@ update msg model =
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel False
                         , getidates newmodel
+                        , getlog model.baseurl model.name
                         ]
             )
 
