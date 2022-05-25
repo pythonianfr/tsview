@@ -911,13 +911,13 @@ viewcache model =
     let
         cachecontrol =
             span [ ]
-                [ viewtogglecached model
-                , if List.length model.log > 0
+                [ if List.length model.log > 0
                   then viewlog model False
                   else span [ ] [ ]
                 , if Dict.isEmpty model.policy
                   then span [ ] [ ]
                   else viewcachepolicy model
+                , viewtogglecached model
                 ]
 
         deleteaction =
