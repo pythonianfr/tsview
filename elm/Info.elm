@@ -78,8 +78,10 @@ type Msg
     | GetPermissions (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
+    -- idates
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
+    | PickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
@@ -108,6 +110,19 @@ type Msg
 
 bool2int b =
     if b then 1 else 0
+
+
+cleanupdate date =
+    -- html dates are not really ISO compliant
+    -- hence we have to remove a few bits to make them work
+    -- in some widgets
+    case String.split "+" date of
+        head::_ ->
+            case String.split "." head of
+                newhead::_ ->
+                    newhead
+                [] -> ""
+        [] -> ""
 
 
 logentrydecoder : D.Decoder Logentry
@@ -474,6 +489,15 @@ update msg model =
                     ( newmodel
                     , getplot newmodel True
                     )
+
+        PickerChanged value ->
+            let
+                comparedates d1 d2 =
+                    d1 > d2
+                newarray =  Array.filter (comparedates value) <|
+                            Array.map cleanupdate model.insertion_dates
+                newindex = max 0 <| Array.length newarray - 1
+            in U.nocmd { model | date_index = newindex }
 
         -- user metadata edition
 
@@ -970,19 +994,6 @@ viewerrors model =
     else span [ ] [ ]
 
 
-cleanupdate date =
-    -- html dates are not really ISO compliant
-    -- hence we have to remove a few bits to make them work
-    -- in some widgets
-    case String.split "+" date of
-        head::_ ->
-            case String.split "." head of
-                newhead::_ ->
-                    newhead
-                [] -> ""
-        [] -> ""
-
-
 viewidatepicker model =
     let
         currdate =
@@ -991,11 +1002,13 @@ viewidatepicker model =
                 Just date -> cleanupdate date
     in div
         [ ]
-        [ label [ A.for "idate-picker" ] [ text "revision date " ]
+        [ label [ A.for "idate-picker" ] [ text "revision date" ]
+        , span [ ] [ text " " ]
         , input [ A.type_ "datetime-local"
                 , A.id "idate-picker"
                 , A.name "idate-picker"
                 , A.value currdate
+                , onInput PickerChanged
                 ] [ ]
         ]
 
