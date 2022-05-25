@@ -65,6 +65,8 @@ type alias Model =
     -- plot
     , plotdata : Series
     , insertion_dates : Array String
+    , mindate : String
+    , maxdate : String
     , date_index : Int
     , date_index_deb : Debouncer Msg
     -- user meta edition
@@ -328,7 +330,19 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    U.nocmd { model | plotdata = val }
+                    let
+                        dates = Dict.keys val
+                        minappdate =
+                            case dates of
+                                head::_ -> cleanupdate head
+                                []  -> ""
+                        maxappdate = cleanupdate <| Maybe.withDefault "" <| List.maximum dates
+                    in
+                    U.nocmd { model
+                                | plotdata = val
+                                , mindate = minappdate
+                                , maxdate = maxappdate
+                            }
                 Err err ->
                     doerr <| D.errorToString err
 
@@ -1010,6 +1024,22 @@ viewidatepicker model =
                 , A.value currdate
                 , onInput PickerChanged
                 ] [ ]
+        , span [ ] [ text " " ]
+        , label [ A.for "fvd-picker" ] [ text "from value date" ]
+        , span [ ] [ text " " ]
+        , input [ A.type_ "datetime-local"
+                , A.id "fvd-picker"
+                , A.name "fvd-picker"
+                , A.value model.mindate
+                ] [ ]
+        , span [ ] [ text " " ]
+        , label [ A.for "tvd-picker" ] [ text "to value date" ]
+        , span [ ] [ text " " ]
+        , input [ A.type_ "datetime-local"
+                , A.id "tvd-picker"
+                , A.name "tvd-picker"
+                , A.value model.maxdate
+                ] [ ]
         ]
 
 
@@ -1123,6 +1153,8 @@ main =
                            -- plot
                            Dict.empty
                            Array.empty
+                           ""
+                           ""
                            0
                            debouncerconfig
                            -- user meta edittion
