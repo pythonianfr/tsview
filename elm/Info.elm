@@ -325,6 +325,7 @@ update msg model =
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
                                 , gethascache model
+                                , getlog model.baseurl model.name
                                 ]
                     )
                 Err _ ->
@@ -640,10 +641,12 @@ viewlogentry entry =
         ]
 
 
-viewlog model =
+viewlog model showtitle =
     if List.length model.log > 0 then
         div [ ]
-            [ h2 [ ] [ text "History Log" ]
+            [ if showtitle
+              then h2 [ ] [ text "History Log" ]
+              else span [] []
             , table [A.class "table table-striped table-hover table-sm"]
                 [ thead [ ]
                       [ td [ A.scope "col" ] [ text "#" ]
@@ -904,6 +907,9 @@ viewcache model =
                                       else "view cached"
                             ]
                       ]
+                , if List.length model.log > 0
+                  then viewlog model False
+                  else span [ ] [ ]
                 , if Dict.isEmpty model.policy
                   then span [ ] [ ]
                   else viewcachepolicy model
@@ -1012,7 +1018,9 @@ view model =
         , viewmeta model
         , viewusermeta model
         , viewformula model
-        , viewlog model
+        , case model.formula of
+              Nothing -> viewlog model True
+              Just _ -> span [] []
         , viewcomponents model
         , viewcache model
         , viewplot model
