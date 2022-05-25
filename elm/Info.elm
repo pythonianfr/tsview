@@ -80,10 +80,12 @@ type Msg
     | GetPermissions (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
-    -- idates
+    -- dates
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
-    | PickerChanged String
+    | IdatePickerChanged String
+    | FvdatePickerChanged String
+    | TvdatePickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
@@ -127,6 +129,13 @@ cleanupdate date =
         [] -> ""
 
 
+dateof strdate =
+    case String.split "T" strdate of
+        head::_ ->
+            head
+        [] -> ""
+
+
 logentrydecoder : D.Decoder Logentry
 logentrydecoder =
     D.map4 Logentry
@@ -160,7 +169,10 @@ getplot model atidate =
     in
         getplotdata model.baseurl model.name
             (if atidate then idate else Nothing)
-            GotPlotData <| bool2int model.view_nocache
+            GotPlotData
+            (bool2int model.view_nocache)
+            model.mindate
+            model.maxdate
 
 
 getformula : Model -> Cmd Msg
@@ -340,8 +352,8 @@ update msg model =
                     in
                     U.nocmd { model
                                 | plotdata = val
-                                , mindate = minappdate
-                                , maxdate = maxappdate
+                                , mindate = dateof minappdate
+                                , maxdate = dateof maxappdate
                             }
                 Err err ->
                     doerr <| D.errorToString err
@@ -504,7 +516,7 @@ update msg model =
                     , getplot newmodel True
                     )
 
-        PickerChanged value ->
+        IdatePickerChanged value ->
             let
                 comparedates d1 d2 =
                     d1 > d2
@@ -512,6 +524,22 @@ update msg model =
                             Array.map cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
             in U.nocmd { model | date_index = newindex }
+
+        FvdatePickerChanged value ->
+            let
+                newmodel = { model | mindate = value }
+            in
+                ( newmodel
+                , getplot newmodel True
+                )
+
+        TvdatePickerChanged value ->
+            let
+                newmodel = { model | maxdate = value }
+            in
+                ( newmodel
+                , getplot newmodel True
+                )
 
         -- user metadata edition
 
@@ -1022,23 +1050,25 @@ viewidatepicker model =
                 , A.id "idate-picker"
                 , A.name "idate-picker"
                 , A.value currdate
-                , onInput PickerChanged
+                , onInput IdatePickerChanged
                 ] [ ]
         , span [ ] [ text " " ]
         , label [ A.for "fvd-picker" ] [ text "from value date" ]
         , span [ ] [ text " " ]
-        , input [ A.type_ "datetime-local"
+        , input [ A.type_ "date"
                 , A.id "fvd-picker"
                 , A.name "fvd-picker"
                 , A.value model.mindate
+                , onInput FvdatePickerChanged
                 ] [ ]
         , span [ ] [ text " " ]
         , label [ A.for "tvd-picker" ] [ text "to value date" ]
         , span [ ] [ text " " ]
-        , input [ A.type_ "datetime-local"
+        , input [ A.type_ "date"
                 , A.id "tvd-picker"
                 , A.name "tvd-picker"
                 , A.value model.maxdate
+                , onInput TvdatePickerChanged
                 ] [ ]
         ]
 
