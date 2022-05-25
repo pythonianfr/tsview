@@ -970,6 +970,36 @@ viewerrors model =
     else span [ ] [ ]
 
 
+cleanupdate date =
+    -- html dates are not really ISO compliant
+    -- hence we have to remove a few bits to make them work
+    -- in some widgets
+    case String.split "+" date of
+        head::_ ->
+            case String.split "." head of
+                newhead::_ ->
+                    newhead
+                [] -> ""
+        [] -> ""
+
+
+viewidatepicker model =
+    let
+        currdate =
+            case Array.get model.date_index model.insertion_dates of
+                Nothing -> ""
+                Just date -> cleanupdate date
+    in div
+        [ ]
+        [ label [ A.for "idate-picker" ] [ text "revision date " ]
+        , input [ A.type_ "datetime-local"
+                , A.id "idate-picker"
+                , A.name "idate-picker"
+                , A.value currdate
+                ] [ ]
+        ]
+
+
 viewdatesrange model =
     let
         numidates = Array.length model.insertion_dates
@@ -1005,6 +1035,7 @@ viewplot model =
     in
     div [ ]
         [ h2 [ ] [ text "Plot" ]
+        , viewidatepicker model
         , viewdatesrange model
         , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
