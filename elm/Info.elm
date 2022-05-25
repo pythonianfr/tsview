@@ -76,7 +76,17 @@ type alias Model =
 type Msg
     = GotMeta (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
+    | GotLog (Result Http.Error String)
+    | GotPlotData (Result Http.Error String)
+    | ChangedIdate String
+    | DebounceChangedIdate (Debouncer.Msg Msg)
+    -- formula
     | GotFormula (Result Http.Error String)
+    | CodeHighlight (Result Http.Error String)
+    | Components (Result Http.Error String)
+    | InsertionDates (Result Http.Error String)
+    | ToggleExpansion
+    -- cache
     | HasCache (Result Http.Error String)
     | DeleteCache
     | CacheCancelDeletion
@@ -84,14 +94,6 @@ type Msg
     | CacheDeleted (Result Http.Error String)
     | GotCachePolicy (Result Http.Error String)
     | ViewNocache
-    | CodeHighlight (Result Http.Error String)
-    | Components (Result Http.Error String)
-    | GotLog (Result Http.Error String)
-    | GotPlotData (Result Http.Error String)
-    | InsertionDates (Result Http.Error String)
-    | ToggleExpansion
-    | ChangedIdate String
-    | DebounceChangedIdate (Debouncer.Msg Msg)
     -- metadata edition
     | MetaEditAsked
     | MetaEditCancel
