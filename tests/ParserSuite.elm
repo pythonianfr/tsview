@@ -56,10 +56,6 @@ jsonSpec =
         "Union[Number, Series]"
       ],
       [
-        "a",
-        "Default[int=None]"
-      ],
-      [
         "flag",
         "Default[bool=False]"
       ]
@@ -164,7 +160,7 @@ jsonSpec =
 formulaTests : List T
 formulaTests =
     [ T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
-    , T "+ series OK" "( +   2  (+ 1 6) #:flag #t )" """
+    , T "+ series OK" "( + 2   #:flag #t  #:b (+ 1 6))" """
 (+
     2
     (+ 1 6)
@@ -173,24 +169,24 @@ formulaTests =
     , T "+ too many args" "(+ 3 4 5)" "FAILED"
     , T "@ unsupported op" "(@ 3 4)" "FAILED"
     , T "+ wrong args" "(+ ab 4)" "FAILED"
-    , T "* Right" "(* -9.26e-08 (+ 9.259e-02 -109))" """
+    , T "* Right" "(* -9.26e-08 #:b (+ 9.259e-02 -109))" """
 (*
     -9.26e-8
     (+ 0.09259 -109))
 """
     , T "priority OK" "( priority  4 3  6 7 )" "(priority 4 3 6 7)"
     , T "priority series OK" """
-( priority  (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:a 8))
+( priority  (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:flag #t))
 """ """
 (priority
     (* 4 9)
     (*
         3
         (+ 2 6))
-    (+ 7 1 #:a 8))
+    (+ 7 1 #:flag #t))
 """
-    , T "#a:7 OK" "(+  3 4  #:a  7)" "(+ 3 4 #:a 7)"
-    , T "#a duplicated" "(+  3 4  #:a  7 #:a 5)" "FAILED"
+    , T "#flag #t OK" "(+  #:b 4 #:a 3  #:flag  #t)" "(+ 3 4 #:flag #t)"
+    , T "#flag duplicated" "(+  3 4  #:flag  #t #:flag #f)" "FAILED"
     , T "#k1, k2 OK" " (priority  3  4 10  #:k2  7.3 #:k1  \"x\" )" """
 (priority 3 4 10 #:k1 "x" #:k2 7.3)
 """
@@ -199,13 +195,13 @@ formulaTests =
     (+  3 (series "a.b" #:weight 3.5 )  )
     (priority
         (* 10.3 (series "gaz.es"))
-        (+ -1.7 (series "gaz.pt" #:weight .3) #:a 12)
+        (+ -1.7 (series "gaz.pt" #:weight .3) #:flag  #t)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
         #:k2 (timedelta (today) #:years 5)
     )
     ( series "gaz.nl" #:weight 3. #:fill "all" )
-    ( * 1.2 (series "gaz.fr" ) )
-    (series "gaz.de"  #:fill  79 )
+    ( * 1.2 (series #:name  "gaz.fr" ) )
+    (series  #:fill  79 #:name  "gaz.de" )
     #:k1 4.7
 )
     """ """
@@ -220,7 +216,7 @@ formulaTests =
         (+
             -1.7
             (series "gaz.pt" #:weight 0.3)
-            #:a 12)
+            #:flag #t)
         (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
         #:k2 (timedelta
             (today)

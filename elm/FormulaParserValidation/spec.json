@@ -3,24 +3,24 @@
     "series",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "name",
-        "str"
+        "seriesname"
       ],
       [
         "fill",
-        "Optional[Union[str, Number]]"
+        "Default[Union[str, Number]=None]"
       ],
       [
-        "prune",
-        "Optional[int]"
+        "limit",
+        "Default[int=None]"
       ],
       [
         "weight",
-        "Optional[Number]"
-      ],
-      [
-        "return",
-        "Series"
+        "Default[Number=None]"
       ]
     ]
   ],
@@ -28,15 +28,15 @@
     "*",
     [
       [
-        "a",
-        "Number"
-      ],
-      [
-        "b",
+        "return",
         "Union[Number, Series]"
       ],
       [
-        "return",
+        "num",
+        "Number"
+      ],
+      [
+        "num_or_series",
         "Union[Number, Series]"
       ]
     ]
@@ -45,15 +45,15 @@
     "+",
     [
       [
-        "a",
-        "Number"
-      ],
-      [
-        "b",
+        "return",
         "Union[Number, Series]"
       ],
       [
-        "return",
+        "num",
+        "Number"
+      ],
+      [
+        "num_or_series",
         "Union[Number, Series]"
       ]
     ]
@@ -62,16 +62,16 @@
     "/",
     [
       [
-        "a",
-        "Union[Number, Series]"
-      ],
-      [
-        "b",
-        "Number"
-      ],
-      [
         "return",
         "Union[Number, Series]"
+      ],
+      [
+        "num_or_series",
+        "Union[Number, Series]"
+      ],
+      [
+        "num",
+        "Number"
       ]
     ]
   ],
@@ -79,11 +79,28 @@
     "add",
     [
       [
-        "serieslist",
-        "List[Series]"
+        "return",
+        "Series"
       ],
       [
+        "serieslist",
+        "List[Series]"
+      ]
+    ]
+  ],
+  [
+    "asof",
+    [
+      [
         "return",
+        "Series"
+      ],
+      [
+        "revision_date",
+        "Timestamp"
+      ],
+      [
+        "series",
         "Series"
       ]
     ]
@@ -92,40 +109,69 @@
     "clip",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "series",
         "Series"
       ],
       [
         "min",
-        "Optional[Number]"
+        "Default[Number=None]"
       ],
       [
         "max",
-        "Optional[Number]"
+        "Default[Number=None]"
       ],
       [
-        "return",
-        "Series"
+        "replacemin",
+        "Default[bool=False]"
+      ],
+      [
+        "replacemax",
+        "Default[bool=False]"
       ]
     ]
   ],
   [
-    "cronos",
+    "constant",
     [
       [
-        "uid",
+        "return",
+        "Series"
+      ],
+      [
+        "value",
+        "Number"
+      ],
+      [
+        "fromdate",
+        "Timestamp"
+      ],
+      [
+        "todate",
+        "Timestamp"
+      ],
+      [
+        "freq",
         "str"
       ],
       [
-        "default_start",
+        "revdate",
         "Timestamp"
-      ],
-      [
-        "default_end",
-        "Timestamp"
-      ],
+      ]
+    ]
+  ],
+  [
+    "cumsum",
+    [
       [
         "return",
+        "Series"
+      ],
+      [
+        "series",
         "Series"
       ]
     ]
@@ -134,20 +180,16 @@
     "date",
     [
       [
+        "return",
+        "Timestamp"
+      ],
+      [
         "strdate",
         "str"
       ],
       [
-        "naive",
-        "bool"
-      ],
-      [
         "tz",
-        "Optional[str]"
-      ],
-      [
-        "return",
-        "Timestamp"
+        "Default[str=\"UTC\"]"
       ]
     ]
   ],
@@ -155,50 +197,29 @@
     "div",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "s1",
         "Series"
       ],
       [
         "s2",
         "Series"
-      ],
-      [
-        "return",
-        "Series"
       ]
     ]
   ],
   [
-    "holidays",
+    "end-of-month",
     [
       [
-        "country",
-        "str"
-      ],
-      [
-        "naive",
-        "Optional[bool]"
-      ],
-      [
         "return",
-        "Series"
-      ]
-    ]
-  ],
-  [
-    "integration",
-    [
-      [
-        "stock_name",
-        "str"
+        "Timestamp"
       ],
       [
-        "flow_name",
-        "str"
-      ],
-      [
-        "return",
-        "Series"
+        "date",
+        "Timestamp"
       ]
     ]
   ],
@@ -206,41 +227,12 @@
     "max",
     [
       [
-        "serieslist",
-        "List[Series]"
-      ],
-      [
         "return",
-        "Series"
-      ]
-    ]
-  ],
-  [
-    "meteo",
-    [
-      [
-        "uid",
-        "str"
+        "Number"
       ],
       [
-        "model",
-        "str"
-      ],
-      [
-        "parameter",
-        "str"
-      ],
-      [
-        "default_start",
-        "Timestamp"
-      ],
-      [
-        "default_end",
-        "Timestamp"
-      ],
-      [
-        "return",
-        "Series"
+        "args",
+        "Number"
       ]
     ]
   ],
@@ -248,12 +240,12 @@
     "min",
     [
       [
-        "serieslist",
-        "List[Series]"
+        "return",
+        "Number"
       ],
       [
-        "return",
-        "Series"
+        "args",
+        "Number"
       ]
     ]
   ],
@@ -261,12 +253,12 @@
     "mul",
     [
       [
-        "serieslist",
-        "List[Series]"
-      ],
-      [
         "return",
         "Series"
+      ],
+      [
+        "serieslist",
+        "List[Series]"
       ]
     ]
   ],
@@ -274,37 +266,41 @@
     "naive",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "series",
         "Series"
       ],
       [
         "tzone",
         "str"
-      ],
-      [
-        "return",
-        "Series"
       ]
     ]
   ],
   [
-    "pointconnect",
+    "options",
     [
-      [
-        "uid",
-        "str"
-      ],
-      [
-        "default_start",
-        "Timestamp"
-      ],
-      [
-        "default_end",
-        "Timestamp"
-      ],
       [
         "return",
         "Series"
+      ],
+      [
+        "series",
+        "Series"
+      ],
+      [
+        "fill",
+        "Default[Union[str, Number]=None]"
+      ],
+      [
+        "limit",
+        "Default[int=None]"
+      ],
+      [
+        "weight",
+        "Default[Number=None]"
       ]
     ]
   ],
@@ -312,31 +308,22 @@
     "priority",
     [
       [
-        "serieslist",
-        "List[Series]"
-      ],
-      [
         "return",
         "Series"
-      ]
-    ]
-  ],
-  [
-    "priority-origin",
-    [
+      ],
       [
         "serieslist",
         "List[Series]"
-      ],
-      [
-        "return",
-        "Series"
       ]
     ]
   ],
   [
     "resample",
     [
+      [
+        "return",
+        "Series"
+      ],
       [
         "series",
         "Series"
@@ -347,11 +334,45 @@
       ],
       [
         "method",
-        "str"
-      ],
+        "Default[str=\"mean\"]"
+      ]
+    ]
+  ],
+  [
+    "rolling",
+    [
       [
         "return",
         "Series"
+      ],
+      [
+        "series",
+        "Series"
+      ],
+      [
+        "window",
+        "int"
+      ],
+      [
+        "method",
+        "Default[str=\"mean\"]"
+      ]
+    ]
+  ],
+  [
+    "row-max",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "serieslist",
+        "List[Series]"
+      ],
+      [
+        "skipna",
+        "Default[bool=True]"
       ]
     ]
   ],
@@ -359,12 +380,70 @@
     "row-mean",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "serieslist",
         "List[Series]"
       ],
       [
+        "skipna",
+        "Default[bool=True]"
+      ]
+    ]
+  ],
+  [
+    "row-min",
+    [
+      [
         "return",
         "Series"
+      ],
+      [
+        "serieslist",
+        "List[Series]"
+      ],
+      [
+        "skipna",
+        "Default[bool=True]"
+      ]
+    ]
+  ],
+  [
+    "shifted",
+    [
+      [
+        "return",
+        "Timestamp"
+      ],
+      [
+        "date",
+        "Timestamp"
+      ],
+      [
+        "years",
+        "Default[int=0]"
+      ],
+      [
+        "months",
+        "Default[int=0]"
+      ],
+      [
+        "weeks",
+        "Default[int=0]"
+      ],
+      [
+        "days",
+        "Default[int=0]"
+      ],
+      [
+        "hours",
+        "Default[int=0]"
+      ],
+      [
+        "minutes",
+        "Default[int=0]"
       ]
     ]
   ],
@@ -372,20 +451,33 @@
     "slice",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "series",
         "Series"
       ],
       [
         "fromdate",
-        "Optional[Timestamp]"
+        "Default[Timestamp=None]"
       ],
       [
         "todate",
-        "Optional[Timestamp]"
-      ],
+        "Default[Timestamp=None]"
+      ]
+    ]
+  ],
+  [
+    "start-of-month",
+    [
       [
         "return",
-        "Series"
+        "Timestamp"
+      ],
+      [
+        "date",
+        "Timestamp"
       ]
     ]
   ],
@@ -393,49 +485,45 @@
     "std",
     [
       [
+        "return",
+        "Series"
+      ],
+      [
         "serieslist",
         "List[Series]"
       ],
       [
-        "return",
-        "Series"
+        "skipna",
+        "Default[bool=True]"
       ]
     ]
   ],
   [
-    "timedelta",
+    "time-shifted",
     [
       [
-        "date",
-        "Timestamp"
+        "return",
+        "Series"
       ],
       [
-        "years",
-        "int"
-      ],
-      [
-        "months",
-        "int"
+        "series",
+        "Series"
       ],
       [
         "weeks",
-        "int"
+        "Default[int=0]"
       ],
       [
         "days",
-        "int"
+        "Default[int=0]"
       ],
       [
         "hours",
-        "int"
+        "Default[int=0]"
       ],
       [
         "minutes",
-        "int"
-      ],
-      [
-        "return",
-        "Timestamp"
+        "Default[int=0]"
       ]
     ]
   ],
@@ -443,16 +531,33 @@
     "today",
     [
       [
+        "return",
+        "Timestamp"
+      ],
+      [
         "naive",
-        "bool"
+        "Default[bool=False]"
       ],
       [
         "tz",
-        "Optional[str]"
-      ],
+        "Default[str=None]"
+      ]
+    ]
+  ],
+  [
+    "tzaware-stamp",
+    [
       [
         "return",
         "Timestamp"
+      ],
+      [
+        "dt",
+        "Timestamp"
+      ],
+      [
+        "tzone",
+        "str"
       ]
     ]
   ]

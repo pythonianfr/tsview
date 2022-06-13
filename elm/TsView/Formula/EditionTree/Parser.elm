@@ -1,8 +1,9 @@
 module TsView.Formula.EditionTree.Parser exposing (parseFormula)
 
+import AssocList as Assoc
 import Dict
 import Either exposing (Either(..))
-import List.Extra exposing (allDifferentBy)
+import List.Extra as List
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
 import Tree exposing (Tree)
@@ -10,6 +11,7 @@ import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
 import TsView.Formula.EditionTree.Type as ET exposing (EditionNode, Forest)
 import TsView.Formula.Spec.Type as S exposing (Spec)
 import TsView.Formula.Utils exposing (valueParser)
+import Tuple.Extra as Tuple
 
 
 logEditionTree : String -> EditionTree -> EditionTree
@@ -122,9 +124,6 @@ parseEditionNode spec tree =
             parseExpType x spec tree
                 |> Parser.map (logEditionTree "ArgTypeT")
 
-        ET.OptArgsT _ ->
-            Parser.map (Tree.tree n) (parseOptArgs spec <| Tree.children tree)
-
         _ ->
             treeParser (parseEditionNode spec) n tree
 
@@ -158,101 +157,172 @@ parseSList spec expType =
         )
 
 
-type alias OptArgs =
+type alias ArgsSpec =
     List ( String, EditionTree )
 
 
-type alias OptArgStep =
-    Parser (Parser.Step OptArgs (Forest EditionNode))
+type alias OptArgsSpec =
+    Assoc.Dict String EditionTree
 
 
-parseOptArg : Spec -> OptArgs -> ( String, EditionTree ) -> OptArgStep
-parseOptArg spec optArgs ( k, tree ) =
-    Parser.succeed (\v -> ( k, v ) :: optArgs |> Parser.Loop)
-        |. Parser.keyword ("#:" ++ k)
-        |. Parser.spaces
-        |= parseEditionNode spec tree
+type alias Args =
+    List ( String, EditionTree )
 
 
-parseOptArgs : Spec -> Forest EditionNode -> Parser (Forest EditionNode)
-parseOptArgs spec forest =
-    let
-        optArgs : OptArgs
-        optArgs =
-            List.foldr
-                (\a b ->
-                    case Tree.label a |> .editionType of
-                        ET.OptArgT (ET.OptArg k _ _) ->
-                            ( k, a ) :: b
-
-                        _ ->
-                            b
-                )
-                []
-                forest
-
-        optArgForest : OptArgs -> Forest EditionNode
-        optArgForest parsedOptArgs =
+parseArgs : Spec -> ArgsSpec -> OptArgsSpec -> Args -> Parser Args
+parseArgs spec argsSpec optArgsSpec args =
+    case argsSpec of
+        ( k, t ) :: xs ->
             let
-                d =
-                    Dict.fromList parsedOptArgs
-
-                finalOptArg ( k, v ) b =
-                    (Dict.get k d |> Maybe.withDefault v) :: b
+                parsePositional : Parser Args
+                parsePositional =
+                    Parser.succeed (\v -> ( k, v ) :: args)
+                        |. Parser.spaces
+                        |= parseEditionNode spec t
             in
-            List.foldr finalOptArg [] optArgs
+            Parser.oneOf
+                [ parsePositional |> Parser.andThen (parseArgs spec xs optArgsSpec)
+                , parseArgsWithKey spec argsSpec optArgsSpec args
+                ]
+
+        [] ->
+            parseArgsWithKey spec [] optArgsSpec args
+
+
+parseArgsWithKey : Spec -> ArgsSpec -> OptArgsSpec -> Args -> Parser Args
+parseArgsWithKey spec argsSpec optArgsSpec args =
+    let
+        parseOptArg ks ( k, t ) =
+            Parser.succeed (\v -> ( k, v ) :: ks |> Parser.Loop)
+                |. Parser.keyword ("#:" ++ k)
+                |. Parser.spaces
+                |= parseEditionNode spec t
     in
-    Parser.loop []
+    Parser.loop args
         (\xs ->
             let
                 optArgParsers =
-                    List.map (parseOptArg spec xs) optArgs
+                    List.map
+                        (parseOptArg xs)
+                        (argsSpec ++ Assoc.toList optArgsSpec)
 
                 end =
-                    if allDifferentBy Tuple.first xs then
-                        Parser.succeed <| Parser.Done <| optArgForest xs
+                    if List.allDifferentBy Tuple.first xs then
+                        Parser.succeed <| Parser.Done xs
 
                     else
-                        Parser.problem "Duplicate keyword for optional argument"
+                        Parser.problem "Duplicate keyword for argument"
             in
-            Parser.oneOf <| List.append optArgParsers [ end ]
+            Parser.oneOf (optArgParsers ++ [ end ])
         )
+
+
+parseOperatorArgs : Spec -> ET.Operator -> Parser EditionTree
+parseOperatorArgs spec ((ET.Operator _ args optArgs) as op) =
+    let
+        argsSpec =
+            List.map
+                (\((ET.Arg k t) as arg) ->
+                    ET.buildEditionTree spec (ET.ArgT arg)
+                        |> Tuple.pair k
+                )
+                args
+
+        optArgsSpec =
+            case optArgs of
+                ET.OptArgs xs ->
+                    List.map
+                        (\((ET.OptArg k t _) as optArg) ->
+                            ET.buildEditionTree spec (ET.OptArgT optArg)
+                                |> Tuple.pair k
+                        )
+                        (NE.toList xs)
+                        |> Assoc.fromList
+
+                ET.NoOptArgs ->
+                    Assoc.empty
+
+        argsKeys =
+            List.map Tuple.first argsSpec
+
+        optArgsKeys =
+            Assoc.keys optArgsSpec
+
+        keyIdx =
+            List.indexedMap Tuple.pair (argsKeys ++ optArgsKeys)
+                |> List.map Tuple.flip
+                |> Dict.fromList
+
+        sortByKeys =
+            Assoc.toList
+                >> List.sortBy
+                    (\( k, _ ) ->
+                        Dict.get k keyIdx
+                            |> Maybe.withDefault -1
+                    )
+                >> Assoc.fromList
+
+        checkArgs ( kArgs, kOptArgs ) =
+            if Assoc.size kArgs == List.length argsKeys then
+                Parser.succeed ( kArgs, kOptArgs )
+
+            else
+                Parser.problem "Lack of mandatory argument"
+
+        makeOpTree ( kArgs, kOptArgs ) =
+            let
+                optArgsNode =
+                    case optArgs of
+                        ET.NoOptArgs ->
+                            []
+
+                        x ->
+                            Tree.tree
+                                (ET.fromEditionType <| ET.OptArgsT x)
+                                (Assoc.values kOptArgs)
+                                |> List.singleton
+            in
+            Tree.tree
+                (ET.fromEditionType <| ET.OperatorT op)
+                (Assoc.values kArgs ++ optArgsNode)
+    in
+    parseArgs
+        spec
+        argsSpec
+        optArgsSpec
+        []
+        |> Parser.map Assoc.fromList
+        |> Parser.map (\ks -> Assoc.union ks optArgsSpec)
+        |> Parser.map sortByKeys
+        |> Parser.map (Assoc.partition (\k _ -> List.member k argsKeys))
+        |> Parser.andThen checkArgs
+        |> Parser.map makeOpTree
 
 
 parseOperator : S.Spec -> S.BaseType -> Parser EditionTree
 parseOperator spec baseType =
     let
-        parseKeyword : List S.Operator -> Parser ET.EditionType
+        parseKeyword : List S.Operator -> Parser EditionTree
         parseKeyword =
             List.map
                 (\op ->
-                    Parser.succeed (ET.fromSpecOperator op |> ET.OperatorT)
+                    Parser.succeed (ET.fromSpecOperator op)
                         |. Parser.keyword op.name
                         |. Parser.spaces
                 )
                 >> Parser.oneOf
+                >> Parser.andThen (parseOperatorArgs spec)
 
-        parseOperatorKeyword : Parser ET.EditionType
+        parseOperatorKeyword : Parser EditionTree
         parseOperatorKeyword =
             S.getOperators baseType spec
                 |> Maybe.map (NE.toList >> parseKeyword)
                 |> Maybe.withDefault (Parser.problem "No operator")
-
-        buildEditionTree : ET.EditionType -> Parser EditionTree
-        buildEditionTree editionType =
-            let
-                opTree =
-                    ET.buildEditionTree spec editionType
-                        |> logEditionTree "ChosenOperator"
-            in
-            treeParser (parseEditionNode spec) (Tree.label opTree) opTree
     in
-    (Parser.succeed identity
+    Parser.succeed identity
         |. Parser.symbol "("
         |. Parser.spaces
         |= parseOperatorKeyword
-        |> Parser.andThen buildEditionTree
-    )
         |. Parser.spaces
         |. Parser.symbol ")"
         |. Parser.spaces

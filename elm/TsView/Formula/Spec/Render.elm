@@ -36,6 +36,9 @@ renderOperator op =
                 _ ->
                     ""
 
+        rdrArg ( k, v ) =
+            k ++ ": " ++ S.strExpType v
+
         rdrKArg ( k, x, v ) =
             let
                 dft =
@@ -50,7 +53,7 @@ renderOperator op =
     in
     List.concat
         [ List.singleton ( 1, op.name )
-        , renderSection "arguments:" S.strExpType (List.map Tuple.second op.args)
+        , renderSection "arguments:" rdrArg op.args
         , renderSection "keyword_arguments:" rdrKArg op.kargs
         , List.singleton ( 2, "return: " ++ S.strExpType op.return )
         ]

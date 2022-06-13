@@ -58,8 +58,8 @@ tests =
 Series
     series
         arguments:
-            SearchString
-            Timestamp
+            name: SearchString
+            date: Timestamp
         keyword_arguments:
             fill: Union[String, Number]
             prune: Int
@@ -149,14 +149,14 @@ Series
 Series
     series
         arguments:
-            SearchString
+            name: SearchString
         keyword_arguments:
             fill: Union[String, Number]
             weight: Number
         return: Series
     priority
         arguments:
-            List[Series]
+            serieslist: List[Series]
         return: Series
 -----
 Timestamp
@@ -167,7 +167,7 @@ Timestamp
         return: Timestamp
     timedelta
         arguments:
-            Timestamp
+            date: Timestamp
         keyword_arguments:
             years: Int Default=0
             months: Int Default=0
