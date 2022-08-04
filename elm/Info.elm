@@ -422,11 +422,14 @@ update msg model =
             )
 
         GotCachePolicy (Ok rawpol) ->
-            case D.decodeString M.decodemeta rawpol of
-                Ok policy ->
-                    U.nocmd { model | policy = policy }
-                Err err ->
-                    doerr "gotcachepolicy decode" <| D.errorToString err
+            case rawpol of
+                "null\n" -> U.nocmd model
+                _ ->
+                    case D.decodeString M.decodemeta rawpol of
+                        Ok policy ->
+                            U.nocmd { model | policy = policy }
+                        Err err ->
+                            doerr "gotcachepolicy decode" <| D.errorToString err
 
         GotCachePolicy (Err error) ->
             doerr "gotcachepolicy http" <| U.unwraperror error
