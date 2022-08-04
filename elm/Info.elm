@@ -305,8 +305,8 @@ updatedchangedidatebouncer =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        doerr error =
-            U.nocmd <| U.adderror model error
+        doerr tag error =
+            U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
         GotMeta (Ok result) ->
@@ -324,20 +324,20 @@ update msg model =
                         cmd = Cmd.batch [ getformula model, next ]
                     in ( newmodel, cmd )
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "gotmeta decode" <| D.errorToString err
 
         GotMeta (Err err) ->
-            doerr  <| U.unwraperror err
+            doerr "gotmeta http"  <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
                 Ok perms ->
                    U.nocmd { model | canwrite = perms }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "getpermissions decode" <| D.errorToString err
 
         GetPermissions (Err err) ->
-            doerr  <| U.unwraperror err
+            doerr "getpermissions http" <| U.unwraperror err
 
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
@@ -356,10 +356,10 @@ update msg model =
                                 , maxdate = dateof maxappdate
                             }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "gotplotdata decode" <| D.errorToString err
 
         GotPlotData (Err err) ->
-            doerr <|U.unwraperror err
+            doerr "gotplotdata error" <| U.unwraperror err
 
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -378,7 +378,7 @@ update msg model =
                     )
 
         GotFormula (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "gotformula http" <| U.unwraperror error
 
         -- cache
 
@@ -386,7 +386,7 @@ update msg model =
             U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
 
         HasCache (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "hascache http" <| U.unwraperror error
 
         DeleteCache ->
             U.nocmd { model | deleting_cache = True }
@@ -410,7 +410,7 @@ update msg model =
             )
 
         CacheDeleted (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "cachedeleted http" <| U.unwraperror error
 
         ViewNocache ->
             let mod = { model | view_nocache = not model.view_nocache } in
@@ -426,10 +426,10 @@ update msg model =
                 Ok policy ->
                     U.nocmd { model | policy = policy }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "gotcachepolicy decode" <| D.errorToString err
 
         GotCachePolicy (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "gotcachepolicy http" <| U.unwraperror error
 
         -- code
 
@@ -442,10 +442,10 @@ update msg model =
                         False ->
                             U.nocmd { model | formula = Just formula }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "codehightlight decode" <| D.errorToString err
 
         CodeHighlight (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "codehighlight http" <| U.unwraperror error
 
         -- components
 
@@ -458,20 +458,20 @@ update msg model =
                         False ->
                             U.nocmd { model | formula_components = Just components }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "components decode" <| D.errorToString err
 
         Components (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "components http" <| U.unwraperror error
 
         GotLog (Ok rawlog) ->
             case D.decodeString logdecoder rawlog of
                 Ok log ->
                     U.nocmd { model | log = log }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "gotlog decode" <| D.errorToString err
 
         GotLog (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "gotlog http" <| U.unwraperror error
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString idatesdecoder rawdates of
@@ -481,10 +481,10 @@ update msg model =
                                 , date_index = List.length dates - 1
                             }
                 Err err ->
-                    doerr <| D.errorToString err
+                    doerr "idates decode" <| D.errorToString err
 
         InsertionDates (Err error) ->
-            doerr <| U.unwraperror error
+            doerr "idates http" <| U.unwraperror error
 
         ToggleExpansion ->
             let
@@ -606,7 +606,7 @@ update msg model =
                     }
 
         MetaSaved (Err err) ->
-            doerr <| U.unwraperror err
+            doerr "metasaved http" <| U.unwraperror err
 
 
 -- views
