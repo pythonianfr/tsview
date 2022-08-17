@@ -200,8 +200,8 @@ selectorconfig =
     }
 
 
-editor : Model -> Html Msg
-editor model =
+vieweditor : Model -> Html Msg
+vieweditor model =
     let
         item = Maybe.withDefault "" (List.head model.search.selected)
 
@@ -235,7 +235,7 @@ view model =
                     SeriesSelector.view model.search model.catalog selectorconfig
 
                 Edit ->
-                    editor model
+                    vieweditor model
     in
         article [ ] [ content ]
 
