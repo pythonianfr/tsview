@@ -48,9 +48,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        removeItem x xs =
-            List.filter ((/=) x) xs
-
         toggleitem elt list =
             if
                 List.member elt list
