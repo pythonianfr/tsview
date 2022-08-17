@@ -21,7 +21,7 @@ type State
 
 
 type alias Model =
-    { urlPrefix : String
+    { urlprefix : String
     , state : State
     , catalog : Catalog.Model
     , search : SeriesSelector.Model
@@ -58,7 +58,7 @@ update msg model =
 
         new x = ( x, Cmd.none )
 
-        keywordMatch xm xs =
+        keywordmatch xm xs =
             if String.length xm < 2 then
                 []
             else
@@ -114,7 +114,7 @@ update msg model =
                 let
                     newsearch = SeriesSelector.updatefound
                                 model.search
-                                (keywordMatch
+                                (keywordmatch
                                      model.search.search
                                      model.search.filteredseries)
                 in
@@ -139,7 +139,7 @@ update msg model =
                         Http.expectString RenameDone
 
                     url =
-                        UB.crossOrigin model.urlPrefix
+                        UB.crossOrigin model.urlprefix
                             [ "api", "series", "state" ]
                             [ UB.string "name" <|
                                   Maybe.withDefault "" (List.head model.search.selected)
@@ -166,15 +166,15 @@ update msg model =
                       , renamed = ""
                       , error = Nothing
                   }
-                , Cmd.map GotCatalog (Catalog.get model.urlPrefix 0)
+                , Cmd.map GotCatalog (Catalog.get model.urlprefix 0)
                 )
 
             RenameDone (Err x) ->
                 new { model | error = Just "something wrong happened" }
 
 
-selectorConfig : SeriesSelector.SelectorConfig Msg
-selectorConfig =
+selectorconfig : SeriesSelector.SelectorConfig Msg
+selectorconfig =
     { searchSelector =
           { action = Nothing
           , defaultText =
@@ -203,36 +203,27 @@ selectorConfig =
 editor : Model -> Html Msg
 editor model =
     let
+        item = Maybe.withDefault "" (List.head model.search.selected)
+
         edit =
-            let
-                txt =
-                    "New name for : " ++ Maybe.withDefault "" (List.head model.search.selected)
-
-                lab =
-                    label
-                    [ ]
-                    [ text txt ]
-
-                inpt =
-                    input
-                    [ value model.renamed
-                    , onInput NewSerieName
-                    ] []
-            in
-                div [ ] [ lab, inpt ]
+            div [] [ label [] [ text <| "New name for : " ++ item ]
+                   , input [ value model.renamed
+                           , onInput NewSerieName
+                           ] []
+                   ]
 
         buttons =
             div [] [ a [ onMouseDown OnRename ] [ text "Rename" ]
                    , a [ onMouseDown SelectMode ] [ text "Cancel" ]
                    ]
 
-        addErr mess =
+        adderr mess =
             [ div [ ] [ text mess ] ]
 
-        checkErr xs =
-            Common.maybe xs (addErr >> List.append xs) model.error
+        checkerr xs =
+            Common.maybe xs (adderr >> List.append xs) model.error
     in
-        div selectorConfig.divAttrs <| checkErr [ edit, buttons ]
+        div selectorconfig.divAttrs <| checkerr [ edit, buttons ]
 
 
 view : Model -> Html Msg
@@ -241,7 +232,7 @@ view model =
         content =
             case model.state of
                 Select ->
-                    SeriesSelector.view model.search model.catalog selectorConfig
+                    SeriesSelector.view model.search model.catalog selectorconfig
 
                 Edit ->
                     editor model
