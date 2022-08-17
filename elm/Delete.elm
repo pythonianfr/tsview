@@ -9,7 +9,6 @@ import Json.Decode as Decode
 import Catalog
 import KeywordSelector
 import SeriesSelector
-import Tachyons.Classes as T
 import Time
 import Url.Builder as UB
 
@@ -188,7 +187,7 @@ selectorConfig =
     , actionSelector =
           { action =
                 Just
-                { attrs = [ classes [ T.white, T.bg_light_red ] ]
+                { attrs = [ ]
                 , html = text "Delete"
                 , clickMsg = OnDelete
                 }
@@ -199,7 +198,7 @@ selectorConfig =
     , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
-    , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
+    , divAttrs = [ ]
     }
 
 
@@ -211,7 +210,7 @@ view model =
     in
         case model.errors of
             Nothing ->
-                article [ classes [ T.center, T.pt4, T.w_90 ] ]
+                article [ ]
                     [ SeriesSelector.view model.search model.catalog selectorConfig ]
 
             Just error ->

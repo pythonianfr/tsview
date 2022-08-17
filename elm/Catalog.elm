@@ -17,7 +17,6 @@ import Http
 import Json.Decode as D
 import List.Extra exposing (unique)
 import Set exposing (Set)
-import Tachyons.Classes as T
 import Url.Builder as UB
 import Util as U
 
@@ -66,7 +65,7 @@ viewError : Error -> Html msg
 viewError error =
     let
         bold x =
-            span [ Common.classes [ T.b, T.mr4 ] ] [ text x ]
+            span [ ] [ text x ]
     in
         case error of
             Error x ->

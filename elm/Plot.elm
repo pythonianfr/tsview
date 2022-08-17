@@ -13,7 +13,6 @@ import Json.Decode as Decode
 import KeywordSelector
 import Plotter exposing (getplotdata, scatterplot, seriesdecoder, plotargs, Series)
 import SeriesSelector
-import Tachyons.Classes as T
 import Time
 import Url.Builder as UB
 import Util as U
@@ -176,29 +175,26 @@ selectorConfig =
     , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
-    , divAttrs = [ classes [ T.mb4 ] ]
+    , divAttrs = [ ]
     }
 
 
-viewlinks cls haseditor seriesName =
+viewlinks haseditor seriesName =
     div [ ]
         [ text (seriesName ++ " ")
         , a [A.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
             , A.target "_blank"
-            , cls
             ]
               [ text <| "info" ]
         , text " "
         , a [ A.href <| UB.relative [ "tshistory", seriesName ] []
             , A.target "_blank"
-            , cls
             ]
               [ text <| "history" ]
         , text " "
         , if haseditor then
               a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
                 , A.target "_blank"
-                , cls
                 ]
               [ text <| "editor" ]
           else
@@ -231,14 +227,13 @@ view model =
 
         selector =
             let
-                cls = classes [ T.pb2, T.f4, T.fw6, T.db, T.navy, T.link, T.dim ]
                 children =
                     [ a
-                      [ cls, onClick ToggleSelection, A.title "click to toggle selector" ]
+                      [ onClick ToggleSelection, A.title "click to toggle selector" ]
                       [ text "Series selection" ]
                     ]
             in
-                form [ classes [ T.center, T.pt4, T.w_90 ] ]
+                form [ ]
                     (
                      if
                          model.selecting
@@ -255,7 +250,6 @@ view model =
 
         urls =
             let
-                cls = classes [ T.link, T.blue, T.lh_title ]
                 permalink =
                     let
                         url =
@@ -266,22 +260,22 @@ view model =
                                      model.search.selected
                                 )
                     in
-                        a [ A.href url, cls ] [ text "Permalink" ]
+                        a [ A.href url ] [ text "Permalink" ]
 
                 links =
                     List.map
-                        (viewlinks cls model.haseditor)
+                        (viewlinks model.haseditor)
                         model.search.selected
 
             in
-                ul [ classes [ T.list, T.mt3, T.mb0 ] ]
+                ul [ ]
                     (List.map
-                         (\x -> li [ classes [ T.pv2 ] ] [ x ])
+                         (\x -> li [ ] [ x ])
                          (permalink :: links)
                     )
     in
         div []
-            [ header [ classes [ T.bg_light_blue ] ] [ selector ]
+            [ header [ ] [ selector ]
             , div [ A.id plotDiv ] []
             , plotFigure [ A.attribute "args" args ] []
             , footer [] [ urls ]

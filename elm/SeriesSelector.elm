@@ -36,7 +36,6 @@ import Html.Styled.Events exposing
     , onMouseDown
     )
 import Set exposing (Set)
-import Tachyons.Classes as T
 
 
 -- model
@@ -161,12 +160,12 @@ viewitemselector : ItemConfig msg -> List String -> List String -> Html msg
 viewitemselector cfg items selected =
     let
         ulClass =
-            classes [ T.list, T.pl0, T.ml0, T.w_100, T.ba, T.b__light_silver, T.br3 ]
+            classes [ ]
 
         liAttrs item =
             let
                 liClass =
-                    classes [ T.ph3, T.pv2, T.bb, T.b__light_silver, T.dim ]
+                    classes [ ]
 
                 liSelected =
                     let
@@ -175,7 +174,7 @@ viewitemselector cfg items selected =
                         classList <|
                             List.map
                                 (\x -> ( x, isSelected ))
-                                [ T.white, T.bg_blue ]
+                                [ "white", "blue" ]
             in
                 [ liClass, liSelected, onMouseDown <| cfg.toggleMsg item ]
 
@@ -188,20 +187,19 @@ viewitemselector cfg items selected =
         lstWithAction act =
             let
                 aClass =
-                    classes
-                    [ T.w_100, T.link, T.dim, T.ph3, T.pv2, T.ma2, T.dib, T.tc ]
+                    classes [ ]
 
                 attrs =
                     [ aClass, onMouseDown act.clickMsg ] ++ act.attrs
             in
-                div [ classes [ T.dt, T.dt__fixed ] ] [ a attrs [ act.html ], lst ]
+                div [ ] [ a attrs [ act.html ], lst ]
     in
         if
             List.length items > 0
         then
             Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
         else
-            div [ classes [ T.pl0, T.ml0 ] ] [ cfg.defaultText ]
+            div [ ] [ cfg.defaultText ]
 
 
 -- series selector
@@ -219,22 +217,21 @@ type alias SelectorConfig msg =
 
 filterdiv : String -> List String -> (String -> Bool -> msg) -> Html msg
 filterdiv filtername activenames event =
-    div [ classes [ T.pa1_ns ] ]
+    div [ ]
         [ input [ type_ "checkbox"
                 , id filtername
                 , name filtername
                 , checked (List.member filtername activenames)
                 , onCheck (event filtername)
-                , classes [ T.pa2_ns ]
                 ] []
-        , label [ classes [ T.pa2_ns ], for filtername ] [ text filtername ]
+        , label [ for filtername ] [ text filtername ]
         ]
 
 
 makefilter : String -> List String -> List String -> (String -> Bool -> msg) -> Html msg
 makefilter section sectionitems activeitems event =
-    div [ classes  [ T.ma1 ] ]
-        [ p [ classes [ T.f5 ] ]
+    div [ ]
+        [ p [ ]
           (
            [ text ("Series " ++ section) ] ++
               List.map
@@ -246,21 +243,13 @@ makefilter section sectionitems activeitems event =
 view : Model -> Catalog.Model -> SelectorConfig msg -> Html msg
 view model catalog cfg =
     let
-        barcss = [ T.ba
-                 , T.b__black_20
-                 , T.pa2
-                 , T.db
-                 , T.outline
-                 ]
         searchInput =
-            div [ classes [ T.flex ] ] [
-                 div [ classes (barcss ++ [ T.dim, T.pointer ])
-                     , title "show series filter"
+            div [ ] [
+                 div [ title "show series filter"
                      , onClick cfg.onMenuToggle
                      ] [ text "☰" ]
                 , input
-                     [ classes (barcss ++ [ T.input_reset, T.w_100 ])
-                     , value model.search
+                     [ value model.search
                      , onInput cfg.onInputMsg
                      , autofocus True
                      , placeholder
@@ -276,9 +265,9 @@ view model catalog cfg =
                 renderselector (selectorCfg, items) =
                     viewitemselector selectorCfg items model.selected
             in
-                div [ classes [ T.dt, T.dt__fixed ] ]
+                div [ ]
                     (List.map
-                         (\x -> div [ classes [ T.dtc, T.pa1 ] ] [ renderselector x ])
+                         (\x -> div [ ] [ renderselector x ])
                          [ ( cfg.searchSelector, model.found )
                          , ( cfg.actionSelector, model.selected )
                          ]
