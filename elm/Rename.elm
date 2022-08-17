@@ -224,16 +224,10 @@ editor model =
             in
                 div [ ] [ lab, inpt ]
 
-        button ( txt, toMsg ) =
-            a [ onMouseDown toMsg ] [ text txt ]
-
-        buttonAttrs =
-            [ ( "Rename", OnRename )
-            , ( "Cancel", SelectMode )
-            ]
-
         buttons =
-            div [] (List.map button buttonAttrs)
+            div [] [ a [ onMouseDown OnRename ] [ text "Rename" ]
+                   , a [ onMouseDown SelectMode ] [ text "Cancel" ]
+                   ]
 
         addErr mess =
             [ div [ ] [ text mess ] ]
