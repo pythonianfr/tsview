@@ -1,7 +1,7 @@
 module Rename exposing (main)
 
 import Browser
-import Common exposing (classes)
+import Common
 import Dict exposing (Dict)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (value)
@@ -11,7 +11,6 @@ import Catalog
 import Json.Decode as Decode
 import KeywordSelector
 import SeriesSelector
-import Tachyons.Classes as T
 import Time
 import Url.Builder as UB
 
@@ -189,7 +188,7 @@ selectorConfig =
     , actionSelector =
           { action =
                 Just
-                { attrs = [ classes [ T.white, T.bg_blue ] ]
+                { attrs = [ ]
                 , html = text "Rename"
                 , clickMsg = EditMode
                 }
@@ -200,7 +199,7 @@ selectorConfig =
     , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
-    , divAttrs = [ classes [ T.aspect_ratio, T.aspect_ratio__1x1, T.mb4 ] ]
+    , divAttrs = [ ]
     }
 
 
@@ -214,67 +213,30 @@ editor model =
 
                 lab =
                     label
-                    [ classes [ T.db, T.fw1, T.lh_copy ] ]
+                    [ ]
                     [ text txt ]
-
-                inputClass =
-                    classes
-                    [ T.input_reset
-                    , T.dtc
-                    , T.ba
-                    , T.b__black_20
-                    , T.pa2
-                    , T.db
-                    , T.w_100
-                    ]
 
                 inpt =
                     input
-                    [ inputClass
-                    , value model.renamed
+                    [ value model.renamed
                     , onInput NewSerieName
                     ] []
             in
-                div [ classes [ T.mb3 ] ] [ lab, inpt ]
+                div [ ] [ lab, inpt ]
 
-        button ( txt, bg_color, toMsg ) =
-            let
-                aClass =
-                    classes
-                    [ T.link
-                    , T.dim
-                    , T.ph3
-                    , T.pv2
-                    , T.ma2
-                    , T.dib
-                    , T.tc
-                    , T.white
-                    , bg_color
-                    ]
-            in
-                a [ aClass, onMouseDown toMsg ] [ text txt ]
+        button ( txt, toMsg ) =
+            a [ onMouseDown toMsg ] [ text txt ]
 
         buttonAttrs =
-            [ ( "Rename", T.bg_blue, OnRename )
-            , ( "Cancel", T.bg_light_red, SelectMode )
+            [ ( "Rename", OnRename )
+            , ( "Cancel", SelectMode )
             ]
 
         buttons =
             div [] (List.map button buttonAttrs)
 
         addErr mess =
-            let
-                cls =
-                    classes
-                    [ T.flex
-                    , T.items_center
-                    , T.justify_center
-                    , T.pa4
-                    , T.bg_washed_red
-                    , T.navy
-                    ]
-            in
-                [ div [ cls ] [ text mess ] ]
+            [ div [ ] [ text mess ] ]
 
         checkErr xs =
             Common.maybe xs (addErr >> List.append xs) model.error
@@ -293,7 +255,7 @@ view model =
                 Edit ->
                     editor model
     in
-        article [ classes [ T.center, T.pt4, T.w_90 ] ] [ content ]
+        article [ ] [ content ]
 
 
 main : Program String Model Msg
