@@ -56,7 +56,7 @@ update msg model =
             else
                 List.singleton elt
 
-        newModel x = ( x, Cmd.none )
+        new x = ( x, Cmd.none )
 
         keywordMatch xm xs =
             if String.length xm < 2 then
@@ -70,13 +70,13 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model
+                    new { model
                                  | catalog = newcat
                                  , search = newsearch
                              }
 
             ToggleMenu ->
-                newModel { model | search = SeriesSelector.togglemenu model.search }
+                new { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -86,7 +86,7 @@ update msg model =
                                 kind
                                 checked
                 in
-                    newModel { model | search = newsearch }
+                    new { model | search = newsearch }
 
             SourceChange source checked ->
                 let
@@ -96,16 +96,16 @@ update msg model =
                                 source
                                 checked
                 in
-                    newModel { model | search = newsearch }
+                    new { model | search = newsearch }
 
             ToggleItem x ->
-                newModel { model | search = SeriesSelector.updateselected
+                new { model | search = SeriesSelector.updateselected
                                             model.search
                                             (toggleitem x model.search.selected)
                          }
 
             SearchSeries x ->
-                newModel { model | search = SeriesSelector.updatesearch
+                new { model | search = SeriesSelector.updatesearch
                                             model.search
                                             x
                          }
@@ -118,20 +118,20 @@ update msg model =
                                      model.search.search
                                      model.search.filteredseries)
                 in
-                    newModel { model | search = newsearch }
+                    new { model | search = newsearch }
 
             EditMode ->
-                newModel
+                new
                 { model
                     | state = Edit
                     , renamed = Maybe.withDefault "" (List.head model.search.selected)
                 }
 
             SelectMode ->
-                newModel { model | state = Select, error = Nothing }
+                new { model | state = Select, error = Nothing }
 
             NewSerieName x ->
-                newModel { model | renamed = x, error = Nothing }
+                new { model | renamed = x, error = Nothing }
 
             OnRename ->
                 let
@@ -170,7 +170,7 @@ update msg model =
                 )
 
             RenameDone (Err x) ->
-                newModel { model | error = Just "something wrong happened" }
+                new { model | error = Just "something wrong happened" }
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
