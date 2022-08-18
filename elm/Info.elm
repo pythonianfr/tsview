@@ -63,7 +63,7 @@ type alias Model =
     -- log
     , log : List Logentry
     -- plot
-    , plotdata : Series
+    , plotdata : Maybe Series
     , insertion_dates : Array String
     , mindate : String
     , maxdate : String
@@ -349,12 +349,17 @@ update msg model =
                                 head::_ -> cleanupdate head
                                 []  -> ""
                         maxappdate = cleanupdate <| Maybe.withDefault "" <| List.maximum dates
+                        newmodel =
+                            case model.plotdata of
+                                Nothing ->
+                                    { model
+                                        | plotdata = Just val
+                                        , mindate = dateof minappdate
+                                        , maxdate = dateof maxappdate
+                                    }
+                                Just data -> { model | plotdata = Just val }
                     in
-                    U.nocmd { model
-                                | plotdata = val
-                                , mindate = dateof minappdate
-                                , maxdate = dateof maxappdate
-                            }
+                    U.nocmd newmodel
                 Err err ->
                     doerr "gotplotdata decode" <| D.errorToString err
 
@@ -1103,9 +1108,13 @@ viewdatesrange model =
 
 viewplot model =
     let
+        plotdata = case model.plotdata of
+                       Nothing -> Dict.empty
+                       Just data -> data
+
         plot = scatterplot model.name
-               (Dict.keys model.plotdata)
-               (Dict.values model.plotdata)
+               (Dict.keys plotdata)
+               (Dict.values plotdata)
                "lines"
         args = plotargs "plot" [plot]
     in
@@ -1184,7 +1193,7 @@ main =
                            -- log
                            [ ]
                            -- plot
-                           Dict.empty
+                           Nothing
                            Array.empty
                            ""
                            ""
