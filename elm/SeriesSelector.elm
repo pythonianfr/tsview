@@ -16,25 +16,9 @@ module SeriesSelector exposing
 import Catalog
 import Common exposing (classes)
 import Dict exposing (Dict)
-import Html exposing (..)
-import Html.Attributes exposing
-    (autofocus
-    , checked
-    , classList
-    , for
-    , id
-    , name
-    , title
-    , type_
-    , value
-    , placeholder
-    )
-import Html.Events exposing
-    (onCheck
-    , onClick
-    , onInput
-    , onMouseDown
-    )
+import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Set exposing (Set)
 
 
@@ -146,17 +130,17 @@ updatesources model catalog source checked =
 type alias ItemConfig msg =
     { action :
           Maybe
-          { attrs : List (Attribute msg)
-          , html : Html msg
+          { attrs : List (H.Attribute msg)
+          , html : H.Html msg
           , clickMsg : msg
           }
-    , defaultText : Html msg
+    , defaultText : H.Html msg
     , toggleMsg : String -> msg
     }
 
 
 
-viewitemselector : ItemConfig msg -> List String -> List String -> Html msg
+viewitemselector : ItemConfig msg -> List String -> List String -> H.Html msg
 viewitemselector cfg items selected =
     let
         ulClass =
@@ -171,17 +155,17 @@ viewitemselector cfg items selected =
                     let
                         isSelected = List.member item selected
                     in
-                        classList <|
+                        HA.classList <|
                             List.map
                                 (\x -> ( x, isSelected ))
                                 [ "white", "blue" ]
             in
-                [ liClass, liSelected, onMouseDown <| cfg.toggleMsg item ]
+                [ liClass, liSelected, HE.onMouseDown <| cfg.toggleMsg item ]
 
         lst =
-            ul [ ulClass ] <|
+            H.ul [ ulClass ] <|
                 List.map
-                    (\x -> li (liAttrs x) [ text x ])
+                    (\x -> H.li (liAttrs x) [ H.text x ])
                     items
 
         lstWithAction act =
@@ -190,16 +174,16 @@ viewitemselector cfg items selected =
                     classes [ ]
 
                 attrs =
-                    [ aClass, onMouseDown act.clickMsg ] ++ act.attrs
+                    [ aClass, HE.onMouseDown act.clickMsg ] ++ act.attrs
             in
-                div [ ] [ a attrs [ act.html ], lst ]
+                H.div [ ] [ H.a attrs [ act.html ], lst ]
     in
         if
             List.length items > 0
         then
             Maybe.map lstWithAction cfg.action |> Maybe.withDefault lst
         else
-            div [ ] [ cfg.defaultText ]
+            H.div [ ] [ cfg.defaultText ]
 
 
 -- series selector
@@ -211,51 +195,53 @@ type alias SelectorConfig msg =
     , onMenuToggle : msg
     , onKindChange : String -> Bool -> msg
     , onSourceChange : String -> Bool -> msg
-    , divAttrs : List (Attribute msg)
+    , divAttrs : List (H.Attribute msg)
     }
 
 
-filterdiv : String -> List String -> (String -> Bool -> msg) -> Html msg
+filterdiv : String -> List String -> (String -> Bool -> msg) -> H.Html msg
 filterdiv filtername activenames event =
-    div [ ]
-        [ input [ type_ "checkbox"
-                , id filtername
-                , name filtername
-                , checked (List.member filtername activenames)
-                , onCheck (event filtername)
-                ] []
-        , label [ for filtername ] [ text filtername ]
+    H.div [ ]
+        [ H.input [ HA.type_ "checkbox"
+                  , HA.id filtername
+                  , HA.name filtername
+                  , HA.checked (List.member filtername activenames)
+                  , HE.onCheck (event filtername)
+                  ] []
+        , H.label [ HA.for filtername ] [ H.text filtername ]
         ]
 
 
-makefilter : String -> List String -> List String -> (String -> Bool -> msg) -> Html msg
+makefilter : String -> List String -> List String -> (String -> Bool -> msg) -> H.Html msg
 makefilter section sectionitems activeitems event =
-    div [ ]
-        [ p [ ]
+    H.div [ ]
+        [ H.p [ ]
           (
-           [ text ("Series " ++ section) ] ++
+           [ H.text ("Series " ++ section) ] ++
               List.map
               (\x -> filterdiv x activeitems event)
               sectionitems
           ) ]
 
 
-view : Model -> Catalog.Model -> SelectorConfig msg -> Html msg
+view : Model -> Catalog.Model -> SelectorConfig msg -> H.Html msg
 view model catalog cfg =
     let
         searchInput =
-            div [ ] [
-                 div [ title "show series filter"
-                     , onClick cfg.onMenuToggle
-                     ] [ text "☰" ]
-                , input
-                     [ value model.search
-                     , onInput cfg.onInputMsg
-                     , autofocus True
-                     , placeholder
-                           ("start typing here to pick from " ++
-                                (String.fromInt (List.length model.filteredseries)) ++
-                                " items"
+            H.div [ ] [
+                 H.div
+                     [ HA.title "show series filter"
+                     , HE.onClick cfg.onMenuToggle
+                     ]
+                     [ H.text "☰" ]
+                , H.input
+                     [ HA.value model.search
+                     , HE.onInput cfg.onInputMsg
+                     , HA.autofocus True
+                     , HA.placeholder
+                         ("start typing here to pick from " ++
+                              (String.fromInt (List.length model.filteredseries)) ++
+                              " items"
                            )
                      ] []
                 ]
@@ -265,9 +251,9 @@ view model catalog cfg =
                 renderselector (selectorCfg, items) =
                     viewitemselector selectorCfg items model.selected
             in
-                div [ ]
+                H.div [ ]
                     (List.map
-                         (\x -> div [ ] [ renderselector x ])
+                         (\x -> H.div [ ] [ renderselector x ])
                          [ ( cfg.searchSelector, model.found )
                          , ( cfg.actionSelector, model.selected )
                          ]
@@ -280,7 +266,7 @@ view model catalog cfg =
                 makefilter "kinds" (Dict.keys catalog.seriesByKind)
                     model.kinds cfg.onKindChange
             else
-                div [] []
+                H.div [] []
 
         sourcesfilter =
             let
@@ -291,9 +277,9 @@ view model catalog cfg =
                 then
                     makefilter "sources" sources model.sources cfg.onSourceChange
                 else
-                    div [] []
+                    H.div [] []
     in
-        div cfg.divAttrs
+        H.div cfg.divAttrs
             [ searchInput
             , kindsfilter
             , sourcesfilter
