@@ -3,9 +3,9 @@ module Rename exposing (main)
 import Browser
 import Common
 import Dict exposing (Dict)
-import Html exposing (..)
-import Html.Attributes exposing (value)
-import Html.Events exposing (onInput, onMouseDown)
+import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Http
 import Catalog
 import Json.Decode as Decode
@@ -178,7 +178,7 @@ selectorconfig =
     { searchSelector =
           { action = Nothing
           , defaultText =
-              text
+              H.text
               "Type some keywords in input bar for selecting time series"
           , toggleMsg = ToggleItem
           }
@@ -186,10 +186,10 @@ selectorconfig =
           { action =
                 Just
                 { attrs = [ ]
-                , html = text "Rename"
+                , html = H.text "Rename"
                 , clickMsg = EditMode
                 }
-          , defaultText = text ""
+          , defaultText = H.text ""
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
@@ -200,33 +200,33 @@ selectorconfig =
     }
 
 
-vieweditor : Model -> Html Msg
+vieweditor : Model -> H.Html Msg
 vieweditor model =
     let
         item = Maybe.withDefault "" (List.head model.search.selected)
 
         edit =
-            div [] [ label [] [ text <| "New name for : " ++ item ]
-                   , input [ value model.renamed
-                           , onInput NewSerieName
-                           ] []
-                   ]
+            H.div [] [ H.label [] [ H.text <| "New name for : " ++ item ]
+                     , H.input [ HA.value model.renamed
+                               , HE.onInput NewSerieName
+                               ] []
+                     ]
 
         buttons =
-            div [] [ a [ onMouseDown OnRename ] [ text "Rename" ]
-                   , a [ onMouseDown SelectMode ] [ text "Cancel" ]
-                   ]
+            H.div [] [ H.a [ HE.onMouseDown OnRename ] [ H.text "Rename" ]
+                     , H.a [ HE.onMouseDown SelectMode ] [ H.text "Cancel" ]
+                     ]
 
         adderr mess =
-            [ div [ ] [ text mess ] ]
+            [ H.div [ ] [ H.text mess ] ]
 
         checkerr xs =
             Common.maybe xs (adderr >> List.append xs) model.error
     in
-        div selectorconfig.divAttrs <| checkerr [ edit, buttons ]
+        H.div selectorconfig.divAttrs <| checkerr [ edit, buttons ]
 
 
-view : Model -> Html Msg
+view : Model -> H.Html Msg
 view model =
     let
         content =
@@ -237,7 +237,7 @@ view model =
                 Edit ->
                     vieweditor model
     in
-        article [ ] [ content ]
+        H.article [ ] [ content ]
 
 
 main : Program String Model Msg
