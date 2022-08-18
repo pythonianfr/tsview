@@ -4,9 +4,9 @@ import Browser
 import Common exposing (classes)
 import Dict exposing (Dict)
 import Html
-import Html exposing (..)
-import Html.Attributes as A
-import Html.Events exposing (onClick)
+import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Http
 import Catalog
 import Json.Decode as Decode
@@ -52,9 +52,9 @@ fetchseries model =
         missing
 
 
-plotFigure : List (Attribute msg) -> List (Html msg) -> Html msg
+plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
 plotFigure =
-    node "plot-figure"
+    H.node "plot-figure"
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -162,13 +162,13 @@ selectorConfig =
     { searchSelector =
         { action = Nothing
         , defaultText =
-            text
+            H.text
                 "Type some keywords in input bar for selecting time series"
         , toggleMsg = ToggleItem
         }
     , actionSelector =
         { action = Nothing
-        , defaultText = text ""
+        , defaultText = H.text ""
         , toggleMsg = ToggleItem
         }
     , onInputMsg = SearchSeries
@@ -180,29 +180,29 @@ selectorConfig =
 
 
 viewlinks haseditor seriesName =
-    div [ ]
-        [ text (seriesName ++ " ")
-        , a [A.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
-            , A.target "_blank"
-            ]
-              [ text <| "info" ]
-        , text " "
-        , a [ A.href <| UB.relative [ "tshistory", seriesName ] []
-            , A.target "_blank"
-            ]
-              [ text <| "history" ]
-        , text " "
+    H.div [ ]
+        [ H.text (seriesName ++ " ")
+        , H.a [HA.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
+              , HA.target "_blank"
+              ]
+              [ H.text <| "info" ]
+        , H.text " "
+        , H.a [ HA.href <| UB.relative [ "tshistory", seriesName ] []
+              , HA.target "_blank"
+              ]
+              [ H.text <| "history" ]
+        , H.text " "
         , if haseditor then
-              a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
-                , A.target "_blank"
-                ]
-              [ text <| "editor" ]
+              H.a [ HA.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
+                  , HA.target "_blank"
+                  ]
+              [ H.text <| "editor" ]
           else
-              text ""
+              H.text ""
         ]
 
 
-view : Model -> Html Msg
+view : Model -> H.Html Msg
 view model =
     let
         plotDiv = "plotly_div"
@@ -228,12 +228,14 @@ view model =
         selector =
             let
                 children =
-                    [ a
-                      [ onClick ToggleSelection, A.title "click to toggle selector" ]
-                      [ text "Series selection" ]
+                    [ H.a
+                          [ HE.onClick ToggleSelection
+                          , HA.title "click to toggle selector"
+                          ]
+                          [ H.text "Series selection" ]
                     ]
             in
-                form [ ]
+                H.form [ ]
                     (
                      if
                          model.selecting
@@ -260,7 +262,7 @@ view model =
                                      model.search.selected
                                 )
                     in
-                        a [ A.href url ] [ text "Permalink" ]
+                        H.a [ HA.href url ] [ H.text "Permalink" ]
 
                 links =
                     List.map
@@ -268,17 +270,17 @@ view model =
                         model.search.selected
 
             in
-                ul [ ]
+                H.ul [ ]
                     (List.map
-                         (\x -> li [ ] [ x ])
+                         (\x -> H.li [ ] [ x ])
                          (permalink :: links)
                     )
     in
-        div []
-            [ header [ ] [ selector ]
-            , div [ A.id plotDiv ] []
-            , plotFigure [ A.attribute "args" args ] []
-            , footer [] [ urls ]
+        H.div []
+            [ H.header [ ] [ selector ]
+            , H.div [ HA.id plotDiv ] []
+            , plotFigure [ HA.attribute "args" args ] []
+            , H.footer [] [ urls ]
             ]
 
 
