@@ -12,7 +12,7 @@ module Catalog exposing
 
 import Common
 import Dict exposing(Dict)
-import Html.Styled exposing (Html, div, text, span)
+import Html exposing (Html, div, text, span)
 import Http
 import Json.Decode as D
 import List.Extra exposing (unique)

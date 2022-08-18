@@ -3,7 +3,7 @@ module Delete exposing (main)
 import Browser
 import Common exposing (classes)
 import Dict exposing(Dict, fromList, keys, values)
-import Html.Styled exposing (..)
+import Html exposing (..)
 import Http
 import Json.Decode as Decode
 import Catalog
@@ -235,7 +235,7 @@ main =
     in
         Browser.element
             { init = init
-            , view = view >> toUnstyled
+            , view = view
             , update = update
             , subscriptions = sub
             }

@@ -16,8 +16,8 @@ module SeriesSelector exposing
 import Catalog
 import Common exposing (classes)
 import Dict exposing (Dict)
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing
+import Html exposing (..)
+import Html.Attributes exposing
     (autofocus
     , checked
     , classList
@@ -29,7 +29,7 @@ import Html.Styled.Attributes exposing
     , value
     , placeholder
     )
-import Html.Styled.Events exposing
+import Html.Events exposing
     (onCheck
     , onClick
     , onInput

@@ -8,8 +8,8 @@ module Common exposing
 
 import Dict
 import Either exposing (Either)
-import Html.Styled exposing (Attribute)
-import Html.Styled.Attributes exposing (class)
+import Html exposing (Attribute)
+import Html.Attributes exposing (class)
 import Http exposing (Response)
 import Json.Decode as D
 import Task exposing (Task)

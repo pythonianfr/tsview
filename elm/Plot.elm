@@ -4,9 +4,9 @@ import Browser
 import Common exposing (classes)
 import Dict exposing (Dict)
 import Html
-import Html.Styled exposing (..)
-import Html.Styled.Attributes as A
-import Html.Styled.Events exposing (onClick)
+import Html exposing (..)
+import Html.Attributes as A
+import Html.Events exposing (onClick)
 import Http
 import Catalog
 import Json.Decode as Decode
@@ -316,7 +316,7 @@ main =
     in
         Browser.element
             { init = init
-            , view = view >> toUnstyled
+            , view = view
             , update = update
             , subscriptions = sub
             }

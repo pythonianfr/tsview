@@ -3,9 +3,9 @@ module Rename exposing (main)
 import Browser
 import Common
 import Dict exposing (Dict)
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (value)
-import Html.Styled.Events exposing (onInput, onMouseDown)
+import Html exposing (..)
+import Html.Attributes exposing (value)
+import Html.Events exposing (onInput, onMouseDown)
 import Http
 import Catalog
 import Json.Decode as Decode
@@ -265,7 +265,7 @@ main =
     in
         Browser.element
             { init = init
-            , view = view >> toUnstyled
+            , view = view
             , update = update
             , subscriptions = sub
             }
