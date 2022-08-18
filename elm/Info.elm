@@ -531,7 +531,10 @@ update msg model =
                 newarray =  Array.filter (comparedates value) <|
                             Array.map cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
-            in U.nocmd { model | date_index = newindex }
+                newmodel = { model | date_index = newindex }
+            in ( newmodel
+               , getplot newmodel True
+               )
 
         FvdatePickerChanged value ->
             let
