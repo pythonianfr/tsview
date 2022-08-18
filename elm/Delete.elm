@@ -3,7 +3,7 @@ module Delete exposing (main)
 import Browser
 import Common exposing (classes)
 import Dict exposing(Dict, fromList, keys, values)
-import Html exposing (..)
+import Html as H
 import Http
 import Json.Decode as Decode
 import Catalog
@@ -180,7 +180,7 @@ selectorConfig =
     { searchSelector =
           { action = Nothing
           , defaultText =
-              text
+              H.text
               "Type some keywords in input bar for selecting time series"
           , toggleMsg = ToggleItem
           }
@@ -188,10 +188,10 @@ selectorConfig =
           { action =
                 Just
                 { attrs = [ ]
-                , html = text "Delete"
+                , html = H.text "Delete"
                 , clickMsg = OnDelete
                 }
-          , defaultText = text ""
+          , defaultText = H.text ""
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
@@ -202,15 +202,15 @@ selectorConfig =
     }
 
 
-view : Model -> Html Msg
+view : Model -> H.Html Msg
 view model =
     let
         viewError xs =
-            ul [] (List.map (\x -> li [] [ text x ]) xs)
+            H.ul [] (List.map (\x -> H.li [] [ H.text x ]) xs)
     in
         case model.errors of
             Nothing ->
-                article [ ]
+                H.article [ ]
                     [ SeriesSelector.view model.search model.catalog selectorConfig ]
 
             Just error ->
