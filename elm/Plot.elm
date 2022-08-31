@@ -2,23 +2,21 @@ module Plot exposing (main)
 
 import Browser
 import Common exposing (classes)
-import Dict exposing (Dict, fromList, keys, values)
-import Either exposing (Either)
+import Dict exposing (Dict)
 import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes as A
 import Html.Styled.Events exposing (onClick)
 import Http
 import Catalog
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import KeywordSelector
-import LruCache exposing (LruCache)
-import Plotter exposing (scatterplot, seriesdecoder, plotargs, Series)
+import Plotter exposing (getplotdata, scatterplot, seriesdecoder, plotargs, Series)
 import SeriesSelector
 import Tachyons.Classes as T
-import Task exposing (Task)
 import Time
 import Url.Builder as UB
+import Util as U
 
 
 type alias Model =
@@ -26,10 +24,9 @@ type alias Model =
     , catalog: Catalog.Model
     , hasEditor : Bool
     , search : SeriesSelector.Model
-    , selectedNamedSeries : List NamedSeries
     , activeSelection : Bool
-    , cache : SeriesCache
-    , error : Maybe Error
+    , loadedseries : Dict String Series
+    , errors : List String
     }
 
 
@@ -39,28 +36,32 @@ type Error
     | CatalogError Catalog.Error
 
 
-type alias NamedSeries =
-    ( String, Series )
-
 
 type alias NamedError =
     ( String, String )
 
 
-type alias SeriesCache =
-    LruCache String Series
-
-
 type Msg
     = GotCatalog Catalog.Msg
+    | GotPlotData String (Result Http.Error String)
     | ToggleSelection
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
-    | RenderPlot (Result (List String) ( SeriesCache, List NamedSeries, List NamedError ))
     | KindChange String Bool
     | SourceChange String Bool
     | ToggleMenu
+
+
+fetchseries model =
+    let
+        selected = model.search.selected
+        ismissing series =
+            not <| Dict.member series model.loadedseries
+        missing = List.filter ismissing selected
+    in List.map
+        (\name -> getplotdata model.urlPrefix name Nothing (GotPlotData name) 0 "" "")
+        missing
 
 
 plotFigure : List (Attribute msg) -> List (Html msg) -> Html msg
@@ -68,101 +69,11 @@ plotFigure =
     node "plot-figure"
 
 
-fetchSeries :
-    List String
-    -> Model
-    -> Task (List String) ( SeriesCache, List NamedSeries, List NamedError )
-fetchSeries selectedNames model =
-    let
-        ( usedCache, cachedSeries ) =
-            List.foldr
-                (\name ( cache, xs ) ->
-                     let
-                         ( newCache, maybeSerie ) = LruCache.get name cache
-
-                         x : Either String NamedSeries
-                         x =
-                             maybeSerie
-                                |> Either.fromMaybe name
-                                |> Either.map (Tuple.pair name)
-                    in
-                        ( newCache, x :: xs )
-                )
-            ( model.cache, [] )
-            selectedNames
-
-        missingNames = Either.lefts cachedSeries
-
-        getSerie : String -> Task String Series
-        getSerie serieName =
-            Http.task
-                { method = "GET"
-                , url =
-                    UB.crossOrigin
-                        model.urlPrefix
-                        [ "api", "series", "state" ]
-                        [ UB.string "name" serieName ]
-                , headers = []
-                , body = Http.emptyBody
-                , timeout = Nothing
-                , resolver =
-                    Http.stringResolver <|
-                        Common.decodeJsonMessage seriesdecoder
-                }
-
-        getMissingSeries : Task (List String) (List (Either String Series))
-        getMissingSeries =
-            Common.taskSequenceEither <| List.map getSerie missingNames
-
-        getSeries : List NamedSeries -> List NamedSeries
-        getSeries missing =
-            let
-                series =
-                    List.append (Either.rights cachedSeries) missing
-                        |> Dict.fromList
-            in
-                List.foldr
-                    (\a b -> Common.maybe b (\x -> ( a, x ) :: b) (Dict.get a series))
-                    []
-                    selectedNames
-
-        updateCache : List NamedSeries -> SeriesCache
-        updateCache missing =
-            List.foldl
-                (\( name, serie ) cache -> LruCache.insert name serie cache)
-                usedCache
-                missing
-    in
-        getMissingSeries
-            |> Task.onError (List.map Either.Left >> Task.succeed)
-            |> Task.andThen
-               (\missings ->
-                    let
-                        xs : List (Either NamedError NamedSeries)
-                        xs =
-                            List.map2
-                            (\name x ->
-                                 let
-                                     addName = Tuple.pair name
-                                 in
-                                     Either.mapBoth addName addName x
-                            )
-                            missingNames
-                            missings
-
-                        missingSeries = Either.rights xs
-                    in
-                        Task.succeed
-                            ( updateCache missingSeries
-                            , getSeries missingSeries
-                            , Either.lefts xs
-                            )
-               )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        doerr tag error =
+            U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
         removeItem x xs = List.filter ((/=) x) xs
         toggleItem x xs =
             if
@@ -187,12 +98,10 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    ( { model
-                          | catalog = newcat
-                          , search = newsearch
-                      }
-                    , Task.attempt RenderPlot <| fetchSeries model.search.selected model
-                    )
+                    newModel { model
+                                | catalog = newcat
+                                , search = newsearch
+                             }
 
             ToggleMenu ->
                 newModel { model | search = SeriesSelector.togglemenu model.search }
@@ -222,12 +131,14 @@ update msg model =
 
             ToggleItem x ->
                 let
-                    search = SeriesSelector.updateselected
-                             model.search
-                                 (toggleItem x model.search.selected)
+                    newmodel = { model
+                                   | search = SeriesSelector.updateselected
+                                     model.search
+                                     (toggleItem x model.search.selected)
+                               }
                 in
-                    ( { model | search = search }
-                    , Task.attempt RenderPlot <| fetchSeries search.selected model
+                    ( newmodel
+                    , Cmd.batch <| fetchseries newmodel
                     )
 
             SearchSeries x ->
@@ -245,27 +156,19 @@ update msg model =
                 in
                     newModel { model | search = search }
 
-            RenderPlot (Ok ( cache, namedSeries, namedErrors )) ->
-                let
-                    error =
-                        case namedErrors of
-                            [] ->
-                                Nothing
-                            xs ->
-                                Just <| SelectionError xs
-                in
-                    newModel
-                    { model
-                        | cache = cache
-                        , selectedNamedSeries = namedSeries
-                        , error = error
-                    }
+            -- plot
 
-            RenderPlot (Err xs) ->
-                newModel
-                { model
-                    | error = Just <| RenderError <| String.join " " xs
-                }
+            GotPlotData name (Ok rawdata) ->
+                case Decode.decodeString seriesdecoder rawdata of
+                    Ok val ->
+                        let loaded = Dict.insert name val model.loadedseries
+                        in newModel { model | loadedseries = loaded }
+
+                    Err err ->
+                        doerr "gotplotdata decode" <| Decode.errorToString err
+
+            GotPlotData name (Err err) ->
+                doerr "gotplotdata error" <| U.unwraperror err
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
@@ -345,14 +248,18 @@ view model =
             let
                 data =
                     List.map
-                        (\( name, serie ) ->
-                             scatterplot
-                             name
-                             (Dict.keys serie)
-                             (Dict.values serie)
-                             "lines"
+                        (\name ->
+                            let series =
+                                    Maybe.withDefault
+                                        Dict.empty <|Dict.get name model.loadedseries
+                            in
+                            scatterplot
+                            name
+                            (Dict.keys series)
+                            (Dict.values series)
+                            "lines"
                         )
-                        model.selectedNamedSeries
+                        model.search.selected
             in
                 plotargs plotDiv data
 
@@ -424,22 +331,23 @@ main =
     let
         init flags =
             let
-                prefix = flags.urlPrefix
                 selected = flags.selectedSeries
-            in
-                ( Model
-                      prefix
-                      (Catalog.new Dict.empty)
-                      flags.hasEditor
-                      (SeriesSelector.new [] "" [] selected False [] [])
-                      []
-                      (List.isEmpty selected)
-                      (LruCache.empty 100)
-                      Nothing
-            , Cmd.map GotCatalog (Catalog.get prefix 1)
-            )
+                model = Model
+                        flags.urlPrefix
+                        (Catalog.new Dict.empty)
+                        flags.hasEditor
+                        (SeriesSelector.new [] "" [] selected False [] [])
+                        (List.isEmpty selected)
+                        Dict.empty
+                        []
+            in ( model
+               , Cmd.batch <| [
+                      Cmd.map GotCatalog (Catalog.get model.urlPrefix 1)
+                     ] ++ fetchseries model
+               )
 
         sub model =
+            -- this is a cheap (cadenced) debouncer for the search ui
             if model.activeSelection then
                 Time.every 1000 (always MakeSearch)
 
