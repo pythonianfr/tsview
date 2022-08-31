@@ -290,14 +290,14 @@ view model =
 
 main : Program
        { prefix : String
-       , selectedSeries : List String
+       , selected : List String
        , haseditor : Bool
        } Model Msg
 main =
     let
         init flags =
             let
-                selected = flags.selectedSeries
+                selected = flags.selected
                 model = Model
                         flags.prefix
                         (Catalog.new Dict.empty)
