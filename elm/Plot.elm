@@ -24,7 +24,7 @@ type alias Model =
     , catalog: Catalog.Model
     , haseditor : Bool
     , search : SeriesSelector.Model
-    , activeSelection : Bool
+    , selecting : Bool
     , loadedseries : Dict String Series
     , errors : List String
     }
@@ -127,7 +127,7 @@ update msg model =
                     newModel { model | search = newsearch }
 
             ToggleSelection ->
-                newModel { model | activeSelection = not model.activeSelection }
+                newModel { model | selecting = not model.selecting }
 
             ToggleItem x ->
                 let
@@ -275,7 +275,7 @@ view model =
                 form [ classes [ T.center, T.pt4, T.w_90 ] ]
                     (
                      if
-                         model.activeSelection
+                         model.selecting
                      then
                          List.append children
                              [ SeriesSelector.view
@@ -348,7 +348,7 @@ main =
 
         sub model =
             -- this is a cheap (cadenced) debouncer for the search ui
-            if model.activeSelection then
+            if model.selecting then
                 Time.every 1000 (always MakeSearch)
 
             else
