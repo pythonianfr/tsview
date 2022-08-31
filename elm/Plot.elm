@@ -71,8 +71,6 @@ update msg model =
                 removeItem x xs
             else
                 x :: xs
-        newModel x =
-            ( x, Cmd.none )
         keywordMatch xm xs =
             if
                 String.length xm < 2
@@ -87,13 +85,13 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    newModel { model
+                    U.nocmd { model
                                 | catalog = newcat
                                 , search = newsearch
-                             }
+                            }
 
             ToggleMenu ->
-                newModel { model | search = SeriesSelector.togglemenu model.search }
+                U.nocmd { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -103,7 +101,7 @@ update msg model =
                                 kind
                                 checked
                 in
-                    newModel { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             SourceChange source checked ->
                 let
@@ -113,10 +111,10 @@ update msg model =
                                 source
                                 checked
                 in
-                    newModel { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             ToggleSelection ->
-                newModel { model | selecting = not model.selecting }
+                U.nocmd { model | selecting = not model.selecting }
 
             ToggleItem x ->
                 let
@@ -134,7 +132,7 @@ update msg model =
                 let
                     search = SeriesSelector.updatesearch model.search x
                 in
-                    newModel { model | search = search }
+                    U.nocmd { model | search = search }
 
             MakeSearch ->
                 let
@@ -143,7 +141,7 @@ update msg model =
                                   model.search.search
                                   model.search.filteredseries)
                 in
-                    newModel { model | search = search }
+                    U.nocmd { model | search = search }
 
             -- plot
 
@@ -151,7 +149,7 @@ update msg model =
                 case Decode.decodeString seriesdecoder rawdata of
                     Ok val ->
                         let loaded = Dict.insert name val model.loadedseries
-                        in newModel { model | loadedseries = loaded }
+                        in U.nocmd { model | loadedseries = loaded }
 
                     Err err ->
                         doerr "gotplotdata decode" <| Decode.errorToString err
