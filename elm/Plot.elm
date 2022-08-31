@@ -30,17 +30,6 @@ type alias Model =
     }
 
 
-type Error
-    = SelectionError (List NamedError)
-    | RenderError String
-    | CatalogError Catalog.Error
-
-
-
-type alias NamedError =
-    ( String, String )
-
-
 type Msg
     = GotCatalog Catalog.Msg
     | GotPlotData String (Result Http.Error String)
@@ -191,27 +180,6 @@ selectorConfig =
     , onSourceChange = SourceChange
     , divAttrs = [ classes [ T.mb4 ] ]
     }
-
-
-viewError : Error -> Html Msg
-viewError error =
-    let
-        bold x =
-            span [ classes [ T.b, T.mr4 ] ] [ text x ]
-    in
-        case error of
-            RenderError x ->
-                text x
-
-            SelectionError namedErrors ->
-                ul []
-                    (List.map
-                         (\( name, mess ) -> li [] [ bold name, text mess ])
-                         namedErrors
-                    )
-            CatalogError x ->
-                Catalog.viewError x
-
 
 
 viewlinks cls haseditor seriesName =
