@@ -10,7 +10,7 @@
     var app = Elm.Plot.init({
         node: document.getElementById("app"),
         flags: {
-            urlPrefix : baseurl,
+            prefix : baseurl,
             selectedSeries : {{ series | safe }},
             hasEditor: haseditor
         }

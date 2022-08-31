@@ -20,7 +20,7 @@ import Util as U
 
 
 type alias Model =
-    { urlPrefix : String
+    { prefix : String
     , catalog: Catalog.Model
     , hasEditor : Bool
     , search : SeriesSelector.Model
@@ -60,7 +60,7 @@ fetchseries model =
             not <| Dict.member series model.loadedseries
         missing = List.filter ismissing selected
     in List.map
-        (\name -> getplotdata model.urlPrefix name Nothing (GotPlotData name) 0 "" "")
+        (\name -> getplotdata model.prefix name Nothing (GotPlotData name) 0 "" "")
         missing
 
 
@@ -323,7 +323,7 @@ view model =
 
 
 main : Program
-       { urlPrefix : String
+       { prefix : String
        , selectedSeries : List String
        , hasEditor : Bool
        } Model Msg
@@ -333,7 +333,7 @@ main =
             let
                 selected = flags.selectedSeries
                 model = Model
-                        flags.urlPrefix
+                        flags.prefix
                         (Catalog.new Dict.empty)
                         flags.hasEditor
                         (SeriesSelector.new [] "" [] selected False [] [])
@@ -342,7 +342,7 @@ main =
                         []
             in ( model
                , Cmd.batch <| [
-                      Cmd.map GotCatalog (Catalog.get model.urlPrefix 1)
+                      Cmd.map GotCatalog (Catalog.get model.prefix 1)
                      ] ++ fetchseries model
                )
 
