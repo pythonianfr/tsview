@@ -22,7 +22,7 @@ import Util as U
 type alias Model =
     { prefix : String
     , catalog: Catalog.Model
-    , hasEditor : Bool
+    , haseditor : Bool
     , search : SeriesSelector.Model
     , activeSelection : Bool
     , loadedseries : Dict String Series
@@ -214,7 +214,7 @@ viewError error =
 
 
 
-viewlinks cls hasEditor seriesName =
+viewlinks cls haseditor seriesName =
     div [ ]
         [ text (seriesName ++ " ")
         , a [A.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
@@ -229,7 +229,7 @@ viewlinks cls hasEditor seriesName =
             ]
               [ text <| "history" ]
         , text " "
-        , if hasEditor then
+        , if haseditor then
               a [ A.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
                 , A.target "_blank"
                 , cls
@@ -304,7 +304,7 @@ view model =
 
                 links =
                     List.map
-                        (viewlinks cls model.hasEditor)
+                        (viewlinks cls model.haseditor)
                         model.search.selected
 
             in
@@ -325,7 +325,7 @@ view model =
 main : Program
        { prefix : String
        , selectedSeries : List String
-       , hasEditor : Bool
+       , haseditor : Bool
        } Model Msg
 main =
     let
@@ -335,7 +335,7 @@ main =
                 model = Model
                         flags.prefix
                         (Catalog.new Dict.empty)
-                        flags.hasEditor
+                        flags.haseditor
                         (SeriesSelector.new [] "" [] selected False [] [])
                         (List.isEmpty selected)
                         Dict.empty
