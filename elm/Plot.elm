@@ -25,6 +25,8 @@ type alias Model =
     , search : SeriesSelector.Model
     , selecting : Bool
     , loadedseries : Dict String Series
+    , mindate : String
+    , maxdate : String
     , errors : List String
     }
 
@@ -38,6 +40,16 @@ type Msg
     | MakeSearch
     | KindChange String Bool
     | SourceChange String Bool
+    -- dates
+    | FvdatePickerChanged String
+    | TvdatePickerChanged String
+
+
+dateof strdate =
+    case String.split "T" strdate of
+        head::_ ->
+            head
+        [] -> ""
 
 
 fetchseries model =
@@ -47,7 +59,9 @@ fetchseries model =
             not <| Dict.member series model.loadedseries
         missing = List.filter ismissing selected
     in List.map
-        (\name -> getplotdata model.prefix name Nothing (GotPlotData name) 0 "" "")
+        (\name -> getplotdata
+             model.prefix name Nothing (GotPlotData name) 0 model.mindate model.maxdate
+        )
         missing
 
 
@@ -152,6 +166,30 @@ update msg model =
             GotPlotData name (Err err) ->
                 doerr "gotplotdata error" <| U.unwraperror err
 
+            -- dates
+
+            FvdatePickerChanged value ->
+                let
+                    newmodel = { model
+                                   | mindate = value
+                                   , loadedseries = Dict.empty
+                               }
+                in
+                    ( newmodel
+                    , Cmd.batch <| fetchseries newmodel
+                    )
+
+            TvdatePickerChanged value ->
+                let
+                    newmodel = { model
+                                   | maxdate = value
+                                   , loadedseries = Dict.empty
+                               }
+                in
+                    ( newmodel
+                    , Cmd.batch <| fetchseries newmodel
+                    )
+
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -195,6 +233,30 @@ viewlinks haseditor seriesName =
           else
               H.text ""
         ]
+
+
+viewdatepicker model =
+    H.div
+    [ ]
+    [ H.span [ ] [ H.text " " ]
+    , H.label [ HA.for "fvd-picker" ] [ H.text "from value date" ]
+    , H.span [ ] [ H.text " " ]
+    , H.input [ HA.type_ "date"
+              , HA.id "fvd-picker"
+              , HA.name "fvd-picker"
+              , HA.value model.mindate
+              , HE.onInput FvdatePickerChanged
+              ] [ ]
+    , H.span [ ] [ H.text " " ]
+    , H.label [ HA.for "tvd-picker" ] [ H.text "to value date" ]
+    , H.span [ ] [ H.text " " ]
+    , H.input [ HA.type_ "date"
+            , HA.id "tvd-picker"
+            , HA.name "tvd-picker"
+            , HA.value model.maxdate
+            , HE.onInput TvdatePickerChanged
+            ] [ ]
+    ]
 
 
 view : Model -> H.Html Msg
@@ -275,6 +337,7 @@ view model =
         H.div []
             [ H.header [ ] [ selector ]
             , H.div [ HA.id plotDiv ] []
+            , viewdatepicker model
             , plotFigure [ HA.attribute "args" args ] []
             , H.footer [] [ urls ]
             ]
@@ -297,6 +360,8 @@ main =
                         (SeriesSelector.new [] "" [] selected [] [])
                         (List.isEmpty selected)
                         Dict.empty
+                        ""
+                        ""
                         []
             in ( model
                , Cmd.batch <| [
