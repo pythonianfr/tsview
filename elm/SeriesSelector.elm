@@ -238,7 +238,11 @@ view model catalog cfg =
                     )
 
     in
-        H.div cfg.divAttrs
+        H.div (cfg.divAttrs ++
+                   [ HA.style "z-index" "10"
+                   , HA.style "position" "absolute"
+                   ]
+              )
             [ searchInput
             , selectorwidget
             ]
