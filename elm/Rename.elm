@@ -181,7 +181,7 @@ selectorconfig =
     , actionSelector =
           { action =
                 Just
-                { attrs = [ ]
+                { attrs = [ HA.class "btn btn-primary" ]
                 , html = H.text "Rename"
                 , clickMsg = EditMode
                 }
@@ -208,8 +208,10 @@ vieweditor model =
                      ]
 
         buttons =
-            H.div [] [ H.a [ HE.onMouseDown OnRename ] [ H.text "Rename" ]
-                     , H.a [ HE.onMouseDown SelectMode ] [ H.text "Cancel" ]
+            H.div [] [ H.a [ HA.class "btn btn-warning"
+                           , HE.onMouseDown OnRename ] [ H.text "Rename" ]
+                     , H.a [ HA.class "btn btn-primary"
+                           , HE.onMouseDown SelectMode ] [ H.text "Cancel" ]
                      ]
 
         adderr mess =
