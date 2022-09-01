@@ -136,14 +136,8 @@ type alias ItemConfig msg =
 viewitemselector : ItemConfig msg -> List String -> List String -> H.Html msg
 viewitemselector cfg items selected =
     let
-        ulClass =
-            classes [ ]
-
         liAttrs item =
             let
-                liClass =
-                    classes [ ]
-
                 liSelected =
                     let
                         isSelected = List.member item selected
@@ -153,21 +147,18 @@ viewitemselector cfg items selected =
                                 (\x -> ( x, isSelected ))
                                 [ "white", "blue" ]
             in
-                [ liClass, liSelected, HE.onMouseDown <| cfg.toggleMsg item ]
+                [ liSelected, HE.onMouseDown <| cfg.toggleMsg item ]
 
         lst =
-            H.ul [ ulClass ] <|
+            H.ul [ HA.class "list-group" ] <|
                 List.map
-                    (\x -> H.li (liAttrs x) [ H.text x ])
+                    (\x -> H.li ([ HA.class "list-group-item" ] ++ (liAttrs x)) [ H.text x ])
                     items
 
         lstWithAction act =
             let
-                aClass =
-                    classes [ ]
-
                 attrs =
-                    [ aClass, HE.onMouseDown act.clickMsg ] ++ act.attrs
+                    [ HE.onMouseDown act.clickMsg ] ++ act.attrs
             in
                 H.div [ ] [ H.a attrs [ act.html ], lst ]
     in
