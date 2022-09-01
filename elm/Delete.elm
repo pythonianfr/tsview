@@ -4,6 +4,7 @@ import Browser
 import Common exposing (classes)
 import Dict exposing(Dict, fromList, keys, values)
 import Html as H
+import Html.Attributes as HA
 import Http
 import Json.Decode as Decode
 import Catalog
@@ -182,7 +183,7 @@ selectorConfig =
     , actionSelector =
           { action =
                 Just
-                { attrs = [ ]
+                { attrs = [ HA.class "btn btn-danger" ]
                 , html = H.text "Delete"
                 , clickMsg = OnDelete
                 }
