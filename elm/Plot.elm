@@ -226,6 +226,7 @@ view model =
                     [ H.a
                           [ HE.onClick ToggleSelection
                           , HA.title "click to toggle selector"
+                          , HA.class "btn btn-primary"
                           ]
                           [ H.text "Series selection" ]
                     ]
