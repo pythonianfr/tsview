@@ -3,7 +3,6 @@ module SeriesSelector exposing
     , new
     , null
     , fromcatalog
-    , togglemenu
     , updatesearch
     , updatefound
     , updateselected
@@ -29,18 +28,17 @@ type alias Model =
     , search : String  -- the search input pattern
     , found : List String  -- series matching the search
     , selected : List String  --  selected series
-    , menu : Bool -- filter menu state
     , kinds : List String -- list of series kinds
     , sources : List String -- list of series sources
     }
 
 
-new series search found selected menu kinds sources =
-    Model series search found selected menu kinds sources
+new series search found selected kinds sources =
+    Model series search found selected kinds sources
 
 
 null =
-    new [] "" [] [] False [] []
+    new [] "" [] [] [] []
 
 
 updatesearch : Model -> String -> Model
@@ -69,11 +67,6 @@ fromcatalog model catalog =
             , sources = newsources
             , filteredseries = List.sort catalog.series
         }
-
-
-togglemenu : Model -> Model
-togglemenu model =
-    { model | menu = not model.menu }
 
 
 filterseries : Model -> Catalog.Model -> List String
@@ -192,7 +185,6 @@ type alias SelectorConfig msg =
     { searchSelector : ItemConfig msg
     , actionSelector : ItemConfig msg
     , onInputMsg : String -> msg
-    , onMenuToggle : msg
     , onKindChange : String -> Bool -> msg
     , onSourceChange : String -> Bool -> msg
     , divAttrs : List (H.Attribute msg)
@@ -229,12 +221,7 @@ view model catalog cfg =
     let
         searchInput =
             H.div [ ] [
-                 H.div
-                     [ HA.title "show series filter"
-                     , HE.onClick cfg.onMenuToggle
-                     ]
-                     [ H.text "☰" ]
-                , H.input
+                 H.input
                      [ HA.value model.search
                      , HE.onInput cfg.onInputMsg
                      , HA.autofocus True
@@ -259,29 +246,8 @@ view model catalog cfg =
                          ]
                     )
 
-        kindsfilter =
-            if
-                model.menu
-            then
-                makefilter "kinds" (Dict.keys catalog.seriesByKind)
-                    model.kinds cfg.onKindChange
-            else
-                H.div [] []
-
-        sourcesfilter =
-            let
-                sources = Dict.keys catalog.seriesBySource
-            in
-                if
-                    model.menu && ((List.length sources) > 1)
-                then
-                    makefilter "sources" sources model.sources cfg.onSourceChange
-                else
-                    H.div [] []
     in
         H.div cfg.divAttrs
             [ searchInput
-            , kindsfilter
-            , sourcesfilter
             , selectorwidget
             ]

@@ -28,7 +28,6 @@ type Msg
     | MakeSearch
     | OnDelete
     | DeleteDone String (Result Http.Error String)
-    | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
 
@@ -97,9 +96,6 @@ update msg model =
                                      , search = newsearch
                                  }
 
-            ToggleMenu ->
-                stopupdating { model | search = SeriesSelector.togglemenu model.search }
-
             KindChange kind checked ->
                 let
                     newsearch = SeriesSelector.updatekinds
@@ -154,7 +150,6 @@ update msg model =
                                 model.search.search
                                 (removeItem name model.search.found)
                                 (removeItem name model.search.selected)
-                                model.search.menu
                                 model.search.kinds
                                 model.search.sources
                     newmodel = { model
@@ -195,7 +190,6 @@ selectorConfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
-    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ ]

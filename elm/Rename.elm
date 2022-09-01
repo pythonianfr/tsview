@@ -40,7 +40,6 @@ type Msg
     | NewSerieName String
     | OnRename
     | RenameDone (Result Http.Error String)
-    | ToggleMenu
     | KindChange String Bool
     | SourceChange String Bool
 
@@ -74,9 +73,6 @@ update msg model =
                                  | catalog = newcat
                                  , search = newsearch
                              }
-
-            ToggleMenu ->
-                new { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -193,7 +189,6 @@ selectorconfig =
           , toggleMsg = ToggleItem
           }
     , onInputMsg = SearchSeries
-    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ ]

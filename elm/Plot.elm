@@ -38,7 +38,6 @@ type Msg
     | MakeSearch
     | KindChange String Bool
     | SourceChange String Bool
-    | ToggleMenu
 
 
 fetchseries model =
@@ -88,9 +87,6 @@ update msg model =
                                 | catalog = newcat
                                 , search = newsearch
                             }
-
-            ToggleMenu ->
-                U.nocmd { model | search = SeriesSelector.togglemenu model.search }
 
             KindChange kind checked ->
                 let
@@ -172,7 +168,6 @@ selectorConfig =
         , toggleMsg = ToggleItem
         }
     , onInputMsg = SearchSeries
-    , onMenuToggle = ToggleMenu
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ ]
@@ -298,7 +293,7 @@ main =
                         flags.prefix
                         (Catalog.new Dict.empty)
                         flags.haseditor
-                        (SeriesSelector.new [] "" [] selected False [] [])
+                        (SeriesSelector.new [] "" [] selected [] [])
                         (List.isEmpty selected)
                         Dict.empty
                         []
