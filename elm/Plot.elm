@@ -2,6 +2,7 @@ module Plot exposing (main)
 
 import Browser
 import Common exposing (classes)
+import Date exposing (add, Date, fromIsoString, toIsoString)
 import Dict exposing (Dict)
 import Html
 import Html as H
@@ -13,7 +14,8 @@ import Json.Decode as Decode
 import KeywordSelector
 import Plotter exposing (getplotdata, scatterplot, seriesdecoder, plotargs, Series)
 import SeriesSelector
-import Time
+import Task exposing (Task)
+import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
 
@@ -25,8 +27,9 @@ type alias Model =
     , search : SeriesSelector.Model
     , selecting : Bool
     , loadedseries : Dict String Series
-    , mindate : String
-    , maxdate : String
+    , now : Date
+    , mindate : Maybe Date
+    , maxdate : Maybe Date
     , errors : List String
     }
 
@@ -41,18 +44,62 @@ type Msg
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
+    | GotToday Date
     | FvdatePickerChanged String
     | TvdatePickerChanged String
 
 
-dateof strdate =
+zerotime = "00:00:00.000Z"
+
+
+timepart rest =
+    case rest of
+        [ time ] -> time
+        _ -> zerotime
+
+
+maybedate dateresult =
+    case dateresult of
+        Err _ -> Nothing
+        Ok d -> Just d
+
+
+asmaybedate bump strdate =
     case String.split "T" strdate of
-        head::_ ->
-            head
-        [] -> ""
+        date::time ->
+            let realdate = maybedate (fromIsoString date)
+            in if (timepart time) == zerotime
+               then realdate
+            else if bump then
+                     -- if there is a time residue, we bump to the next day
+                     -- to make sure the max date includes all points
+                     Maybe.map (\d -> Date.add Date.Days 1 d) realdate
+                 else realdate
+
+        [] -> Nothing
 
 
-fetchseries model =
+serializedate date =
+    case date of
+        Nothing -> ""
+        Just d -> toIsoString d
+
+
+selectmaybedate model op date1 date2 =
+    -- apply an operator (min/max) on maybe dates
+    case date1 of
+        Nothing ->
+            case date2 of
+                Nothing -> model.now
+                Just d2 -> d2
+        Just d1 ->
+            case date2 of
+                Nothing -> d1
+                Just d2 ->
+                    op d1 d2
+
+
+fetchseries model restrict =
     let
         selected = model.search.selected
         ismissing series =
@@ -60,7 +107,9 @@ fetchseries model =
         missing = List.filter ismissing selected
     in List.map
         (\name -> getplotdata
-             model.prefix name Nothing (GotPlotData name) 0 model.mindate model.maxdate
+             model.prefix name Nothing (GotPlotData name) 0
+             (if restrict then (serializedate model.mindate) else "")
+             (if restrict then (serializedate model.maxdate) else "")
         )
         missing
 
@@ -134,7 +183,7 @@ update msg model =
                                }
                 in
                     ( newmodel
-                    , Cmd.batch <| fetchseries newmodel
+                    , Cmd.batch <| fetchseries newmodel False
                     )
 
             SearchSeries x ->
@@ -157,8 +206,28 @@ update msg model =
             GotPlotData name (Ok rawdata) ->
                 case Decode.decodeString seriesdecoder rawdata of
                     Ok val ->
-                        let loaded = Dict.insert name val model.loadedseries
-                        in U.nocmd { model | loadedseries = loaded }
+                        let
+                            dates = Dict.keys val
+                            mindate =
+                                asmaybedate False <|
+                                    case dates of
+                                        head::_ -> head
+                                        []  -> "1900-1-1"
+                            maxdate =
+                                asmaybedate True
+                                    <| Maybe.withDefault "2100-1-1" <| List.maximum dates
+
+                            loaded = Dict.insert name val model.loadedseries
+
+                            newmodel =
+                                { model
+                                    | loadedseries = loaded
+                                    , mindate = Just <| selectmaybedate
+                                                model Date.min model.mindate mindate
+                                    , maxdate = Just <| selectmaybedate
+                                                model Date.max model.maxdate maxdate
+                                }
+                        in U.nocmd newmodel
 
                     Err err ->
                         doerr "gotplotdata decode" <| Decode.errorToString err
@@ -168,26 +237,29 @@ update msg model =
 
             -- dates
 
+            GotToday now ->
+                U.nocmd { model | now = now }
+
             FvdatePickerChanged value ->
                 let
                     newmodel = { model
-                                   | mindate = value
+                                   | mindate = maybedate <| fromIsoString value
                                    , loadedseries = Dict.empty
                                }
                 in
                     ( newmodel
-                    , Cmd.batch <| fetchseries newmodel
+                    , Cmd.batch <| fetchseries newmodel True
                     )
 
             TvdatePickerChanged value ->
                 let
                     newmodel = { model
-                                   | maxdate = value
+                                   | maxdate = maybedate <| fromIsoString value
                                    , loadedseries = Dict.empty
                                }
                 in
                     ( newmodel
-                    , Cmd.batch <| fetchseries newmodel
+                    , Cmd.batch <| fetchseries newmodel True
                     )
 
 
@@ -244,7 +316,7 @@ viewdatepicker model =
     , H.input [ HA.type_ "date"
               , HA.id "fvd-picker"
               , HA.name "fvd-picker"
-              , HA.value model.mindate
+              , HA.value (serializedate model.mindate)
               , HE.onInput FvdatePickerChanged
               ] [ ]
     , H.span [ ] [ H.text " " ]
@@ -253,7 +325,7 @@ viewdatepicker model =
     , H.input [ HA.type_ "date"
             , HA.id "tvd-picker"
             , HA.name "tvd-picker"
-            , HA.value model.maxdate
+            , HA.value (serializedate model.maxdate)
             , HE.onInput TvdatePickerChanged
             ] [ ]
     ]
@@ -360,13 +432,15 @@ main =
                         (SeriesSelector.new [] "" [] selected [] [])
                         (List.isEmpty selected)
                         Dict.empty
-                        ""
-                        ""
+                        (Date.fromCalendarDate 1900 Jan 1)
+                        Nothing
+                        Nothing
                         []
             in ( model
                , Cmd.batch <| [
                       Cmd.map GotCatalog (Catalog.get model.prefix 1)
-                     ] ++ fetchseries model
+                     , Date.today |> Task.perform GotToday
+                     ] ++ fetchseries model False
                )
 
         sub model =
