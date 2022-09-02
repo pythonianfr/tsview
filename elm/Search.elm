@@ -536,6 +536,7 @@ seriessource name catalog =
 viewfiltered baseurl filtered catalog =
     let
         item elt =
+            let kind = serieskind elt catalog in
             (elt, H.li
                  [ A.class "list-group-item" ]
                  [ H.a [ A.href (UB.crossOrigin
@@ -544,15 +545,21 @@ viewfiltered baseurl filtered catalog =
                                      [ UB.string "name" elt ]
                                 )
                        ]
-                       [ H.text elt
-                       , H.span
-                           [ A.class "badge-pill badge-primary" ]
-                           [ H.text (serieskind elt catalog) ]
-                       , H.span
-                           [ A.class "badge-pill badge-info" ]
-                           [ H.text (seriessource elt catalog) ]
-                       ]
-                 ])
+                       [ H.text elt ]
+                 , H.span [ A.style "float" "inline-end" ]
+                     [ H.span
+                           [ A.class (if kind == "formula"
+                                      then "badge badge-success"
+                                      else "badge badge-secondary")
+                           ]
+                           [ H.text kind ]
+                     , H.span [ ] [ H.text " " ]
+                     , H.span
+                         [ A.class "badge badge-info" ]
+                         [ H.text (seriessource elt catalog) ]
+                     ]
+                 ]
+            )
     in
     K.node "ul"
         [ A.class "list-group list-group-flush" ]
