@@ -516,7 +516,7 @@ viewfilteredqty model =
     H.p [] [ H.text ("Found " ++ msg) ]
 
 
-viewfiltered baseurl filtered =
+viewfiltered baseurl filtered catalog =
     let
         item elt =
             (elt, H.li
@@ -556,7 +556,7 @@ view model =
               , viewmetafilter model
               , viewfilteredqty model
               ]
-        , L.lazy2 viewfiltered model.baseurl model.filtered
+        , L.lazy3 viewfiltered model.baseurl model.filtered model.catalog
         , viewerrors model
         ]
 
