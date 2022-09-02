@@ -707,7 +707,7 @@ viewformula model =
 metadicttostring d =
     let
         builditem ab =
-            U.first ab |> (++) " → " |> (++) (M.metavaltostring <| U.snd ab)
+            U.first ab ++ " → " ++ (M.metavaltostring <| U.snd ab)
     in
     String.join "," <| List.map builditem (Dict.toList d)
 
