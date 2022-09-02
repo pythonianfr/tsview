@@ -516,6 +516,18 @@ viewfilteredqty model =
     H.p [] [ H.text ("Found " ++ msg) ]
 
 
+serieskind name catalog =
+    let
+        find list =
+            case list of
+                head::tail ->
+                    let ( kind, names ) = head
+                    in if Set.member name names then kind else find tail
+                [] -> "unknown"
+    in
+        find <| Dict.toList catalog.seriesByKind
+
+
 viewfiltered baseurl filtered catalog =
     let
         item elt =
@@ -526,7 +538,12 @@ viewfiltered baseurl filtered catalog =
                                      [ "tsinfo" ]
                                      [ UB.string "name" elt ]
                                 )
-                       ] [ H.text elt ]
+                       ]
+                       [ H.text elt
+                       , H.span
+                           [ A.class "badge badge-primary" ]
+                           [ H.text (serieskind elt catalog) ]
+                       ]
                  ])
     in
     K.node "ul"
