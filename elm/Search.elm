@@ -528,6 +528,18 @@ serieskind name catalog =
         find <| Dict.toList catalog.seriesByKind
 
 
+seriessource name catalog =
+    let
+        find list =
+            case list of
+                head::tail ->
+                    let ( kind, names ) = head
+                    in if Set.member name names then kind else find tail
+                [] -> "unknown"
+    in
+        find <| Dict.toList catalog.seriesBySource
+
+
 viewfiltered baseurl filtered catalog =
     let
         item elt =
@@ -541,8 +553,11 @@ viewfiltered baseurl filtered catalog =
                        ]
                        [ H.text elt
                        , H.span
-                           [ A.class "badge badge-primary" ]
+                           [ A.class "badge-pill badge-primary" ]
                            [ H.text (serieskind elt catalog) ]
+                       , H.span
+                           [ A.class "badge-pill badge-info" ]
+                           [ H.text (seriessource elt catalog) ]
                        ]
                  ])
     in
