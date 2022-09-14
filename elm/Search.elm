@@ -437,7 +437,9 @@ viewsourcefilter model =
                       [ H.text source ]
                 ]
     in
-    H.div [] (List.map checkbox sources)
+    if List.length sources > 1
+    then H.div [] (List.map checkbox sources)
+    else H.span [] []
 
 
 viewmetafilter model =
