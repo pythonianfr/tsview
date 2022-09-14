@@ -402,19 +402,20 @@ viewkindfilter model =
                 [ A.class "form-check form-check-inline"
                 , A.title "filter by series type"]
                 [ H.input
-                      [ A.attribute "type" "checkbox"
-                      , A.class "form-check-input"
-                      , A.value kind
-                      , A.checked <| List.member kind model.selectedkinds
-                      , onClick <| KindUpdated kind
-                      ] []
+                    [ A.attribute "type" "checkbox"
+                    , A.class "form-check-input"
+                    , A.value kind
+                    , A.checked <| List.member kind model.selectedkinds
+                    , onClick <| KindUpdated kind
+                    ] []
                 , H.label
-                      [ A.class "form-check-label"
-                      , A.for kind ]
-                      [ H.text kind ]
+                    [ A.class "form-check-label"
+                    , A.for kind ]
+                    [ H.text kind ]
                 ]
     in
-    H.div [] (List.map checkbox kinds)
+    H.div [] <|
+        H.span [ A.class "font-italic" ] [ H.text "series kind → " ] :: (List.map checkbox kinds)
 
 
 viewsourcefilter model =
@@ -438,7 +439,8 @@ viewsourcefilter model =
                 ]
     in
     if List.length sources > 1
-    then H.div [] (List.map checkbox sources)
+    then H.div []  <|
+        H.span [ A.class "font-italic" ] [ H.text "series sources → " ] :: (List.map checkbox sources)
     else H.span [] []
 
 
@@ -588,8 +590,8 @@ view model =
               , H.span [ ] [ H.text " " ]
               , viewformulafilter
               , viewmetafilter model
-              , viewsourcefilter model
               , viewkindfilter model
+              , viewsourcefilter model
               , viewfilteredqty model
               ]
         , L.lazy4 viewfiltered model.baseurl model.filtered model.catalog <| nbsources > 1
