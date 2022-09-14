@@ -536,7 +536,7 @@ viewfiltered baseurl filtered catalog showsource =
         item elt =
             let kind = serieskind elt catalog in
             (elt, H.li
-                 [ A.class "list-group-item" ]
+                 [ A.class "list-group-item p-1" ]
                  [ H.a [ A.href (UB.crossOrigin
                                      baseurl
                                      [ "tsinfo" ]
