@@ -461,7 +461,7 @@ viewmetafilter model =
                 ]
                 [ H.text "delete" ]
         fields k v deleteaction keycb valuecb =
-            H.div [ ]
+            H.div []
                 [ H.input
                       ([ A.attribute "type" "text"
                        , A.class "form-control-sm"
@@ -551,14 +551,14 @@ viewfiltered baseurl filtered catalog showsource =
                                       else "badge badge-secondary")
                            ]
                            [ H.text kind ]
-                     , H.span [ ] [ H.text " " ]
+                     , H.span [] [ H.text " " ]
                      , if showsource
                        then
                            H.span
                                [ A.class "badge badge-info" ]
                                [ H.text (seriessource elt catalog) ]
                        else
-                           H.span [ ] [ ]
+                           H.span [] []
                      ]
                  ]
             )
@@ -587,7 +587,7 @@ view model =
         , H.div
               [ A.class "tsview-form-input small" ]
               [ viewnamefilter
-              , H.span [ ] [ H.text " " ]
+              , H.span [] [ H.text " " ]
               , viewformulafilter
               , viewmetafilter model
               , viewkindfilter model
