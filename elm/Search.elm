@@ -587,9 +587,9 @@ view model =
               [ viewnamefilter
               , H.span [ ] [ H.text " " ]
               , viewformulafilter
+              , viewmetafilter model
               , viewsourcefilter model
               , viewkindfilter model
-              , viewmetafilter model
               , viewfilteredqty model
               ]
         , L.lazy4 viewfiltered model.baseurl model.filtered model.catalog <| nbsources > 1
