@@ -535,7 +535,7 @@ seriessource name catalog =
     findkeyofvalue name <| Dict.toList catalog.seriesBySource
 
 
-viewfiltered baseurl filtered catalog =
+viewfiltered baseurl filtered catalog showsource =
     let
         item elt =
             let kind = serieskind elt catalog in
@@ -556,9 +556,13 @@ viewfiltered baseurl filtered catalog =
                            ]
                            [ H.text kind ]
                      , H.span [ ] [ H.text " " ]
-                     , H.span
-                         [ A.class "badge badge-info" ]
-                         [ H.text (seriessource elt catalog) ]
+                     , if showsource
+                       then
+                           H.span
+                               [ A.class "badge badge-info" ]
+                               [ H.text (seriessource elt catalog) ]
+                       else
+                           H.span [ ] [ ]
                      ]
                  ]
             )
@@ -579,6 +583,9 @@ viewerrors model =
 
 view : Model -> H.Html Msg
 view model =
+    let
+        nbsources = Dict.size model.catalog.seriesBySource
+    in
     H.div [ A.style "margin" ".5em" ]
         [ H.h1 [] [ H.text "Series Catalog" ]
         , H.div
@@ -590,7 +597,7 @@ view model =
               , viewmetafilter model
               , viewfilteredqty model
               ]
-        , L.lazy3 viewfiltered model.baseurl model.filtered model.catalog
+        , L.lazy4 viewfiltered model.baseurl model.filtered model.catalog <| nbsources > 1
         , viewerrors model
         ]
 
