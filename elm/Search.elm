@@ -463,7 +463,7 @@ viewmetafilter model =
                 [ H.input
                       ([ A.attribute "type" "text"
                        , A.class "form-control-sm"
-                       , A.placeholder "key"
+                       , A.placeholder "filter by metadata key"
                        , A.value k
                        ] ++ case keycb of
                                 Nothing -> []
@@ -473,7 +473,7 @@ viewmetafilter model =
                 , H.input
                     ([ A.attribute "type" "text"
                      , A.class "form-control-sm"
-                     , A.placeholder "value"
+                     , A.placeholder "filter by metadata value"
                      , A.value v
                      ] ++ case valuecb of
                               Nothing -> []
