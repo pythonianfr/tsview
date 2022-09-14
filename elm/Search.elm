@@ -375,7 +375,7 @@ update msg model =
 viewnamefilter =
     let input =
             H.input
-                [ A.class "form-control"
+                [ A.class "form-control-sm"
                 , A.placeholder "filter by name"
                 , onInput NameFilter
                 ] []
@@ -386,7 +386,7 @@ viewnamefilter =
 viewformulafilter =
     let input =
             H.input
-                [ A.class "form-control"
+                [ A.class "form-control-sm"
                 , A.placeholder "filter on formula content"
                 , onInput FormulaFilter
                 ] []
@@ -447,49 +447,43 @@ viewmetafilter model =
         addentry =
             H.button
                 [ A.attribute "type" "button"
-                , A.class "btn btn-primary"
+                , A.class "btn btn-primary btn-sm"
                 , onClick AddMetaItem
                 ]
                 [ H.text "add" ]
         delete key value =
             H.button
                 [ A.attribute "type" "button"
-                , A.class "btn btn-warning"
+                , A.class "btn btn-warning btn-sm"
                 , onClick (MetaItemToDelete (key, value))
                 ]
                 [ H.text "delete" ]
         fields k v deleteaction keycb valuecb =
-            H.div
-                [ A.class "form-row" ]
-                (List.append
-                [ H.div
-                      [ A.class "col-3" ]
-                      [ H.input
-                            ([ A.attribute "type" "text"
-                             , A.class "form-control"
-                             , A.placeholder "key"
-                             , A.value k
-                             ] ++ case keycb of
-                                      Nothing -> []
-                                      Just cb -> [ cb ]
-                            ) []
-                      ]
-                , H.div [ A.class "col-6" ]
-                    [ H.input
-                          ([ A.attribute "type" "text"
-                           , A.class "form-control"
-                           , A.placeholder "value"
-                           , A.value v
-                           ] ++ case valuecb of
-                                    Nothing -> []
-                                    Just cb -> [ cb ]
-                          ) []
-                    ]
-                ] [
-                 case deleteaction of
-                     Nothing -> addentry
-                     Just action -> action k v
-                ])
+            H.div [ ]
+                [ H.input
+                      ([ A.attribute "type" "text"
+                       , A.class "form-control-sm"
+                       , A.placeholder "key"
+                       , A.value k
+                       ] ++ case keycb of
+                                Nothing -> []
+                                Just cb -> [ cb ]
+                      ) []
+                , H.span [] [ H.text " " ]
+                , H.input
+                    ([ A.attribute "type" "text"
+                     , A.class "form-control-sm"
+                     , A.placeholder "value"
+                     , A.value v
+                     ] ++ case valuecb of
+                              Nothing -> []
+                              Just cb -> [ cb ]
+                    ) []
+                , H.span [] [ H.text " " ]
+                , case deleteaction of
+                      Nothing -> addentry
+                      Just action -> action k v
+                ]
     in
     H.form
         [ A.title "filter by metadata" ]
@@ -589,8 +583,9 @@ view model =
     H.div [ A.style "margin" ".5em" ]
         [ H.h1 [] [ H.text "Series Catalog" ]
         , H.div
-              [ A.class "tsview-form-input" ]
+              [ A.class "tsview-form-input small" ]
               [ viewnamefilter
+              , H.span [ ] [ H.text " " ]
               , viewformulafilter
               , viewsourcefilter model
               , viewkindfilter model
