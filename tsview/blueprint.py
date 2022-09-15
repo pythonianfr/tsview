@@ -124,6 +124,13 @@ def tsview(tsa,
 
         return 'You do not have the rename capability.'
 
+    @bp.route('/formulacache')
+    def formulacache():
+        return render_template(
+            'cache.html',
+            homeurl=homeurl()
+        )
+
     # formula editor
 
     @bp.route('/spec')

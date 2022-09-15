@@ -3,7 +3,6 @@
 .tox
 \.egg-info
 build
-.cache
 dist
 data/pgdb
 fontawesome

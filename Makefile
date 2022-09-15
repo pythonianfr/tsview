@@ -4,7 +4,7 @@ NODE_PATH ?= /usr/lib/node_modules
 ACE_TAR ?= v1.4.11.tar.gz
 ACE_URL ?= https://github.com/ajaxorg/ace-builds/archive
 
-all: delete rename info search plot formula pygmentize
+all: delete rename info search plot cache formula pygmentize
 
 delete:
 	elm make elm/Delete.elm $(FLAGS) --output tsview/tsview_static/delete_elm.js
@@ -20,6 +20,10 @@ search:
 
 plot:
 	elm make elm/Plot.elm $(FLAGS) --output tsview/tsview_static/plot_elm.js
+
+cache:
+	elm make elm/Cache.elm $(FLAGS) --output tsview/tsview_static/cache_elm.js
+
 
 # now vendored in tsview_static
 # tsview/tsview_static/ace:
@@ -56,4 +60,5 @@ cleanbuild:
 	rm tsview/tsview_static/info_elm.js -f
 	rm tsview/tsview_static/search_elm.js -f
 	rm tsview/tsview_static/formula_elm.js -f
+	rm tsview/tsview_static/cache.js -f
 	rm elm/FormulaParserValidation/tsformula_elm_parser.js -f

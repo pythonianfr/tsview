@@ -33,3 +33,54 @@ label.option {
     list-style: square inside;
     padding-left: 1em;
 }
+
+
+/* cache ui */
+.btn {
+    padding: 3px;
+    margin: 2px;
+}
+
+.policy_list {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
+.policy_list :not(thead) tr {
+  border: 1px dotted black;
+}
+
+.gridded_policy:not(:last-child) {
+    border-bottom: none;
+}
+
+.gridded_policy:nth-child(2n) {
+    background-color: lightgrey;
+}
+
+.gridded_policy:hover {
+    background-color: lightblue;
+}
+
+
+.link_policy {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 1rem;
+    grid-auto-rows: 5fr;
+    align-items: top;
+}
+
+.link_policy ul {
+    list-style: none;
+    padding-left: 1rem;
+}
+
+.link_policy button {
+    margin-right: 1rem;
+}
+
+.field_error {
+    background: tomato;
+}
