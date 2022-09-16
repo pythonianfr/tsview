@@ -514,27 +514,28 @@ viewfilteredqty model =
     H.p [] [ H.text ("Found " ++ msg) ]
 
 
-findkeyofvalue value list =
-    case list of
+findkeyofvalue map keys value =
+    case keys of
         head::tail ->
-            let ( key, valueset ) = head
-            in if Set.member value valueset then key else findkeyofvalue value tail
+            if Set.member value <| Maybe.withDefault Set.empty (Dict.get head map)
+            then head
+            else findkeyofvalue map tail value
 
         [] -> "unknown"
 
 
 serieskind name catalog =
-    findkeyofvalue name <| Dict.toList catalog.seriesByKind
+    findkeyofvalue catalog.seriesByKind (Dict.keys catalog.seriesByKind) name
 
 
 seriessource name catalog =
-    findkeyofvalue name <| Dict.toList catalog.seriesBySource
+    findkeyofvalue catalog.seriesBySource (Dict.keys catalog.seriesBySource) name
 
 
 viewfiltered baseurl filtered catalog showsource =
     let
         item elt =
-            let kind = serieskind elt catalog in -- NOTE: this might be very costly
+            let kind = serieskind elt catalog in
             (elt, H.li
                  [ A.class "list-group-item p-1" ]
                  [ H.a [ A.href (UB.crossOrigin
