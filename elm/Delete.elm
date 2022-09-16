@@ -205,7 +205,8 @@ view model =
     in
         case model.errors of
             Nothing ->
-                H.article [ ]
+                H.div
+                    [ HA.style "margin" "1em" ]
                     [ SeriesSelector.view model.search model.catalog selectorConfig ]
 
             Just error ->
