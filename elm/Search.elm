@@ -449,6 +449,7 @@ viewmetafilter model =
         addentry =
             H.button
                 [ A.attribute "type" "button"
+                , A.title "add the metadata filter rule"
                 , A.class "btn btn-primary btn-sm"
                 , onClick AddMetaItem
                 ]
@@ -456,6 +457,7 @@ viewmetafilter model =
         delete key value =
             H.button
                 [ A.attribute "type" "button"
+                , A.title "remove the metadata filter rule"
                 , A.class "btn btn-warning btn-sm"
                 , onClick (MetaItemToDelete (key, value))
                 ]
@@ -487,8 +489,8 @@ viewmetafilter model =
                       Just action -> action k v
                 ]
     in
-    H.form
-        [ A.title "filter by metadata" ]
+    H.div
+        [ ]
         ([ fields
                (U.first model.metaitem)
                (U.snd model.metaitem)
