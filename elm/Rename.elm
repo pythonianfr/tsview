@@ -234,7 +234,7 @@ view model =
                 Edit ->
                     vieweditor model
     in
-        H.article [ ] [ content ]
+        H.div [ HA.style "margin" "1em" ] [ content ]
 
 
 main : Program String Model Msg
