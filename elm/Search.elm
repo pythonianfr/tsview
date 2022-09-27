@@ -566,10 +566,32 @@ viewfiltered baseurl filtered catalog showsource =
                        H.span [] []
                  ]
             )
+        slicelist inlist outlist count =
+            case inlist of
+                [] -> outlist
+                head::tail ->
+                    if count == 0
+                    then outlist
+                    else slicelist tail (head::outlist) (count - 1)
+
+        filteredslice =
+            slicelist filtered [] 5000
+
+        missing =
+            (List.length filteredslice) < (List.length filtered)
+
+        items =
+            List.map item <| List.sort filteredslice
+
+        tailnode =
+            if missing then
+                ("_sliced", H.span [] [ H.text "" ])
+            else
+                ("_unsliced", H.span [] [ H.text "(full search results shown)" ])
     in
     K.node "ul"
         [ A.class "list-group list-group-flush" ]
-        <| List.map item <| List.sort filtered
+        <| items ++ [ tailnode ]
 
 
 viewerrors model =
