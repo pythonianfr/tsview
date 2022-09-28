@@ -583,8 +583,10 @@ viewfiltered baseurl filtered catalog showsource =
         items =
             List.map item <| List.sort filteredslice
 
+        noseries = (List.length filtered) == 0
+
         tailnode =
-            if missing then
+            if missing || noseries  then
                 ("_sliced", H.span [] [ H.text "" ])
             else
                 ("_unsliced", H.span [] [ H.text "(full search results shown)" ])
