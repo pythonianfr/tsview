@@ -516,22 +516,24 @@ viewfilteredqty model =
     H.p [] [ H.text ("Found " ++ msg) ]
 
 
-findkeyofvalue map keys value =
+findkeysofvalue out map keys value justone =
     case keys of
         head::tail ->
             if Set.member value <| Maybe.withDefault Set.empty (Dict.get head map)
-            then head
-            else findkeyofvalue map tail value
+            then if justone then [head] else findkeysofvalue (head::out) map tail value justone
+            else findkeysofvalue out map tail value justone
 
-        [] -> "unknown"
+        [] -> out
 
 
 serieskind name catalog =
-    findkeyofvalue catalog.seriesByKind (Dict.keys catalog.seriesByKind) name
+    Maybe.withDefault "unknown" <|
+        List.head <|
+            findkeysofvalue [] catalog.seriesByKind (Dict.keys catalog.seriesByKind) name True
 
 
-seriessource name catalog =
-    findkeyofvalue catalog.seriesBySource (Dict.keys catalog.seriesBySource) name
+seriessources name catalog =
+    findkeysofvalue [] catalog.seriesBySource (Dict.keys catalog.seriesBySource) name False
 
 
 viewfiltered baseurl filtered catalog showsource =
@@ -558,10 +560,16 @@ viewfiltered baseurl filtered catalog showsource =
                    then
                        H.span
                            [ A.style "float" "inline-end" ]
-                           [ H.span
-                                 [ A.class "badge badge-info" ]
-                                 [ H.text (seriessource elt catalog) ]
-                           ]
+                           <| List.map
+                               (\source ->
+                                    H.span []
+                                    [ H.span [] [ H.text " " ]
+                                    , H.span
+                                        [ A.class "badge badge-info" ]
+                                        [ H.text source ]
+                                    ]
+                               )
+                               (seriessources elt catalog)
                    else
                        H.span [] []
                  ]
