@@ -536,10 +536,16 @@ seriessources name catalog =
     findkeysofvalue [] catalog.seriesBySource (Dict.keys catalog.seriesBySource) name False
 
 
-viewfiltered baseurl filtered catalog showsource =
+viewfiltered baseurl filtered catalog showsource selectedsources =
     let
         item elt =
-            let kind = serieskind elt catalog in
+            let kind =
+                    serieskind elt catalog
+                sources =
+                    List.filter
+                        (\src -> List.member src selectedsources)
+                        (seriessources elt catalog)
+            in
             (elt, H.li
                  [ A.class "list-group-item p-1" ]
                  [ H.span
@@ -569,7 +575,7 @@ viewfiltered baseurl filtered catalog showsource =
                                         [ H.text source ]
                                     ]
                                )
-                               (seriessources elt catalog)
+                               sources
                    else
                        H.span [] []
                  ]
@@ -630,7 +636,8 @@ view model =
               , viewsourcefilter model
               , viewfilteredqty model
               ]
-        , L.lazy4 viewfiltered model.baseurl model.filtered model.catalog <| nbsources > 1
+        , L.lazy5 viewfiltered
+            model.baseurl model.filtered model.catalog (nbsources > 1) model.selectedsources
         , viewerrors model
         ]
 
