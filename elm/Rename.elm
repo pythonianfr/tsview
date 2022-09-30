@@ -13,6 +13,7 @@ import KeywordSelector
 import SeriesSelector
 import Time
 import Url.Builder as UB
+import Util as U
 
 
 type State
@@ -55,8 +56,6 @@ update msg model =
             else
                 List.singleton elt
 
-        new x = ( x, Cmd.none )
-
         keywordmatch xm xs =
             if String.length xm < 2 then
                 []
@@ -69,10 +68,10 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    new { model
-                                 | catalog = newcat
-                                 , search = newsearch
-                             }
+                    U.nocmd { model
+                                | catalog = newcat
+                                , search = newsearch
+                            }
 
             KindChange kind checked ->
                 let
@@ -82,7 +81,7 @@ update msg model =
                                 kind
                                 checked
                 in
-                    new { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             SourceChange source checked ->
                 let
@@ -92,19 +91,19 @@ update msg model =
                                 source
                                 checked
                 in
-                    new { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             ToggleItem x ->
-                new { model | search = SeriesSelector.updateselected
-                                            model.search
-                                            (toggleitem x model.search.selected)
-                         }
+                U.nocmd { model | search = SeriesSelector.updateselected
+                                           model.search
+                                           (toggleitem x model.search.selected)
+                        }
 
             SearchSeries x ->
-                new { model | search = SeriesSelector.updatesearch
-                                            model.search
-                                            x
-                         }
+                U.nocmd { model | search = SeriesSelector.updatesearch
+                                           model.search
+                                           x
+                        }
 
             MakeSearch ->
                 let
@@ -114,20 +113,20 @@ update msg model =
                                      model.search.search
                                      model.search.filteredseries)
                 in
-                    new { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             EditMode ->
-                new
+                U.nocmd
                 { model
                     | state = Edit
                     , renamed = Maybe.withDefault "" (List.head model.search.selected)
                 }
 
             SelectMode ->
-                new { model | state = Select, error = Nothing }
+                U.nocmd { model | state = Select, error = Nothing }
 
             NewSerieName x ->
-                new { model | renamed = x, error = Nothing }
+                U.nocmd { model | renamed = x, error = Nothing }
 
             OnRename ->
                 let
@@ -166,7 +165,7 @@ update msg model =
                 )
 
             RenameDone (Err x) ->
-                new { model | error = Just "something wrong happened" }
+                U.nocmd { model | error = Just "something wrong happened" }
 
 
 selectorconfig : SeriesSelector.SelectorConfig Msg
