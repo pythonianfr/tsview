@@ -12,6 +12,7 @@ import KeywordSelector
 import SeriesSelector
 import Time
 import Url.Builder as UB
+import Util as U
 
 
 type alias Model =
@@ -34,9 +35,6 @@ type Msg
 
 
 -- deletion update helpers
-stopupdating model =
-    ( model, Cmd.none )
-
 
 delete expect url =
     Http.request
@@ -52,7 +50,7 @@ delete expect url =
 
 deleteseries model =
     case model.search.selected of
-        [] -> stopupdating ( model )-- we're done
+        [] -> U.nocmd model -- we're done
 
         head :: tail ->
             let
@@ -92,10 +90,10 @@ update msg model =
                     newcat = Catalog.update catmsg model.catalog
                     newsearch = SeriesSelector.fromcatalog model.search newcat
                 in
-                    stopupdating { model
-                                     | catalog = newcat
-                                     , search = newsearch
-                                 }
+                    U.nocmd { model
+                                | catalog = newcat
+                                , search = newsearch
+                            }
 
             KindChange kind checked ->
                 let
@@ -105,7 +103,7 @@ update msg model =
                                 kind
                                 checked
                 in
-                    stopupdating { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             SourceChange source checked ->
                 let
@@ -115,7 +113,7 @@ update msg model =
                                 source
                                 checked
                 in
-                    stopupdating { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             ToggleItem x ->
                 let
@@ -123,13 +121,13 @@ update msg model =
                                 model.search
                                 (toggleItem x model.search.selected)
                 in
-                    stopupdating { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             SearchSeries x ->
                 let
                     newsearch = SeriesSelector.updatesearch model.search x
                 in
-                    stopupdating { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             MakeSearch ->
                 let
@@ -139,7 +137,7 @@ update msg model =
                                      model.search.search
                                      model.search.filteredseries)
                 in
-                    stopupdating { model | search = newsearch }
+                    U.nocmd { model | search = newsearch }
 
             OnDelete ->
                 deleteseries model
@@ -165,7 +163,7 @@ update msg model =
                 let
                     err = "stopping, wrong signal on delete for " ++ series
                 in
-                    stopupdating
+                    U.nocmd
                     { model
                         | errors = Just <| Common.maybe [ err ] ((::) err) model.errors
                     }
