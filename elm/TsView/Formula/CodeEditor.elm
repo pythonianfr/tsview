@@ -62,9 +62,11 @@ type Tab
 type alias Model =
     { urlPrefix : String
     , tab : Tab
+    , needsaving : Bool
     , errors : List String
     , state : State
     , spec : S.Spec
+    , lastgood : Formula
     , current : PartialFormula
     , user : PartialFormula
     , reload : Bool
@@ -178,7 +180,15 @@ update msg model =
                 (parseFormula model.spec code)
 
         Render tree ->
-            updateCurrentCode tree model |> withNoCmd
+            let
+                newmodel =
+                    updateCurrentCode tree model
+                diff = newmodel.lastgood /= newmodel.current.formula
+            in
+                { newmodel
+                    | lastgood = newmodel.current.formula
+                    , needsaving = diff
+                } |> withNoCmd
 
         UpdateName s ->
             (updateName s |> updateFormula |> updateCurrent) model
@@ -193,9 +203,25 @@ update msg model =
                 f =
                     (always model.current.formula |> updateFormula |> updateUser)
                         >> (updateErrMess Nothing |> updateUser)
+                        >> (updateErrMess Nothing |> updateCurrent)
                         >> updateState state
+
+                newmodel =
+                    f model
+
+                needsaving =
+                    case state of
+                        Edition -> False
+                        ReadOnly ->
+                            case newmodel.current.errMess of
+                                Nothing -> newmodel.current.formula /= newmodel.lastgood
+                                Just _ -> False
+
             in
-            f model |> withNoCmd
+            f  { newmodel
+                   | needsaving = needsaving
+                   , lastgood = newmodel.current.formula
+               } |> withNoCmd
 
         OnSave ->
             let
@@ -216,8 +242,7 @@ update msg model =
                         (E.object
                             [ ( "name", E.string formula.name )
                             , ( "text", E.string formula.code )
-                            , ( "reject_unknown", E.bool False )
-                            , ( "force_update", E.bool True )
+                            , ( "reject_unknown", E.bool True )
                             ]
                         )
                 , expect = expectJsonMessage SaveDone D.string
@@ -227,7 +252,7 @@ update msg model =
             )
 
         SaveDone (Ok _) ->
-            (updateErrMess Nothing |> updateCurrent) model |> withNoCmd
+            (updateErrMess Nothing |> updateCurrent) { model | needsaving = False } |> withNoCmd
 
         SaveDone (Err s) ->
             (updateErrMess (Just s) |> updateCurrent) model |> withNoCmd
@@ -239,7 +264,7 @@ update msg model =
                 Err err ->
                     doerr <| D.errorToString err
 
-        ParsedFormula _ ->
+        ParsedFormula f ->
             model |> withNoCmd
 
         GotPlotData (Err err) ->
@@ -261,9 +286,11 @@ init urlPrefix spec initialFormulaM =
     Model
         urlPrefix
         Editor
+        False
         []
         ReadOnly
         spec
+        noFormula
         (PartialFormula initialFormula Nothing)
         (PartialFormula initialFormula Nothing)
         False
@@ -313,12 +340,17 @@ viewReadOnly model =
         ]
     , H.footer [ A.class "code_left" ]
         (List.append
-            [ H.button [ A.class "btn btn-primary"
-                       , Events.onClick OnSave
-                       ]
-                  [ H.text "save as" ]
-            , H.input [ A.value name, Events.onInput UpdateName ] []
-            ]
+             (
+              if model.needsaving then
+                  [ H.button [ A.class "btn btn-primary"
+                             , Events.onClick OnSave
+                             ]
+                        [ H.text "save as" ]
+                  , H.input [ A.value name, Events.onInput UpdateName ] []
+                  ]
+              else
+                  [ H.span [] [] ]
+             )
             (viewError model.current.errMess)
         )
     ]
