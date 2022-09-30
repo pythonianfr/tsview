@@ -512,7 +512,7 @@ viewfilteredqty model =
                   (if len == 1
                    then "1 item"
                    else String.fromInt len ++ " items")
-        msg2 = if len > 5000 then msg ++ " (only first 5000 items shown)." else msg ++ "."
+        msg2 = if len > 1000 then msg ++ " (only first 1000 items shown)." else msg ++ "."
     in
     H.p [] [ H.text ("Found " ++ msg2) ]
 
@@ -590,7 +590,7 @@ viewfiltered baseurl filtered catalog showsource selectedsources =
                     else slicelist tail (head::outlist) (count - 1)
 
         filteredslice =
-            slicelist filtered [] 5000
+            slicelist filtered [] 1000
 
         missing =
             (List.length filteredslice) < (List.length filtered)
