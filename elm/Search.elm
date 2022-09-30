@@ -507,13 +507,14 @@ viewfilteredqty model =
     let
         len = List.length model.filtered
         msg = if len == 0
-              then "no item."
+              then "No item"
               else
                   (if len == 1
-                   then "1 item."
-                   else String.fromInt len ++ " items.")
+                   then "1 item"
+                   else String.fromInt len ++ " items")
+        msg2 = if len > 5000 then msg ++ " (only first 5000 items shown)." else msg ++ "."
     in
-    H.p [] [ H.text ("Found " ++ msg) ]
+    H.p [] [ H.text ("Found " ++ msg2) ]
 
 
 findkeysofvalue out map keys value justone =
