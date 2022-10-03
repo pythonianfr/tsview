@@ -20,6 +20,7 @@ import Html.Keyed as K
 import Html.Lazy as L
 import Http
 import Json.Decode as D
+import List.Extra as LE
 import Metadata as M
 import Set exposing (Set)
 import Url.Builder as UB
@@ -581,24 +582,18 @@ viewfiltered baseurl filtered catalog showsource selectedsources =
                        H.span [] []
                  ]
             )
-        slicelist inlist outlist count =
-            case inlist of
-                [] -> outlist
-                head::tail ->
-                    if count == 0
-                    then outlist
-                    else slicelist tail (head::outlist) (count - 1)
+        ufiltered = LE.unique filtered
 
         filteredslice =
-            slicelist filtered [] 1000
+            List.take 1000 (List.sort ufiltered)
 
         missing =
-            (List.length filteredslice) < (List.length filtered)
+            (List.length filteredslice) < (List.length ufiltered)
 
         items =
-            List.map item <| List.sort filteredslice
+            List.map item filteredslice
 
-        noseries = (List.length filtered) == 0
+        noseries = (List.length ufiltered) == 0
 
         tailnode =
             if missing || noseries  then
