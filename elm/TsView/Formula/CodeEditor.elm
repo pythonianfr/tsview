@@ -81,7 +81,6 @@ type Msg
     | AceEditorMsg AceEditor.Msg
     | ChangeState State
     | UpdateName String
-    | UpdateUserFormula
     | OnSave
     | SaveDone (Result String String)
     | GotPlotData (Result Http.Error String)
@@ -188,14 +187,6 @@ update msg model =
         AceEditorMsg (AceEditor.Edited code) ->
             update (ParseFormula code) { model | reload = False }
 
-        UpdateUserFormula ->
-            let
-                f =
-                    always model.current.formula |> updateFormula |> updateUser
-            in
-            f { model | reload = True }
-                |> update (ParseFormula model.current.formula.code)
-
         ChangeState state ->
             let
                 f : Model -> Model
@@ -298,7 +289,7 @@ viewHeader state =
     in
     H.header
         [ A.class "code_left" ]
-        [ H.span [] [ H.text "Formula edition" ]
+        [ H.span [] [ H.text "Formula edition " ]
         , H.a [ Events.onClick (ChangeState newState) ] [ H.text sign ]
         ]
 
@@ -349,31 +340,14 @@ viewEdition model =
     , H.footer
         [ A.class "code_left" ]
         (viewError model.user.errMess)
-    , H.aside
-        [ A.class "code_left center_item" ]
-        [ H.text "↓" ]
-    , H.header
-        [ A.class "code_center" ]
-        []
-    , H.div
-        [ A.class "code_center center_item" ]
-        [ H.a
-            [ Events.onClick UpdateUserFormula ]
-            [ H.text "←" ]
-        ]
+    , H.div [] []
     , H.header
         [ A.class "code_right" ]
-        [ H.span [] [ H.text "Current formula" ] ]
+        [ H.span [] [ H.text "Last valid formula" ] ]
     , H.div
         [ A.class "code_right", editorHeight ]
         [ AceEditor.readOnly cfg model.current.formula.code
         ]
-    , H.footer
-        [ A.class "code_right" ]
-        []
-    , H.aside
-        [ A.class "code_right center_item" ]
-        [ H.text "⬈" ]
     ]
 
 

@@ -10,14 +10,6 @@
 }
 
 .main {
-    margin: 1em 1em;
-}
-
-.main > * + * {
-    margin-top: 1.5em;
-}
-
-.code_editor {
     display: grid;
     grid-template-columns:
         [left-start] 1fr
@@ -28,13 +20,16 @@
     grid-auto-flow: column;
 }
 
-.code_left {
-    grid-column: left;
-    grid-row: span 1;
+.main > * + * {
+    margin-top: 1em;
 }
 
-.code_center {
-    grid-column: center;
+.code_editor {
+    margin: 1em;
+}
+
+.code_left {
+    grid-column: left;
     grid-row: span 1;
 }
 
@@ -43,7 +38,7 @@
     grid-row: span 1;
 }
 
-.code_editor pre {
+.code_left pre {
     min-height: var(--min-height-editor, 36vh);
 }
 
@@ -52,46 +47,18 @@
     align-self: center;
 }
 
-header[class~="code_right"],
 header[class~="code_left"] {
     padding: 0.6em 1.2em;
-    border-top: 1px solid rgba( 0, 0, 0, .7 );
     background-color: LightGrey;
     border-top-right-radius: .2em;
     border-top-left-radius: .2em;
-    border-top: 1px solid rgba( 0, 0, 0, .7 );
-    border-right: 1px solid rgba( 0, 0, 0, .7 );
-    border-left: 1px solid rgba( 0, 0, 0, .7 );
 }
 
-div[class~="code_right"],
-div[class~="code_left"] {
-    border-right: 1px solid rgba( 0, 0, 0, .7 );
-    border-left: 1px solid rgba( 0, 0, 0, .7 );
-}
-
-div[class~="code_center"] {
-    margin: 0 1em;
-}
-
-footer[class~="code_right"],
 footer[class~="code_left"] {
     padding: 0.6em 1.2em;
     background-color: LightGrey;
     border-bottom-right-radius: .2em;
     border-bottom-left-radius: .2em;
-    border-bottom: 1px solid rgba( 0, 0, 0, .7 );
-    border-right: 1px solid rgba( 0, 0, 0, .7 );
-    border-left: 1px solid rgba( 0, 0, 0, .7 );
-}
-
-.code_editor > header {
-    line-height: 1.8em;
-}
-
-.code_editor > header > span {
-    float: left;
-    width: 20%;
 }
 
 .code_editor a,
@@ -99,22 +66,11 @@ footer[class~="code_left"] {
     cursor: pointer;
 }
 
-.code_editor > header > select {
-    font-size: 0.8rem;
-}
-
-.code_editor > footer > button {
-    width: 20%;
-}
-
-.code_editor > footer > input {
-    margin-left: 0.6em;
-    width: calc(80% - 0.6em);
-}
-
 .code_editor > aside {
     padding: 1em;
 }
+
+/* tree editor */
 
 .ui_editor {
     display: inline-grid;

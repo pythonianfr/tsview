@@ -125,8 +125,12 @@ view model =
         , case model.tab of
               Editor ->
                   H.article [ A.class "main" ]
-                      [ H.map CodeEditorMsg (CodeEditor.view model.codeEditor)
-                      , H.map EditionTreeMsg (EditionTree.view model.editionTree)
+                      [ H.div
+                            [ A.class "code_left" ]
+                            [ H.map CodeEditorMsg (CodeEditor.view model.codeEditor) ]
+                      , H.div
+                          [ A.class "code_right" ]
+                          [ H.map EditionTreeMsg (EditionTree.view model.editionTree) ]
                       ]
 
               Plot ->
