@@ -7,7 +7,6 @@ module TsView.Formula.CodeEditor exposing
     , view
     )
 
-import Cmd.Extra exposing (withNoCmd)
 import Common exposing (expectJsonMessage)
 import Dict exposing (Dict)
 import Either
@@ -185,14 +184,13 @@ update msg model =
                     updateCurrentCode tree model
                 diff = newmodel.lastgood /= newmodel.current.formula
             in
-                { newmodel
-                    | lastgood = newmodel.current.formula
-                    , needsaving = diff
-                } |> withNoCmd
+                U.nocmd { newmodel
+                            | lastgood = newmodel.current.formula
+                            , needsaving = diff
+                        }
 
         UpdateName s ->
-            (updateName s |> updateFormula |> updateCurrent) model
-                |> withNoCmd
+            U.nocmd <| (updateName s |> updateFormula |> updateCurrent) model
 
         AceEditorMsg (AceEditor.Edited code) ->
             update (ParseFormula code) { model | reload = False }
@@ -218,10 +216,10 @@ update msg model =
                                 Just _ -> False
 
             in
-            f  { newmodel
-                   | needsaving = needsaving
-                   , lastgood = newmodel.current.formula
-               } |> withNoCmd
+            U.nocmd <| f { newmodel
+                             | needsaving = needsaving
+                             , lastgood = newmodel.current.formula
+                         }
 
         OnSave ->
             let
@@ -252,10 +250,10 @@ update msg model =
             )
 
         SaveDone (Ok _) ->
-            (updateErrMess Nothing |> updateCurrent) { model | needsaving = False } |> withNoCmd
+            U.nocmd <| (updateErrMess Nothing |> updateCurrent) { model | needsaving = False }
 
         SaveDone (Err s) ->
-            (updateErrMess (Just s) |> updateCurrent) model |> withNoCmd
+            U.nocmd <| (updateErrMess (Just s) |> updateCurrent) model
 
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
@@ -265,7 +263,7 @@ update msg model =
                     doerr <| D.errorToString err
 
         ParsedFormula f ->
-            model |> withNoCmd
+            U.nocmd model
 
         GotPlotData (Err err) ->
             doerr <| U.unwraperror err
