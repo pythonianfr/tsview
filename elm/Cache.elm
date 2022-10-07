@@ -460,7 +460,7 @@ update msg model =
                                         else
                                             Set.insert series model.addtocache
                          , removefromcache = Set.remove series model.removefromcache
-                         , freeseries = LE.remove series model.freeseries
+                         , freeseries = List.filter (\x -> x /= series) model.freeseries
                          , cachedseries = List.sort <| List.append model.cachedseries [ series ]
                      }
 
@@ -473,7 +473,7 @@ update msg model =
                                              else
                                                  Set.insert series model.removefromcache
                          , freeseries = List.sort <| List.append model.freeseries [ series ]
-                         , cachedseries = LE.remove series model.cachedseries
+                         , cachedseries = List.filter (\x -> x /= series) model.cachedseries
                      }
 
         CachedSeriesQuery filter ->
