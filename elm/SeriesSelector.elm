@@ -216,6 +216,7 @@ view model catalog cfg =
                      [ HA.value model.search
                      , HE.onInput cfg.onInputMsg
                      , HA.autofocus True
+                     , HA.size 100
                      , HA.placeholder
                          ("start typing here to pick from " ++
                               (String.fromInt (List.length model.filteredseries)) ++
