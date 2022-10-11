@@ -567,7 +567,8 @@ viewfiltered baseurl filtered catalog showsource selectedsources =
                  , if showsource
                    then
                        H.span
-                           [ A.style "float" "inline-end" ]
+                           -- alas, Chrome does not know `inline-end`
+                           [ A.style "float" "right" ]
                            <| List.map
                                (\source ->
                                     H.span []
