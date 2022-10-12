@@ -344,7 +344,10 @@ viewReadOnly model =
                              , Events.onClick OnSave
                              ]
                         [ H.text "save as" ]
-                  , H.input [ A.value name, Events.onInput UpdateName ] []
+                  , H.input [ A.size 50
+                            , A.value name
+                            , Events.onInput UpdateName ]
+                      []
                   ]
               else
                   [ H.span [] [] ]
