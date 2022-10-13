@@ -379,6 +379,7 @@ viewnamefilter =
                 [ A.class "form-control-sm"
                 , A.placeholder "filter by name"
                 , A.size 80
+                , A.title "You can type name fragments separated by spaces"
                 , onInput NameFilter
                 ] []
     in
