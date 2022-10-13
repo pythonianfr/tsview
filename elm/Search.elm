@@ -391,6 +391,7 @@ viewformulafilter =
             H.input
                 [ A.class "form-control-sm"
                 , A.placeholder "filter on formula content"
+                , A.title "You can type series name fragments and formula operator names"
                 , onInput FormulaFilter
                 ] []
     in
