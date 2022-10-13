@@ -378,6 +378,7 @@ viewnamefilter =
             H.input
                 [ A.class "form-control-sm"
                 , A.placeholder "filter by name"
+                , A.size 80
                 , onInput NameFilter
                 ] []
     in
