@@ -599,15 +599,10 @@ viewfiltered baseurl filtered catalog showsource selectedsources =
 
         noseries = (List.length ufiltered) == 0
 
-        tailnode =
-            if missing || noseries  then
-                ("_sliced", H.span [] [ H.text "" ])
-            else
-                ("_unsliced", H.span [] [ H.text "(full search results shown)" ])
     in
     K.node "ul"
         [ A.class "list-group list-group-flush" ]
-        <| items ++ [ tailnode ]
+        items
 
 
 viewerrors model =
