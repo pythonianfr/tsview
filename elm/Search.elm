@@ -391,6 +391,7 @@ viewformulafilter =
             H.input
                 [ A.class "form-control-sm"
                 , A.placeholder "filter on formula content"
+                , A.size 80
                 , A.title "You can type series name fragments and formula operator names"
                 , onInput FormulaFilter
                 ] []
@@ -623,9 +624,8 @@ view model =
         [ H.h1 [] [ H.text "Series Catalog" ]
         , H.div
               [ A.class "tsview-form-input small" ]
-              [ viewnamefilter
-              , H.span [] [ H.text " " ]
-              , viewformulafilter
+              [ H.div [] [ viewnamefilter ]
+              , H.div [] [ viewformulafilter ]
               , viewmetafilter model
               , viewkindfilter model
               , viewsourcefilter model
