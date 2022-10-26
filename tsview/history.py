@@ -1,9 +1,9 @@
 from flask_caching import Cache
 import plotly.graph_objs as go
 
-from dash_core_components import Graph, Location, Dropdown, Slider
-from dash_html_components import Div, Button, Br
-import dash_html_components as html
+from dash.dcc import Graph, Location, Dropdown, Slider
+from dash.html import Div, Button, Br
+import dash.html as html
 
 import dash
 import pandas as pd
