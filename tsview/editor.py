@@ -27,10 +27,9 @@ def unpack_dates(graphdata):
 def normalize_tstamps(tsa, name, fromdate, todate):
     meta = tsa.metadata(name, all=True)
     if meta['tzaware']:
-        fromdate = pd.Timestamp(fromdate, tz='UTC')
-        todate = pd.Timestamp(todate, tz='UTC')
+        fromdate = pd.Timestamp(fromdate, tz='UTC') if fromdate else fromdate
+        todate = pd.Timestamp(todate, tz='UTC') if todate else todate
     return fromdate, todate
-
 
 
 def editor(app,
