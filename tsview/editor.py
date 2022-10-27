@@ -32,6 +32,43 @@ def normalize_tstamps(tsa, name, fromdate, todate):
     return fromdate, todate
 
 
+def editable_table(tsa, name, fromdate=None, todate=None,
+                   has_permission=lambda *a: True):
+    if not has_permission('viewseries'):
+        return
+    ts, marker = tsa.edited(
+        name,
+        from_value_date=fromdate,
+        to_value_date=todate
+    )
+
+    if len(ts) != len(marker): # Some na have been inserted
+        new_ts = pd.Series(index=marker.index)
+        new_ts[ts.index] = ts
+        ts = new_ts
+        mask = (ts.index >= fromdate) & (ts.index <= todate)
+        ts = ts[mask]
+        marker = marker[mask]
+
+    idx_marker = np.arange(len(marker))[marker.values]
+    htmldiv = dt.DataTable(
+        id='table',
+        data=[
+            {
+                'Index': elt[0],
+                'Value': elt[1]
+            }
+            for elt in ts.to_frame().itertuples()
+        ],
+        columns=[{'id': 'Index', 'name': 'Index'},
+                 {'id': 'Value', 'name': 'Value'}],
+        editable=has_permission('writeseries'),
+        row_selectable=True,
+        selected_rows=idx_marker.tolist(),
+    )
+    return htmldiv
+
+
 def editor(app,
            tsa,
            has_permission=lambda *perm: True,
@@ -317,6 +354,10 @@ def editor(app,
             # i.e. the serie is not bounded by the url parameters
             # we want that the user bound it before showing the data
             return  ''
+
+        kind = tsa.type(name)
+        if kind != 'formula':
+            return editable_table(tsa, name, fromdate, todate)
 
         return components_table(
             tsa, name, fromdate, todate, author, additionnal_info,
