@@ -1030,9 +1030,7 @@ viewcache model =
                     , span [ ] [ text " " ]
                     , deleteaction
                     ]
-            , if model.has_cache
-              then cachecontrol
-              else ( p [ ] [ text "No" ] )
+            , cachecontrol
             ]
     else
         div [ ] [ ]
