@@ -1,6 +1,7 @@
 module Cache exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -49,6 +50,7 @@ type alias PolicyError =
 type alias Model =
     { baseurl : String
     , policies : List Policy
+    , formulas : Dict String String
     , deleting : Maybe String
     , adding : Maybe Policy
     , editing : Maybe Policy
@@ -91,6 +93,14 @@ policiesdecoder =
     D.list policydecoder
 
 
+formulasdecoder allformula =
+    let
+        all = D.dict D.string
+    in
+    D.decodeString all allformula
+
+
+
 getpolicies model =
     Http.get
     { url = UB.crossOrigin model.baseurl
@@ -117,6 +127,16 @@ getfreeseries model policy =
           [ "cacheable-formulas" ] [ ]
     , expect = Http.expectJson GotFreeSeries seriesdecoder
     }
+
+
+getformulas baseurl =
+    Http.get
+        { expect =
+              Http.expectString GotAllFormula
+        , url =
+            UB.crossOrigin baseurl
+                [ "tssearch", "allformula" ] []
+        }
 
 
 setcache model policyname seriesname =
@@ -272,6 +292,7 @@ refreshnow model policy =
 
 type Msg
     = GotPolicies (Result Http.Error (List Policy))
+    | GotAllFormula (Result Http.Error String)
     | AskDeletePolicy String
     | CancelDeletePolicy
     | DeletePolicy String
@@ -333,6 +354,16 @@ update msg model =
 
         GotPolicies (Err err) ->
             nocmd <| model
+
+        GotAllFormula (Ok rawformulae) ->
+            case formulasdecoder rawformulae of
+                Ok formulae ->
+                    nocmd { model | formulas = formulae }
+                Err err ->
+                    nocmd model
+
+        GotAllFormula (Err err) ->
+            nocmd model
 
         -- deletion
         AskDeletePolicy name ->
@@ -905,6 +936,7 @@ main =
             let model = Model
                         input.baseurl
                         []
+                        Dict.empty
                         Nothing
                         Nothing
                         Nothing
