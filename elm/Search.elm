@@ -85,16 +85,6 @@ decodemeta allmeta =
     D.decodeString all allmeta
 
 
-getformula baseurl =
-    Http.get
-        { expect =
-              Http.expectString GotAllFormula
-        , url =
-            UB.crossOrigin baseurl
-                [ "tssearch", "allformula" ] []
-        }
-
-
 decodeformulae allformula =
     let
         all = D.dict D.string
@@ -266,7 +256,7 @@ update msg model =
                 ( newmodel
                 , Cmd.batch
                     [ getmeta model.baseurl
-                    , getformula model.baseurl
+                    , U.getformulas model.baseurl GotAllFormula
                     ]
                 )
 

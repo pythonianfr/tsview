@@ -127,16 +127,6 @@ getfreeseries model policy =
     }
 
 
-getformulas baseurl =
-    Http.get
-        { expect =
-              Http.expectString GotAllFormula
-        , url =
-            UB.crossOrigin baseurl
-                [ "tssearch", "allformula" ] []
-        }
-
-
 setcache model policyname seriesname =
     let payload_encoder =
             [ ("policyname" , E.string policyname)
@@ -960,7 +950,7 @@ main =
             in
             ( model
             , Cmd.batch [ getpolicies model
-                        , getformulas input.baseurl
+                        , U.getformulas input.baseurl GotAllFormula
                         ]
             )
     in

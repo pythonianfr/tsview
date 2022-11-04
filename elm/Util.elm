@@ -3,6 +3,7 @@ module Util exposing
     , filterbyformula
     , first
     , fragmentsmatcher
+    , getformulas
     , nocmd
     , snd
     , tovirtualdom
@@ -14,6 +15,7 @@ import Html
 import Html.Parser
 import Html.Parser.Util
 import Http
+import Url.Builder as UB
 
 
 nocmd model = ( model, Cmd.none )
@@ -65,3 +67,15 @@ filterbyformula formulas filterme query =
             fragmentsmatcher query <| formula name
     in
     List.filter informula filterme
+
+
+-- formulas fetching
+
+getformulas baseurl event =
+    Http.get
+        { expect =
+              Http.expectString event
+        , url =
+            UB.crossOrigin baseurl
+                [ "tssearch", "allformula" ] []
+        }
