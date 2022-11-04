@@ -1,12 +1,15 @@
 module Util exposing
     ( adderror
+    , filterbyformula
     , first
+    , fragmentsmatcher
     , nocmd
     , snd
     , tovirtualdom
     , unwraperror
     )
 
+import Dict exposing (Dict)
 import Html
 import Html.Parser
 import Html.Parser.Util
@@ -41,3 +44,24 @@ tovirtualdom html errmsg =
             Html.Parser.Util.toVirtualDom nodes
         Err x ->
             [Html.div [] [ Html.text errmsg ] ]
+
+
+-- common to Search and Cache
+-- helps the series filtering
+
+fragmentsmatcher query item =
+    -- predicate for item containing all query space-separated parts
+    List.all
+        (\queryfragment -> String.contains queryfragment item)
+        (String.split " " query)
+
+
+filterbyformula formulas filterme query =
+    let
+        formula name =
+            Maybe.withDefault "" <| Dict.get name formulas
+        informula name =
+            -- formula part -> name
+            fragmentsmatcher query <| formula name
+    in
+    List.filter informula filterme
