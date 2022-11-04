@@ -135,7 +135,6 @@ formulafilter model =
         Nothing -> model
         Just match ->
             let
-                fragments = String.split " " match
                 formula name =
                     Maybe.withDefault "" <| Dict.get name model.formula
                 informula name =
