@@ -11,9 +11,7 @@ import Json.Encode as E
 import List.Extra as LE
 import Set exposing (Set)
 import Url.Builder as UB
-
-
-nocmd model = ( model, Cmd.none )
+import Util as U
 
 
 unwraperror : Http.Error -> String
@@ -353,17 +351,17 @@ update msg model =
             ( { model | policies = policies }, Cmd.none )
 
         GotPolicies (Err err) ->
-            nocmd <| model
+            U.nocmd <| model
 
         GotAllFormula (Ok rawformulae) ->
             case formulasdecoder rawformulae of
                 Ok formulae ->
-                    nocmd { model | formulas = formulae }
+                    U.nocmd { model | formulas = formulae }
                 Err err ->
-                    nocmd model
+                    U.nocmd model
 
         GotAllFormula (Err err) ->
-            nocmd model
+            U.nocmd model
 
         -- deletion
         AskDeletePolicy name ->
@@ -413,14 +411,14 @@ update msg model =
                             Ok polerror -> { model | editerror = Just polerror }
                             Err err -> model
             in
-            nocmd newmodel
+            U.nocmd newmodel
 
         ValidatedPolicy (Err err) ->
-            nocmd model
+            U.nocmd model
 
         CreatePolicy ->
             case model.adding of
-                Nothing -> nocmd model
+                Nothing -> U.nocmd model
                 Just policy ->
                     ( model, sendpolicy model policy )
 
@@ -431,10 +429,10 @@ update msg model =
 
         CreatedPolicy (Err err) ->
             let emsg = unwraperror err in
-            nocmd { model | editerrormsg = emsg }
+            U.nocmd { model | editerrormsg = emsg }
 
         CancelPolicyCreation ->
-            nocmd { model
+            U.nocmd { model
                       | editerror = Nothing
                       , editerrormsg = ""
                       , adding = Nothing
@@ -442,11 +440,11 @@ update msg model =
 
         -- edition
         EditPolicy policy ->
-            nocmd { model | editing = Just policy }
+            U.nocmd { model | editing = Just policy }
 
         UpdatePolicy ->
             case model.editing of
-                Nothing -> nocmd model
+                Nothing -> U.nocmd model
                 Just policy ->
                     ( model, updatepolicy model policy )
 
@@ -457,10 +455,10 @@ update msg model =
 
         UpdatedPolicy (Err err) ->
             let emsg = unwraperror err in
-            nocmd { model | editerrormsg = emsg }
+            U.nocmd { model | editerrormsg = emsg }
 
         CancelPolicyEdition ->
-            nocmd { model
+            U.nocmd { model
                       | editerror = Nothing
                       , editerrormsg = ""
                       , editing = Nothing
@@ -476,20 +474,20 @@ update msg model =
             )
 
         GotCachedSeries (Ok cachedseries) ->
-            nocmd { model | cachedseries = cachedseries }
+            U.nocmd { model | cachedseries = cachedseries }
 
         GotCachedSeries (Err err) ->
-            nocmd <| model
+            U.nocmd <| model
 
         GotFreeSeries (Ok freeseries) ->
-            nocmd { model | freeseries = freeseries }
+            U.nocmd { model | freeseries = freeseries }
 
         GotFreeSeries (Err err) ->
-            nocmd <| model
+            U.nocmd <| model
 
         AddToCache series ->
             let waspending = Set.member series model.removefromcache in
-            nocmd <| { model
+            U.nocmd <| { model
                          | addtocache = if waspending then
                                             model.addtocache
                                         else
@@ -501,7 +499,7 @@ update msg model =
 
         RemoveFromCache series ->
             let waspending = Set.member series model.addtocache in
-            nocmd <| { model
+            U.nocmd <| { model
                          | addtocache = Set.remove series model.addtocache
                          , removefromcache = if waspending then
                                                  model.removefromcache
@@ -512,19 +510,19 @@ update msg model =
                      }
 
         CachedSeriesQuery filter ->
-            nocmd { model | cachedseriesquery = filter }
+            U.nocmd { model | cachedseriesquery = filter }
 
         CachedSeriesFormulaQuery filter ->
-            nocmd { model | cachedseriesformulaquery = filter }
+            U.nocmd { model | cachedseriesformulaquery = filter }
 
         FreeSeriesQuery filter ->
-            nocmd { model | freeseriesquery = filter }
+            U.nocmd { model | freeseriesquery = filter }
 
         FreeSeriesFormulaQuery filter ->
-            nocmd { model | freeseriesformulaquery = filter }
+            U.nocmd { model | freeseriesformulaquery = filter }
 
         CancelLink ->
-            nocmd <| { model
+            U.nocmd <| { model
                          | addtocache = Set.empty
                          , removefromcache = Set.empty
                          , cachedseries = []
@@ -534,7 +532,7 @@ update msg model =
 
         ValidateLink ->
             case model.linking of
-                Nothing -> nocmd model
+                Nothing -> U.nocmd model
                 Just policy ->
                     let
                         set = setcache model policy.name
@@ -554,8 +552,8 @@ update msg model =
                         ]
                     )
 
-        CacheWasSet _ -> nocmd model
-        CacheWasUnset _ -> nocmd model
+        CacheWasSet _ -> U.nocmd model
+        CacheWasUnset _ -> U.nocmd model
 
         -- activation
 
@@ -571,7 +569,7 @@ update msg model =
         ToggledActivation (Ok _) ->
             ( model , getpolicies model )
 
-        ToggledActivation (Err _) -> nocmd model
+        ToggledActivation (Err _) -> U.nocmd model
 
         -- refresh
 
@@ -581,7 +579,7 @@ update msg model =
             )
 
         RefreshNowAsked _ ->
-            nocmd model
+            U.nocmd model
 
 
 viewdeletepolicyaction model policy =
