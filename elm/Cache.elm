@@ -794,6 +794,24 @@ filterbywords filterme query =
     in filterall querywords filterme
 
 
+fragmentsmatcher query item =
+    -- predicate for item containing all query space-separated parts
+    List.all
+        (\queryfragment -> String.contains queryfragment item)
+        (String.split " " query)
+
+
+filterbyformula formulas filterme query =
+    let
+        formula name =
+            Maybe.withDefault "" <| Dict.get name formulas
+        informula name =
+            -- formula part -> name
+            fragmentsmatcher query <| formula name
+    in
+    List.filter informula filterme
+
+
 viewseriesinlist model text event name  =
     H.li []
         [ H.button [ HA.class "btn btn-success"
@@ -827,7 +845,11 @@ viewcachedserieslist model =
         , H.ul [] <|
             List.map
                 (viewseriesinlist model "remove" RemoveFromCache)
-                (filterbywords model.cachedseries model.cachedseriesquery)
+                (filterbyformula
+                     model.formulas
+                     (filterbywords model.cachedseries model.cachedseriesquery)
+                     model.cachedseriesformulaquery
+                )
         ]
 
 
@@ -847,7 +869,11 @@ viewfreeserieslist model =
         , H.ul [] <|
             List.map
                 (viewseriesinlist model "add" AddToCache)
-                (filterbywords model.freeseries model.freeseriesquery)
+                (filterbyformula
+                     model.formulas
+                     (filterbywords model.freeseries model.freeseriesquery)
+                     model.freeseriesformulaquery
+                )
         ]
 
 
@@ -953,7 +979,9 @@ main =
                         Set.empty
             in
             ( model
-            , getpolicies model
+            , Cmd.batch [ getpolicies model
+                        , getformulas input.baseurl
+                        ]
             )
     in
         Browser.element
