@@ -57,8 +57,10 @@ type alias Model =
     , linking : Maybe Policy
     , cachedseries : List String
     , cachedseriesquery : String
+    , cachedseriesformulaquery : String
     , freeseries : List String
     , freeseriesquery : String
+    , freeseriesformulaquery : String
     , addtocache : Set String
     , removefromcache : Set String
     }
@@ -292,7 +294,9 @@ type Msg
     | AddToCache String
     | RemoveFromCache String
     | CachedSeriesQuery String
+    | CachedSeriesFormulaQuery String
     | FreeSeriesQuery String
+    | FreeSeriesFormulaQuery String
     | CancelLink
     | ValidateLink
     | CacheWasSet (Result Http.Error String)
@@ -479,8 +483,14 @@ update msg model =
         CachedSeriesQuery filter ->
             nocmd { model | cachedseriesquery = filter }
 
+        CachedSeriesFormulaQuery filter ->
+            nocmd { model | cachedseriesformulaquery = filter }
+
         FreeSeriesQuery filter ->
             nocmd { model | freeseriesquery = filter }
+
+        FreeSeriesFormulaQuery filter ->
+            nocmd { model | freeseriesformulaquery = filter }
 
         CancelLink ->
             nocmd <| { model
@@ -775,7 +785,12 @@ viewcachedserieslist model =
         [ H.h5 [] [ H.text "Cached series" ]
         , H.p [] [ H.input [ HA.class "form-control"
                            , HE.onInput CachedSeriesQuery
-                           , HA.placeholder "type here to filter the series list"
+                           , HA.placeholder "type here to filter the series list by name"
+                           ] []
+                 ]
+        , H.p [] [ H.input [ HA.class "form-control"
+                           , HE.onInput CachedSeriesFormulaQuery
+                           , HA.placeholder "type here to filter the series list by formula contents"
                            ] []
                  ]
         , H.ul [] <|
@@ -790,7 +805,12 @@ viewfreeserieslist model =
         [ H.h5 [] [ H.text "Free series" ]
         , H.p [] [ H.input [ HA.class "form-control"
                            , HE.onInput FreeSeriesQuery
-                           , HA.placeholder "type here to filter the series list"
+                           , HA.placeholder "type here to filter the series list by name"
+                           ] []
+                 ]
+        , H.p [] [ H.input [ HA.class "form-control"
+                           , HE.onInput FreeSeriesFormulaQuery
+                           , HA.placeholder "type here to filter the series list by formula contents"
                            ] []
                  ]
         , H.ul [] <|
@@ -893,7 +913,9 @@ main =
                         Nothing
                         []
                         ""
+                        ""
                         []
+                        ""
                         ""
                         Set.empty
                         Set.empty
