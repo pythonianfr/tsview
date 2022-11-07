@@ -1,7 +1,6 @@
 module Common exposing
     ( expectJsonMessage
     , maybe
-    , taskSequenceEither
     )
 
 import Dict
@@ -55,33 +54,3 @@ decodeResponse decoder resp =
 expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
 expectJsonMessage toMsg decoder =
     Http.expectStringResponse toMsg (decodeResponse decoder)
-
-
--- task helper
-
-
-taskSequenceEither : List (Task x a) -> Task (List x) (List (Either x a))
-taskSequenceEither tasks =
-    Task.andThen
-        (\xs ->
-            let
-                lefts =
-                    Either.lefts xs
-            in
-            if not (List.isEmpty xs) && (List.length lefts == List.length xs) then
-                Task.fail lefts
-
-            else
-                Task.succeed xs
-        )
-        (List.foldr
-            (\a b ->
-                let
-                    rightTask =
-                        Task.map Either.Right a
-                in
-                Task.map2 (::) (Task.onError (Either.Left >> Task.succeed) rightTask) b
-            )
-            (Task.succeed [])
-            tasks
-        )
