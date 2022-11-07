@@ -683,12 +683,30 @@ haserror editerror fieldname =
 
 
 inputs =
-    [ ("name", "name", "policy name" )
-    , ("initial_revdate", "initial revision date", "e.g. (date \"2022-1-1\")" )
-    , ("look_before", "look before", "e.g. (shifted now #:days -15)" )
-    , ("look_after", "look after", "e.g. (shifted now #:days 15)" )
-    , ("revdate_rule", "revision date rule", "in crontab format" )
-    , ("schedule_rule", "schedule rule", "in crontab format" )
+    [ { name = "name"
+      , display = "name"
+      , placeholder = "policy name"
+      }
+    , { name = "initial_revdate"
+      , display = "initial revision date"
+      , placeholder = "e.g. (date \"2022-1-1\")"
+      }
+    , { name = "look_before"
+      , display = "look before"
+      , placeholder = "e.g. (shifted now #:days -15)"
+      }
+    , { name = "look_after"
+      , display = "look after"
+      , placeholder = "e.g. (shifted now #:days 15)"
+      }
+    , { name = "revdate_rule"
+      , display = "revision date rule"
+      , placeholder = "in crontab format"
+      }
+    , { name = "schedule_rule"
+      , display = "schedule rule"
+      , placeholder = "in crontab format"
+      }
     ]
 
 
@@ -704,17 +722,17 @@ polget pol name =
         _ -> ""
 
 
-makeinput model policy (fieldname, displayname, placeholder) =
+makeinput model policy input =
     [ H.label
-          ([ HA.for fieldname] ++ if haserror model.editerror fieldname
-                                  then [ HA.class "field_error" ]
-                                  else [])
-          [ H.text displayname ]
+          ([ HA.for input.name] ++ if haserror model.editerror input.name
+                                   then [ HA.class "field_error" ]
+                                   else [])
+          [ H.text input.display ]
     , H.input
         [ HA.class "form-control"
-        , HA.placeholder placeholder
-        , HE.onInput (PolicyField policy fieldname)
-        , HA.value <| polget policy fieldname
+        , HA.placeholder input.placeholder
+        , HE.onInput (PolicyField policy input.name)
+        , HA.value <| polget policy input.name
         ] []
     ]
 
