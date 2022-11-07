@@ -1,6 +1,5 @@
 module Common exposing
-    ( decodeJsonMessage
-    , expectJsonMessage
+    ( expectJsonMessage
     , maybe
     , taskSequenceEither
     )
@@ -53,15 +52,9 @@ decodeResponse decoder resp =
                 |> Result.mapError D.errorToString
 
 
-decodeJsonMessage : D.Decoder a -> Response String -> Result String a
-decodeJsonMessage =
-    decodeResponse
-
-
 expectJsonMessage : ToMsg a msg -> D.Decoder a -> Http.Expect msg
 expectJsonMessage toMsg decoder =
     Http.expectStringResponse toMsg (decodeResponse decoder)
-
 
 
 -- task helper
