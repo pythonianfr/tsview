@@ -911,11 +911,109 @@ viewpolicies model =
             newpolicy model
 
 
+cachedoc = """
+A cache policy controls the way you build materialized
+views of time series defined as formulas.
+
+It has a `name` to be easily addressable.
+
+The `ready` attribute indicates if the cache has been filled at least
+once.
+
+How a cache is filled:
+
+* initial revision date indicates the very first revision that will be
+  stored
+
+* for eache new revision date from the initial revision date, the
+  cache refresher will try to build a new revision using a moving
+  window centered around the new revision
+
+* the window is controlled with `look before` and `look after` time
+  expressions - for instance one can specify two weeks before `now`
+  and two weeks after
+
+* the `revdate rule` is a crontab rule that will produce all the
+  needed revision dates of the cached series
+
+* the `schedule rule` is a crontab rule that will be used to decide
+  when to refresh the series caches (when in doubt, use the same value
+  as the revdate rule)
+
+The `initial revdate`, `look before` and `look after` fields must be
+defined as Lisp expressions, in which the following items are
+available:
+
+* the `date` function, e.g. `(date "2022-1-1")`
+
+* the `today` function, e.g. `(today)`
+
+* the `shifted` function which takes a timestamp as parameter and the
+  following keywords: minutes, hours, days, weeks, months
+
+* for `look before` and `look after` the `now` variable, allowing to
+  write e.g. `(shifted now #:days -10)` or `(shifted now #:days 15)`
+
+How to configure a cache policy:
+
+This is heavily dependant on the profile of the series. We distinguish
+between three fondamentally different profiles:
+
+* observed series with a good correlation between revision date and
+  value dates.
+
+* forecast series with a good correlation between revision date and
+  value dates.
+
+* series without correlation between revision date and value dates.
+
+The later category cannot be materialized using a cache policy.
+
+Here is a remainder for the crontab rules:
+
+How to use the `rule` field: six specifiers must be provided.
+Each one specifies a part of the rule.
+
+┌───────────── minute (0 - 59)
+│ ┌───────────── hour (0 - 23)
+│ │ ┌───────────── day of the month (1 - 31)
+│ │ │ ┌───────────── month (1 - 12)
+│ │ │ │ ┌───────────── day of the week (0 - 6 or mon,tue,wed,thu,fri,sat,sun)
+│ │ │ │ │
+│ │ │ │ │
+│ │ │ │ │
+* * * * *
+
+│Expression Field Description
+├────────────────────────────
+│*          any   Fire on every value
+│*/a        any   Fire every a values, starting from the minimum
+│a-b        any   Fire on any value within the a-b range (a must be smaller than b)
+│a-b/c      any   Fire every c values within the a-b range
+│xth y      day   Fire on the x -th occurrence of weekday y within the month
+│last x     day   Fire on the last occurrence of weekday x within the month
+│last       day   Fire on the last day within the month
+│x,y,z      any   Fire on any matching expression; can combine any number of any of the above expressions
+
+"""
+
+
+viewdoc =
+    H.pre [ HA.class "text-monospace text-muted" ]
+        (List.intersperse
+             (H.br [] [])
+             (List.map H.text (String.lines cachedoc))
+        )
+
+
 view : Model -> H.Html Msg
 view model =
     H.div []
         [ H.h1 [] [ H.text "Policies" ]
         , viewpolicies model
+        , case model.linking of
+              Nothing -> viewdoc
+              Just _ -> H.span [] []
         ]
 
 
