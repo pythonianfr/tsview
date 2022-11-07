@@ -55,11 +55,6 @@ type alias Model =
     , expanded_formula : Maybe String
     , formula_components : Maybe JT.Node
     , expanded_formula_components : Maybe JT.Node
-    -- cache
-    , has_cache : Bool
-    , view_nocache : Bool
-    , policy : M.StdMetadata
-    , deleting_cache : Bool
     -- log
     , log : List Logentry
     -- plot
@@ -92,14 +87,6 @@ type Msg
     | Components (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
-    -- cache
-    | HasCache (Result Http.Error String)
-    | DeleteCache
-    | CacheCancelDeletion
-    | CacheConfirmDeletion
-    | CacheDeleted (Result Http.Error String)
-    | GotCachePolicy (Result Http.Error String)
-    | ViewNocache
     -- metadata edition
     | MetaEditAsked
     | MetaEditCancel
@@ -170,7 +157,7 @@ getplot model atidate =
         getplotdata model.baseurl model.name
             (if atidate then idate else Nothing)
             GotPlotData
-            (bool2int model.view_nocache)
+            False
             model.mindate
             model.maxdate
 
@@ -225,54 +212,13 @@ getcomponents model =
         }
 
 
-gethascache model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "cache", "series-has-cache" ]
-              [ UB.string "name" model.name ]
-        , expect = Http.expectString HasCache
-        }
-
-
-deletecache model =
-    Http.request
-        { method = "DELETE"
-        , body = Http.jsonBody <| E.object
-                 [ ("name", E.string model.name ) ]
-        , headers = []
-        , timeout = Nothing
-        , tracker = Nothing
-        , url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "cache", "series-has-cache" ]
-              [ UB.string "name" model.name ]
-        , expect = Http.expectString CacheDeleted
-        }
-
-
-getcachepolicy model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "cache", "series-policy" ]
-              [ UB.string "name" model.name ]
-        , expect = Http.expectString GotCachePolicy
-        }
-
-
 getidates model =
     Http.get
         { url =
               UB.crossOrigin
               model.baseurl
               [ "api", "series", "insertion_dates" ]
-              [ UB.string "name" model.name
-              , UB.int "nocache" <| bool2int model.view_nocache
-              ]
+              [ UB.string "name" model.name ]
         , expect = Http.expectString InsertionDates
         }
 
@@ -372,7 +318,6 @@ update msg model =
                     ( model
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
-                                , gethascache model
                                 , getlog model.baseurl model.name
                                 ]
                     )
@@ -384,60 +329,6 @@ update msg model =
 
         GotFormula (Err error) ->
             doerr "gotformula http" <| U.unwraperror error
-
-        -- cache
-
-        HasCache (Ok rawhascache) ->
-            U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
-
-        HasCache (Err error) ->
-            doerr "hascache http" <| U.unwraperror error
-
-        DeleteCache ->
-            U.nocmd { model | deleting_cache = True }
-
-        CacheConfirmDeletion ->
-            ( { model | deleting_cache = False }
-            , deletecache model
-            )
-
-        CacheCancelDeletion ->
-            U.nocmd { model | deleting_cache = False }
-
-        CacheDeleted (Ok _) ->
-            let newmodel = { model | view_nocache = False } in
-            ( newmodel
-            , Cmd.batch [ gethascache newmodel
-                        , getplot newmodel False
-                        , getidates newmodel
-                        , getlog model.baseurl model.name
-                        ]
-            )
-
-        CacheDeleted (Err error) ->
-            doerr "cachedeleted http" <| U.unwraperror error
-
-        ViewNocache ->
-            let mod = { model | view_nocache = not model.view_nocache } in
-            ( mod
-            , Cmd.batch
-                [ getidates mod
-                , getplot mod False
-                ]
-            )
-
-        GotCachePolicy (Ok rawpol) ->
-            case rawpol of
-                "null\n" -> U.nocmd model
-                _ ->
-                    case D.decodeString M.decodemeta rawpol of
-                        Ok policy ->
-                            U.nocmd { model | policy = policy }
-                        Err err ->
-                            doerr "gotcachepolicy decode" <| D.errorToString err
-
-        GotCachePolicy (Err error) ->
-            doerr "gotcachepolicy http" <| U.unwraperror error
 
         -- code
 
@@ -943,99 +834,6 @@ viewcomponents model =
     else div [ ] [ ]
 
 
-viewcachepolicy model =
-    let
-        names = [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
-        fixval name val =
-            if name == "supervision_status" && val == ""
-            then "formula"
-            else val
-        elt name =
-            li [ ] [text <| name
-                        ++ " → "
-                        ++ (dget name model.policy)
-                   ]
-    in
-    div [ ]
-    [ h2 [ ] [ text "Policy" ]
-    , ul [ A.class "highlight" ] <| List.map elt names
-    ]
-
-
-viewtogglecached model =
-    div
-    [ A.class "custom-control custom-switch"
-    , A.title <| if model.view_nocache
-                 then "view cached"
-                 else "view uncached"
-    ]
-    [ input
-          [ A.attribute "type" "checkbox"
-          , A.class "custom-control-input"
-          , A.id "view-uncached"
-          , A.checked <| not model.view_nocache
-          , onClick ViewNocache
-          ] [ ]
-    , label
-          [ A.class "custom-control-label"
-          , A.for "view-uncached"
-          ]
-          [ text <| if model.view_nocache
-                    then "view uncached"
-                    else "view cached"
-          ]
-    ]
-
-
-viewcache model =
-    let
-        cachecontrol =
-            span [ ]
-                [ if List.length model.log > 0
-                  then viewlog model False
-                  else span [ ] [ ]
-                , if Dict.isEmpty model.policy
-                  then span [ ] [ ]
-                  else viewcachepolicy model
-                , viewtogglecached model
-                ]
-
-        deleteaction =
-            if model.has_cache then
-                if model.deleting_cache then
-                    span [ ]
-                        [ button [ A.class "btn btn-warning"
-                                 , A.attribute "type" "button"
-                                 , onClick CacheCancelDeletion ]
-                              [ text "cancel" ]
-                        , span [ ] [ text " " ]
-                        , button [ A.class "btn btn-danger"
-                                 , A.attribute "type" "button"
-                                 , onClick CacheConfirmDeletion ]
-                              [ text "confirm" ]
-                        ]
-                else
-                    button [ A.class "btn btn-danger"
-                           , A.attribute "type" "button"
-                           , A.title "This is an irreversible operation."
-                           , onClick DeleteCache ]
-                    [ text "delete" ]
-            else
-                span [ ] [ ]
-
-    in
-    if supervision model == "formula" then
-        div [ ]
-            [ h2 [ ] [ text "Cache"
-                    , span [ ] [ text " " ]
-                    , deleteaction
-                    ]
-            , cachecontrol
-            ]
-    else
-        div [ ] [ ]
-
-
 viewerrors model =
     if List.length model.errors > 0 then
     div [ ]
@@ -1147,7 +945,6 @@ view model =
               Nothing -> viewlog model True
               Just _ -> span [] []
         , viewcomponents model
-        , viewcache model
         , viewplot model
         , viewerrors model
         ]
@@ -1186,11 +983,6 @@ main =
                            Nothing
                            Nothing
                            Nothing
-                           -- cache
-                           False
-                           False
-                           Dict.empty
-                           False
                            -- log
                            [ ]
                            -- plot
@@ -1209,7 +1001,6 @@ main =
                    [ M.getmetadata input.baseurl input.name GotMeta
                    , getplot model False
                    , getwriteperms input.baseurl
-                   , getcachepolicy model
                    ]
                )
            sub model = Sub.none
