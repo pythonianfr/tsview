@@ -686,26 +686,32 @@ inputs =
     [ { name = "name"
       , display = "name"
       , placeholder = "policy name"
+      , title = "A good name will be useful when you have many policies."
       }
     , { name = "initial_revdate"
       , display = "initial revision date"
       , placeholder = "e.g. (date \"2022-1-1\")"
+      , title = "First revision date for the materialized series. Revisions from an earlier date will bypass the cache."
       }
     , { name = "look_before"
       , display = "look before"
       , placeholder = "e.g. (shifted now #:days -15)"
+      , title = "A date expression to compute the minimum value date to read from upstream, using the current revision date."
       }
     , { name = "look_after"
       , display = "look after"
       , placeholder = "e.g. (shifted now #:days 15)"
+      , title = "A date expression to compute the maximum value date to read from upstream, using the current revision date."
       }
     , { name = "revdate_rule"
       , display = "revision date rule"
       , placeholder = "in crontab format"
+      , title = "Crontab rule to generate all the revision dates starting from the initial revision date."
       }
     , { name = "schedule_rule"
       , display = "schedule rule"
       , placeholder = "in crontab format"
+      , title = "Crontab rule to decide when to run the actual refresh of a series cache new revisions."
       }
     ]
 
@@ -724,13 +730,16 @@ polget pol name =
 
 makeinput model policy input =
     [ H.label
-          ([ HA.for input.name] ++ if haserror model.editerror input.name
-                                   then [ HA.class "field_error" ]
-                                   else [])
+          ([ HA.for input.name
+           , HA.title input.title
+           ] ++ if haserror model.editerror input.name
+                then [ HA.class "field_error" ]
+                else [])
           [ H.text input.display ]
     , H.input
         [ HA.class "form-control"
         , HA.placeholder input.placeholder
+        , HA.title input.title
         , HE.onInput (PolicyField policy input.name)
         , HA.value <| polget policy input.name
         ] []
