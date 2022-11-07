@@ -1,7 +1,6 @@
 module Plot exposing (main)
 
 import Browser
-import Common exposing (classes)
 import Date exposing (add, Date, fromIsoString, toIsoString)
 import Dict exposing (Dict)
 import Html

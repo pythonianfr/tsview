@@ -13,7 +13,6 @@ module SeriesSelector exposing
     )
 
 import Catalog
-import Common exposing (classes)
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA

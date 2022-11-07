@@ -1,6 +1,5 @@
 module Common exposing
-    ( classes
-    , decodeJsonMessage
+    ( decodeJsonMessage
     , expectJsonMessage
     , maybe
     , taskSequenceEither
@@ -13,16 +12,6 @@ import Html.Attributes exposing (class)
 import Http exposing (Response)
 import Json.Decode as D
 import Task exposing (Task)
-
-
-
--- css helper
-
-
-classes : List String -> Attribute msg
-classes xs =
-    class (String.join " " xs)
-
 
 
 -- core helpers

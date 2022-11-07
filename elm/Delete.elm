@@ -1,7 +1,7 @@
 module Delete exposing (main)
 
 import Browser
-import Common exposing (classes)
+import Common
 import Dict exposing(Dict, fromList, keys, values)
 import Html as H
 import Html.Attributes as HA
