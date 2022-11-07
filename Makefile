@@ -15,6 +15,9 @@ rename:
 info:
 	elm make elm/Info.elm $(FLAGS) --output tsview/tsview_static/info_elm.js
 
+groupinfo:
+	elm make elm/Groupinfo.elm $(FLAGS) --output tsview/tsview_static/groupinfo_elm.js
+
 search:
 	elm make elm/Search.elm $(FLAGS) --output tsview/tsview_static/search_elm.js
 
