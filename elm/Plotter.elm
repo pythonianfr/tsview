@@ -1,4 +1,10 @@
-module Plotter exposing (getplotdata, scatterplot, plotargs, seriesdecoder, Series)
+module Plotter exposing
+    (getplotdata
+    , scatterplot
+    , plotargs
+    , seriesdecoder
+    , Series
+    )
 
 import Dict exposing (Dict)
 import Http
