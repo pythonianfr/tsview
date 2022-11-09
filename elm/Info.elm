@@ -3,8 +3,10 @@ module Info exposing
     , idatesdecoder
     , metatype
     , viewerrors
+    , viewmeta
     )
 
+import Dict exposing (Dict)
 import Html as H
 import Http
 import Json.Decode as D
@@ -43,3 +45,26 @@ viewerrors model =
         , H.div [ ] <| List.map (\x -> H.p [ ] [ H.text x ]) model.errors
         ]
     else H.span [ ] [ ]
+
+
+
+viewmeta model =
+    let
+        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
+        fixval name val =
+            if name == "supervision_status" && val == ""
+            then "formula"
+            else val
+        elt name =
+            H.li [ ] [ H.text <| name
+                        ++ " → "
+                        ++ (fixval name <| M.dget name model.meta)
+                        ++ " ["
+                        ++ (metatype <| Dict.get name model.meta)
+                        ++ "]"
+                   ]
+    in
+    H.div [ ]
+    [ H.h2 [ ] [ H.text "Metadata" ]
+    , H.ul [ ] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
+    ]

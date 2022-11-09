@@ -557,28 +557,6 @@ viewlog model showtitle =
     else div [ ] [ ]
 
 
-viewmeta model =
-    let
-        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
-        fixval name val =
-            if name == "supervision_status" && val == ""
-            then "formula"
-            else val
-        elt name =
-            li [ ] [text <| name
-                        ++ " → "
-                        ++ (fixval name <| M.dget name model.meta)
-                        ++ " ["
-                        ++ (I.metatype <| Dict.get name model.meta)
-                        ++ "]"
-                   ]
-    in
-    div [ ]
-    [ h2 [ ] [text "Metadata"]
-    , ul [ ] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
-    ]
-
-
 viewusermetaheader model =
     let
         editaction =
@@ -844,7 +822,7 @@ view model =
                     [ text model.name ]
               ]
         -- , viewseealso model
-        , viewmeta model
+        , I.viewmeta model
         , viewusermeta model
         , viewformula model
         , case model.formula of
