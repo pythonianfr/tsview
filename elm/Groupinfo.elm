@@ -117,13 +117,6 @@ logdecoder =
     D.list logentrydecoder
 
 
-getwriteperms urlprefix =
-    Http.get
-        { expect = Http.expectString GetPermissions
-        , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] [ ]
-        }
-
-
 getplot model atidate =
     let
         idate =
@@ -943,7 +936,7 @@ main =
                , Cmd.batch
                    [ M.getmetadata input.baseurl input.name GotMeta "group"
                    , getplot model False
-                   , getwriteperms input.baseurl
+                   , I.getwriteperms input.baseurl GetPermissions
                    ]
                )
            sub model = Sub.none
