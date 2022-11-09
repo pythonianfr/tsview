@@ -1,5 +1,6 @@
 module Util exposing
     ( adderror
+    , cleanupdate
     , filterbyformula
     , first
     , fragmentsmatcher
@@ -79,3 +80,18 @@ getformulas baseurl event =
             UB.crossOrigin baseurl
                 [ "tssearch", "allformula" ] []
         }
+
+
+-- dates
+
+cleanupdate date =
+    -- html dates are not really ISO compliant
+    -- hence we have to remove a few bits to make them work
+    -- in some widgets
+    case String.split "+" date of
+        head::_ ->
+            case String.split "." head of
+                newhead::_ ->
+                    newhead
+                [] -> ""
+        [] -> ""

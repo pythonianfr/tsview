@@ -116,19 +116,6 @@ bool2int b =
     if b then 1 else 0
 
 
-cleanupdate date =
-    -- html dates are not really ISO compliant
-    -- hence we have to remove a few bits to make them work
-    -- in some widgets
-    case String.split "+" date of
-        head::_ ->
-            case String.split "." head of
-                newhead::_ ->
-                    newhead
-                [] -> ""
-        [] -> ""
-
-
 dateof strdate =
     case String.split "T" strdate of
         head::_ ->
@@ -346,9 +333,9 @@ update msg model =
                         dates = Dict.keys val
                         minappdate =
                             case dates of
-                                head::_ -> cleanupdate head
+                                head::_ -> U.cleanupdate head
                                 []  -> ""
-                        maxappdate = cleanupdate <| Maybe.withDefault "" <| List.maximum dates
+                        maxappdate = U.cleanupdate <| Maybe.withDefault "" <| List.maximum dates
                         newmodel =
                             case model.plotdata of
                                 Nothing ->
@@ -529,7 +516,7 @@ update msg model =
                 comparedates d1 d2 =
                     d1 > d2
                 newarray =  Array.filter (comparedates value) <|
-                            Array.map cleanupdate model.insertion_dates
+                            Array.map U.cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
                 newmodel = { model | date_index = newindex }
             in ( newmodel
@@ -1050,7 +1037,7 @@ viewidatepicker model =
         currdate =
             case Array.get model.date_index model.insertion_dates of
                 Nothing -> ""
-                Just date -> cleanupdate date
+                Just date -> U.cleanupdate date
     in div
         [ ]
         [ label [ A.for "idate-picker" ] [ text "revision date" ]
