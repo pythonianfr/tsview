@@ -1,6 +1,7 @@
 module Metadata exposing (MetaVal(..)
                          , decodemeta
                          , decodemetaval
+                         , dget
                          , encodemeta
                          , getmetadata
                          , metanames
@@ -100,3 +101,9 @@ metaencoder =
 
 encodemeta meta =
     E.encode 0 (metaencoder meta)
+
+
+dget name metadict =
+    case Dict.get name metadict of
+        Nothing -> ""
+        Just something -> metavaltostring something

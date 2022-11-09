@@ -705,12 +705,6 @@ viewlog model showtitle =
     else div [ ] [ ]
 
 
-dget name metadict =
-    case Dict.get name metadict of
-        Nothing -> ""
-        Just something -> M.metavaltostring something
-
-
 viewmeta model =
     let
         hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
@@ -721,7 +715,7 @@ viewmeta model =
         elt name =
             li [ ] [text <| name
                         ++ " → "
-                        ++ (fixval name <| dget name model.meta)
+                        ++ (fixval name <| M.dget name model.meta)
                         ++ " ["
                         ++ (I.metatype <| Dict.get name model.meta)
                         ++ "]"
@@ -906,7 +900,7 @@ viewcachepolicy model =
         elt name =
             li [ ] [text <| name
                         ++ " → "
-                        ++ (dget name model.policy)
+                        ++ (M.dget name model.policy)
                    ]
     in
     div [ ]
