@@ -1,6 +1,7 @@
 module Util exposing
     ( adderror
     , cleanupdate
+    , dateof
     , filterbyformula
     , first
     , fragmentsmatcher
@@ -94,4 +95,11 @@ cleanupdate date =
                 newhead::_ ->
                     newhead
                 [] -> ""
+        [] -> ""
+
+
+dateof strdate =
+    case String.split "T" strdate of
+        head::_ ->
+            head
         [] -> ""

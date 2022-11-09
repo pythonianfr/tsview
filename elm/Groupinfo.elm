@@ -102,13 +102,6 @@ bool2int b =
     if b then 1 else 0
 
 
-dateof strdate =
-    case String.split "T" strdate of
-        head::_ ->
-            head
-        [] -> ""
-
-
 logentrydecoder : D.Decoder Logentry
 logentrydecoder =
     D.map4 Logentry
@@ -274,8 +267,8 @@ update msg model =
                                 Nothing ->
                                     { model
                                         | plotdata = Just val
-                                        , mindate = dateof minappdate
-                                        , maxdate = dateof maxappdate
+                                        , mindate = U.dateof minappdate
+                                        , maxdate = U.dateof maxappdate
                                     }
                                 Just data -> { model | plotdata = Just val }
                     in
