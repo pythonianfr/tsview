@@ -2,8 +2,10 @@ module Info exposing
     ( getwriteperms
     , idatesdecoder
     , metatype
+    , viewerrors
     )
 
+import Html as H
 import Http
 import Json.Decode as D
 import Metadata as M
@@ -32,3 +34,12 @@ metatype val =
                 M.MFloat _ -> "float"
                 M.MBool _ -> "bool"
                 M.MList _ -> "list"
+
+
+viewerrors model =
+    if List.length model.errors > 0 then
+    H.div [ ]
+        [ H.h2 [ ] [ H.text "Errors" ]
+        , H.div [ ] <| List.map (\x -> H.p [ ] [ H.text x ]) model.errors
+        ]
+    else H.span [ ] [ ]

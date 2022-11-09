@@ -989,15 +989,6 @@ viewcache model =
         div [ ] [ ]
 
 
-viewerrors model =
-    if List.length model.errors > 0 then
-    div [ ]
-        [ h2 [ ] [ text "Errors" ]
-        , div [ ] <| List.map (\x -> p [ ] [ text x ]) model.errors
-        ]
-    else span [ ] [ ]
-
-
 viewidatepicker model =
     let
         currdate =
@@ -1102,7 +1093,7 @@ view model =
         , viewcomponents model
         , viewcache model
         , viewplot model
-        , viewerrors model
+        , I.viewerrors model
         ]
 
 
