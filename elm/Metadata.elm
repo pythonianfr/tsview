@@ -55,13 +55,13 @@ type alias UserMetadata =
     Dict String MetaVal
 
 
-getmetadata urlprefix name callback =
+getmetadata urlprefix name callback dtype =
     Http.get
         { expect =
               Http.expectString callback
         , url =
             UB.crossOrigin urlprefix
-                [ "api", "series", "metadata" ]
+                [ "api", dtype, "metadata" ]
                 [ UB.string "name" name
                 , UB.int "all" 1 ]
         }

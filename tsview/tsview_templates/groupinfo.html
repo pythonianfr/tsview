@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet"
+              href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
+              integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
+              crossorigin="anonymous">
+        <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='pygmentize.css') }}"/>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
+        <script src="https://unpkg.com/@webcomponents/custom-elements@1.2.1/custom-elements.min.js">
+        </script>
+        <script>
+         class PlotFigure extends HTMLElement {
+             static get observedAttributes() {
+                 return ['args'];
+             }
+             attributeChangedCallback(name, old_value, new_value) {
+                 if ( name == 'args' ) {
+                     let args = JSON.parse(new_value);
+                     Plotly.react(
+                         args.div,
+                         args.data,
+                         {showlegend: false},
+                         {displaylogo: false, displayModeBar: false}
+                     );
+                 }
+             }
+         }
+         window.customElements.define("plot-figure", PlotFigure);
+        </script>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script src="./tsview_static/groupinfo_elm.js"></script>
+        <script>
+          var app = Elm.Groupinfo.init({
+              node: document.getElementById('app'),
+              flags: {
+                  baseurl : "{{ homeurl }}",
+                  name : "{{ name }}"
+              }
+          });
+        </script>
+    </body>
+</html>

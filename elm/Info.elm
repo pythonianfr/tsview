@@ -1206,7 +1206,7 @@ main =
                in
                ( model
                , Cmd.batch
-                   [ M.getmetadata input.baseurl input.name GotMeta
+                   [ M.getmetadata input.baseurl input.name GotMeta "series"
                    , getplot model False
                    , getwriteperms input.baseurl
                    , getcachepolicy model

@@ -225,6 +225,17 @@ def tsview(tsa,
             name=request.args.get('name')
         )
 
+    @bp.route('/groupinfo')
+    def groupinfo():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'groupinfo.html',
+            homeurl=homeurl(),
+            name=request.args.get('name')
+        )
+
     @bp.route('/tsinfo/canwrite')
     def canwrite():
         return json.dumps(

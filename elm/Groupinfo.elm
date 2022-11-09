@@ -1,4 +1,4 @@
-module Info exposing (main)
+module Groupinfo exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -20,11 +20,11 @@ import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Metadata as M
 import Plotter exposing
-    ( getplotdata
-    , seriesdecoder
+    ( getgroupplotdata
+    , groupdecoder
     , scatterplot
     , plotargs
-    , Series
+    , Group
     )
 import Url.Builder as UB
 import Util as U
@@ -58,7 +58,7 @@ type alias Model =
     -- log
     , log : List Logentry
     -- plot
-    , plotdata : Maybe Series
+    , plotdata : Maybe Group
     , insertion_dates : Array String
     , mindate : String
     , maxdate : String
@@ -73,7 +73,6 @@ type alias Model =
 type Msg
     = GotMeta (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
-    | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
     -- dates
     | ChangedIdate String
@@ -154,10 +153,9 @@ getplot model atidate =
         idate =
             Array.get model.date_index model.insertion_dates
     in
-        getplotdata model.baseurl model.name
+        getgroupplotdata model.baseurl model.name
             (if atidate then idate else Nothing)
             GotPlotData
-            False
             model.mindate
             model.maxdate
 
@@ -168,22 +166,11 @@ getformula model  =
         { expect = Http.expectString  GotFormula
         , url =
             UB.crossOrigin model.baseurl
-                [ "api", "series", "formula" ]
+                [ "api", "group", "formula" ]
                 [ UB.string "name" model.name
                 , UB.int "display" 1
                 , UB.int "expanded" <| bool2int model.formula_expanded
                 ]
-        }
-
-
-getlog : String -> String-> Cmd Msg
-getlog urlprefix name  =
-    Http.get
-        { expect = Http.expectString GotLog
-        , url = UB.crossOrigin urlprefix
-              [ "api", "series", "log" ]
-              [ UB.string "name" name
-              , UB.int "limit" 10 ]
         }
 
 
@@ -217,7 +204,7 @@ getidates model =
         { url =
               UB.crossOrigin
               model.baseurl
-              [ "api", "series", "insertion_dates" ]
+              [ "api", "group", "insertion_dates" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString InsertionDates
         }
@@ -236,7 +223,7 @@ savemeta model =
         , url =
               UB.crossOrigin
               model.baseurl
-              [ "api", "series", "metadata" ] [ ]
+              [ "api", "group", "metadata" ] [ ]
         , expect = Http.expectString MetaSaved
         }
 
@@ -286,7 +273,7 @@ update msg model =
             doerr "getpermissions http" <| U.unwraperror err
 
         GotPlotData (Ok rawdata) ->
-            case D.decodeString seriesdecoder rawdata of
+            case D.decodeString groupdecoder rawdata of
                 Ok val ->
                     let
                         dates = Dict.keys val
@@ -318,14 +305,12 @@ update msg model =
                     ( model
                     , Cmd.batch [ pygmentyze model formula
                                 , getcomponents model
-                                , getlog model.baseurl model.name
                                 ]
                     )
                 Err _ ->
-                    -- there is no formula -> there must be logs !
-                    ( model
-                    , getlog model.baseurl model.name
-                    )
+                    -- there is no formula -> there might be logs !
+                    -- but right now we don't have them anyway
+                    U.nocmd model
 
         GotFormula (Err error) ->
             doerr "gotformula http" <| U.unwraperror error
@@ -361,16 +346,6 @@ update msg model =
 
         Components (Err error) ->
             doerr "components http" <| U.unwraperror error
-
-        GotLog (Ok rawlog) ->
-            case D.decodeString logdecoder rawlog of
-                Ok log ->
-                    U.nocmd { model | log = log }
-                Err err ->
-                    doerr "gotlog decode" <| D.errorToString err
-
-        GotLog (Err error) ->
-            doerr "gotlog http" <| U.unwraperror error
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString idatesdecoder rawdates of
@@ -519,22 +494,7 @@ viewseealso model =
             if (supervision model) /= "formula" then "edit values" else "show values"
     in
     div [ ]
-        [ div [ ] [ span [ ] [ text " ⇒ " ]
-               , a [ A.href <| UB.crossOrigin
-                         model.baseurl
-                         [ "tshistory", model.name ] [ ]
-                   , A.target "_blank"
-                   ] [ text "browse history" ]
-               ]
-        , div [ ] [ span [ ] [ text " ⇒ " ]
-               , a [ A.href <| UB.crossOrigin
-                         model.baseurl
-                         [ "tseditor" ]
-                         [ UB.string "name" model.name ]
-                   , A.target "_blank"
-                   ] [ text editorlabel ]
-               ]
-        , if (supervision model) == "formula" then
+        [ if (supervision model) == "formula" then
               div [ ] [ span [ ] [ text " ⇒ " ]
                    , a [ A.href <| UB.crossOrigin
                              model.baseurl
@@ -907,15 +867,22 @@ viewdatesrange model =
 
 viewplot model =
     let
-        plotdata = case model.plotdata of
-                       Nothing -> Dict.empty
-                       Just data -> data
+        groupdata =
+            case model.plotdata of
+                Nothing -> Dict.empty
+                Just data -> data
 
-        plot = scatterplot model.name
-               (Dict.keys plotdata)
-               (Dict.values plotdata)
-               "lines"
-        args = plotargs "plot" [plot]
+        plot (name, plotdata) =
+            scatterplot
+                name
+                (Dict.keys plotdata)
+                (Dict.values plotdata)
+                "lines"
+
+        plots = List.map plot <| Dict.toList groupdata
+
+        args =
+            plotargs "plot" plots
     in
     div [ ]
         [ h2 [ ] [ text "Plot" ]
@@ -937,7 +904,7 @@ view model =
                     [ A.class "font-italic" ]
                     [ text model.name ]
               ]
-        , viewseealso model
+        -- , viewseealso model
         , viewmeta model
         , viewusermeta model
         , viewformula model
@@ -998,7 +965,7 @@ main =
                in
                ( model
                , Cmd.batch
-                   [ M.getmetadata input.baseurl input.name GotMeta
+                   [ M.getmetadata input.baseurl input.name GotMeta "group"
                    , getplot model False
                    , getwriteperms input.baseurl
                    ]

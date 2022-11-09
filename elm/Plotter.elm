@@ -1,5 +1,8 @@
 module Plotter exposing
     (getplotdata
+    , getgroupplotdata
+    , Group
+    , groupdecoder
     , scatterplot
     , plotargs
     , seriesdecoder
@@ -12,6 +15,8 @@ import Json.Decode as D
 import Json.Encode as E
 import Url.Builder as UB
 
+
+-- series
 
 type alias Trace =
     { type_ : String
@@ -34,7 +39,7 @@ encodetrace t =
 
 
 type alias Series =
-    Dict.Dict String Float
+    Dict String Float
 
 
 seriesdecoder =
@@ -77,6 +82,37 @@ getplotdata baseurl name idate callback nocache fromdate todate =
               ["api", "series", "state"]
               <| (fullquery idate)
               ++ [ UB.int "nocache" nocache]
+              ++ (if fromdate /= "" then fvd else [])
+              ++ (if todate /= "" then tvd else [])
+        , expect = Http.expectString callback
+        }
+
+
+-- groups
+
+type alias Group =
+    Dict String (Dict String Float)
+
+
+groupdecoder =
+    D.dict (D.dict D.float)
+
+
+getgroupplotdata baseurl name idate callback fromdate todate =
+    let
+        query = [ UB.string "name" name ]
+        fvd = [ UB.string "from_value_date" fromdate ]
+        tvd = [ UB.string "to_value_date" todate ]
+        fullquery date =
+            case date of
+                Nothing -> query
+                Just d -> List.append query
+                          [ UB.string "insertion_date" d ]
+    in
+    Http.get
+        { url = UB.crossOrigin baseurl
+              ["api", "group", "state"]
+              <| (fullquery idate)
               ++ (if fromdate /= "" then fvd else [])
               ++ (if todate /= "" then tvd else [])
         , expect = Http.expectString callback
