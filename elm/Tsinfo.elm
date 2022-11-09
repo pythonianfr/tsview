@@ -705,102 +705,6 @@ viewlog model showtitle =
     else div [ ] [ ]
 
 
-viewusermeta model =
-    if model.editing then editusermeta model else
-    let
-        elt (k, v) =
-            li [ ] [ text <| k
-                         ++ " → "
-                         ++ (M.metavaltostring v)
-                         ++ " ["
-                         ++ (I.metatype <| Just v)
-                         ++ "]"
-                   ]
-    in
-    if not <| Dict.isEmpty model.usermeta then
-        div [ ]
-            [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
-            , ul [ ] <| List.map elt (Dict.toList model.usermeta)
-            ]
-    else
-        div [ ]
-            [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
-            , text "No user-defined metadata yet."
-            ]
-
-
-editusermeta model =
-    let
-        deletefields key val =
-            div [ A.class "form-row" ]
-                [ div [ A.class "col-3" ]
-                      [ input
-                            [ A.attribute "type" "text"
-                            , A.class "form-control"
-                            , A.disabled True
-                            , A.value key
-                            ] [ ]
-                      ]
-                , div [ A.class "col-6" ]
-                    [ input [ A.attribute "type" "text"
-                            , A.class "form-control"
-                            , A.placeholder "value"
-                            , A.value val
-                            , onInput <| EditedValue key
-                            ] [ ]
-                    ]
-                , div [A.class "col" ]
-                      [ button
-                            [ A.attribute "type" "button"
-                            , A.class "btn btn-warning"
-                            , onClick (MetaItemToDelete key)
-                            ] [ text "delete" ]
-                      ]
-                ]
-        addfields key val =
-            div [ A.class "form-row" ]
-                [ div [ A.class "col-3" ]
-                      [ input
-                            [ A.attribute "type" "text"
-                            , A.class "form-control"
-                            , A.placeholder "key"
-                            , A.value key
-                            , onInput NewKey
-                            ] [ ]
-                      ]
-                , div [ A.class "col-6" ]
-                    [ input [ A.attribute "type" "text"
-                            , A.class "form-control"
-                            , A.placeholder "value"
-                            , A.value <| val
-                            , onInput NewValue
-                            ] [ ]
-                    ]
-                ]
-        editfields ab = deletefields (U.first ab) (U.snd ab)
-    in
-    div [ ]
-        [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
-        , form
-              [ onSubmit SaveMeta ]
-              <| (List.map editfields (Dict.toList model.editeditems)) ++
-                  [ button
-                        [ A.attribute "type" "submit"
-                        , A.class "btn btn-primary col-sm-10"
-                        ]
-                        [ text "save entries"]
-                  ]
-        , form [ onSubmit AddMetaItem ]
-            [ addfields (U.first model.metaitem) (U.snd model.metaitem)
-            , button
-                  [ A.attribute "type" "submit"
-                  , A.class "btn btn-primary col-sm-10"
-                  ]
-                  [ text "add entry"]
-            ]
-        ]
-
-
 viewcomponents model =
     let
         alink seriesname =
@@ -1021,6 +925,18 @@ viewplot model =
         ]
 
 
+metaevents =
+    { metaeditasked = MetaEditAsked
+    , metaeditcancel = MetaEditCancel
+    , editedvalue = EditedValue
+    , metaitemtodelete = MetaItemToDelete
+    , newkey = NewKey
+    , newvalue = NewValue
+    , savemeta = SaveMeta
+    , addmetaitem = AddMetaItem
+    }
+
+
 view : Model -> Html Msg
 view model =
     div [ A.style "margin" ".5em" ]
@@ -1032,7 +948,7 @@ view model =
               ]
         , viewseealso model
         , I.viewmeta model
-        , viewusermeta model
+        , I.viewusermeta model metaevents
         , viewformula model
         , case model.formula of
               Nothing -> viewlog model True

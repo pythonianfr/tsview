@@ -3,7 +3,7 @@ module Info exposing
     , idatesdecoder
     , metatype
     , viewerrors
-    , viewusermetaheader
+    , viewusermeta
     , viewmeta
     )
 
@@ -15,6 +15,7 @@ import Http
 import Json.Decode as D
 import Metadata as M
 import Url.Builder as UB
+import Util as U
 
 
 getwriteperms urlprefix event =
@@ -73,7 +74,7 @@ viewmeta model =
     ]
 
 
-viewusermetaheader model editevent cancelevent =
+viewusermetaheader model events =
     let
         editaction =
             if model.canwrite then
@@ -81,13 +82,13 @@ viewusermetaheader model editevent cancelevent =
                     H.button
                     [ HA.attribute "type" "button"
                     , HA.class "btn btn-primary"
-                    , HE.onClick editevent
+                    , HE.onClick events.metaeditasked
                     ] [ H.text "edit" ]
                 else
                     H.button
                     [ HA.attribute "type" "button"
                     , HA.class "btn btn-warning"
-                    , HE.onClick cancelevent
+                    , HE.onClick events.metaeditcancel
                     ] [ H.text "cancel" ]
             else H.span [ ] [ ]
     in
@@ -96,3 +97,99 @@ viewusermetaheader model editevent cancelevent =
             , H.span [ ] [ H.text " "]
             , editaction
             ]
+
+
+viewusermeta model events =
+    if model.editing then editusermeta model events else
+    let
+        elt (k, v) =
+            H.li [ ] [ H.text <| k
+                           ++ " → "
+                           ++ (M.metavaltostring v)
+                           ++ " ["
+                           ++ (metatype <| Just v)
+                           ++ "]"
+                   ]
+    in
+    if not <| Dict.isEmpty model.usermeta then
+        H.div [ ]
+            [ viewusermetaheader model events
+            , H.ul [ ] <| List.map elt (Dict.toList model.usermeta)
+            ]
+    else
+        H.div [ ]
+            [ viewusermetaheader model events
+            , H.text "No user-defined metadata yet."
+            ]
+
+
+editusermeta model events =
+    let
+        deletefields key val =
+            H.div [ HA.class "form-row" ]
+                [ H.div [ HA.class "col-3" ]
+                      [ H.input
+                            [ HA.attribute "type" "text"
+                            , HA.class "form-control"
+                            , HA.disabled True
+                            , HA.value key
+                            ] [ ]
+                      ]
+                , H.div [ HA.class "col-6" ]
+                    [ H.input [ HA.attribute "type" "text"
+                              , HA.class "form-control"
+                              , HA.placeholder "value"
+                              , HA.value val
+                              , HE.onInput <| events.editedvalue key
+                              ] [ ]
+                    ]
+                , H.div [ HA.class "col" ]
+                    [ H.button
+                          [ HA.attribute "type" "button"
+                          , HA.class "btn btn-warning"
+                          , HE.onClick (events.metaitemtodelete key)
+                          ] [ H.text "delete" ]
+                      ]
+                ]
+        addfields key val =
+            H.div [ HA.class "form-row" ]
+                [ H.div [ HA.class "col-3" ]
+                      [ H.input
+                            [ HA.attribute "type" "text"
+                            , HA.class "form-control"
+                            , HA.placeholder "key"
+                            , HA.value key
+                            , HE.onInput events.newkey
+                            ] [ ]
+                      ]
+                , H.div [ HA.class "col-6" ]
+                    [ H.input [ HA.attribute "type" "text"
+                              , HA.class "form-control"
+                              , HA.placeholder "value"
+                              , HA.value <| val
+                              , HE.onInput events.newvalue
+                              ] [ ]
+                    ]
+                ]
+        editfields ab = deletefields (U.first ab) (U.snd ab)
+    in
+    H.div [ ]
+        [ viewusermetaheader model events
+        , H.form
+              [ HE.onSubmit events.savemeta ]
+              <| (List.map editfields (Dict.toList model.editeditems)) ++
+                  [ H.button
+                        [ HA.attribute "type" "submit"
+                        , HA.class "btn btn-primary col-sm-10"
+                        ]
+                        [ H.text "save entries"]
+                  ]
+        , H.form [ HE.onSubmit events.addmetaitem ]
+            [ addfields (U.first model.metaitem) (U.snd model.metaitem)
+            , H.button
+                  [ HA.attribute "type" "submit"
+                  , HA.class "btn btn-primary col-sm-10"
+                  ]
+                  [ H.text "add entry"]
+            ]
+        ]
