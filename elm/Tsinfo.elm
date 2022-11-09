@@ -1,4 +1,4 @@
-module Info exposing (main)
+module Tsinfo exposing (main)
 
 import Array exposing (Array)
 import Browser

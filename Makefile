@@ -13,7 +13,7 @@ rename:
 	elm make elm/Rename.elm $(FLAGS) --output tsview/tsview_static/rename_elm.js
 
 info:
-	elm make elm/Info.elm $(FLAGS) --output tsview/tsview_static/info_elm.js
+	elm make elm/Tsinfo.elm $(FLAGS) --output tsview/tsview_static/tsinfo_elm.js
 
 groupinfo:
 	elm make elm/Groupinfo.elm $(FLAGS) --output tsview/tsview_static/groupinfo_elm.js
