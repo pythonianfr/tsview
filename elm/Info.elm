@@ -3,11 +3,14 @@ module Info exposing
     , idatesdecoder
     , metatype
     , viewerrors
+    , viewusermetaheader
     , viewmeta
     )
 
 import Dict exposing (Dict)
 import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Http
 import Json.Decode as D
 import Metadata as M
@@ -68,3 +71,28 @@ viewmeta model =
     [ H.h2 [ ] [ H.text "Metadata" ]
     , H.ul [ ] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
     ]
+
+
+viewusermetaheader model editevent cancelevent =
+    let
+        editaction =
+            if model.canwrite then
+                if not model.editing then
+                    H.button
+                    [ HA.attribute "type" "button"
+                    , HA.class "btn btn-primary"
+                    , HE.onClick editevent
+                    ] [ H.text "edit" ]
+                else
+                    H.button
+                    [ HA.attribute "type" "button"
+                    , HA.class "btn btn-warning"
+                    , HE.onClick cancelevent
+                    ] [ H.text "cancel" ]
+            else H.span [ ] [ ]
+    in
+        H.h2  [ ]
+            [ H.text "User Metadata"
+            , H.span [ ] [ H.text " "]
+            , editaction
+            ]

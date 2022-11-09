@@ -557,31 +557,6 @@ viewlog model showtitle =
     else div [ ] [ ]
 
 
-viewusermetaheader model =
-    let
-        editaction =
-            if model.canwrite then
-                if not model.editing then
-                    button
-                    [ A.attribute "type" "button"
-                    , A.class "btn btn-primary"
-                    , onClick MetaEditAsked
-                    ] [ text "edit" ]
-                else
-                    button
-                    [ A.attribute "type" "button"
-                    , A.class "btn btn-warning"
-                    , onClick MetaEditCancel
-                    ] [ text "cancel" ]
-            else span [ ] [ ]
-    in
-        h2  [ ]
-            [ text "User Metadata"
-            , span [ ] [text " "]
-            , editaction
-            ]
-
-
 viewusermeta model =
     if model.editing then editusermeta model else
     let
@@ -596,12 +571,12 @@ viewusermeta model =
     in
     if not <| Dict.isEmpty model.usermeta then
         div [ ]
-            [ viewusermetaheader model
+            [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
             , ul [ ] <| List.map elt (Dict.toList model.usermeta)
             ]
     else
         div [ ]
-            [ viewusermetaheader model
+            [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
             , text "No user-defined metadata yet."
             ]
 
@@ -657,7 +632,7 @@ editusermeta model =
         editfields ab = deletefields (U.first ab) (U.snd ab)
     in
     div [ ]
-        [ viewusermetaheader model
+        [ I.viewusermetaheader model MetaEditAsked MetaEditCancel
         , form
               [ onSubmit SaveMeta ]
               <| (List.map editfields (Dict.toList model.editeditems)) ++
