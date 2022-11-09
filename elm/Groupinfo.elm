@@ -563,18 +563,6 @@ dget name metadict =
         Just something -> M.metavaltostring something
 
 
-metatype val =
-    case val of
-        Nothing -> "virt"
-        Just x ->
-            case x of
-                M.MString _ -> "str"
-                M.MInt _ -> "int"
-                M.MFloat _ -> "float"
-                M.MBool _ -> "bool"
-                M.MList _ -> "list"
-
-
 viewmeta model =
     let
         hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
@@ -587,7 +575,7 @@ viewmeta model =
                         ++ " → "
                         ++ (fixval name <| dget name model.meta)
                         ++ " ["
-                        ++ (metatype <| Dict.get name model.meta)
+                        ++ (I.metatype <| Dict.get name model.meta)
                         ++ "]"
                    ]
     in
@@ -630,7 +618,7 @@ viewusermeta model =
                          ++ " → "
                          ++ (M.metavaltostring v)
                          ++ " ["
-                         ++ (metatype <| Just v)
+                         ++ (I.metatype <| Just v)
                          ++ "]"
                    ]
     in
