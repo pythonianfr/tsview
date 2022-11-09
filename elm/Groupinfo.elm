@@ -99,9 +99,6 @@ type Msg
     | MetaSaved (Result Http.Error String)
 
 
-bool2int b =
-    if b then 1 else 0
-
 
 logentrydecoder : D.Decoder Logentry
 logentrydecoder =
@@ -138,7 +135,7 @@ getformula model  =
                 [ "api", "group", "formula" ]
                 [ UB.string "name" model.name
                 , UB.int "display" 1
-                , UB.int "expanded" <| bool2int model.formula_expanded
+                , UB.int "expanded" <| U.bool2int model.formula_expanded
                 ]
         }
 
@@ -162,7 +159,7 @@ getcomponents model =
               model.baseurl
               [ "api", "series", "formula_components" ]
               [ UB.string "name" model.name
-              , UB.int "expanded" <| bool2int model.formula_expanded
+              , UB.int "expanded" <| U.bool2int model.formula_expanded
               ]
         , expect = Http.expectString Components
         }

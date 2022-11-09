@@ -1,5 +1,6 @@
 module Util exposing
     ( adderror
+    , bool2int
     , cleanupdate
     , dateof
     , filterbyformula
@@ -21,6 +22,10 @@ import Url.Builder as UB
 
 
 nocmd model = ( model, Cmd.none )
+
+
+bool2int b =
+    if b then 1 else 0
 
 
 first = Tuple.first
