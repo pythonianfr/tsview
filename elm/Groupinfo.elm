@@ -15,6 +15,7 @@ import Html exposing (..)
 import Html.Attributes as A
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
+import Info as I
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
@@ -114,11 +115,6 @@ logentrydecoder =
 logdecoder : D.Decoder (List Logentry)
 logdecoder =
     D.list logentrydecoder
-
-
-idatesdecoder : D.Decoder (List String)
-idatesdecoder =
-    D.field "insertion_dates" (D.list D.string)
 
 
 getwriteperms urlprefix =
@@ -328,7 +324,7 @@ update msg model =
             doerr "components http" <| U.unwraperror error
 
         InsertionDates (Ok rawdates) ->
-            case D.decodeString idatesdecoder rawdates of
+            case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     U.nocmd { model
                                 | insertion_dates = Array.fromList dates
