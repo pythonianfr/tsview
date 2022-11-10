@@ -695,7 +695,7 @@ viewplot model =
     in
     div [ ]
         [ h2 [ ] [ text "Plot" ]
-        , I.viewidatepicker model idatepickerevents
+        , I.viewdatespicker model idatepickerevents
         , viewdatesrange model
         , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
