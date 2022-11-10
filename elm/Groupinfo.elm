@@ -138,19 +138,6 @@ pygmentyze model formula =
         }
 
 
-getcomponents model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "group", "formula_components" ]
-              [ UB.string "name" model.name
-              , UB.int "expanded" <| U.bool2int model.formula_expanded
-              ]
-        , expect = Http.expectString Components
-        }
-
-
 getidates model =
     Http.get
         { url =
@@ -256,7 +243,7 @@ update msg model =
                 Ok formula ->
                     ( model
                     , Cmd.batch [ pygmentyze model formula
-                                , getcomponents model
+                                -- , getcomponents model
                                 ]
                     )
                 Err _ ->
