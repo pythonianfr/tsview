@@ -21,7 +21,7 @@ import Url.Builder as UB
 import Util as U
 
 
-type alias RawSeries =
+type alias RawCatalog =
     Dict String (List (String, String))
 
 
@@ -132,7 +132,7 @@ groupby list itemaccessor keyaccessor =
         Dict.fromList (List.map makeDictEntry allkeys)
 
 
-buildkinds : RawSeries -> Dict String (Set String)
+buildkinds : RawCatalog -> Dict String (Set String)
 buildkinds raw =
     groupby (List.concat (Dict.values raw)) Tuple.first Tuple.second
 
