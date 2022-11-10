@@ -140,20 +140,6 @@ getplot model atidate =
             model.maxdate
 
 
-getformula : Model -> Cmd Msg
-getformula model  =
-    Http.get
-        { expect = Http.expectString  GotFormula
-        , url =
-            UB.crossOrigin model.baseurl
-                [ "api", "series", "formula" ]
-                [ UB.string "name" model.name
-                , UB.int "display" 1
-                , UB.int "expanded" <| U.bool2int model.formula_expanded
-                ]
-        }
-
-
 getlog : String -> String-> Cmd Msg
 getlog urlprefix name  =
     Http.get
@@ -286,7 +272,7 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = getidates model
-                        cmd = Cmd.batch [ getformula model, next ]
+                        cmd = Cmd.batch [ I.getformula model "series" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -466,7 +452,7 @@ update msg model =
                 ( { model | formula_expanded = not state }
                 , case model.expanded_formula of
                       Nothing ->
-                          getformula { model | formula_expanded = not state }
+                          I.getformula { model | formula_expanded = not state } "series" GotFormula
                       Just _ ->
                           Cmd.none
                 )

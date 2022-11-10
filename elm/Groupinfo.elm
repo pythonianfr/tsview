@@ -126,20 +126,6 @@ getplot model atidate =
             model.maxdate
 
 
-getformula : Model -> Cmd Msg
-getformula model  =
-    Http.get
-        { expect = Http.expectString  GotFormula
-        , url =
-            UB.crossOrigin model.baseurl
-                [ "api", "group", "formula" ]
-                [ UB.string "name" model.name
-                , UB.int "display" 1
-                , UB.int "expanded" <| U.bool2int model.formula_expanded
-                ]
-        }
-
-
 pygmentyze model formula =
     Http.post
         { url =
@@ -157,7 +143,7 @@ getcomponents model =
         { url =
               UB.crossOrigin
               model.baseurl
-              [ "api", "series", "formula_components" ]
+              [ "api", "group", "formula_components" ]
               [ UB.string "name" model.name
               , UB.int "expanded" <| U.bool2int model.formula_expanded
               ]
@@ -220,7 +206,7 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = getidates model
-                        cmd = Cmd.batch [ getformula model, next ]
+                        cmd = Cmd.batch [ I.getformula model "group" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -333,7 +319,7 @@ update msg model =
                 ( { model | formula_expanded = not state }
                 , case model.expanded_formula of
                       Nothing ->
-                          getformula { model | formula_expanded = not state }
+                          I.getformula { model | formula_expanded = not state } "group" GotFormula
                       Just _ ->
                           Cmd.none
                 )
@@ -610,7 +596,7 @@ view model =
         , case model.formula of
               Nothing -> viewlog model True
               Just _ -> span [] []
-        , I.viewcomponents model
+        -- , I.viewcomponents model
         , viewplot model
         , I.viewerrors model
         ]
