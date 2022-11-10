@@ -437,7 +437,7 @@ main =
                         []
             in ( model
                , Cmd.batch <| [
-                      Cmd.map GotCatalog (Catalog.get model.prefix 1)
+                      Cmd.map GotCatalog (Catalog.get model.prefix "series" 1)
                      , Date.today |> Task.perform GotToday
                      ] ++ fetchseries model False
                )

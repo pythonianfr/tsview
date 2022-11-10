@@ -639,7 +639,7 @@ main =
                      debouncerconfig
                      debouncerconfig
                ,
-                   Cmd.map GotCatalog <| Cat.get input.baseurl 1
+                   Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1
                )
            sub model = Sub.none
        in

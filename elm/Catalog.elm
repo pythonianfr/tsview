@@ -138,12 +138,11 @@ decodecatalog rawcat =
     D.decodeString (D.dict (D.list decodetuple)) rawcat
 
 
-get : String -> Int -> Cmd Msg
-get urlprefix allsources =
+get urlprefix dtype allsources =
     Http.get
         { expect = Http.expectString Received
         , url =
             UB.crossOrigin urlprefix
-                [ "api", "series", "catalog" ]
+                [ "api", dtype, "catalog" ]
                 [ UB.int "allsources" allsources ]
         }
