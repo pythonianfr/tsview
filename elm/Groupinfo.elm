@@ -126,18 +126,6 @@ getplot model atidate =
             model.maxdate
 
 
-pygmentyze model formula =
-    Http.post
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "tsformula", "pygmentize" ]
-              []
-        , body = Http.stringBody "text/plain" formula
-        , expect = Http.expectString CodeHighlight
-        }
-
-
 getidates model =
     Http.get
         { url =
@@ -242,7 +230,7 @@ update msg model =
             case D.decodeString D.string rawformula of
                 Ok formula ->
                     ( model
-                    , Cmd.batch [ pygmentyze model formula
+                    , Cmd.batch [ U.pygmentyze model formula CodeHighlight
                                 -- , getcomponents model
                                 ]
                     )

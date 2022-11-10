@@ -8,6 +8,7 @@ module Util exposing
     , fragmentsmatcher
     , getformulas
     , nocmd
+    , pygmentyze
     , snd
     , tovirtualdom
     , unwraperror
@@ -76,7 +77,7 @@ filterbyformula formulas filterme query =
     List.filter informula filterme
 
 
--- formulas fetching
+-- formulas
 
 getformulas baseurl event =
     Http.get
@@ -85,6 +86,18 @@ getformulas baseurl event =
         , url =
             UB.crossOrigin baseurl
                 [ "tssearch", "allformula" ] []
+        }
+
+
+pygmentyze model formula callback =
+    Http.post
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "tsformula", "pygmentize" ]
+              []
+        , body = Http.stringBody "text/plain" formula
+        , expect = Http.expectString callback
         }
 
 
