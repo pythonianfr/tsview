@@ -426,7 +426,7 @@ main =
                 selected = flags.selected
                 model = Model
                         flags.prefix
-                        (Catalog.new Dict.empty)
+                        Catalog.empty
                         flags.haseditor
                         (SeriesSelector.new [] "" [] selected [] [])
                         (List.isEmpty selected)
@@ -437,7 +437,9 @@ main =
                         []
             in ( model
                , Cmd.batch <| [
-                      Cmd.map GotCatalog (Catalog.get model.prefix "series" 1)
+                      Cmd.map
+                          GotCatalog
+                          (Catalog.get model.prefix "series" 1 Catalog.ReceivedSeries)
                      , Date.today |> Task.perform GotToday
                      ] ++ fetchseries model False
                )

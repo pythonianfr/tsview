@@ -1,11 +1,11 @@
 module Catalog exposing
     (Model
-    , Msg
+    , Msg(..)
     , Error
     , empty
     , viewError
     , get
-    , new
+    , newseries
     , update
     , removeSeries
     )
@@ -33,30 +33,69 @@ type alias Model =
     { series : List String
     , seriesBySource : Dict String (Set String)
     , seriesByKind : Dict String (Set String)
+    , groups : List String
+    , groupsBySource : Dict String (Set String)
+    , groupsByKind : Dict String (Set String)
     , errors : List String
     }
 
 
 empty =
-    Model [] Dict.empty Dict.empty []
+    Model [] Dict.empty Dict.empty [] Dict.empty Dict.empty []
+
+
+newseries model raw =
+    { model
+          | series = (buildseries raw)
+          , seriesBySource = (buildsources raw)
+          , seriesByKind = (buildkinds raw)
+    }
+
+
+newgroups model raw =
+    { model
+          | groups = (buildseries raw)
+          , groupsBySource = (buildsources raw)
+          , groupsByKind = (buildkinds raw)
+    }
+
 
 
 type Msg
-    = Received (Result Http.Error String)
+    = ReceivedSeries (Result Http.Error String)
+    | ReceivedGroups (Result Http.Error String)
 
 
 -- catalog update
 
 update msg model =
-    case msg of
-        Received (Ok x) ->
-            case decodecatalog x of
-                Ok cat -> new cat
-                Err err ->
-                    Model [] Dict.empty Dict.empty [ D.errorToString err ]
+    let
+        onerror err =
+            { model | errors = List.append model.errors [ err ] }
 
-        Received (Err err) ->
-            Model [] Dict.empty Dict.empty [ U.unwraperror err ]
+    in
+    case msg of
+        ReceivedSeries (Ok x) ->
+            case decodecatalog x of
+                Ok seriescat ->
+                    newseries model seriescat
+
+                Err err ->
+                    onerror (D.errorToString err)
+
+        ReceivedSeries (Err err) ->
+            onerror (U.unwraperror err)
+
+        ReceivedGroups (Ok x) ->
+            case decodecatalog x of
+                Ok groupscat ->
+                    newgroups model groupscat
+
+                Err err ->
+                    onerror (D.errorToString err)
+
+        ReceivedGroups (Err err) ->
+            onerror (U.unwraperror err)
 
 
 -- view
@@ -74,8 +113,7 @@ viewError error =
 
 -- catalog building
 
-newseries : RawSeries -> List String
-newseries raw =
+buildseries raw =
     List.map Tuple.first (List.concat (Dict.values raw))
 
 
@@ -94,12 +132,12 @@ groupby list itemaccessor keyaccessor =
         Dict.fromList (List.map makeDictEntry allkeys)
 
 
-newkinds : RawSeries -> Dict String (Set String)
-newkinds raw =
+buildkinds : RawSeries -> Dict String (Set String)
+buildkinds raw =
     groupby (List.concat (Dict.values raw)) Tuple.first Tuple.second
 
 
-newsources raw =
+buildsources raw =
     let
         namesbysource source =
             List.map Tuple.first (Maybe.withDefault [] (Dict.get source raw))
@@ -107,16 +145,6 @@ newsources raw =
             Tuple.pair source (Set.fromList (namesbysource source))
     in
          Dict.fromList (List.map makedictentry (Dict.keys raw))
-
-
-new : RawSeries -> Model
-new raw =
-    let
-        series = newseries raw
-        seriesBySource = newsources raw
-        seriesByKind = newkinds raw
-    in
-        Model series seriesBySource seriesByKind []
 
 
 removeSeries name catalog =
@@ -138,9 +166,9 @@ decodecatalog rawcat =
     D.decodeString (D.dict (D.list decodetuple)) rawcat
 
 
-get urlprefix dtype allsources =
+get urlprefix dtype allsources event =
     Http.get
-        { expect = Http.expectString Received
+        { expect = Http.expectString event
         , url =
             UB.crossOrigin urlprefix
                 [ "api", dtype, "catalog" ]

@@ -642,7 +642,7 @@ main =
 
            init input =
                ( newmodel input
-               , Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1
+               , Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
                )
 
            sub model = Sub.none

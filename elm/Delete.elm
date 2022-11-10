@@ -221,7 +221,7 @@ main =
                   SeriesSelector.null
                   Nothing
             ,
-                Cmd.map GotCatalog (Catalog.get prefix "series" 0)
+                Cmd.map GotCatalog (Catalog.get prefix "series" 0 Catalog.ReceivedSeries)
             )
 
         sub model =
