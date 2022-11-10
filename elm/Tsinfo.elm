@@ -190,19 +190,6 @@ getcachepolicy model =
         }
 
 
-getidates model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "series", "insertion_dates" ]
-              [ UB.string "name" model.name
-              , UB.int "nocache" <| U.bool2int model.view_nocache
-              ]
-        , expect = Http.expectString InsertionDates
-        }
-
-
 savemeta model =
     Http.request
         { method = "PUT"
@@ -246,7 +233,7 @@ update msg model =
                                 | meta = stdmeta
                                 , usermeta = usermeta
                             }
-                        next = getidates model
+                        next = I.getidates model "series" InsertionDates
                         cmd = Cmd.batch [ I.getformula model "series" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
@@ -335,7 +322,7 @@ update msg model =
             ( newmodel
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel False
-                        , getidates newmodel
+                        , I.getidates newmodel "series" InsertionDates
                         , getlog model.baseurl model.name
                         ]
             )
@@ -347,7 +334,7 @@ update msg model =
             let mod = { model | view_nocache = not model.view_nocache } in
             ( mod
             , Cmd.batch
-                [ getidates mod
+                [ I.getidates mod "series" InsertionDates
                 , getplot mod False
                 ]
             )

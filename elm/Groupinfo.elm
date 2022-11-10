@@ -56,6 +56,8 @@ type alias Model =
     , expanded_formula : Maybe String
     , formula_components : Maybe JT.Node
     , expanded_formula_components : Maybe JT.Node
+    -- cache (none yet but minimal data model suppport for genericity)
+    , view_nocache : Bool
     -- log
     , log : List Logentry
     -- plot
@@ -126,17 +128,6 @@ getplot model atidate =
             model.maxdate
 
 
-getidates model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "group", "insertion_dates" ]
-              [ UB.string "name" model.name ]
-        , expect = Http.expectString InsertionDates
-        }
-
-
 savemeta model =
     Http.request
         { method = "PUT"
@@ -180,7 +171,7 @@ update msg model =
                                 | meta = stdmeta
                                 , usermeta = usermeta
                             }
-                        next = getidates model
+                        next = I.getidates model "group" InsertionDates
                         cmd = Cmd.batch [ I.getformula model "group" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
@@ -610,6 +601,8 @@ main =
                            Nothing
                            Nothing
                            Nothing
+                           -- cache
+                           False
                            -- log
                            [ ]
                            -- plot

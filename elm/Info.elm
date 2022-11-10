@@ -1,5 +1,6 @@
 module Info exposing
     ( getformula
+    , getidates
     , getcomponents
     , getwriteperms
     , idatesdecoder
@@ -61,6 +62,19 @@ getcomponents model dtype callback =
 idatesdecoder : D.Decoder (List String)
 idatesdecoder =
     D.field "insertion_dates" (D.list D.string)
+
+
+getidates model dtype callback =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", dtype, "insertion_dates" ]
+              [ UB.string "name" model.name
+              , UB.int "nocache" <| U.bool2int model.view_nocache
+              ]
+        , expect = Http.expectString callback
+        }
 
 
 metatype val =
