@@ -622,25 +622,29 @@ main =
                Debouncer.manual |>
                settleWhenQuietFor (Just <| fromSeconds 0.3) |>
                toDebouncer
+
+           newmodel input =
+               Model
+                   input.baseurl
+                   Cat.empty
+                   Dict.empty
+                   Dict.empty
+                   []
+                   []
+                   []
+                   Nothing
+                   Nothing
+                   ("", "")
+                   []
+                   []
+                   debouncerconfig
+                   debouncerconfig
+
            init input =
-               ( Model
-                     input.baseurl
-                     Cat.empty
-                     Dict.empty
-                     Dict.empty
-                     []
-                     []
-                     []
-                     Nothing
-                     Nothing
-                     ("", "")
-                     []
-                     []
-                     debouncerconfig
-                     debouncerconfig
-               ,
-                   Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1
+               ( newmodel input
+               , Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1
                )
+
            sub model = Sub.none
        in
            Browser.element
