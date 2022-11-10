@@ -3,6 +3,7 @@ module Info exposing
     , idatesdecoder
     , metatype
     , viewerrors
+    , viewformula
     , viewusermeta
     , viewmeta
     )
@@ -193,3 +194,45 @@ editusermeta model events =
                   [ H.text "add entry"]
             ]
         ]
+
+
+viewformula model toggleevent =
+    let
+        maybeformula =
+            case model.formula_expanded of
+                True ->
+                    case model.expanded_formula of
+                        Nothing ->
+                            -- let's keep showinng the old one
+                            -- till the new has landed
+                            model.formula
+                        Just formula -> model.expanded_formula
+                False -> model.formula
+    in
+    case maybeformula of
+        Nothing -> H.div [ ] [ ]
+        Just formula ->
+            H.div [ ]
+                [ H.h2 [ ] [ H.text "Formula" ]
+                , H.div [ HA.class "custom-control custom-switch"
+                      , HA.title <| if model.formula_expanded
+                                   then "unexpand the formula"
+                                   else "expand the formula"
+                      ]
+                     [ H.input
+                           [ HA.attribute "type" "checkbox"
+                           , HA.class "custom-control-input"
+                           , HA.id "expand-formula"
+                           , HE.onClick toggleevent
+                           ] [ ]
+                     , H.label
+                         [ HA.class "custom-control-label"
+                         , HA.for "expand-formula"
+                         ]
+                         [ H.text <| if model.formula_expanded
+                                     then "expanded"
+                                     else "unexpanded"
+                         ]
+                     ]
+                , H.span [ ] <| U.tovirtualdom formula "could not parse the formula"
+                ]

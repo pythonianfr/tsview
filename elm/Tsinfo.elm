@@ -627,48 +627,6 @@ supervision model =
         Just x -> M.metavaltostring x
 
 
-viewformula model =
-    let
-        maybeformula =
-            case model.formula_expanded of
-                True ->
-                    case model.expanded_formula of
-                        Nothing ->
-                            -- let's keep showinng the old one
-                            -- till the new has landed
-                            model.formula
-                        Just formula -> model.expanded_formula
-                False -> model.formula
-    in
-    case maybeformula of
-        Nothing -> div [ ] [ ]
-        Just formula ->
-            div [ ]
-                [ h2 [ ] [ text "Formula" ]
-                , div [ A.class "custom-control custom-switch"
-                      , A.title <| if model.formula_expanded
-                                   then "unexpand the formula"
-                                   else "expand the formula"
-                      ]
-                     [ input
-                           [ A.attribute "type" "checkbox"
-                           , A.class "custom-control-input"
-                           , A.id "expand-formula"
-                           , onClick ToggleExpansion
-                           ] [ ]
-                     , label
-                         [ A.class "custom-control-label"
-                         , A.for "expand-formula"
-                         ]
-                         [ text <| if model.formula_expanded
-                                   then "expanded"
-                                   else "unexpanded"
-                         ]
-                     ]
-                , span [ ] <| U.tovirtualdom formula "could not parse the formula"
-                ]
-
-
 metadicttostring d =
     let
         builditem ab =
@@ -949,7 +907,7 @@ view model =
         , viewseealso model
         , I.viewmeta model
         , I.viewusermeta model metaevents
-        , viewformula model
+        , I.viewformula model ToggleExpansion
         , case model.formula of
               Nothing -> viewlog model True
               Just _ -> span [] []
