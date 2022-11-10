@@ -12,10 +12,7 @@ import Debouncer.Messages as Debouncer exposing
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as A
-import Html.Events exposing ( onClick
-                            , onInput
-                            , onSubmit
-                            )
+import Html.Events as HE
 import Html.Keyed as K
 import Html.Lazy as L
 import Http
@@ -372,7 +369,7 @@ viewnamefilter =
                 , A.placeholder "filter by name"
                 , A.size 80
                 , A.title "You can type name fragments separated by spaces"
-                , onInput NameFilter
+                , HE.onInput NameFilter
                 ] []
     in
     H.map (provideInput >> DebounceNameFilter) input
@@ -385,7 +382,7 @@ viewformulafilter =
                 , A.placeholder "filter on formula content"
                 , A.size 80
                 , A.title "You can type series name fragments and formula operator names"
-                , onInput FormulaFilter
+                , HE.onInput FormulaFilter
                 ] []
     in
     H.map (provideInput >> DebounceFormulaFilter) input
@@ -403,7 +400,7 @@ viewkindfilter model =
                     , A.class "form-check-input"
                     , A.value kind
                     , A.checked <| List.member kind model.selectedkinds
-                    , onClick <| KindUpdated kind
+                    , HE.onClick <| KindUpdated kind
                     ] []
                 , H.label
                     [ A.class "form-check-label"
@@ -427,7 +424,7 @@ viewsourcefilter model =
                       , A.class "form-check-input"
                       , A.value source
                       , A.checked <| List.member source model.selectedsources
-                      , onClick <| SourceUpdated source
+                      , HE.onClick <| SourceUpdated source
                       ] []
                 , H.label
                       [ A.class "form-check-label"
@@ -448,7 +445,7 @@ viewmetafilter model =
                 [ A.attribute "type" "button"
                 , A.title "add the metadata filter rule"
                 , A.class "btn btn-primary btn-sm"
-                , onClick AddMetaItem
+                , HE.onClick AddMetaItem
                 ]
                 [ H.text "add" ]
         delete key value =
@@ -456,7 +453,7 @@ viewmetafilter model =
                 [ A.attribute "type" "button"
                 , A.title "remove the metadata filter rule"
                 , A.class "btn btn-warning btn-sm"
-                , onClick (MetaItemToDelete (key, value))
+                , HE.onClick (MetaItemToDelete (key, value))
                 ]
                 [ H.text "delete" ]
         fields k v deleteaction keycb valuecb =
@@ -492,8 +489,8 @@ viewmetafilter model =
                (U.first model.metaitem)
                (U.snd model.metaitem)
                Nothing
-               (Just <| onInput NewKey)
-               (Just <| onInput NewValue)
+               (Just <| HE.onInput NewKey)
+               (Just <| HE.onInput NewValue)
          ] ++ List.map
              (\x -> fields (U.first x) (U.snd x) (Just delete) Nothing Nothing)
              model.filterbymeta
@@ -620,7 +617,7 @@ view model =
 
     in
     H.div [ A.style "margin" ".5em" ]
-        [ H.h1 [ onClick ToggleMode ] [ H.text <| mode ++ " Catalog" ]
+        [ H.h1 [ HE.onClick ToggleMode ] [ H.text <| mode ++ " Catalog" ]
         , H.div
               [ A.class "tsview-form-input small" ]
               [ H.div [] [ viewnamefilter ]
