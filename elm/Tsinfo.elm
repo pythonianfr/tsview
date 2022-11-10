@@ -163,19 +163,6 @@ pygmentyze model formula =
         }
 
 
-getcomponents model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "series", "formula_components" ]
-              [ UB.string "name" model.name
-              , UB.int "expanded" <| U.bool2int model.formula_expanded
-              ]
-        , expect = Http.expectString Components
-        }
-
-
 gethascache model =
     Http.get
         { url =
@@ -322,7 +309,7 @@ update msg model =
                 Ok formula ->
                     ( model
                     , Cmd.batch [ pygmentyze model formula
-                                , getcomponents model
+                                , I.getcomponents model "series" Components
                                 , gethascache model
                                 , getlog model.baseurl model.name
                                 ]

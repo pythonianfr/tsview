@@ -1,5 +1,6 @@
 module Info exposing
     ( getformula
+    , getcomponents
     , getwriteperms
     , idatesdecoder
     , metatype
@@ -41,6 +42,19 @@ getformula model dtype callback  =
                 , UB.int "display" 1
                 , UB.int "expanded" <| U.bool2int model.formula_expanded
                 ]
+        }
+
+
+getcomponents model dtype callback =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", dtype, "formula_components" ]
+              [ UB.string "name" model.name
+              , UB.int "expanded" <| U.bool2int model.formula_expanded
+              ]
+        , expect = Http.expectString callback
         }
 
 
