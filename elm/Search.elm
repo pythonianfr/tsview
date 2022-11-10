@@ -27,8 +27,13 @@ import Url.Builder as UB
 import Util as U
 
 
+type Mode =
+    Series | Groups
+
+
 type alias Model =
     { baseurl : String
+    , mode : Mode
     -- base catalog elements
     , catalog : Cat.Model
     , metadata : Dict String (Dict String M.MetaVal)
@@ -66,6 +71,8 @@ type Msg
     -- debouncer
     | DebounceNameFilter (Debouncer.Msg Msg)
     | DebounceFormulaFilter (Debouncer.Msg Msg)
+    -- mode
+    | ToggleMode
 
 
 getmeta baseurl =
@@ -346,6 +353,17 @@ update msg model =
         DebounceFormulaFilter val ->
             Debouncer.update update updatedformulafilterbouncer val model
 
+        -- Mode
+
+        ToggleMode ->
+            let
+                mode =
+                    case model.mode of
+                        Series -> Groups
+                        Groups -> Series
+             in
+             U.nocmd { model | mode = mode }
+
 
 viewnamefilter =
     let input =
@@ -592,10 +610,17 @@ viewerrors model =
 view : Model -> H.Html Msg
 view model =
     let
-        nbsources = Dict.size model.catalog.seriesBySource
+        nbsources =
+            Dict.size model.catalog.seriesBySource
+
+        mode =
+            case model.mode of
+                Series -> "Series"
+                Groups -> "Groups"
+
     in
     H.div [ A.style "margin" ".5em" ]
-        [ H.h1 [] [ H.text "Series Catalog" ]
+        [ H.h1 [ onClick ToggleMode ] [ H.text <| mode ++ " Catalog" ]
         , H.div
               [ A.class "tsview-form-input small" ]
               [ H.div [] [ viewnamefilter ]
@@ -626,6 +651,7 @@ main =
            newmodel input =
                Model
                    input.baseurl
+                   Series
                    Cat.empty
                    Dict.empty
                    Dict.empty
