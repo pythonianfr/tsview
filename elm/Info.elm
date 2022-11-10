@@ -10,11 +10,13 @@ module Info exposing
     , viewcomponents
     , viewerrors
     , viewformula
+    , viewidatepicker
     , viewmeta
     , viewseealso
     , viewusermeta
     )
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
@@ -117,6 +119,42 @@ viewerrors model =
         ]
     else H.span [ ] [ ]
 
+
+viewidatepicker model events =
+    let
+        currdate =
+            case Array.get model.date_index model.insertion_dates of
+                Nothing -> ""
+                Just date -> U.cleanupdate date
+    in H.div
+        [ ]
+        [ H.label [ HA.for "idate-picker" ] [ H.text "revision date" ]
+        , H.span [ ] [ H.text " " ]
+        , H.input [ HA.type_ "datetime-local"
+                  , HA.id "idate-picker"
+                  , HA.name "idate-picker"
+                  , HA.value currdate
+                  , HE.onInput events.idatepickerchanged
+                  ] [ ]
+        , H.span [ ] [ H.text " " ]
+        , H.label [ HA.for "fvd-picker" ] [ H.text "from value date" ]
+        , H.span [ ] [ H.text " " ]
+        , H.input [ HA.type_ "date"
+                  , HA.id "fvd-picker"
+                  , HA.name "fvd-picker"
+                  , HA.value model.mindate
+                  , HE.onInput events.fvdatepickerchanged
+                  ] [ ]
+        , H.span [ ] [ H.text " " ]
+        , H.label [ HA.for "tvd-picker" ] [ H.text "to value date" ]
+        , H.span [ ] [ H.text " " ]
+        , H.input [ HA.type_ "date"
+                  , HA.id "tvd-picker"
+                  , HA.name "tvd-picker"
+                  , HA.value model.maxdate
+                  , HE.onInput events.tvdatepickerchanged
+                  ] [ ]
+        ]
 
 
 viewmeta model =

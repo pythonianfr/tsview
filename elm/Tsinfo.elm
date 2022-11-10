@@ -649,43 +649,6 @@ viewcache model =
         div [ ] [ ]
 
 
-viewidatepicker model =
-    let
-        currdate =
-            case Array.get model.date_index model.insertion_dates of
-                Nothing -> ""
-                Just date -> U.cleanupdate date
-    in div
-        [ ]
-        [ label [ A.for "idate-picker" ] [ text "revision date" ]
-        , span [ ] [ text " " ]
-        , input [ A.type_ "datetime-local"
-                , A.id "idate-picker"
-                , A.name "idate-picker"
-                , A.value currdate
-                , onInput IdatePickerChanged
-                ] [ ]
-        , span [ ] [ text " " ]
-        , label [ A.for "fvd-picker" ] [ text "from value date" ]
-        , span [ ] [ text " " ]
-        , input [ A.type_ "date"
-                , A.id "fvd-picker"
-                , A.name "fvd-picker"
-                , A.value model.mindate
-                , onInput FvdatePickerChanged
-                ] [ ]
-        , span [ ] [ text " " ]
-        , label [ A.for "tvd-picker" ] [ text "to value date" ]
-        , span [ ] [ text " " ]
-        , input [ A.type_ "date"
-                , A.id "tvd-picker"
-                , A.name "tvd-picker"
-                , A.value model.maxdate
-                , onInput TvdatePickerChanged
-                ] [ ]
-        ]
-
-
 viewdatesrange model =
     let
         numidates = Array.length model.insertion_dates
@@ -711,6 +674,13 @@ viewdatesrange model =
             ]
 
 
+idatepickerevents =
+    { idatepickerchanged = IdatePickerChanged
+    , fvdatepickerchanged = FvdatePickerChanged
+    , tvdatepickerchanged = TvdatePickerChanged
+    }
+
+
 viewplot model =
     let
         plotdata = case model.plotdata of
@@ -725,7 +695,7 @@ viewplot model =
     in
     div [ ]
         [ h2 [ ] [ text "Plot" ]
-        , viewidatepicker model
+        , I.viewidatepicker model idatepickerevents
         , viewdatesrange model
         , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
