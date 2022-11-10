@@ -1,6 +1,6 @@
 import json
 import pandas as pd
-from flask import Blueprint, request, render_template, url_for
+from flask import Blueprint, jsonify, request, render_template, url_for
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
@@ -311,7 +311,7 @@ def tsview(tsa,
             f'"{tsa.namespace}".formula'
         )
 
-        return json.dumps(
+        return jsonify(
             {
                 name: formula
                 for name, formula in q.do(engine).fetchall()

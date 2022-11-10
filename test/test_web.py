@@ -58,3 +58,31 @@ def test_formula_formatter():
         ' </span><span class="s">&quot;bar&quot;</span><span class="p">)))</span>'
         '<span class="w"></span>\n</pre></div>\n'
     )
+
+
+def test_series_formulas(client, tsa):
+    series = pd.Series(
+        [1, 2, 3],
+        index=pd.date_range(
+            utcdt(2020, 1, 1),
+            freq='D',
+            periods=3
+        )
+    )
+    tsa.update('base', series, 'Babar')
+
+    tsa.register_formula(
+        'f1',
+        '(series "base")'
+    )
+    tsa.register_formula(
+        'f2',
+        '(* 3.14 (series "base"))'
+    )
+
+    res = client.get('/tssearch/allformula')
+    assert res.json == {
+        'f1': '(series "base")',
+        'f2': '(* 3.14 (series "base"))'
+    }
+

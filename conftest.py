@@ -6,9 +6,7 @@ from pytest_sa_pg import db
 from sqlalchemy import create_engine
 
 from tshistory import api
-from tshistory import schema
-from tshistory_formula import schema as fschema
-
+from tshistory_refinery import schema
 from tsview import app
 
 
@@ -23,8 +21,7 @@ def engine(request):
         'log_timezone': 'UTC'}
     )
     e = create_engine(DBURI)
-    schema.tsschema().create(e)
-    fschema.formula_schema().create(e)
+    schema.init(e, namespace='tsh', drop=True)
     return e
 
 
