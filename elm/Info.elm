@@ -6,9 +6,9 @@ module Info exposing
     , viewcomponents
     , viewerrors
     , viewformula
+    , viewmeta
     , viewseealso
     , viewusermeta
-    , viewmeta
     )
 
 import Dict exposing (Dict)
