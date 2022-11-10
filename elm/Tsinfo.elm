@@ -587,45 +587,6 @@ update msg model =
 
 -- views
 
-viewseealso model =
-    let
-        editorlabel =
-            if (supervision model) /= "formula" then "edit values" else "show values"
-    in
-    div [ ]
-        [ div [ ] [ span [ ] [ text " ⇒ " ]
-               , a [ A.href <| UB.crossOrigin
-                         model.baseurl
-                         [ "tshistory", model.name ] [ ]
-                   , A.target "_blank"
-                   ] [ text "browse history" ]
-               ]
-        , div [ ] [ span [ ] [ text " ⇒ " ]
-               , a [ A.href <| UB.crossOrigin
-                         model.baseurl
-                         [ "tseditor" ]
-                         [ UB.string "name" model.name ]
-                   , A.target "_blank"
-                   ] [ text editorlabel ]
-               ]
-        , if (supervision model) == "formula" then
-              div [ ] [ span [ ] [ text " ⇒ " ]
-                   , a [ A.href <| UB.crossOrigin
-                             model.baseurl
-                             [ "tsformula" ]
-                             [ UB.string "name" model.name ]
-                       , A.target "_blank"
-                       ] [ text "edit formula" ]
-                   ]
-          else span [ ] [ ]
-        ]
-
-
-supervision model =
-    case Dict.get "supervision_status" model.meta of
-        Nothing -> "formula"
-        Just x -> M.metavaltostring x
-
 
 metadicttostring d =
     let
@@ -659,48 +620,6 @@ viewlog model showtitle =
                       ]
                 , tbody [ ] <| List.map viewlogentry (List.reverse model.log)
                 ]
-            ]
-    else div [ ] [ ]
-
-
-viewcomponents model =
-    let
-        alink seriesname =
-            a [ A.href <| UB.crossOrigin model.baseurl
-                               [ "tsinfo" ]
-                               [ UB.string "name" seriesname ]
-              ]
-            [ text seriesname ]
-
-        tuple2node tuple =
-            li [ ] [ alink (Tuple.first tuple)
-                  , span [ ] [ text " → " ]
-                  , node2html <| Tuple.second tuple
-                  ]
-
-        node2html node =
-            case node.value of
-                JT.TString str -> li [ ] [ alink str ]
-                JT.TFloat num -> li [ ] [ text <|  String.fromFloat num ]
-                JT.TBool bool -> li [ ] [ text <| if bool then "True" else "False" ]
-                JT.TList list -> ul [ A.class "square" ] <| List.map node2html list
-                JT.TDict dict ->
-                    ul [ A.class "square" ] <| (Dict.toList dict |> List.map tuple2node)
-                JT.TNull -> span [ ] [ ]
-
-        components comp =
-            case comp of
-                Nothing ->
-                    span [ ] [ text "" ]
-                Just node ->
-                    node2html node
-    in
-    if supervision model == "formula" then
-        div [ ]
-            [ h2 [ ] [ text "Components" ]
-            , components <| case model.formula_expanded of
-                                True -> model.expanded_formula_components
-                                False -> model.formula_components
             ]
     else div [ ] [ ]
 
@@ -786,7 +705,7 @@ viewcache model =
                 span [ ] [ ]
 
     in
-    if supervision model == "formula" then
+    if I.supervision model == "formula" then
         div [ ]
             [ h2 [ ] [ text "Cache"
                     , span [ ] [ text " " ]
@@ -904,14 +823,14 @@ view model =
                     [ A.class "font-italic" ]
                     [ text model.name ]
               ]
-        , viewseealso model
+        , I.viewseealso model
         , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model ToggleExpansion
         , case model.formula of
               Nothing -> viewlog model True
               Just _ -> span [] []
-        , viewcomponents model
+        , I.viewcomponents model
         , viewcache model
         , viewplot model
         , I.viewerrors model
