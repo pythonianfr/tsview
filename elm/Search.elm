@@ -254,15 +254,12 @@ update msg model =
                                , selectedsources = Dict.keys cat.seriesBySource
                            }
             in
-            if List.isEmpty newmodel.catalog.series then
-                U.nocmd newmodel
-            else
-                ( newmodel
-                , Cmd.batch
-                    [ getmeta model.baseurl
-                    , U.getformulas model.baseurl GotAllFormula
-                    ]
-                )
+            ( newmodel
+            , Cmd.batch
+                [ getmeta model.baseurl
+                , U.getformulas model.baseurl GotAllFormula
+                ]
+            )
 
         GotMeta (Ok rawmeta) ->
             case decodemeta rawmeta of
