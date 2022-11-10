@@ -5,6 +5,7 @@ module Info exposing
     , getwriteperms
     , idatesdecoder
     , metatype
+    , savemeta
     , supervision
     , viewcomponents
     , viewerrors
@@ -20,6 +21,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import Json.Decode as D
+import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Metadata as M
 import Url.Builder as UB
@@ -73,6 +75,24 @@ getidates model dtype callback =
               [ UB.string "name" model.name
               , UB.int "nocache" <| U.bool2int model.view_nocache
               ]
+        , expect = Http.expectString callback
+        }
+
+
+savemeta model dtype callback =
+    Http.request
+        { method = "PUT"
+        , body = Http.jsonBody <| E.object
+                 [ ("name", E.string model.name )
+                 , ("metadata" , E.string <| M.encodemeta model.usermeta )
+                 ]
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", dtype, "metadata" ] [ ]
         , expect = Http.expectString callback
         }
 

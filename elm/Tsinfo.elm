@@ -190,24 +190,6 @@ getcachepolicy model =
         }
 
 
-savemeta model =
-    Http.request
-        { method = "PUT"
-        , body = Http.jsonBody <| E.object
-                 [ ("name", E.string model.name )
-                 , ("metadata" , E.string <| M.encodemeta model.usermeta )
-                 ]
-        , headers = []
-        , timeout = Nothing
-        , tracker = Nothing
-        , url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "series", "metadata" ] [ ]
-        , expect = Http.expectString MetaSaved
-        }
-
-
 updatedchangedidatebouncer =
     { mapMsg = DebounceChangedIdate
     , getDebouncer = .date_index_deb
@@ -520,7 +502,9 @@ update msg model =
                             M.MString rawitem
                 newmodel = { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
             in
-            ( newmodel, savemeta newmodel )
+            ( newmodel
+            , I.savemeta newmodel "series" MetaSaved
+            )
 
         MetaSaved (Ok _) ->
             U.nocmd { model
