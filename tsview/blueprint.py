@@ -255,7 +255,7 @@ def tsview(tsa,
         )
 
     @bp.route('/tssearch/allmetadata')
-    def all_metadata():
+    def all_series_metadata():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
@@ -289,7 +289,7 @@ def tsview(tsa,
             for name, meta in q2.do(engine).fetchall()
             if meta
         ]
-        return json.dumps(
+        return jsonify(
             dict(m1 + m2)
         )
 

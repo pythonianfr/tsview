@@ -63,7 +63,11 @@ def test_formula_formatter():
     )
 
 
-def test_series_formulas(client, tsa):
+def test_series_metadata_and_formulas(client, tsa):
+    for series in tsa.catalog(allsources=False).values():
+        for name, _ in series:
+            tsa.delete(name)
+
     series = pd.Series(
         [1, 2, 3],
         index=pd.date_range(
@@ -87,6 +91,32 @@ def test_series_formulas(client, tsa):
     assert res.json == {
         'f1': '(series "base")',
         'f2': '(* 3.14 (series "base"))'
+    }
+
+    res = client.get('/tssearch/allmetadata')
+    assert res.json == {
+        'base': {
+            'index_dtype': '|M8[ns]',
+            'index_type': 'datetime64[ns, UTC]',
+            'supervision_status': 'unsupervised',
+            'tzaware': True,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        },
+        'f1': {
+            'index_dtype': '|M8[ns]',
+            'index_type': 'datetime64[ns, UTC]',
+            'tzaware': True,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        },
+        'f2': {
+            'index_dtype': '|M8[ns]',
+            'index_type': 'datetime64[ns, UTC]',
+            'tzaware': True,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        }
     }
 
 
