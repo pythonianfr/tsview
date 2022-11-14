@@ -294,7 +294,7 @@ def tsview(tsa,
         )
 
     @bp.route('/tssearch/allformula')
-    def all_formula():
+    def all_series_formulas():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
@@ -309,6 +309,25 @@ def tsview(tsa,
             'name', 'text'
         ).table(
             f'"{tsa.namespace}".formula'
+        )
+
+        return jsonify(
+            {
+                name: formula
+                for name, formula in q.do(engine).fetchall()
+            }
+        )
+
+    @bp.route('/groupsearch/allformula')
+    def all_group_formulas():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        engine = tsa.engine
+        q = select(
+            'name', 'text'
+        ).table(
+            f'"{tsa.namespace}".group_formula'
         )
 
         return jsonify(

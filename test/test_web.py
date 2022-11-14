@@ -1,6 +1,9 @@
 import pandas as pd
 
-from tshistory.testutil import utcdt
+from tshistory.testutil import (
+    gengroup,
+    utcdt
+)
 
 from tsview.util import format_formula
 
@@ -86,3 +89,32 @@ def test_series_formulas(client, tsa):
         'f2': '(* 3.14 (series "base"))'
     }
 
+
+def test_group_formulas(client, tsa):
+    df = gengroup(
+        n_scenarios=3,
+        from_date=pd.Timestamp('2022-1-1'),
+        length=5,
+        freq='D',
+        seed=2
+    )
+    tsa.group_replace(
+        'base',
+        df,
+        author='Babar'
+    )
+
+    tsa.register_group_formula(
+        'gf1',
+        '(group-add (group "base") (group "base"))'
+    )
+    tsa.register_group_formula(
+        'f2',
+        '(group "gf1"))'
+    )
+
+    res = client.get('/groupsearch/allformula')
+    assert res.json == {
+        'f2': '(group "gf1")',
+        'gf1': '(group-add (group "base") (group "base"))'
+    }
