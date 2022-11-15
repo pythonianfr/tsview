@@ -33,10 +33,10 @@ type alias Model =
     , mode : Mode
     -- base catalog elements
     , catalog : Cat.Model
-    , metadata : Dict String (Dict String M.MetaVal)
-    , formula : Dict String String
+    , seriesmetadata : Dict String (Dict String M.MetaVal)
+    , seriesformula : Dict String String
     -- filtered series
-    , filtered : List String
+    , filteredseries : List String
     -- filter state
     , selectedkinds : List String
     , selectedsources : List String
@@ -107,21 +107,23 @@ remove list item =
 -- filters
 
 nullfilter model =
-    { model | filtered = List.sort model.catalog.series }
+    { model | filteredseries = List.sort model.catalog.series }
 
 
 namefilter model =
     case model.filterbyname of
         Nothing -> model
         Just match ->
-            { model | filtered = List.filter (U.fragmentsmatcher match) model.filtered }
+            { model | filteredseries =
+                  List.filter (U.fragmentsmatcher match) model.filteredseries }
 
 
 formulafilter model =
     case model.filterbyformula of
         Nothing -> model
         Just match ->
-            { model | filtered = U.filterbyformula model.formula model.filtered match }
+            { model | filteredseries =
+                  U.filterbyformula model.seriesformula model.filteredseries match }
 
 
 catalogfilter series authority keys =
@@ -138,18 +140,20 @@ catalogfilter series authority keys =
 
 
 sourcefilter model =
-    { model | filtered = catalogfilter
-                         model.filtered
-                         model.catalog.seriesbysource
-                         model.selectedsources
+    { model | filteredseries =
+          catalogfilter
+          model.filteredseries
+          model.catalog.seriesbysource
+          model.selectedsources
     }
 
 
 kindfilter model =
-    { model | filtered = catalogfilter
-                         model.filtered
-                         model.catalog.seriesbykind
-                         model.selectedkinds
+    { model | filteredseries =
+          catalogfilter
+          model.filteredseries
+          model.catalog.seriesbykind
+          model.selectedkinds
     }
 
 
@@ -208,12 +212,12 @@ metafilter model =
                         in List.any (matchvalue lvalue) values
 
             bymeta name =
-                case Dict.get name model.metadata of
+                case Dict.get name model.seriesmetadata of
                     Nothing -> False
                     Just meta ->
                         List.all (match meta) model.filterbymeta
         in
-        { model | filtered = List.filter bymeta model.filtered }
+        { model | filteredseries = List.filter bymeta model.filteredseries }
 
 
 allfilters model =
@@ -249,7 +253,7 @@ update msg model =
                 cat = Cat.update catmsg model.catalog
                 newmodel = { model
                                | catalog = cat
-                               , filtered = cat.series
+                               , filteredseries = cat.series
                                , selectedkinds = Dict.keys cat.seriesbykind
                                , selectedsources = Dict.keys cat.seriesbysource
                            }
@@ -264,7 +268,7 @@ update msg model =
         GotMeta (Ok rawmeta) ->
             case decodemeta rawmeta of
                 Ok meta ->
-                    U.nocmd { model | metadata = meta }
+                    U.nocmd { model | seriesmetadata = meta }
                 Err err ->
                     U.nocmd <| U.adderror model <| D.errorToString err
 
@@ -274,7 +278,7 @@ update msg model =
         GotAllFormula (Ok rawformulae) ->
             case decodeformulae rawformulae of
                 Ok formulae ->
-                    U.nocmd { model | formula = formulae }
+                    U.nocmd { model | seriesformula = formulae }
                 Err err ->
                     U.nocmd <| U.adderror model <| D.errorToString err
 
@@ -496,7 +500,7 @@ viewmetafilter model =
 
 viewfilteredqty model =
     let
-        len = List.length model.filtered
+        len = List.length model.filteredseries
         msg = if len == 0
               then "No item"
               else
@@ -625,7 +629,7 @@ view model =
               , viewfilteredqty model
               ]
         , L.lazy5 viewfiltered
-            model.baseurl model.filtered model.catalog (nbsources > 1) model.selectedsources
+            model.baseurl model.filteredseries model.catalog (nbsources > 1) model.selectedsources
         , viewerrors model
         ]
 
