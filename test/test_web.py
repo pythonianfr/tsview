@@ -148,3 +148,64 @@ def test_group_formulas(client, tsa):
         'f2': '(group "gf1")',
         'gf1': '(group-add (group "base") (group "base"))'
     }
+
+    # metadata
+
+    series = pd.Series(
+        [1, 2, 3],
+        index=pd.date_range(
+            utcdt(2020, 1, 1),
+            freq='D',
+            periods=3
+        )
+    )
+    tsa.update('base', series, 'Babar')
+
+    tsa.register_formula(
+        'f1',
+        '(series "base")'
+    )
+
+    tsa.register_formula_bindings(
+        'bg',
+        'f1',
+        pd.DataFrame(
+            [
+                ['foo', 'group-foo', 'group']
+            ],
+            columns=('series', 'group', 'family')
+        )
+    )
+
+    res = client.get('/groupsearch/allmetadata')
+    assert res.json == {
+        'base': {
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        },
+        'bg': {
+            'index_dtype': '|M8[ns]',
+            'index_type': 'datetime64[ns, UTC]',
+            'tzaware': True,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        },
+        'f2': {
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        },
+        'gf1': {
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
+            'value_dtype': '<f8',
+            'value_type': 'float64'
+        }
+    }
+

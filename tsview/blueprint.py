@@ -337,4 +337,53 @@ def tsview(tsa,
             }
         )
 
+    @bp.route('/groupsearch/allmetadata')
+    def all_group_metadata():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        engine = tsa.engine
+
+        q1 = select(
+            'name', 'metadata'
+        ).table(
+            f'"{tsa.namespace}".group_registry'
+        )
+
+        m1 = [
+            (name, meta)
+            for name, meta in q1.do(engine).fetchall()
+            if meta
+        ]
+
+
+        q2 = select(
+            'name', 'metadata'
+        ).table(
+            f'"{tsa.namespace}".group_formula'
+        )
+
+        m2 = [
+            (name, meta)
+            for name, meta in q2.do(engine).fetchall()
+            if meta
+        ]
+
+        q3 = select(
+            'groupname', 'metadata'
+        ).table(
+            f'"{tsa.namespace}".group_binding'
+        )
+
+        m3 = [
+            (name, meta)
+            for name, meta in q3.do(engine).fetchall()
+            if meta
+        ]
+
+        return jsonify(
+            dict(m1 + m2 + m3)
+        )
+
+
     return bp
