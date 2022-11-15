@@ -119,53 +119,68 @@ remove list item =
 -- filters
 
 nullfilter model =
-    { model | filteredseries = List.sort model.catalog.series }
+        { model
+            | filteredseries = List.sort model.catalog.series
+            , filteredgroups = List.sort model.catalog.groups
+        }
 
 
 namefilter model =
     case model.filterbyname of
         Nothing -> model
         Just match ->
-            { model | filteredseries =
-                  List.filter (U.fragmentsmatcher match) model.filteredseries }
+            { model
+                | filteredseries = List.filter (U.fragmentsmatcher match) model.filteredseries
+                , filteredgroups = List.filter (U.fragmentsmatcher match) model.filteredgroups
+            }
 
 
 formulafilter model =
     case model.filterbyformula of
         Nothing -> model
         Just match ->
-            { model | filteredseries =
-                  U.filterbyformula model.seriesformula model.filteredseries match }
+            { model
+                | filteredseries = U.filterbyformula model.seriesformula model.filteredseries match
+                ,  filteredgroups = U.filterbyformula model.groupsformula model.filteredgroups match
+            }
 
 
-catalogfilter series authority keys =
-    if keys == Dict.keys authority then series else
+catalogfilter data authority keys =
+    if keys == Dict.keys authority then data else
     let
-        seriesforkey key =
+        dataforkey key =
                 Set.toList
                     <| Maybe.withDefault Set.empty
                     <| Dict.get key authority
-        allseries =
-            Set.fromList <| List.concat <| List.map seriesforkey keys
+        alldata =
+            Set.fromList <| List.concat <| List.map dataforkey keys
     in
-    List.filter (\item -> (Set.member item allseries)) series
+    List.filter (\item -> (Set.member item alldata)) data
 
 
 sourcefilter model =
-    { model | filteredseries =
-          catalogfilter
-          model.filteredseries
-          model.catalog.seriesbysource
-          model.selectedseriessources
+    { model
+        | filteredseries = catalogfilter
+                           model.filteredseries
+                           model.catalog.seriesbysource
+                           model.selectedseriessources
+        , filteredgroups = catalogfilter
+                           model.filteredgroups
+                           model.catalog.groupsbysource
+                           model.selectedgroupssources
     }
 
 
 kindfilter model =
-    { model | filteredseries =
-          catalogfilter
-          model.filteredseries
-          model.catalog.seriesbykind
-          model.selectedserieskinds
+    { model
+        | filteredseries = catalogfilter
+                           model.filteredseries
+                           model.catalog.seriesbykind
+                           model.selectedserieskinds
+        , filteredgroups = catalogfilter
+                           model.filteredgroups
+                           model.catalog.groupsbykind
+                           model.selectedgroupskinds
     }
 
 
@@ -223,13 +238,22 @@ metafilter model =
 
                         in List.any (matchvalue lvalue) values
 
+            metadata =
+                case model.mode of
+                    Series -> model.seriesmetadata
+                    Groups -> model.groupsmetadata
+
             bymeta name =
-                case Dict.get name model.seriesmetadata of
+                case Dict.get name metadata of
                     Nothing -> False
                     Just meta ->
                         List.all (match meta) model.filterbymeta
         in
-        { model | filteredseries = List.filter bymeta model.filteredseries }
+        case model.mode of
+            Series ->
+                { model | filteredseries = List.filter bymeta model.filteredseries }
+            Groups ->
+                { model | filteredgroups = List.filter bymeta model.filteredgroups }
 
 
 allfilters model =
@@ -346,21 +370,41 @@ update msg model =
 
         KindUpdated kind ->
             let
-                newkinds =
+                newserieskinds =
                     if List.member kind model.selectedserieskinds
                     then remove model.selectedserieskinds kind
                     else insert model.selectedserieskinds kind
-                newmodel = { model | selectedserieskinds = List.sort newkinds }
+
+                newgroupkinds =
+                    if List.member kind model.selectedgroupskinds
+                    then remove model.selectedgroupskinds kind
+                    else insert model.selectedgroupskinds kind
+
+                newmodel =
+                    { model
+                        | selectedserieskinds = List.sort newserieskinds
+                        , selectedgroupskinds = List.sort newgroupkinds
+                    }
             in
             U.nocmd <| allfilters newmodel
 
         SourceUpdated source ->
             let
-                newsources =
+                newseriessources =
                     if List.member source model.selectedseriessources
                     then remove model.selectedseriessources source
                     else insert model.selectedseriessources source
-                newmodel = { model | selectedseriessources = newsources }
+
+                newgroupsources =
+                    if List.member source model.selectedgroupssources
+                    then remove model.selectedgroupssources source
+                    else insert model.selectedgroupssources source
+
+                newmodel =
+                    { model
+                        | selectedseriessources = newseriessources
+                        , selectedgroupssources = newgroupsources
+                    }
             in
             U.nocmd <| allfilters newmodel
 
@@ -594,25 +638,37 @@ findkeysofvalue out map keys value justone =
         [] -> out
 
 
-serieskind name catalog =
+datakind mode name catalog =
+    let
+        bykind =
+            case mode of
+                Series -> catalog.seriesbykind
+                Groups -> catalog.groupsbykind
+    in
     Maybe.withDefault "unknown" <|
         List.head <|
-            findkeysofvalue [] catalog.seriesbykind (Dict.keys catalog.seriesbykind) name True
+            findkeysofvalue [] bykind (Dict.keys bykind) name True
 
 
-seriessources name catalog =
-    findkeysofvalue [] catalog.seriesbysource (Dict.keys catalog.seriesbysource) name False
+datasources mode name catalog =
+    let
+        bysource =
+            case mode of
+                Series -> catalog.seriesbysource
+                Groups -> catalog.groupsbysource
+    in
+    findkeysofvalue [] bysource (Dict.keys bysource) name False
 
 
-viewfiltered baseurl filtered catalog showsource filtersources =
+viewfiltered baseurl mode filtered catalog showsource filtersources =
     let
         item elt =
             let kind =
-                    serieskind elt catalog
+                    datakind mode elt catalog
                 sources =
                     List.filter
                         (\src -> List.member src filtersources)
-                        (seriessources elt catalog)
+                        (datasources mode elt catalog)
             in
             (elt, H.li
                  [ A.class "list-group-item p-1" ]
@@ -625,7 +681,10 @@ viewfiltered baseurl filtered catalog showsource filtersources =
                  , H.span [] [ H.text " " ]
                  , H.a [ A.href (UB.crossOrigin
                                      baseurl
-                                     [ "tsinfo" ]
+                                     [ case mode of
+                                           Series -> "tsinfo"
+                                           Groups -> "groupinfo"
+                                     ]
                                      [ UB.string "name" elt ]
                                 )
                        ]
@@ -681,12 +740,19 @@ view : Model -> H.Html Msg
 view model =
     let
         nbsources =
-            Dict.size model.catalog.seriesbysource
+            case model.mode of
+                Series -> Dict.size model.catalog.seriesbysource
+                Groups -> Dict.size model.catalog.groupsbysource
 
         mode =
             case model.mode of
                 Series -> "Series"
                 Groups -> "Groups"
+
+        filtered =
+            case model.mode of
+                Series -> model.filteredseries
+                Groups -> model.filteredgroups
 
     in
     H.div [ A.style "margin" ".5em" ]
@@ -700,8 +766,8 @@ view model =
               , viewsourcefilter model
               , viewfilteredqty model
               ]
-        , L.lazy5 viewfiltered
-            model.baseurl model.filteredseries model.catalog (nbsources > 1) (selectedsources model)
+        , L.lazy6 viewfiltered
+            model.baseurl model.mode filtered model.catalog (nbsources > 1) (selectedsources model)
         , viewerrors model
         ]
 
