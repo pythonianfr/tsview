@@ -58,8 +58,8 @@ updateselected model newselection =
 fromcatalog : Model -> Catalog.Model -> Model
 fromcatalog model catalog =
     let
-        newkinds = List.sort (Dict.keys catalog.seriesByKind)
-        newsources = List.sort (Dict.keys catalog.seriesBySource)
+        newkinds = List.sort (Dict.keys catalog.seriesbykind)
+        newsources = List.sort (Dict.keys catalog.seriesbysource)
     in
         { model
             | kinds = newkinds
@@ -72,12 +72,12 @@ filterseries : Model -> Catalog.Model -> List String
 filterseries model catalog =
     let
         seriesbykind kind =
-            Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesByKind))
+            Set.toList (Maybe.withDefault Set.empty (Dict.get kind catalog.seriesbykind))
         filteredseries =
             List.concat (List.map seriesbykind model.kinds)
         filterbysource source =
             let
-                series = Maybe.withDefault Set.empty (Dict.get source catalog.seriesBySource)
+                series = Maybe.withDefault Set.empty (Dict.get source catalog.seriesbysource)
             in
                 List.filter (\x -> Set.member x series) filteredseries
     in

@@ -31,11 +31,11 @@ type Error
 
 type alias Model =
     { series : List String
-    , seriesBySource : Dict String (Set String)
-    , seriesByKind : Dict String (Set String)
+    , seriesbysource : Dict String (Set String)
+    , seriesbykind : Dict String (Set String)
     , groups : List String
-    , groupsBySource : Dict String (Set String)
-    , groupsByKind : Dict String (Set String)
+    , groupsbysource : Dict String (Set String)
+    , groupsbykind : Dict String (Set String)
     , errors : List String
     }
 
@@ -47,16 +47,16 @@ empty =
 newseries model raw =
     { model
           | series = (buildseries raw)
-          , seriesBySource = (buildsources raw)
-          , seriesByKind = (buildkinds raw)
+          , seriesbysource = (buildsources raw)
+          , seriesbykind = (buildkinds raw)
     }
 
 
 newgroups model raw =
     { model
           | groups = (buildseries raw)
-          , groupsBySource = (buildsources raw)
-          , groupsByKind = (buildkinds raw)
+          , groupsbysource = (buildsources raw)
+          , groupsbykind = (buildkinds raw)
     }
 
 

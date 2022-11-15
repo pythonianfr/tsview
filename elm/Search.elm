@@ -140,7 +140,7 @@ catalogfilter series authority keys =
 sourcefilter model =
     { model | filtered = catalogfilter
                          model.filtered
-                         model.catalog.seriesBySource
+                         model.catalog.seriesbysource
                          model.selectedsources
     }
 
@@ -148,7 +148,7 @@ sourcefilter model =
 kindfilter model =
     { model | filtered = catalogfilter
                          model.filtered
-                         model.catalog.seriesByKind
+                         model.catalog.seriesbykind
                          model.selectedkinds
     }
 
@@ -250,8 +250,8 @@ update msg model =
                 newmodel = { model
                                | catalog = cat
                                , filtered = cat.series
-                               , selectedkinds = Dict.keys cat.seriesByKind
-                               , selectedsources = Dict.keys cat.seriesBySource
+                               , selectedkinds = Dict.keys cat.seriesbykind
+                               , selectedsources = Dict.keys cat.seriesbysource
                            }
             in
             ( newmodel
@@ -387,7 +387,7 @@ viewformulafilter =
 
 viewkindfilter model =
     let
-        kinds = Dict.keys model.catalog.seriesByKind
+        kinds = Dict.keys model.catalog.seriesbykind
         checkbox kind =
             H.div
                 [ A.class "form-check form-check-inline"
@@ -411,7 +411,7 @@ viewkindfilter model =
 
 viewsourcefilter model =
     let
-        sources = Dict.keys model.catalog.seriesBySource
+        sources = Dict.keys model.catalog.seriesbysource
         checkbox source =
             H.div
                 [ A.class "form-check form-check-inline"
@@ -521,11 +521,11 @@ findkeysofvalue out map keys value justone =
 serieskind name catalog =
     Maybe.withDefault "unknown" <|
         List.head <|
-            findkeysofvalue [] catalog.seriesByKind (Dict.keys catalog.seriesByKind) name True
+            findkeysofvalue [] catalog.seriesbykind (Dict.keys catalog.seriesbykind) name True
 
 
 seriessources name catalog =
-    findkeysofvalue [] catalog.seriesBySource (Dict.keys catalog.seriesBySource) name False
+    findkeysofvalue [] catalog.seriesbysource (Dict.keys catalog.seriesbysource) name False
 
 
 viewfiltered baseurl filtered catalog showsource selectedsources =
@@ -605,7 +605,7 @@ view : Model -> H.Html Msg
 view model =
     let
         nbsources =
-            Dict.size model.catalog.seriesBySource
+            Dict.size model.catalog.seriesbysource
 
         mode =
             case model.mode of
