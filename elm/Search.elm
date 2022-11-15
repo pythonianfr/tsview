@@ -58,8 +58,10 @@ type alias Model =
 
 type Msg
     = GotCatalog Cat.Msg
-    | GotMeta (Result Http.Error String)
-    | GotAllFormula (Result Http.Error String)
+    | GotSeriesMeta (Result Http.Error String)
+    | GotGroupsMeta (Result Http.Error String)
+    | GotAllSeriesFormula (Result Http.Error String)
+    | GotAllGroupsFormula (Result Http.Error String)
     | NameFilter String
     | FormulaFilter String
     | KindUpdated String
@@ -76,13 +78,15 @@ type Msg
     | ToggleMode
 
 
-getmeta baseurl =
+getmeta baseurl dtype event =
     Http.get
         { expect =
-              Http.expectString GotMeta
+              Http.expectString event
         , url =
             UB.crossOrigin baseurl
-                [ "tssearch", "allmetadata" ] []
+                [ if dtype == "series" then "tssearch" else "groupsearch"
+                , "allmetadata"
+                ] []
         }
 
 
@@ -263,8 +267,8 @@ update msg model =
                             , selectedkinds = Dict.keys cat.seriesbykind
                             , selectedsources = Dict.keys cat.seriesbysource
                         }
-                      , [ getmeta model.baseurl
-                        , U.getformulas model.baseurl GotAllFormula
+                      , [ getmeta model.baseurl "series" GotSeriesMeta
+                        , U.getformulas model.baseurl "series" GotAllSeriesFormula
                         ]
                       )
                   ReceivedGroups _ ->
@@ -273,31 +277,53 @@ update msg model =
                           , selectedkinds = Dict.keys cat.groupsbykind
                           , selectedsources = Dict.keys cat.groupsbysource
                         }
-                      , [ Cmd.none ]
+                      , [ getmeta model.baseurl "groups" GotGroupsMeta
+                        , U.getformulas model.baseurl "groups" GotAllGroupsFormula
+                        ]
                       )
             in
             ( newmodel
             , Cmd.batch cmds
             )
 
-        GotMeta (Ok rawmeta) ->
+        GotSeriesMeta (Ok rawmeta) ->
             case decodemeta rawmeta of
                 Ok meta ->
                     U.nocmd { model | seriesmetadata = meta }
                 Err err ->
                     U.nocmd <| U.adderror model <| D.errorToString err
 
-        GotMeta (Err err) ->
+        GotSeriesMeta (Err err) ->
             U.nocmd <| U.adderror model <| U.unwraperror err
 
-        GotAllFormula (Ok rawformulae) ->
+        GotGroupsMeta (Ok rawmeta) ->
+            case decodemeta rawmeta of
+                Ok meta ->
+                    U.nocmd { model | groupsmetadata = meta }
+                Err err ->
+                    U.nocmd <| U.adderror model <| D.errorToString err
+
+        GotGroupsMeta (Err err) ->
+            U.nocmd <| U.adderror model <| U.unwraperror err
+
+        GotAllSeriesFormula (Ok rawformulae) ->
             case decodeformulae rawformulae of
                 Ok formulae ->
                     U.nocmd { model | seriesformula = formulae }
                 Err err ->
                     U.nocmd <| U.adderror model <| D.errorToString err
 
-        GotAllFormula (Err err) ->
+        GotAllSeriesFormula (Err err) ->
+            U.nocmd <| U.adderror model <| U.unwraperror err
+
+        GotAllGroupsFormula (Ok rawformulae) ->
+            case decodeformulae rawformulae of
+                Ok formulae ->
+                    U.nocmd { model | groupsformula = formulae }
+                Err err ->
+                    U.nocmd <| U.adderror model <| D.errorToString err
+
+        GotAllGroupsFormula (Err err) ->
             U.nocmd <| U.adderror model <| U.unwraperror err
 
         NameFilter value ->

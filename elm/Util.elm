@@ -79,13 +79,15 @@ filterbyformula formulas filterme query =
 
 -- formulas
 
-getformulas baseurl event =
+getformulas baseurl dtype event =
     Http.get
         { expect =
               Http.expectString event
         , url =
             UB.crossOrigin baseurl
-                [ "tssearch", "allformula" ] []
+                [ if dtype == "series" then "tssearch" else "groupsearch"
+                , "allformula"
+                ] []
         }
 
 

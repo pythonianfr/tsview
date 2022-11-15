@@ -1075,7 +1075,7 @@ main =
             in
             ( model
             , Cmd.batch [ getpolicies model
-                        , U.getformulas input.baseurl GotAllFormula
+                        , U.getformulas input.baseurl "series" GotAllFormula
                         ]
             )
     in
