@@ -2,6 +2,7 @@ module Search exposing (main)
 
 import Browser
 import Catalog as Cat
+import Catalog exposing (Msg(..))
 import Debouncer.Messages as Debouncer exposing
     (Debouncer
     , fromSeconds
@@ -37,8 +38,9 @@ type alias Model =
     , seriesformula : Dict String String
     , groupsmetadata : Dict String (Dict String M.MetaVal)
     , groupsformula : Dict String String
-    -- filtered series
+    -- filtered items
     , filteredseries : List String
+    , filteredgroups : List String
     -- filter state
     , selectedkinds : List String
     , selectedsources : List String
@@ -253,18 +255,29 @@ update msg model =
         GotCatalog catmsg ->
             let
                 cat = Cat.update catmsg model.catalog
-                newmodel = { model
-                               | catalog = cat
-                               , filteredseries = cat.series
-                               , selectedkinds = Dict.keys cat.seriesbykind
-                               , selectedsources = Dict.keys cat.seriesbysource
-                           }
+                m2 = { model | catalog = cat }
+                ( newmodel, cmds ) = case catmsg of
+                  ReceivedSeries _ ->
+                      ( { m2
+                            | filteredseries = cat.series
+                            , selectedkinds = Dict.keys cat.seriesbykind
+                            , selectedsources = Dict.keys cat.seriesbysource
+                        }
+                      , [ getmeta model.baseurl
+                        , U.getformulas model.baseurl GotAllFormula
+                        ]
+                      )
+                  ReceivedGroups _ ->
+                      ( { m2
+                          | filteredgroups = cat.groups
+                          , selectedkinds = Dict.keys cat.groupsbykind
+                          , selectedsources = Dict.keys cat.groupsbysource
+                        }
+                      , [ Cmd.none ]
+                      )
             in
             ( newmodel
-            , Cmd.batch
-                [ getmeta model.baseurl
-                , U.getformulas model.baseurl GotAllFormula
-                ]
+            , Cmd.batch cmds
             )
 
         GotMeta (Ok rawmeta) ->
@@ -657,6 +670,7 @@ main =
                    Dict.empty
                    Dict.empty
                    Dict.empty
+                   []
                    []
                    []
                    []
