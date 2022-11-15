@@ -35,6 +35,8 @@ type alias Model =
     , catalog : Cat.Model
     , seriesmetadata : Dict String (Dict String M.MetaVal)
     , seriesformula : Dict String String
+    , groupsmetadata : Dict String (Dict String M.MetaVal)
+    , groupsformula : Dict String String
     -- filtered series
     , filteredseries : List String
     -- filter state
@@ -651,6 +653,8 @@ main =
                    input.baseurl
                    Series
                    Cat.empty
+                   Dict.empty
+                   Dict.empty
                    Dict.empty
                    Dict.empty
                    []
