@@ -41,9 +41,13 @@ type alias Model =
     -- filtered items
     , filteredseries : List String
     , filteredgroups : List String
-    -- filter state
-    , selectedkinds : List String
-    , selectedsources : List String
+    -- filter state (series)
+    , selectedserieskinds : List String
+    , selectedseriessources : List String
+    -- filter state (series)
+    , selectedgroupskinds : List String
+    , selectedgroupssources : List String
+    -- filter state (all)
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
     -- filter state/metadata
@@ -152,7 +156,7 @@ sourcefilter model =
           catalogfilter
           model.filteredseries
           model.catalog.seriesbysource
-          model.selectedsources
+          model.selectedseriessources
     }
 
 
@@ -161,7 +165,7 @@ kindfilter model =
           catalogfilter
           model.filteredseries
           model.catalog.seriesbykind
-          model.selectedkinds
+          model.selectedserieskinds
     }
 
 
@@ -264,8 +268,8 @@ update msg model =
                   ReceivedSeries _ ->
                       ( { m2
                             | filteredseries = cat.series
-                            , selectedkinds = Dict.keys cat.seriesbykind
-                            , selectedsources = Dict.keys cat.seriesbysource
+                            , selectedserieskinds = Dict.keys cat.seriesbykind
+                            , selectedseriessources = Dict.keys cat.seriesbysource
                         }
                       , [ getmeta model.baseurl "series" GotSeriesMeta
                         , U.getformulas model.baseurl "series" GotAllSeriesFormula
@@ -274,8 +278,8 @@ update msg model =
                   ReceivedGroups _ ->
                       ( { m2
                           | filteredgroups = cat.groups
-                          , selectedkinds = Dict.keys cat.groupsbykind
-                          , selectedsources = Dict.keys cat.groupsbysource
+                          , selectedgroupskinds = Dict.keys cat.groupsbykind
+                          , selectedgroupssources = Dict.keys cat.groupsbysource
                         }
                       , [ getmeta model.baseurl "groups" GotGroupsMeta
                         , U.getformulas model.baseurl "groups" GotAllGroupsFormula
@@ -343,20 +347,20 @@ update msg model =
         KindUpdated kind ->
             let
                 newkinds =
-                    if List.member kind model.selectedkinds
-                    then remove model.selectedkinds kind
-                    else insert model.selectedkinds kind
-                newmodel = { model | selectedkinds = List.sort newkinds }
+                    if List.member kind model.selectedserieskinds
+                    then remove model.selectedserieskinds kind
+                    else insert model.selectedserieskinds kind
+                newmodel = { model | selectedserieskinds = List.sort newkinds }
             in
             U.nocmd <| allfilters newmodel
 
         SourceUpdated source ->
             let
                 newsources =
-                    if List.member source model.selectedsources
-                    then remove model.selectedsources source
-                    else insert model.selectedsources source
-                newmodel = { model | selectedsources = newsources }
+                    if List.member source model.selectedseriessources
+                    then remove model.selectedseriessources source
+                    else insert model.selectedseriessources source
+                newmodel = { model | selectedseriessources = newsources }
             in
             U.nocmd <| allfilters newmodel
 
@@ -430,9 +434,20 @@ viewformulafilter =
     H.map (provideInput >> DebounceFormulaFilter) input
 
 
+selectedkinds model =
+    case model.mode of
+        Series -> model.selectedserieskinds
+        Groups -> model.selectedgroupskinds
+
+
+kinds model =
+    case model.mode of
+        Series -> Dict.keys model.catalog.seriesbykind
+        Groups -> Dict.keys model.catalog.groupsbykind
+
+
 viewkindfilter model =
     let
-        kinds = Dict.keys model.catalog.seriesbykind
         checkbox kind =
             H.div
                 [ A.class "form-check form-check-inline"
@@ -441,7 +456,7 @@ viewkindfilter model =
                     [ A.attribute "type" "checkbox"
                     , A.class "form-check-input"
                     , A.value kind
-                    , A.checked <| List.member kind model.selectedkinds
+                    , A.checked <| List.member kind <| selectedkinds model
                     , HE.onClick <| KindUpdated kind
                     ] []
                 , H.label
@@ -451,12 +466,26 @@ viewkindfilter model =
                 ]
     in
     H.div [] <|
-        H.span [ A.class "font-italic" ] [ H.text "series kind → " ] :: (List.map checkbox kinds)
+        H.span
+            [ A.class "font-italic" ]
+            [ H.text "series kind → " ] :: (List.map checkbox <| kinds model)
+
+
+bysources model =
+    case model.mode of
+        Series -> Dict.keys model.catalog.seriesbysource
+        Groups -> Dict.keys model.catalog.groupsbysource
+
+
+selectedsources model =
+    case model.mode of
+        Series -> model.selectedseriessources
+        Groups -> model.selectedgroupssources
 
 
 viewsourcefilter model =
     let
-        sources = Dict.keys model.catalog.seriesbysource
+        sources = bysources model
         checkbox source =
             H.div
                 [ A.class "form-check form-check-inline"
@@ -465,7 +494,7 @@ viewsourcefilter model =
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
                       , A.value source
-                      , A.checked <| List.member source model.selectedsources
+                      , A.checked <| List.member source <| selectedsources model
                       , HE.onClick <| SourceUpdated source
                       ] []
                 , H.label
@@ -476,7 +505,9 @@ viewsourcefilter model =
     in
     if List.length sources > 1
     then H.div []  <|
-        H.span [ A.class "font-italic" ] [ H.text "series sources → " ] :: (List.map checkbox sources)
+        H.span
+            [ A.class "font-italic" ]
+            [ H.text "series sources → " ] :: (List.map checkbox sources)
     else H.span [] []
 
 
@@ -573,14 +604,14 @@ seriessources name catalog =
     findkeysofvalue [] catalog.seriesbysource (Dict.keys catalog.seriesbysource) name False
 
 
-viewfiltered baseurl filtered catalog showsource selectedsources =
+viewfiltered baseurl filtered catalog showsource filtersources =
     let
         item elt =
             let kind =
                     serieskind elt catalog
                 sources =
                     List.filter
-                        (\src -> List.member src selectedsources)
+                        (\src -> List.member src filtersources)
                         (seriessources elt catalog)
             in
             (elt, H.li
@@ -670,7 +701,7 @@ view model =
               , viewfilteredqty model
               ]
         , L.lazy5 viewfiltered
-            model.baseurl model.filteredseries model.catalog (nbsources > 1) model.selectedsources
+            model.baseurl model.filteredseries model.catalog (nbsources > 1) (selectedsources model)
         , viewerrors model
         ]
 
@@ -696,6 +727,8 @@ main =
                    Dict.empty
                    Dict.empty
                    Dict.empty
+                   []
+                   []
                    []
                    []
                    []
