@@ -756,7 +756,41 @@ view model =
 
     in
     H.div [ A.style "margin" ".5em" ]
-        [ H.h1 [ HE.onClick ToggleMode ] [ H.text <| mode ++ " Catalog" ]
+        [ H.span
+              [ HE.onClick ToggleMode
+              , A.style "float" "right"
+              ]
+              [ H.div
+                    [ A.class "form-check form-check-inline" ]
+                    [ H.input [ A.class "form-check-input"
+                              , A.type_ "radio"
+                              , A.checked <| case model.mode of
+                                                 Series -> True
+                                                 Groups -> False
+                              , A.name "doseries"
+                              , A.id "doseries"] [ ]
+                    , H.label
+                        [ A.class "form-check-label"
+                        , A.for "doseries"
+                        ]
+                        [ H.text "series" ]
+                    ]
+              , H.div [ A.class "form-check form-check-inline" ]
+                  [ H.input  [ A.class "form-check-input"
+                             , A.type_ "radio"
+                             , A.checked <| case model.mode of
+                                                Series -> False
+                                                Groups -> True
+                             , A.name "dogroups"
+                             , A.id "dogroups" ] [ ]
+                  , H.label
+                      [ A.class "form-check-label"
+                      , A.for "dogroups"
+                      ]
+                      [ H.text "groups" ]
+                  ]
+              ]
+        , H.h1 [  ] [ H.text <| mode ++ " Catalog" ]
         , H.div
               [ A.class "tsview-form-input small" ]
               [ H.div [] [ viewnamefilter ]
