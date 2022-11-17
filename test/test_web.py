@@ -71,7 +71,7 @@ def test_series_metadata_and_formulas(client, tsa):
     series = pd.Series(
         [1, 2, 3],
         index=pd.date_range(
-            utcdt(2020, 1, 1),
+            pd.Timestamp('2022-1-1'),
             freq='D',
             periods=3
         )
@@ -96,24 +96,24 @@ def test_series_metadata_and_formulas(client, tsa):
     res = client.get('/tssearch/allmetadata')
     assert res.json == {
         'base': {
-            'index_dtype': '|M8[ns]',
-            'index_type': 'datetime64[ns, UTC]',
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
             'supervision_status': 'unsupervised',
-            'tzaware': True,
+            'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
         },
         'f1': {
-            'index_dtype': '|M8[ns]',
-            'index_type': 'datetime64[ns, UTC]',
-            'tzaware': True,
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
         },
         'f2': {
-            'index_dtype': '|M8[ns]',
-            'index_type': 'datetime64[ns, UTC]',
-            'tzaware': True,
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
         }
@@ -154,7 +154,7 @@ def test_group_formulas(client, tsa):
     series = pd.Series(
         [1, 2, 3],
         index=pd.date_range(
-            utcdt(2020, 1, 1),
+            pd.Timestamp('2022-1-1'),
             freq='D',
             periods=3
         )
@@ -171,7 +171,7 @@ def test_group_formulas(client, tsa):
         'f1',
         pd.DataFrame(
             [
-                ['foo', 'group-foo', 'group']
+                ['base', 'base', 'group']
             ],
             columns=('series', 'group', 'family')
         )
@@ -187,9 +187,9 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         },
         'bg': {
-            'index_dtype': '|M8[ns]',
-            'index_type': 'datetime64[ns, UTC]',
-            'tzaware': True,
+            'index_dtype': '<M8[ns]',
+            'index_type': 'datetime64[ns]',
+            'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
         },
