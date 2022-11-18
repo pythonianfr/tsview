@@ -216,7 +216,9 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = I.getidates model "series" InsertionDates
-                        cmd = Cmd.batch [ I.getformula model "series" GotFormula, next ]
+                        cmd = Cmd.batch [ I.getformula model model.name "series" GotFormula
+                                        , next
+                                        ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -396,7 +398,8 @@ update msg model =
                 ( { model | formula_expanded = not state }
                 , case model.expanded_formula of
                       Nothing ->
-                          I.getformula { model | formula_expanded = not state } "series" GotFormula
+                          I.getformula
+                              { model | formula_expanded = not state } model.name "series" GotFormula
                       Just _ ->
                           Cmd.none
                 )

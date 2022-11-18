@@ -37,13 +37,13 @@ getwriteperms urlprefix event =
         }
 
 
-getformula model dtype callback  =
+getformula model name dtype callback  =
     Http.get
         { expect = Http.expectString callback
         , url =
             UB.crossOrigin model.baseurl
                 [ "api", dtype, "formula" ]
-                [ UB.string "name" model.name
+                [ UB.string "name" name
                 , UB.int "display" 1
                 , UB.int "expanded" <| U.bool2int model.formula_expanded
                 ]

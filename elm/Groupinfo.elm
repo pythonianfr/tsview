@@ -39,6 +39,19 @@ type alias Logentry =
     }
 
 
+type alias Binding =
+    { family : String
+    , group : String
+    , series : String
+    }
+
+
+type alias Bindings =
+    { name : String
+    , bindings : List Binding
+    }
+
+
 type alias Model =
     { baseurl : String
     , name : String
@@ -56,6 +69,7 @@ type alias Model =
     , expanded_formula : Maybe String
     , formula_components : Maybe JT.Node
     , expanded_formula_components : Maybe JT.Node
+    , bindings : Maybe Bindings
     -- cache (none yet but minimal data model suppport for genericity)
     , view_nocache : Bool
     -- log
@@ -88,6 +102,7 @@ type Msg
     | CodeHighlight (Result Http.Error String)
     | Components (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
+    | GotBindings (Result Http.Error String)
     | ToggleExpansion
     -- metadata edition
     | MetaEditAsked
@@ -128,6 +143,33 @@ getplot model atidate =
             model.maxdate
 
 
+
+bindingdecoder : D.Decoder Binding
+bindingdecoder =
+    (D.map3 Binding
+         (D.field "family" D.string)
+         (D.field "group" D.string)
+         (D.field "series" D.string))
+
+
+bindingsdecoder : D.Decoder Bindings
+bindingsdecoder =
+    D.map2 Bindings
+        (D.field "name" D.string)
+        (D.field "bindings"
+             (D.list bindingdecoder))
+
+
+getbindings model =
+    Http.get
+        { expect = Http.expectString GotBindings
+        , url =
+            UB.crossOrigin model.baseurl
+                [ "api", "group", "boundformula" ]
+                [ UB.string "name" model.name ]
+        }
+
+
 updatedchangedidatebouncer =
     { mapMsg = DebounceChangedIdate
     , getDebouncer = .date_index_deb
@@ -154,7 +196,7 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = I.getidates model "group" InsertionDates
-                        cmd = Cmd.batch [ I.getformula model "group" GotFormula, next ]
+                        cmd = Cmd.batch [ I.getformula model model.name "group" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -215,6 +257,22 @@ update msg model =
         GotFormula (Err error) ->
             doerr "gotformula http" <| U.unwraperror error
 
+        GotBindings (Ok rawbindings) ->
+            case D.decodeString bindingsdecoder rawbindings of
+                Ok bindings ->
+                    let
+                        newmodel =
+                            { model | bindings = Just bindings }
+                    in
+                    ( newmodel
+                    , I.getformula newmodel bindings.name "series" GotFormula
+                    )
+                Err _ ->
+                    U.nocmd model
+
+        GotBindings (Err error) ->
+            U.nocmd model
+
         -- code
 
         CodeHighlight (Ok rawformula) ->
@@ -267,7 +325,7 @@ update msg model =
                 ( { model | formula_expanded = not state }
                 , case model.expanded_formula of
                       Nothing ->
-                          I.getformula { model | formula_expanded = not state } "group" GotFormula
+                          I.getformula model model.name "group" GotFormula
                       Just _ ->
                           Cmd.none
                 )
@@ -500,7 +558,48 @@ viewplot model =
         ]
 
 
-view : Model -> Html Msg
+viewbindings model =
+    let
+        viewitem accessor item =
+            td [ ]
+                [ a
+                  [ A.href <| UB.crossOrigin model.baseurl [ accessor ] [ UB.string "name" item ] ]
+                  [ text item ]
+                ]
+
+        viewbinding binding =
+            tr [ ]
+                [ th [ A.scope "row" ] [ text binding.family ]
+                , viewitem "tsinfo" binding.series
+                , viewitem "groupinfo" binding.group
+                ]
+    in
+    case model.bindings of
+        Nothing -> span [ ] [ ]
+        Just bindings ->
+            div
+            [ ] <|
+            [ div
+              [ ]
+              [ span [ ] [ text "This group is defined by the above series formula, " ]
+              , span [ ] [ text "in which some series are replaced by groups." ]
+              ]
+            , table
+                  [ A.class "table table-responsive table-hover" ]
+                  [ thead [ A.class "thead-light" ]
+                        [ tr [ ]
+                              [ th [ A.scope "col" ] [ text "family" ]
+                              , th [ A.scope "col" ] [ text "series" ]
+                              , th [ A.scope "col" ] [ text "group" ]
+                              ]
+                        ]
+                  , tbody
+                        [ ]
+                        (List.map viewbinding bindings.bindings)
+                  ]
+            ]
+
+
 view model =
     div [ A.style "margin" ".5em" ]
         [ h1 [ ]
@@ -513,6 +612,7 @@ view model =
         , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model ToggleExpansion
+        , viewbindings model
         , case model.formula of
               Nothing -> viewlog model True
               Just _ -> span [] []
@@ -555,6 +655,7 @@ main =
                            Nothing
                            Nothing
                            Nothing
+                           Nothing
                            -- cache
                            False
                            -- log
@@ -575,6 +676,7 @@ main =
                    [ M.getmetadata input.baseurl input.name GotMeta "group"
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
+                   , getbindings model
                    ]
                )
            sub model = Sub.none
