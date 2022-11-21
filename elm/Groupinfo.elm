@@ -2,6 +2,7 @@ module Groupinfo exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
     (Debouncer
     , fromSeconds
@@ -118,7 +119,9 @@ type Msg
     | MetaSaved (Result Http.Error String)
     -- deletion
     | AskDeletion
-
+    | CancelDeletion
+    | ConfirmDeletion
+    | Deleted (Result Http.Error String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -179,6 +182,22 @@ updatedchangedidatebouncer =
     , getDebouncer = .date_index_deb
     , setDebouncer = \deb model -> { model | date_index_deb = deb }
     }
+
+
+delete model =
+    Http.request
+        { method = "delete"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+            UB.crossOrigin
+                model.baseurl
+                [ "api", "group", "state" ]
+                [ UB.string "name" model.name ]
+        , body = Http.emptyBody
+        , expect = Http.expectString Deleted
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -454,6 +473,22 @@ update msg model =
         AskDeletion ->
             U.nocmd { model | deleting = True }
 
+        CancelDeletion ->
+            U.nocmd { model | deleting = False }
+
+        ConfirmDeletion ->
+            ( model
+            , delete model
+            )
+
+        Deleted (Ok _) ->
+            ( model
+            , load <| UB.crossOrigin model.baseurl [ "tssearch" ] [ ]
+            )
+
+        Deleted (Err err) ->
+            doerr "deletion failed" <| U.unwraperror err
+
 
 -- views
 
@@ -586,11 +621,13 @@ viewdeletion model =
             [ button
                   [ A.type_ "button"
                   , A.class "btn btn-warning"
+                  , onClick ConfirmDeletion
                   ]
                   [ text "confirm" ]
             , button
                   [ A.type_ "button"
                   , A.class "btn btn-success"
+                  , onClick CancelDeletion
                   ]
                   [ text "cancel" ]
             ]
