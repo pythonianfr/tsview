@@ -76,6 +76,9 @@ type alias Model =
     , editeditems : Dict String String
     -- deletion
     , deleting : Bool
+    -- renaming
+    , renaming : Bool
+    , newname : Maybe String
     }
 
 
@@ -119,6 +122,12 @@ type Msg
     | CancelDeletion
     | ConfirmDeletion
     | Deleted (Result Http.Error String)
+    -- renaming
+    | AskRename
+    | EditNewName String
+    | ConfirmRename
+    | CancelRename
+    | Renamed (Result Http.Error String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -548,6 +557,44 @@ update msg model =
         Deleted (Err err) ->
             doerr "deletion failed" <| U.unwraperror err
 
+        -- renaming
+
+        AskRename ->
+            U.nocmd { model | renaming = True }
+
+        CancelRename ->
+            U.nocmd { model
+                        | renaming = False
+                        , newname = Nothing
+                    }
+
+        EditNewName name ->
+            U.nocmd { model | newname = Just name }
+
+        ConfirmRename ->
+            let
+                cmd =
+                    case model.newname of
+                        Nothing -> Cmd.none
+                        Just newname ->
+                            I.rename model newname "series" Renamed
+            in
+            ( model
+            , cmd
+            )
+
+        Renamed (Ok _) ->
+            let name =
+                    case model.newname of
+                        Just newname -> newname
+                        Nothing -> model.name
+            in
+            ( model
+            , load <| UB.crossOrigin model.baseurl [ "tsinfo" ] [ UB.string "name" name ]
+            )
+
+        Renamed (Err err) ->
+            doerr "deletion failed" <| U.unwraperror err
 
 -- views
 
@@ -718,10 +765,19 @@ deleteevents =
     }
 
 
+renameevents =
+    { confirmrename = ConfirmRename
+    , editnewname = EditNewName
+    , cancelrename = CancelRename
+    , askrename = AskRename
+    }
+
+
 view : Model -> Html Msg
 view model =
     div [ A.style "margin" ".5em" ]
         [ I.viewdeletion model "series" deleteevents
+        , I.viewrenameaction model "series" renameevents
         , h1 [ ]
               [ text "Series "
               , span
@@ -793,6 +849,8 @@ main =
                            ("", "")
                            Dict.empty
                            False
+                           False
+                           Nothing
                in
                ( model
                , Cmd.batch

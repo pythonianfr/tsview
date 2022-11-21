@@ -6,6 +6,7 @@ module Info exposing
     , getwriteperms
     , idatesdecoder
     , metatype
+    , rename
     , savemeta
     , supervision
     , viewcomponents
@@ -15,9 +16,11 @@ module Info exposing
     , viewdeletion
     , viewlog
     , viewmeta
+    , viewrenameaction
     , viewseealso
     , viewusermeta
     )
+
 
 import Array exposing (Array)
 import Dict exposing (Dict)
@@ -97,6 +100,22 @@ delete model dtype event =
                 [ UB.string "name" model.name ]
         , body = Http.emptyBody
         , expect = Http.expectString event
+        }
+
+
+rename model newname dtype event =
+    Http.request
+        { method = "put"
+        , body = Http.jsonBody <| E.object
+                 [ ( "name", E.string model.name )
+                 , ( "newname", E.string newname )
+                 ]
+        , url =
+            UB.crossOrigin model.baseurl [ "api", dtype, "state" ] [ ]
+        , expect = Http.expectString event
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
         }
 
 
@@ -518,4 +537,46 @@ viewdeletion model dtype events =
                   , HA.class "btn btn-danger"
                   , HE.onClick events.askdeletion ]
                   [ H.text "delete" ]
+            ]
+
+
+viewrenameaction model dtype events =
+    if model.renaming then
+        let
+            value =
+                case model.newname of
+                    Nothing -> model.name
+                    Just newname -> newname
+        in
+        H.div [ HA.style "float" "right" ]
+            [ H.input [ HA.class "form-control-sm"
+                      , HA.size 80
+                      , HA.type_ "text"
+                      , HA.placeholder "new name"
+                      , HA.value value
+                      , HE.onInput events.editnewname
+                      ] [ ]
+            , case model.newname of
+                  Just newname ->
+                      H.button
+                          [ HA.type_ "button"
+                          , HA.class "btn btn-warning"
+                          , HE.onClick events.confirmrename
+                          ]
+                          [ H.text "confirm" ]
+                  Nothing -> H.span [ ] [ ]
+            , H.button
+                  [ HA.type_ "button"
+                  , HA.class "btn btn-success"
+                  , HE.onClick events.cancelrename
+                  ]
+                  [ H.text "cancel" ]
+            ]
+    else
+        H.div [ HA.style "float" "right" ]
+            [ H.button
+                  [ HA.type_ "button"
+                  , HA.class "btn btn-primary"
+                  , HE.onClick events.askrename ]
+                  [ H.text "rename" ]
             ]
