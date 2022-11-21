@@ -581,8 +581,14 @@ viewbindings model =
             [ ] <|
             [ div
               [ ]
-              [ span [ ] [ text "This group is defined by the above series formula, " ]
-              , span [ ] [ text "in which some series are replaced by groups." ]
+              [ span [ ] [ text "This group is defined by this formula: " ]
+              , a [ A.href <| UB.crossOrigin
+                        model.baseurl
+                        [ "tsinfo" ]
+                        [ UB.string "name" bindings.name ]
+                  ] [ text bindings.name ]
+              , p [ A.title "In a given family, group members are matched." ]
+                  [ text "In this formula the following series are replaced by groups." ]
               ]
             , table
                   [ A.class "table table-responsive table-hover" ]
