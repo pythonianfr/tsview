@@ -84,6 +84,8 @@ type alias Model =
     -- user meta edition
     , metaitem : (String, String)
     , editeditems : Dict String String
+    -- deletion
+    , deleting : Bool
     }
 
 
@@ -114,6 +116,8 @@ type Msg
     | AddMetaItem
     | SaveMeta
     | MetaSaved (Result Http.Error String)
+    -- deletion
+    | AskDeletion
 
 
 
@@ -445,6 +449,11 @@ update msg model =
         MetaSaved (Err err) ->
             doerr "metasaved http" <| U.unwraperror err
 
+        -- deletion
+
+        AskDeletion ->
+            U.nocmd { model | deleting = True }
+
 
 -- views
 
@@ -571,9 +580,34 @@ viewbindings model =
             ]
 
 
+viewdeletion model =
+    if model.deleting then
+        div [  A.style "float" "right" ]
+            [ button
+                  [ A.type_ "button"
+                  , A.class "btn btn-warning"
+                  ]
+                  [ text "confirm" ]
+            , button
+                  [ A.type_ "button"
+                  , A.class "btn btn-success"
+                  ]
+                  [ text "cancel" ]
+            ]
+    else
+        div [ A.style "float" "right" ]
+            [ button
+                  [ A.type_ "button"
+                  , A.class "btn btn-danger"
+                  , onClick AskDeletion ]
+                  [ text "delete" ]
+            ]
+
+
 view model =
     div [ A.style "margin" ".5em" ]
-        [ h1 [ ]
+        [ viewdeletion model
+         , h1 [ ]
               [ text "Series "
               , span
                     [ A.class "font-italic" ]
@@ -641,6 +675,7 @@ main =
                            -- user meta edittion
                            ("", "")
                            Dict.empty
+                           False
                in
                ( model
                , Cmd.batch
