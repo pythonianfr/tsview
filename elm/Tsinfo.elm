@@ -2,6 +2,7 @@ module Tsinfo exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
     (Debouncer
     , fromSeconds
@@ -73,6 +74,8 @@ type alias Model =
     -- user meta edition
     , metaitem : (String, String)
     , editeditems : Dict String String
+    -- deletion
+    , deleting : Bool
     }
 
 
@@ -111,6 +114,11 @@ type Msg
     | AddMetaItem
     | SaveMeta
     | MetaSaved (Result Http.Error String)
+    -- deletion
+    | AskDeletion
+    | CancelDeletion
+    | ConfirmDeletion
+    | Deleted (Result Http.Error String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -519,6 +527,27 @@ update msg model =
         MetaSaved (Err err) ->
             doerr "metasaved http" <| U.unwraperror err
 
+        -- deletion
+
+        AskDeletion ->
+            U.nocmd { model | deleting = True }
+
+        CancelDeletion ->
+            U.nocmd { model | deleting = False }
+
+        ConfirmDeletion ->
+            ( model
+            , I.delete model "series" Deleted
+            )
+
+        Deleted (Ok _) ->
+            ( model
+            , load <| UB.crossOrigin model.baseurl [ "tssearch" ] [ ]
+            )
+
+        Deleted (Err err) ->
+            doerr "deletion failed" <| U.unwraperror err
+
 
 -- views
 
@@ -682,10 +711,18 @@ metaevents =
     }
 
 
+deleteevents =
+    { confirmdeletion = ConfirmDeletion
+    , canceldeletion = CancelDeletion
+    , askdeletion = AskDeletion
+    }
+
+
 view : Model -> Html Msg
 view model =
     div [ A.style "margin" ".5em" ]
-        [ h1 [ ]
+        [ I.viewdeletion model "series" deleteevents
+        , h1 [ ]
               [ text "Series "
               , span
                     [ A.class "font-italic" ]
@@ -755,6 +792,7 @@ main =
                            -- user meta edittion
                            ("", "")
                            Dict.empty
+                           False
                in
                ( model
                , Cmd.batch

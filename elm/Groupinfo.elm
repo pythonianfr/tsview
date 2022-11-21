@@ -184,22 +184,6 @@ updatedchangedidatebouncer =
     }
 
 
-delete model =
-    Http.request
-        { method = "delete"
-        , headers = []
-        , timeout = Nothing
-        , tracker = Nothing
-        , url =
-            UB.crossOrigin
-                model.baseurl
-                [ "api", "group", "state" ]
-                [ UB.string "name" model.name ]
-        , body = Http.emptyBody
-        , expect = Http.expectString Deleted
-        }
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -478,7 +462,7 @@ update msg model =
 
         ConfirmDeletion ->
             ( model
-            , delete model
+            , I.delete model "group" Deleted
             )
 
         Deleted (Ok _) ->
@@ -615,35 +599,16 @@ viewbindings model =
             ]
 
 
-viewdeletion model =
-    if model.deleting then
-        div [  A.style "float" "right" ]
-            [ button
-                  [ A.type_ "button"
-                  , A.class "btn btn-warning"
-                  , onClick ConfirmDeletion
-                  ]
-                  [ text "confirm" ]
-            , button
-                  [ A.type_ "button"
-                  , A.class "btn btn-success"
-                  , onClick CancelDeletion
-                  ]
-                  [ text "cancel" ]
-            ]
-    else
-        div [ A.style "float" "right" ]
-            [ button
-                  [ A.type_ "button"
-                  , A.class "btn btn-danger"
-                  , onClick AskDeletion ]
-                  [ text "delete" ]
-            ]
+deleteevents =
+    { confirmdeletion = ConfirmDeletion
+    , canceldeletion = CancelDeletion
+    , askdeletion = AskDeletion
+    }
 
 
 view model =
     div [ A.style "margin" ".5em" ]
-        [ viewdeletion model
+        [ I.viewdeletion model "group" deleteevents
          , h1 [ ]
               [ text "Series "
               , span

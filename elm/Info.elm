@@ -1,5 +1,6 @@
 module Info exposing
-    ( getformula
+    ( delete
+    , getformula
     , getidates
     , getcomponents
     , getwriteperms
@@ -11,6 +12,7 @@ module Info exposing
     , viewerrors
     , viewformula
     , viewdatespicker
+    , viewdeletion
     , viewlog
     , viewmeta
     , viewseealso
@@ -79,6 +81,22 @@ getidates model dtype callback =
               , UB.int "nocache" <| U.bool2int model.view_nocache
               ]
         , expect = Http.expectString callback
+        }
+
+
+delete model dtype event =
+    Http.request
+        { method = "delete"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+            UB.crossOrigin
+                model.baseurl
+                [ "api", dtype, "state" ]
+                [ UB.string "name" model.name ]
+        , body = Http.emptyBody
+        , expect = Http.expectString event
         }
 
 
@@ -475,3 +493,29 @@ viewlog model showtitle =
                 ]
             ]
     else H.div [ ] [ ]
+
+
+viewdeletion model dtype events =
+    if model.deleting then
+        H.div [ HA.style "float" "right" ]
+            [ H.button
+                  [ HA.type_ "button"
+                  , HA.class "btn btn-warning"
+                  , HE.onClick events.confirmdeletion
+                  ]
+                  [ H.text "confirm" ]
+            , H.button
+                  [ HA.type_ "button"
+                  , HA.class "btn btn-success"
+                  , HE.onClick events.canceldeletion
+                  ]
+                  [ H.text "cancel" ]
+            ]
+    else
+        H.div [ HA.style "float" "right" ]
+            [ H.button
+                  [ HA.type_ "button"
+                  , HA.class "btn btn-danger"
+                  , HE.onClick events.askdeletion ]
+                  [ H.text "delete" ]
+            ]
