@@ -522,43 +522,6 @@ update msg model =
 
 -- views
 
-
-metadicttostring d =
-    let
-        builditem ab =
-            U.first ab ++ " → " ++ (M.metavaltostring <| U.snd ab)
-    in
-    String.join "," <| List.map builditem (Dict.toList d)
-
-
-viewlogentry entry =
-    tr [ ]
-        [ th [ A.scope "row" ] [ text (String.fromInt entry.rev) ]
-        , td [ ] [ text entry.author ]
-        , td [ ] [ text entry.date ]
-        , td [ ] [ text <| metadicttostring entry.meta ]
-        ]
-
-
-viewlog model showtitle =
-    if List.length model.log > 0 then
-        div [ ]
-            [ if showtitle
-              then h2 [ ] [ text "History Log" ]
-              else span [] []
-            , table [A.class "table table-striped table-hover table-sm"]
-                [ thead [ ]
-                      [ td [ A.scope "col" ] [ text "#" ]
-                      , td [ A.scope "col" ] [ text "author" ]
-                      , td [ A.scope "col" ] [ text "date" ]
-                      , td [ A.scope "col" ] [ text "meta" ]
-                      ]
-                , tbody [ ] <| List.map viewlogentry (List.reverse model.log)
-                ]
-            ]
-    else div [ ] [ ]
-
-
 viewcachepolicy model =
     let
         names = [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
@@ -608,7 +571,7 @@ viewcache model =
         cachecontrol =
             span [ ]
                 [ if List.length model.log > 0
-                  then viewlog model False
+                  then I.viewlog model False
                   else span [ ] [ ]
                 , if Dict.isEmpty model.policy
                   then span [ ] [ ]
@@ -733,7 +696,7 @@ view model =
         , I.viewusermeta model metaevents
         , I.viewformula model ToggleExpansion
         , case model.formula of
-              Nothing -> viewlog model True
+              Nothing -> I.viewlog model True
               Just _ -> span [] []
         , I.viewcomponents model
         , viewcache model

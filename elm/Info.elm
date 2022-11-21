@@ -11,6 +11,7 @@ module Info exposing
     , viewerrors
     , viewformula
     , viewdatespicker
+    , viewlog
     , viewmeta
     , viewseealso
     , viewusermeta
@@ -433,5 +434,44 @@ viewcomponents model =
             , components <| case model.formula_expanded of
                                 True -> model.expanded_formula_components
                                 False -> model.formula_components
+            ]
+    else H.div [ ] [ ]
+
+
+
+metadicttostring d =
+    let
+        builditem ab =
+            U.first ab ++ " → " ++ (M.metavaltostring <| U.snd ab)
+    in
+    String.join "," <| List.map builditem (Dict.toList d)
+
+
+viewlogentry entry =
+    H.tr [ ]
+        [ H.th [ HA.scope "row" ] [ H.text (String.fromInt entry.rev) ]
+        , H.td [ ] [ H.text entry.author ]
+        , H.td [ ] [ H.text entry.date ]
+        , H.td [ ] [ H.text <| metadicttostring entry.meta ]
+        ]
+
+
+viewlog model showtitle =
+    if List.length model.log > 0 then
+        H.div
+            [ ]
+            [ if showtitle
+              then H.h2 [ ] [ H.text "History Log" ]
+              else H.span [ ] [ ]
+            , H.table
+                [ HA.class "table table-striped table-hover table-sm" ]
+                [ H.thead [ ]
+                      [ H.td [ HA.scope "col" ] [ H.text "#" ]
+                      , H.td [ HA.scope "col" ] [ H.text "author" ]
+                      , H.td [ HA.scope "col" ] [ H.text "date" ]
+                      , H.td [ HA.scope "col" ] [ H.text "meta" ]
+                      ]
+                , H.tbody [ ] <| List.map viewlogentry (List.reverse model.log)
+                ]
             ]
     else H.div [ ] [ ]
