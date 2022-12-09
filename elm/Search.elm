@@ -616,7 +616,11 @@ viewmetafilter model =
 
 viewfilteredqty model =
     let
-        len = List.length model.filteredseries
+        len =
+            case model.mode of
+                Series -> List.length model.filteredseries
+                Groups -> List.length model.filteredgroups
+
         msg = if len == 0
               then "No item"
               else
