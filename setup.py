@@ -26,7 +26,8 @@ class ElmBuild(build_ext):
                 ('rename', 'Rename.elm'),
                 ('plot', 'Plot.elm'),
                 ('formula', Path('TsView/Formula/Main.elm')),
-                ('info', 'Info.elm'),
+                ('tsinfo', 'Tsinfo.elm'),
+                ('groupinfo', 'Groupinfo.elm'),
                 ('search', 'Search.elm'),
                 ('cache', 'Cache.elm'),
         ]:
