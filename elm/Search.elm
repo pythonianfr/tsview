@@ -677,9 +677,11 @@ viewfiltered baseurl mode filtered catalog showsource filtersources =
             (elt, H.li
                  [ A.class "list-group-item p-1" ]
                  [ H.span
-                       [ A.class (if kind == "formula"
-                                  then "badge badge-success"
-                                  else "badge badge-secondary")
+                       [ A.class <|
+                             case kind of
+                                 "formula" ->  "badge badge-success"
+                                 "bound" -> "badge badge-info"
+                                 _ -> "badge badge-secondary"
                        ]
                        [ H.text kind ]
                  , H.span [] [ H.text " " ]
