@@ -556,7 +556,9 @@ viewbindings model =
         viewitem accessor item =
             td [ ]
                 [ a
-                  [ A.href <| UB.crossOrigin model.baseurl [ accessor ] [ UB.string "name" item ] ]
+                  [ A.href <| UB.crossOrigin model.baseurl [ accessor ] [ UB.string "name" item ]
+                  , A.target "_blank"
+                  ]
                   [ text item ]
                 ]
 
@@ -579,6 +581,7 @@ viewbindings model =
                         model.baseurl
                         [ "tsinfo" ]
                         [ UB.string "name" bindings.name ]
+                  , A.target "_blank"
                   ] [ text bindings.name ]
               , p [ A.title "In a given family, group members are matched." ]
                   [ text "In this formula the following series are replaced by groups." ]
