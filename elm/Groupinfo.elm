@@ -613,7 +613,7 @@ view model =
     div [ A.style "margin" ".5em" ]
         [ I.viewdeletion model "group" deleteevents
          , h1 [ ]
-              [ text "Series "
+              [ text "Group "
               , span
                     [ A.class "font-italic" ]
                     [ text model.name ]
