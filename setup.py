@@ -61,7 +61,7 @@ setup(name='tsview',
           'pytest_sa_pg',
           'tshistory > 0.15',
           'plotly < 6.0',
-          'dash < 2.7',
+          'dash == 2.6.2',
           'dash-renderer < 2.0',
           'tshistory_formula > 0.11'
       ],
