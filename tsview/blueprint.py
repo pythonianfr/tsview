@@ -266,32 +266,18 @@ def tsview(tsa,
         # for now we are single source only
         engine = tsa.engine
 
-        q1 = select(
-            'seriesname', 'metadata'
+        q = select(
+            'name', 'internal_metadata'
         ).table(
             f'"{tsa.namespace}".registry'
         )
 
-        m1 = [
-            (name, meta)
-            for name, meta in q1.do(engine).fetchall()
+        m = {name: meta
+            for name, meta in q.do(engine).fetchall()
             if meta
-        ]
+        }
 
-        q2 = select(
-            'name', 'metadata'
-        ).table(
-            f'"{tsa.namespace}".formula'
-        )
-
-        m2 = [
-            (name, meta)
-            for name, meta in q2.do(engine).fetchall()
-            if meta
-        ]
-        return jsonify(
-            dict(m1 + m2)
-        )
+        return jsonify(m)
 
     @bp.route('/tssearch/allformula')
     def all_series_formulas():
@@ -306,9 +292,11 @@ def tsview(tsa,
         engine = tsa.engine
 
         q = select(
-            'name', 'text'
+            'name', 'internal_metadata->\'formula\''
         ).table(
-            f'"{tsa.namespace}".formula'
+            f'"{tsa.namespace}".registry'
+        ).where(
+            'internal_metadata->\'formula\' is not null'
         )
 
         return jsonify(

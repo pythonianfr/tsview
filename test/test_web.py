@@ -96,11 +96,14 @@ def test_series_metadata_and_formulas(client, tsa):
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'supervision_status': 'unsupervised',
+            'tablename': 'base',
             'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
         },
         'f1': {
+            'contenthash': 'ea1aded0c5f2e5e642ac999ecbbee08acfc3ab04',
+            'formula': '(series "base")',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,
@@ -108,6 +111,8 @@ def test_series_metadata_and_formulas(client, tsa):
             'value_type': 'float64'
         },
         'f2': {
+            'contenthash': '036269f058cb14d189a600b827ad8d1ac2a2dfcf',
+            'formula': '(* 3.14 (series "base"))',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,
