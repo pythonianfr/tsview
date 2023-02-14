@@ -4,6 +4,8 @@ module Metadata exposing (MetaVal(..)
                          , dget
                          , encodemeta
                          , getmetadata
+                         , getsysmetadata
+                         , getusermetadata
                          , metanames
                          , metavaltostring
                          , UserMetadata
@@ -54,6 +56,29 @@ type alias StdMetadata =
 
 type alias UserMetadata =
     Dict String MetaVal
+
+
+getsysmetadata urlprefix name callback dtype =
+    Http.get
+        { expect =
+              Http.expectString callback
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", dtype, "metadata" ]
+                [ UB.string "name" name
+                , UB.string "type" "internal" ]
+        }
+
+
+getusermetadata urlprefix name callback dtype =
+    Http.get
+        { expect =
+              Http.expectString callback
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", dtype, "metadata" ]
+                [ UB.string "name" name ]
+        }
 
 
 getmetadata urlprefix name callback dtype =

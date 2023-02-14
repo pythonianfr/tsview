@@ -83,7 +83,8 @@ type alias Model =
 
 
 type Msg
-    = GotMeta (Result Http.Error String)
+    = GotSysMeta (Result Http.Error String)
+    | GotUserMeta (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
@@ -221,27 +222,34 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
-        GotMeta (Ok result) ->
+        GotSysMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
-                        (stdmeta, usermeta) =
-                            Dict.partition (\k v -> (List.member k M.metanames)) allmeta
                         newmodel =
-                            { model
-                                | meta = stdmeta
-                                , usermeta = usermeta
-                            }
-                        next = I.getidates model "series" InsertionDates
+                            { model | meta = allmeta }
+                        -- maybe we could avoid that .getformula thing ?
+                        -- however we still need it right now because of the
+                        -- (un)expanded toggle, hence a better model would be needed
                         cmd = Cmd.batch [ I.getformula model model.name "series" GotFormula
-                                        , next
+                                        , I.getidates model "series" InsertionDates
                                         ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
 
-        GotMeta (Err err) ->
-            doerr "gotmeta http"  <| U.unwraperror err
+        GotSysMeta (Err err) ->
+            doerr "gotsysmeta http"  <| U.unwraperror err
+
+        GotUserMeta (Ok result) ->
+            case D.decodeString M.decodemeta result of
+                Ok allmeta ->
+                    U.nocmd { model | usermeta = allmeta }
+                Err err ->
+                    doerr "gotmeta decode" <| D.errorToString err
+
+        GotUserMeta (Err err) ->
+            doerr "gotusermeta http"  <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -854,7 +862,8 @@ main =
                in
                ( model
                , Cmd.batch
-                   [ M.getmetadata input.baseurl input.name GotMeta "series"
+                   [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
+                   , M.getusermetadata input.baseurl input.name GotUserMeta "series"
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
                    , getcachepolicy model
