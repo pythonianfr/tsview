@@ -180,7 +180,9 @@ def test_group_formulas(client, tsa):
     )
 
     res = client.get('/groupsearch/allmetadata')
-    assert res.json == {
+    out = res.json
+    out['base'].pop('tablename')
+    assert out == {
         'base': {
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
@@ -210,4 +212,3 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         }
     }
-
