@@ -49,17 +49,14 @@ def test_formula_formatter():
     f2 = format_formula(f)
     assert f2 == (
         '<div class="highlight"><pre><span></span><span class="p">(</span><span '
-        'class="nv">add</span><span class="w"></span>\n'
-        '<span class="w">'
-        '    </span><span class="p">(</span><span class="nv">series</span><span class="w">'
-        ' </span><span class="s">&quot;foo&quot;</span><span class="p">)</span><span class="w">'
-        '</span>\n<span class="w">'
-        '    </span><span class="p">(</span><span class="nb">+</span><span class="w"></span>\n'
-        '<span class="w">        </span><span class="mi">3</span><span class="w"></span>\n'
-        '<span class="w">        </span><span class="p">'
-        '(</span><span class="nv">series</span><span class="w">'
-        ' </span><span class="s">&quot;bar&quot;</span><span class="p">)))</span>'
-        '<span class="w"></span>\n</pre></div>\n'
+        'class="nv">add</span>\n'
+        '<span class="w">    </span><span class="p">(</span><span class="nv">series</span><span '
+        'class="w"> </span><span class="s">&quot;foo&quot;</span><span class="p">)</span>\n'
+        '<span class="w">    </span><span class="p">(</span><span class="nb">+</span>\n'
+        '<span class="w">        </span><span class="mi">3</span>\n'
+        '<span class="w">        </span><span class="p">(</span><span class="nv">series</span><span '
+        'class="w"> </span><span class="s">&quot;bar&quot;</span><span class="p">)))</span>\n'
+        '</pre></div>\n'
     )
 
 
