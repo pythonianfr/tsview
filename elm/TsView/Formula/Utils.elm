@@ -136,6 +136,10 @@ valueParser inputType =
             stringParser
                 |> andThen (\x -> ( x, S.StringValue x ))
 
+        S.Query ->
+            stringParser
+                |> andThen (\x -> ( x, S.StringValue x ))
+
 
 openAll : Zipper a -> List (Zipper a)
 openAll parent =

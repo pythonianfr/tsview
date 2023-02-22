@@ -50,6 +50,8 @@ inputTypeParser =
             |. Parser.keyword "Timestamp"
         , Parser.succeed S.SearchString
             |. Parser.keyword "seriesname"
+        , Parser.succeed S.Query
+            |. Parser.keyword "query"
         ]
 
 

@@ -27,6 +27,7 @@ type InputType
     | Bool
     | Timestamp
     | SearchString
+    | Query
 
 
 type BaseType
@@ -106,6 +107,9 @@ strInputType iType =
 
         SearchString ->
             "SearchString"
+
+        Query ->
+            "Query"
 
 
 strBaseType : BaseType -> String
