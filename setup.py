@@ -42,7 +42,7 @@ doc = Path(__file__).parent / 'README.md'
 
 
 setup(name='tsview',
-      version='0.16.0',
+      version='0.17.0',
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr, arnaud.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
@@ -59,11 +59,11 @@ setup(name='tsview',
           'werkzeug < 2.2',
           'flask-caching < 2.1',
           'pytest_sa_pg',
-          'tshistory > 0.15',
+          'tshistory >= 0.18',
           'plotly < 6.0',
           'dash == 2.6.2',
           'dash-renderer < 2.0',
-          'tshistory_formula > 0.11'
+          'tshistory_formula >= 0.14'
       ],
       package_data={'tsview': [
           'tsview_static/*',
