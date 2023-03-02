@@ -152,7 +152,12 @@ def historic(app,
                         [dash.dependencies.State('ts_snapshot', 'relayoutData')])
     def adaptable_slider(url_string, n_clicks, graphdata):
         if n_clicks==0:
-            return Slider(id='idate_slider', value=None)
+            return Slider(
+                id='idate_slider',
+                min=0,
+                max=0,
+                step=0,
+            )
 
         id_serie = parse_url(url_string)
         fromdate, todate = unpack_dates(graphdata, tzaware(id_serie))
@@ -162,8 +167,8 @@ def historic(app,
             id='idate_slider',
             min=0,
             max=len(idates) - 1,
+            step=1,
             value=len(idates) - 1,
-            step=None,
             marks={
                 str(idx): elt if showlabel else ''
                 for idx, elt in enumerate(idates)
