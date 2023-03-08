@@ -46,10 +46,10 @@ def editable_table(tsa, name, fromdate=None, todate=None,
         new_ts = pd.Series(index=marker.index)
         new_ts[ts.index] = ts
         ts = new_ts
-        mask = (ts.index >= fromdate) & (ts.index <= todate)
-        ts = ts[mask]
-        marker = marker[mask]
-
+        if fromdate is not None: # todate should have the same status
+            mask = (ts.index >= fromdate) & (ts.index <= todate)
+            ts = ts[mask]
+            marker = marker[mask]
     idx_marker = np.arange(len(marker))[marker.values]
     htmldiv = dt.DataTable(
         id='table',
