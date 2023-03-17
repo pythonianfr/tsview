@@ -90,9 +90,12 @@ def test_series_metadata_and_formulas(client, tsa):
         'f2': '(* 3.14 (series "base"))'
     }
 
+    tsa.update_metadata('base', {'foo': 'bar'})
+
     res = client.get('/tssearch/allmetadata')
     assert res.json == {
         'base': {
+            'foo': 'bar',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'supervision_status': 'unsupervised',
