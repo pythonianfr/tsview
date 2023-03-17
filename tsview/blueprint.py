@@ -62,7 +62,7 @@ def homeurl():
     return baseurl
 
 
-PERMISSIONS = ('catalog', 'viewseries', 'rename', 'delete', 'editmetadata')
+PERMISSIONS = ('catalog', 'viewseries', 'delete', 'editmetadata')
 
 
 def tsview(tsa,
@@ -114,15 +114,6 @@ def tsview(tsa,
                                    homeurl=homeurl())
 
         return 'You do not have the delete capability.'
-
-    @bp.route('/tsrename')
-    def tsrename():
-        if has_permission('rename'):
-            return render_template('tsedit.html',
-                                   edit_kind="Rename",
-                                   homeurl=homeurl())
-
-        return 'You do not have the rename capability.'
 
     @bp.route('/formulacache')
     def formulacache():

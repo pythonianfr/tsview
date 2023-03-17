@@ -23,7 +23,6 @@ class ElmBuild(build_ext):
     def run(self):
         for edit_kind, src in [
                 ('delete', 'Delete.elm'),
-                ('rename', 'Rename.elm'),
                 ('plot', 'Plot.elm'),
                 ('formula', Path('TsView/Formula/Main.elm')),
                 ('tsinfo', 'Tsinfo.elm'),
