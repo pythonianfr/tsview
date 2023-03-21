@@ -224,19 +224,7 @@ metafilter model =
                         matchvalues value meta
 
                     (key, value) ->
-                        let
-                            lvalue = lower value
-                            lkey = lower key
-
-                            keys =
-                                List.filter
-                                    (\x -> String.contains lkey x)
-                                    (lowerkeys meta)
-                            values =
-                                List.map lowervalue <|
-                                filternothing <| List.map (\x -> Dict.get x meta) keys
-
-                        in List.any (matchvalue lvalue) values
+                        (matchkeys key meta) && (matchvalues value meta)
 
             metadata =
                 case model.mode of
