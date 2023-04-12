@@ -43,6 +43,7 @@ type alias Logentry =
 type alias Model =
     { baseurl : String
     , name : String
+    , source : String
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -85,6 +86,7 @@ type alias Model =
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
+    | GotSource (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
@@ -143,6 +145,15 @@ logentrydecoder =
 logdecoder : D.Decoder (List Logentry)
 logdecoder =
     D.list logentrydecoder
+
+
+getsource model name =
+    Http.get
+        { expect = Http.expectString GotSource
+        , url = UB.crossOrigin model.baseurl
+              [ "api", "series", "source" ]
+              [ UB.string "name" name ]
+        }
 
 
 getplot model atidate =
@@ -250,6 +261,16 @@ update msg model =
 
         GotUserMeta (Err err) ->
             doerr "gotusermeta http"  <| U.unwraperror err
+
+        GotSource (Ok rawsource) ->
+            case D.decodeString D.string rawsource of
+                Ok source ->
+                    U.nocmd { model | source = source }
+                Err err ->
+                    doerr "gotsource decode" <| D.errorToString err
+
+        GotSource (Err err) ->
+            doerr "gotsource http"  <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -786,11 +807,16 @@ view model =
     div [ A.style "margin" ".5em" ]
         [ I.viewdeletion model "series" deleteevents
         , I.viewrenameaction model "series" renameevents
-        , h1 [ ]
-              [ text "Series "
+        , p [ ]
+              [ span
+                    [ A.class "h1" ]
+                    [ text "Series " ]
               , span
-                    [ A.class "font-italic" ]
-                    [ text model.name ]
+                    [ A.class "font-italic h1" ]
+                    [ text <| model.name ++ " " ]
+              , span
+                    [ A.class "badge badge-secondary h4" ]
+                    [ text model.source ]
               ]
         , I.viewseealso model
         , I.viewmeta model
@@ -825,6 +851,7 @@ main =
                    model = Model
                            input.baseurl
                            input.name
+                           ""
                            -- metadata edition
                            False
                            False
@@ -864,6 +891,7 @@ main =
                , Cmd.batch
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "series"
+                   , getsource model model.name
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
                    , getcachepolicy model
