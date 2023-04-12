@@ -805,8 +805,12 @@ renameevents =
 view : Model -> Html Msg
 view model =
     div [ A.style "margin" ".5em" ]
-        [ I.viewdeletion model "series" deleteevents
-        , I.viewrenameaction model "series" renameevents
+        [ if model.source == "local"
+          then I.viewdeletion model "series" deleteevents
+          else span [] []
+        , if model.source == "local"
+          then I.viewrenameaction model "series" renameevents
+          else span [] []
         , p [ ]
               [ span
                     [ A.class "h1" ]
