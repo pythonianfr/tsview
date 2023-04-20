@@ -129,19 +129,15 @@ def tsview(tsa,
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
 
-        def check_arg(name, typ):
-            if name.endswith('list'):
-                typ = "List[%s]" % typ
-            return (name, typ)
-
-        return json.dumps(sorted([
-            (op_name, [
-                check_arg(name, typ)
-                for name, typ in op_spec.items()
-            ])
-            for op_name, op_spec in json.loads(jsontypes()).items()],
-                      key=lambda x: ("\x00",) if x[0] == 'series' else x
-        ))
+        return json.dumps(
+            sorted(
+                [
+                    (op_name, list(op_spec.items()))
+                    for op_name, op_spec in json.loads(jsontypes()).items()
+                ],
+                key=lambda x: ("\x00",) if x[0] == 'series' else x
+            )
+        )
 
     @bp.route('/tsformula')
     def tsformula():
