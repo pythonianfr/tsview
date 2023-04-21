@@ -19,7 +19,7 @@ def format_formula(formula, softbreak=90):
             parse(formula),
             softbreak=softbreak
         ),
-        get_lexer_by_name("lisp"),
+        get_lexer_by_name("fennel"),
         HtmlFormatter()
     )
 
