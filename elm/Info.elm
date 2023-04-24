@@ -2,14 +2,12 @@ module Info exposing
     ( delete
     , getformula
     , getidates
-    , getcomponents
     , getwriteperms
     , idatesdecoder
     , metatype
     , rename
     , savemeta
     , supervision
-    , viewcomponents
     , viewerrors
     , viewformula
     , viewdatespicker
@@ -53,19 +51,6 @@ getformula model name dtype callback  =
                 , UB.int "display" 1
                 , UB.int "expanded" <| U.bool2int model.formula_expanded
                 ]
-        }
-
-
-getcomponents model dtype callback =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", dtype, "formula_components" ]
-              [ UB.string "name" model.name
-              , UB.int "expanded" <| U.bool2int model.formula_expanded
-              ]
-        , expect = Http.expectString callback
         }
 
 
@@ -431,49 +416,6 @@ viewseealso model =
                   ]
           else H.span [ ] [ ]
         ]
-
-
-viewcomponents model =
-    let
-        alink seriesname =
-            H.a [ HA.href <| UB.crossOrigin model.baseurl
-                      [ "tsinfo" ]
-                      [ UB.string "name" seriesname ]
-                ]
-                [ H.text seriesname ]
-
-        tuple2node tuple =
-            H.li [ ] [ alink (Tuple.first tuple)
-                     , H.span [ ] [ H.text " → " ]
-                     , node2html <| Tuple.second tuple
-                     ]
-
-        node2html node =
-            case node.value of
-                JT.TString str -> H.li [ ] [ alink str ]
-                JT.TFloat num -> H.li [ ] [ H.text <|  String.fromFloat num ]
-                JT.TBool bool -> H.li [ ] [ H.text <| if bool then "True" else "False" ]
-                JT.TList list -> H.ul [ HA.class "square" ] <| List.map node2html list
-                JT.TDict dict ->
-                    H.ul [ HA.class "square" ] <| (Dict.toList dict |> List.map tuple2node)
-                JT.TNull -> H.span [ ] [ ]
-
-        components comp =
-            case comp of
-                Nothing ->
-                    H.span [ ] [ H.text "" ]
-                Just node ->
-                    node2html node
-    in
-    if supervision model == "formula" then
-        H.div [ ]
-            [ H.h2 [ ] [ H.text "Components" ]
-            , components <| case model.formula_expanded of
-                                True -> model.expanded_formula_components
-                                False -> model.formula_components
-            ]
-    else H.div [ ] [ ]
-
 
 
 metadicttostring d =

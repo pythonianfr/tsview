@@ -56,8 +56,6 @@ type alias Model =
     , formula_expanded : Bool
     , formula : Maybe String
     , expanded_formula : Maybe String
-    , formula_components : Maybe JT.Node
-    , expanded_formula_components : Maybe JT.Node
     -- cache
     , has_cache : Bool
     , view_nocache : Bool
@@ -99,7 +97,6 @@ type Msg
     -- formula
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
-    | Components (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | ToggleExpansion
     -- cache
@@ -314,7 +311,6 @@ update msg model =
                 Ok formula ->
                     ( model
                     , Cmd.batch [ U.pygmentyze model formula CodeHighlight
-                                , I.getcomponents model "series" Components
                                 , gethascache model
                                 , getlog model.baseurl model.name
                                 ]
@@ -398,21 +394,7 @@ update msg model =
         CodeHighlight (Err error) ->
             doerr "codehighlight http" <| U.unwraperror error
 
-        -- components
-
-        Components (Ok rawcomponents) ->
-            case JT.parseString rawcomponents of
-                Ok components ->
-                    case model.formula_expanded of
-                        True ->
-                            U.nocmd { model | expanded_formula_components = Just components }
-                        False ->
-                            U.nocmd { model | formula_components = Just components }
-                Err err ->
-                    doerr "components decode" <| D.errorToString err
-
-        Components (Err error) ->
-            doerr "components http" <| U.unwraperror error
+        -- log
 
         GotLog (Ok rawlog) ->
             case D.decodeString logdecoder rawlog of
@@ -825,7 +807,6 @@ view model =
         , case model.formula of
               Nothing -> I.viewlog model True
               Just _ -> span [] []
-        , I.viewcomponents model
         , viewcache model
         , viewplot model
         , I.viewerrors model
@@ -862,8 +843,6 @@ main =
                            Dict.empty
                            -- formula
                            False
-                           Nothing
-                           Nothing
                            Nothing
                            Nothing
                            -- cache
