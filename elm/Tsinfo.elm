@@ -629,20 +629,16 @@ update msg model =
 
 viewcachepolicy model =
     let
-        names = [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
-        fixval name val =
-            if name == "supervision_status" && val == ""
-            then "formula"
-            else val
         elt name =
-            li [ ] [text <| name
+            li [] [ text <| name
                         ++ " → "
                         ++ (M.dget name model.policy)
-                   ]
+                  ]
     in
     div [ ]
     [ h2 [ ] [ text "Policy" ]
-    , ul [ A.class "highlight" ] <| List.map elt names
+    , ul [ A.class "highlight" ] <|
+        List.map elt [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
     ]
 
 
