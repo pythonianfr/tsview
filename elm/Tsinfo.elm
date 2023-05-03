@@ -40,6 +40,11 @@ type alias Logentry =
     }
 
 
+type SeriesType
+    = Primary
+    | Formula
+
+
 type alias Model =
     { baseurl : String
     , name : String
@@ -52,6 +57,7 @@ type alias Model =
     -- metadata, ventilated by std (system) and user
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
+    , seriestype : SeriesType
     -- formula
     , formula_expanded : Bool
     , formula : Maybe String
@@ -234,14 +240,19 @@ update msg model =
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
+                        isformula = Dict.member "formula" allmeta
                         newmodel =
-                            { model | meta = allmeta }
+                            { model
+                                | meta = allmeta
+                                , seriestype = if isformula then Formula else Primary
+                            }
                         -- maybe we could avoid that .getformula thing ?
                         -- however we still need it right now because of the
                         -- (un)expanded toggle, hence a better model would be needed
-                        cmd = Cmd.batch [ I.getformula model model.name "series" GotFormula
-                                        , I.getidates model "series" InsertionDates
-                                        ]
+                        cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
+                              ++ if isformula
+                                 then [ I.getformula model model.name "series" GotFormula ]
+                                 else []
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -841,6 +852,7 @@ main =
                            -- metadata
                            Dict.empty
                            Dict.empty
+                           Primary
                            -- formula
                            False
                            Nothing
