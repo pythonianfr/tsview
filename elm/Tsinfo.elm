@@ -307,7 +307,9 @@ update msg model =
                     in
                     U.nocmd newmodel
                 Err err ->
-                    doerr "gotplotdata decode" <| D.errorToString err
+                    case M.dget "value_type" model.meta of
+                        "object" -> U.nocmd model
+                        _ ->  doerr "gotplotdata decode" <| D.errorToString err
 
         GotPlotData (Err err) ->
             doerr "gotplotdata error" <| U.unwraperror err
@@ -815,7 +817,9 @@ view model =
               Nothing -> I.viewlog model True
               Just _ -> span [] []
         , viewcache model
-        , viewplot model
+        , case M.dget "value_type" model.meta of
+              "float64" -> viewplot model
+              _ -> div [] []
         , I.viewerrors model
         ]
 
