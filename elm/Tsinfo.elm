@@ -40,11 +40,6 @@ type alias Logentry =
     }
 
 
-type SeriesType
-    = Primary
-    | Formula
-
-
 type alias Model =
     { baseurl : String
     , name : String
@@ -57,7 +52,7 @@ type alias Model =
     -- metadata, ventilated by std (system) and user
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
-    , seriestype : SeriesType
+    , seriestype : I.SeriesType
     -- formula
     , formula_expanded : Bool
     , formula : Maybe String
@@ -244,7 +239,7 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = allmeta
-                                , seriestype = if isformula then Formula else Primary
+                                , seriestype = if isformula then I.Formula else I.Primary
                             }
                         -- maybe we could avoid that .getformula thing ?
                         -- however we still need it right now because of the
@@ -697,16 +692,17 @@ viewcache model =
                 span [ ] [ ]
 
     in
-    if I.supervision model == "formula" then
-        div [ ]
-            [ h2 [ ] [ text "Cache"
-                    , span [ ] [ text " " ]
-                    , deleteaction
-                    ]
-            , cachecontrol
-            ]
-    else
-        div [ ] [ ]
+    case model.seriestype of
+        I.Formula ->
+            div []
+                [ h2 [] [ text "Cache"
+                        , span [] [ text " " ]
+                        , deleteaction
+                        ]
+                , cachecontrol
+                ]
+        I.Primary ->
+            div [] []
 
 
 viewdatesrange model =
@@ -852,7 +848,7 @@ main =
                            -- metadata
                            Dict.empty
                            Dict.empty
-                           Primary
+                           I.Primary
                            -- formula
                            False
                            Nothing

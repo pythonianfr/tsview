@@ -7,6 +7,7 @@ module Info exposing
     , metatype
     , rename
     , savemeta
+    , SeriesType(..)
     , supervision
     , viewerrors
     , viewformula
@@ -32,6 +33,11 @@ import JsonTree as JT exposing (TaggedValue(..))
 import Metadata as M
 import Url.Builder as UB
 import Util as U
+
+
+type SeriesType
+    = Primary
+    | Formula
 
 
 getwriteperms urlprefix event =
@@ -377,14 +383,16 @@ viewformula model toggleevent =
 
 supervision model =
     case Dict.get "supervision_status" model.meta of
-        Nothing -> "formula"
+        Nothing -> "unkown"
         Just x -> M.metavaltostring x
 
 
 viewseealso model =
     let
         editorlabel =
-            if (supervision model) /= "formula" then "edit values" else "show values"
+            case model.seriestype of
+                Primary ->  "edit values"
+                Formula ->  "show values"
     in
     H.div [ ]
         [ H.div [ ]
