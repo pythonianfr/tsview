@@ -224,6 +224,12 @@ updatedchangedidatebouncer =
     }
 
 
+strseries model =
+    case M.dget "value_type" model.meta of
+        "object" -> True
+        _ -> False
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -307,9 +313,9 @@ update msg model =
                     in
                     U.nocmd newmodel
                 Err err ->
-                    case M.dget "value_type" model.meta of
-                        "object" -> U.nocmd model
-                        _ ->  doerr "gotplotdata decode" <| D.errorToString err
+                    if strseries model
+                    then U.nocmd model
+                    else doerr "gotplotdata decode" <| D.errorToString err
 
         GotPlotData (Err err) ->
             doerr "gotplotdata error" <| U.unwraperror err
@@ -817,9 +823,7 @@ view model =
               Nothing -> I.viewlog model True
               Just _ -> span [] []
         , viewcache model
-        , case M.dget "value_type" model.meta of
-              "float64" -> viewplot model
-              _ -> div [] []
+        , if strseries model then div [] [] else viewplot model
         , I.viewerrors model
         ]
 
