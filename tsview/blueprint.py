@@ -162,7 +162,8 @@ def tsview(tsa,
 
         return json.dumps(
             format_formula(
-                request.data.decode('utf-8')
+                request.data.decode('utf-8'),
+                baseurl=homeurl()
             )
         )
 
