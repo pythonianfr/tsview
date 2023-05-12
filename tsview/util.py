@@ -26,7 +26,9 @@ class DecoratingHtmlFormatter(HtmlFormatter):
     def modify_str_series(self, source):
         yield 0, '<pre>'
         yield 0, '<span></span>'
+        integration_case = 0
         for i, t in source:
+            # general case
             if self._serieshtml in t:
                 sn = t.split('&quot;')[1]
                 t = t.replace(
@@ -35,6 +37,30 @@ class DecoratingHtmlFormatter(HtmlFormatter):
                     f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">'
                 )
                 t = t.replace('&quot;</span>', '&quot;</a>')
+            # case of integration operator in an expand
+            if '<span class="nv">integration</span><span class="w">' in t:
+                sn_number = t.count('&quot;')
+                for i in range(1, sn_number, 2):
+                    sn = t.split('&quot;')[i]
+                    t = t.replace(
+                        '<span class="w"> </span><span class="s">',
+                        f'<span class="w"> </span>'
+                        f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">',
+                        1
+                    )
+                    t = t.replace('&quot;</span>', '&quot;</a>', 1)
+            # case of integration operator "solo"
+            if integration_case > 0:
+                integration_case = integration_case - 1
+                sn = t.split('&quot;')[1]
+                t = t.replace(
+                    '<span class="w">    </span><span class="s">',
+                    f'<span class="w">    </span>'
+                    f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">'
+                )
+                t = t.replace('&quot;</span>', '&quot;</a>')
+            if t == '<span class="p">(</span><span class="nv">integration</span>\n':
+                integration_case = 2 # need to modify the two next iterations
             yield i, t
         yield 0, '</pre>'
 
