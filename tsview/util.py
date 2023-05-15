@@ -13,6 +13,30 @@ from psyl.lisp import parse, pretty
 
 # formula helper
 
+class DecoratingHtmlFormatter(HtmlFormatter):
+    _serieshtml = '<span class="nv">series</span><span class="w"> </span><span class="s">'
+
+    def wrap(self, source, *, include_div=True):
+        return self.modify_str_series(source)
+
+    def modify_str_series(self, source):
+        yield 0, '<pre>'
+        yield 0, '<span></span>'
+        for i, t in source:
+            print('i', i)
+            print('t', t)
+            if self._serieshtml in t:
+                sn = t.split('&quot;')[1]
+                t = t.replace(
+                    '<span class="nv">series</span><span class="w"> </span><span class="s">',
+                    '<span class="nv">series</span><span class="w"> </span>'
+                    f'<a class="s" href="/tsinfo?name={sn}">'
+                )
+                t = t.replace('&quot;</span>', '&quot;</a>')
+            yield i, t
+        yield 0, '</pre>'
+
+
 def format_formula(formula, softbreak=90):
     return highlight(
         pretty(
@@ -20,7 +44,7 @@ def format_formula(formula, softbreak=90):
             softbreak=softbreak
         ),
         get_lexer_by_name("fennel"),
-        HtmlFormatter()
+        DecoratingHtmlFormatter()
     )
 
 

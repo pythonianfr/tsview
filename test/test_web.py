@@ -51,11 +51,13 @@ def test_formula_formatter():
         '<div class="highlight"><pre><span></span><span class="p">(</span><span '
         'class="nv">add</span>\n'
         '<span class="w">    </span><span class="p">(</span><span class="nv">series</span><span '
-        'class="w"> </span><span class="s">&quot;foo&quot;</span><span class="p">)</span>\n'
+        'class="w"> </span><a class="s" href="/tsinfo?name=foo">&quot;foo&quot;</a><span '
+        'class="p">)</span>\n'
         '<span class="w">    </span><span class="p">(</span><span class="nv">+</span>\n'
         '<span class="w">        </span><span class="mi">3</span>\n'
         '<span class="w">        </span><span class="p">(</span><span class="nv">series</span><span '
-        'class="w"> </span><span class="s">&quot;bar&quot;</span><span class="p">)))</span>\n'
+        'class="w"> </span><a class="s" href="/tsinfo?name=bar">&quot;bar&quot;</a><span '
+        'class="p">)))</span>\n'
         '</pre></div>\n'
     )
 
