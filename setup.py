@@ -3,6 +3,8 @@ from pathlib import Path
 from setuptools import setup
 from setuptools.command.build_ext import build_ext
 
+from tsview import __version__
+
 
 WORKING_DIR = Path(__file__).resolve().parent
 
@@ -41,7 +43,7 @@ doc = Path(__file__).parent / 'README.md'
 
 
 setup(name='tsview',
-      version='0.17.0',
+      version=__version__,
       author='Pythonian',
       author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr, arnaud.campeas@pythonian.fr',
       description=('Plugin to `tshistory` which provides a `view` subcommand '
