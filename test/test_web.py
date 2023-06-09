@@ -61,6 +61,28 @@ def test_formula_formatter():
         '</pre></div>\n'
     )
 
+    f = '(integration "foo" "bar")'
+    f2 = format_formula(f)
+    assert f2 == (
+        '<div class="highlight"><pre><span></span><span class="p">(</span><span '
+        'class="nv">integration</span>\n'
+        '<span class="w">    </span><span class="s">&quot;foo&quot;</span>\n'
+        '<span class="w">    </span><span class="s">&quot;bar&quot;</span><span class="p">)</span>\n'
+        '</pre></div>\n'
+    )
+
+    f = '(add (integration "foo" "bar"))'
+    f2 = format_formula(f)
+    assert f2 == (
+        '<div class="highlight"><pre><span></span><span class="p">(</span><span '
+        'class="nv">add</span>\n'
+        '<span class="w">    </span><span class="p">(</span><span '
+        'class="nv">integration</span><span class="w"> </span><span '
+        'class="s">&quot;foo&quot;</span><span class="w"> </span><span '
+        'class="s">&quot;bar&quot;</span><span class="p">))</span>\n'
+        '</pre></div>\n'
+    )
+
 
 def test_series_metadata_and_formulas(client, tsa):
     for series in tsa.catalog(allsources=False).values():
