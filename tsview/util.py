@@ -15,6 +15,7 @@ from psyl.lisp import parse, pretty
 
 class DecoratingHtmlFormatter(HtmlFormatter):
     _serieshtml = '<span class="nv">series</span><span class="w"> </span><span class="s">'
+    _integrationhtml = '<span class="nv">integration</span><span class="w">'
 
     def __init__(self, *args, baseurl='', **options):
         super().__init__(*args, **options)
@@ -23,6 +24,28 @@ class DecoratingHtmlFormatter(HtmlFormatter):
     def wrap(self, source, *, include_div=True):
         return self.modify_str_series(source)
 
+    def patch_series(self, fragment):
+        name = fragment.split('&quot;')[1]
+        fragment = fragment.replace(
+            '<span class="nv">series</span><span class="w"> </span><span class="s">',
+            '<span class="nv">series</span><span class="w"> </span>'
+            f'<a class="s" href="{self._baseurl}/tsinfo?name={name}">'
+        )
+        return fragment.replace('&quot;</span>', '&quot;</a>')
+
+    def patch_integration(self, fragment):
+        sn_number = fragment.count('&quot;')
+        for i in range(1, sn_number, 2):
+            sn = fragment.split('&quot;')[i]
+            fragment = fragment.replace(
+                '<span class="w"> </span><span class="s">',
+                f'<span class="w"> </span>'
+                f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">',
+                1
+            )
+            fragment = fragment.replace('&quot;</span>', '&quot;</a>', 1)
+        return fragment
+
     def modify_str_series(self, source):
         yield 0, '<pre>'
         yield 0, '<span></span>'
@@ -30,25 +53,10 @@ class DecoratingHtmlFormatter(HtmlFormatter):
         for i, t in source:
             # general case
             if self._serieshtml in t:
-                sn = t.split('&quot;')[1]
-                t = t.replace(
-                    '<span class="nv">series</span><span class="w"> </span><span class="s">',
-                    '<span class="nv">series</span><span class="w"> </span>'
-                    f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">'
-                )
-                t = t.replace('&quot;</span>', '&quot;</a>')
+                t = self.patch_series(t)
             # case of integration operator in an expand
-            if '<span class="nv">integration</span><span class="w">' in t:
-                sn_number = t.count('&quot;')
-                for i in range(1, sn_number, 2):
-                    sn = t.split('&quot;')[i]
-                    t = t.replace(
-                        '<span class="w"> </span><span class="s">',
-                        f'<span class="w"> </span>'
-                        f'<a class="s" href="{self._baseurl}/tsinfo?name={sn}">',
-                        1
-                    )
-                    t = t.replace('&quot;</span>', '&quot;</a>', 1)
+            if self._integrationhtml in t:
+                t = self.patch_integration(t)
             # case of integration operator "solo"
             if integration_case > 0:
                 integration_case = integration_case - 1
