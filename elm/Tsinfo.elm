@@ -858,43 +858,46 @@ main =
 
            init input =
                let
-                   model = Model
-                           input.baseurl
-                           input.name
-                           ""
-                           -- metadata edition
-                           False
-                           False
-                           -- all errors
-                           [ ]
-                           -- metadata
-                           Dict.empty
-                           Dict.empty
-                           I.Primary
-                           -- formula
-                           0
-                           0
-                           Nothing
-                           -- cache
-                           False
-                           False
-                           Dict.empty
-                           False
-                           -- log
-                           [ ]
-                           -- plot
-                           Nothing
-                           Array.empty
-                           ""
-                           ""
-                           0
-                           debouncerconfig
-                           -- user meta edittion
-                           ("", "")
-                           Dict.empty
-                           False
-                           False
-                           Nothing
+                   model =
+                       { baseurl = input.baseurl
+                       , name = input.name
+                       , source = ""
+                       -- metadata edition
+                       , canwrite =False
+                       , editing = False
+                       -- all errors
+                       , errors = [ ]
+                       -- metadata
+                       , meta = Dict.empty
+                       , usermeta = Dict.empty
+                       , seriestype = I.Primary
+                       -- formula
+                       , formula_depth = 0
+                       , formula_maxdepth = 0
+                       , formula = Nothing
+                       -- cache
+                       , has_cache = False
+                       , view_nocache = False
+                       , policy = Dict.empty
+                       , deleting_cache = False
+                       -- log
+                       , log = [ ]
+                       -- plot
+                       , plotdata = Nothing
+                       , insertion_dates = Array.empty
+                       , mindate = ""
+                       , maxdate = ""
+                       , date_index = 0
+                       , date_index_deb = debouncerconfig
+                       -- user meta edittion
+                       , metaitem = ("", "")
+                       , editeditems = Dict.empty
+                       -- deletion
+                       , deleting = False
+                       -- renaming
+                       , renaming = False
+                       , newname = Nothing
+                       }
                in
                ( model
                , Cmd.batch
