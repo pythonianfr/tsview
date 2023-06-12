@@ -65,7 +65,8 @@ type alias Model =
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
     -- formula
-    , formula_expanded : Bool
+    , formula_depth : Int
+    , formula_maxdepth : Int
     , formula : Maybe String
     , expanded_formula : Maybe String
     , formula_components : Maybe JT.Node
@@ -106,7 +107,7 @@ type Msg
     | Components (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | GotBindings (Result Http.Error String)
-    | ToggleExpansion
+    | SwitchLevel String
     -- metadata edition
     | MetaEditAsked
     | MetaEditCancel
@@ -285,11 +286,7 @@ update msg model =
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    case model.formula_expanded of
-                        True ->
-                            U.nocmd { model | expanded_formula = Just formula }
-                        False ->
-                            U.nocmd { model | formula = Just formula }
+                    U.nocmd { model | expanded_formula = Just formula }
                 Err err ->
                     doerr "codehightlight decode" <| D.errorToString err
 
@@ -301,11 +298,7 @@ update msg model =
         Components (Ok rawcomponents) ->
             case JT.parseString rawcomponents of
                 Ok components ->
-                    case model.formula_expanded of
-                        True ->
-                            U.nocmd { model | expanded_formula_components = Just components }
-                        False ->
-                            U.nocmd { model | formula_components = Just components }
+                    U.nocmd { model | formula_components = Just components }
                 Err err ->
                     doerr "components decode" <| D.errorToString err
 
@@ -325,17 +318,11 @@ update msg model =
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        ToggleExpansion ->
+        SwitchLevel level ->
             let
-                state = model.formula_expanded
+                depth = Maybe.withDefault 0 <| String.toInt level
             in
-                ( { model | formula_expanded = not state }
-                , case model.expanded_formula of
-                      Nothing ->
-                          I.getformula model model.name "group" GotFormula
-                      Just _ ->
-                          Cmd.none
-                )
+            U.nocmd { model | formula_depth = depth }
 
         DebounceChangedIdate val ->
             Debouncer.update update updatedchangedidatebouncer val model
@@ -621,7 +608,7 @@ view model =
         -- , viewseealso model
         , I.viewmeta model
         , I.viewusermeta model metaevents
-        , I.viewformula model ToggleExpansion
+        , I.viewformula model SwitchLevel
         , viewbindings model
         , case model.formula of
               Nothing -> I.viewlog model True
@@ -660,7 +647,8 @@ main =
                            Dict.empty
                            Dict.empty
                            -- formula
-                           False
+                           0
+                           0
                            Nothing
                            Nothing
                            Nothing

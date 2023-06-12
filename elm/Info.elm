@@ -55,7 +55,20 @@ getformula model name dtype callback  =
                 [ "api", dtype, "formula" ]
                 [ UB.string "name" name
                 , UB.int "display" 1
-                , UB.int "expanded" <| U.bool2int model.formula_expanded
+                , UB.int "level" model.formula_depth
+                ]
+        }
+
+
+getdepth model name callback =
+    Http.get
+        { expect = Http.expectString callback
+        , url =
+            UB.crossOrigin model.baseurl
+                [ "api", "series", "formula_depth" ]
+                [ UB.string "name" name
+                , UB.int "display" 1
+                , UB.int "level" <| model.formula_depth
                 ]
         }
 
@@ -341,44 +354,36 @@ editusermeta model events =
 
 viewformula model toggleevent =
     let
-        maybeformula =
-            case model.formula_expanded of
-                True ->
-                    case model.expanded_formula of
-                        Nothing ->
-                            -- let's keep showinng the old one
-                            -- till the new has landed
-                            model.formula
-                        Just formula -> model.expanded_formula
-                False -> model.formula
+        depthslider formula =
+            case model.formula_maxdepth of
+                0 -> [ ]
+                maxdepth ->
+                    [ H.div
+                          [ HA.title <|
+                                "expand the formula to the desired depth (max " ++
+                                (String.fromInt (maxdepth + 1)) ++ ")"
+                          ]
+                          [ H.input
+                                [ HA.attribute "type" "range"
+                                , HA.min "0"
+                                , HA.max <| String.fromInt maxdepth
+                                , HA.value <| String.fromInt model.formula_depth
+                                , HA.step "1"
+                                , HA.style "width"
+                                    <| (String.fromInt <| model.formula_maxdepth * 5) ++ "em"
+                                , HA.id "expand-formula"
+                                , HE.onInput toggleevent
+                                ] [ ]
+                          ]
+                    ]
     in
-    case maybeformula of
+    case model.formula of
         Nothing -> H.div [ ] [ ]
         Just formula ->
             H.div [ ]
-                [ H.h2 [ ] [ H.text "Formula" ]
-                , H.div [ HA.class "custom-control custom-switch"
-                      , HA.title <| if model.formula_expanded
-                                   then "unexpand the formula"
-                                   else "expand the formula"
-                      ]
-                     [ H.input
-                           [ HA.attribute "type" "checkbox"
-                           , HA.class "custom-control-input"
-                           , HA.id "expand-formula"
-                           , HE.onClick toggleevent
-                           ] [ ]
-                     , H.label
-                         [ HA.class "custom-control-label"
-                         , HA.for "expand-formula"
-                         ]
-                         [ H.text <| if model.formula_expanded
-                                     then "expanded"
-                                     else "unexpanded"
-                         ]
-                     ]
-                , H.span [ ] <| U.tovirtualdom formula "could not parse the formula"
-                ]
+                <| [ H.h2 [ ] [ H.text "Formula" ] ]
+                    ++ (depthslider formula)
+                    ++ [ H.span [ ] <| U.tovirtualdom formula "could not parse the formula" ]
 
 
 supervision model =

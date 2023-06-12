@@ -54,9 +54,9 @@ type alias Model =
     , usermeta : M.UserMetadata
     , seriestype : I.SeriesType
     -- formula
-    , formula_expanded : Bool
+    , formula_depth : Int
+    , formula_maxdepth : Int
     , formula : Maybe String
-    , expanded_formula : Maybe String
     -- cache
     , has_cache : Bool
     , view_nocache : Bool
@@ -99,7 +99,8 @@ type Msg
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
-    | ToggleExpansion
+    | GotDepth (Result Http.Error String)
+    | SwitchLevel String
     -- cache
     | HasCache (Result Http.Error String)
     | DeleteCache
@@ -143,6 +144,15 @@ logentrydecoder =
 logdecoder : D.Decoder (List Logentry)
 logdecoder =
     D.list logentrydecoder
+
+
+getdepth model =
+    Http.get
+        { expect = Http.expectString GotDepth
+        , url = UB.crossOrigin model.baseurl
+              [ "api", "series", "formula_depth" ]
+              [ UB.string "name" model.name ]
+        }
 
 
 getsource model name =
@@ -271,6 +281,18 @@ update msg model =
         GotUserMeta (Err err) ->
             doerr "gotusermeta http"  <| U.unwraperror err
 
+        GotDepth (Ok rawdepth) ->
+            let
+                depth =
+                    case D.decodeString (D.int) rawdepth of
+                        Ok depth_ -> depth_
+                        Err _ -> 0
+            in
+            U.nocmd { model | formula_maxdepth = depth }
+
+        GotDepth (Err err) ->
+            doerr "gotdepth http" <| U.unwraperror err
+
         GotSource (Ok rawsource) ->
             case D.decodeString D.string rawsource of
                 Ok source ->
@@ -325,6 +347,7 @@ update msg model =
                 Ok formula ->
                     ( model
                     , Cmd.batch [ U.pygmentyze model formula CodeHighlight
+                                , getdepth model
                                 , gethascache model
                                 , getlog model.baseurl model.name
                                 ]
@@ -337,6 +360,15 @@ update msg model =
 
         GotFormula (Err error) ->
             doerr "gotformula http" <| U.unwraperror error
+
+        SwitchLevel level ->
+            let
+                depth = Maybe.withDefault 0 <| String.toInt level
+                newmodel = { model | formula_depth = depth }
+            in
+            ( newmodel
+            , I.getformula newmodel model.name "series" GotFormula
+            )
 
         -- cache
 
@@ -397,11 +429,7 @@ update msg model =
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    case model.formula_expanded of
-                        True ->
-                            U.nocmd { model | expanded_formula = Just formula }
-                        False ->
-                            U.nocmd { model | formula = Just formula }
+                    U.nocmd { model | formula = Just formula }
                 Err err ->
                     doerr "codehightlight decode" <| D.errorToString err
 
@@ -433,22 +461,8 @@ update msg model =
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        ToggleExpansion ->
-            let
-                state = model.formula_expanded
-            in
-                ( { model | formula_expanded = not state }
-                , case model.expanded_formula of
-                      Nothing ->
-                          I.getformula
-                              { model | formula_expanded = not state } model.name "series" GotFormula
-                      Just _ ->
-                          Cmd.none
-                )
-
         DebounceChangedIdate val ->
             Debouncer.update update updatedchangedidatebouncer val model
-
 
         ChangedIdate strindex ->
             let
@@ -818,7 +832,7 @@ view model =
         , I.viewseealso model
         , I.viewmeta model
         , I.viewusermeta model metaevents
-        , I.viewformula model ToggleExpansion
+        , I.viewformula model SwitchLevel
         , case model.formula of
               Nothing -> I.viewlog model True
               Just _ -> span [] []
@@ -858,8 +872,8 @@ main =
                            Dict.empty
                            I.Primary
                            -- formula
-                           False
-                           Nothing
+                           0
+                           0
                            Nothing
                            -- cache
                            False
