@@ -68,7 +68,6 @@ type alias Model =
     , formula_depth : Int
     , formula_maxdepth : Int
     , formula : Maybe String
-    , expanded_formula : Maybe String
     , bindings : Maybe Bindings
     -- cache (none yet but minimal data model suppport for genericity)
     , view_nocache : Bool
@@ -281,7 +280,7 @@ update msg model =
         CodeHighlight (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    U.nocmd { model | expanded_formula = Just formula }
+                    U.nocmd { model | formula = Just formula }
                 Err err ->
                     doerr "codehightlight decode" <| D.errorToString err
 
@@ -633,7 +632,6 @@ main =
                        , formula_depth = 0
                        , formula_maxdepth = 0
                        , formula = Nothing
-                       , expanded_formula = Nothing
                        , bindings = Nothing
                        -- cache
                        , view_nocache = False
