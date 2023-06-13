@@ -69,8 +69,6 @@ type alias Model =
     , formula_maxdepth : Int
     , formula : Maybe String
     , expanded_formula : Maybe String
-    , formula_components : Maybe JT.Node
-    , expanded_formula_components : Maybe JT.Node
     , bindings : Maybe Bindings
     -- cache (none yet but minimal data model suppport for genericity)
     , view_nocache : Bool
@@ -104,7 +102,6 @@ type Msg
     -- formula
     | GotFormula (Result Http.Error String)
     | CodeHighlight (Result Http.Error String)
-    | Components (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | GotBindings (Result Http.Error String)
     | SwitchLevel String
@@ -253,9 +250,7 @@ update msg model =
             case D.decodeString D.string rawformula of
                 Ok formula ->
                     ( model
-                    , Cmd.batch [ U.pygmentyze model formula CodeHighlight
-                                -- , getcomponents model
-                                ]
+                    , U.pygmentyze model formula CodeHighlight
                     )
                 Err _ ->
                     -- there is no formula -> there might be logs !
@@ -293,17 +288,13 @@ update msg model =
         CodeHighlight (Err error) ->
             doerr "codehighlight http" <| U.unwraperror error
 
-        -- components
+        SwitchLevel level ->
+            let
+                depth = Maybe.withDefault 0 <| String.toInt level
+            in
+            U.nocmd { model | formula_depth = depth }
 
-        Components (Ok rawcomponents) ->
-            case JT.parseString rawcomponents of
-                Ok components ->
-                    U.nocmd { model | formula_components = Just components }
-                Err err ->
-                    doerr "components decode" <| D.errorToString err
-
-        Components (Err error) ->
-            doerr "components http" <| U.unwraperror error
+        -- insertiond ates
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -318,15 +309,8 @@ update msg model =
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        SwitchLevel level ->
-            let
-                depth = Maybe.withDefault 0 <| String.toInt level
-            in
-            U.nocmd { model | formula_depth = depth }
-
         DebounceChangedIdate val ->
             Debouncer.update update updatedchangedidatebouncer val model
-
 
         ChangedIdate strindex ->
             let
@@ -613,7 +597,6 @@ view model =
         , case model.formula of
               Nothing -> I.viewlog model True
               Just _ -> span [] []
-        -- , I.viewcomponents model
         , viewplot model
         , I.viewerrors model
         ]
@@ -651,8 +634,6 @@ main =
                        , formula_maxdepth = 0
                        , formula = Nothing
                        , expanded_formula = Nothing
-                       , formula_components = Nothing
-                       , expanded_formula_components = Nothing
                        , bindings = Nothing
                        -- cache
                        , view_nocache = False
