@@ -114,16 +114,16 @@ operatorParser =
             |= Parser.many keyArgParser
 
 
+fullExprParser =
+    Parser.succeed identity
+        |. Parser.spaces
+        |= operatorParser
+        |. Parser.spaces
+        |. Parser.end
+
+
 parse : String -> Either String SExpr
 parse =
-    let
-        fullExprParser =
-            Parser.succeed identity
-                |. Parser.spaces
-                |= operatorParser
-                |. Parser.spaces
-                |. Parser.end
-    in
     Parser.run fullExprParser
         >> Either.fromResult
         >> Either.mapLeft deadEndsToString
