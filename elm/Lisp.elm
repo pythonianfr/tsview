@@ -13,6 +13,7 @@ import Set
 
 type Atom
     = Symbol String
+    | Keyword String
     | String String
     | Float Float
     | Int Int
@@ -27,13 +28,20 @@ type Expr
 
 -- atom parsers
 
-varnameparser : Parser String
-varnameparser =
+symbolparser : Parser String
+symbolparser =
     Parser.variable
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c || c == '_' || c == '-' || c == '.'
         , reserved = Set.empty
         }
+
+
+keywordparser : Parser String
+keywordparser =
+    Parser.succeed identity
+        |. Parser.symbol "#:"
+        |= symbolparser
 
 
 stringparser : Parser String
@@ -86,7 +94,8 @@ atomparser =
     Parser.oneOf
         [ Parser.succeed Nil |. Parser.keyword "nil"
         , Parser.map Bool boolparser
-        , Parser.map Symbol varnameparser
+        , Parser.map Keyword keywordparser
+        , Parser.map Symbol symbolparser
         , Parser.map String stringparser
         -- intparser will start parsing floats and fail, hence we
         -- need to be able to backtrack from it

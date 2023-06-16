@@ -67,6 +67,16 @@ testLispParser =
                                         ]
                        ]
                   )
+        run12 =
+            \_ -> Expect.equal
+                  (parse "(foo #:kw1 42 #:kw2 \"hello\"))")
+                  (Ok <| Expression
+                       [ Atom (Symbol "foo")
+                       , Atom (Keyword "kw1")
+                       , Atom (Int 42)
+                       , Atom (Keyword "kw2")
+                       , Atom (String "hello")
+                       ])
     in
     Test.concat
         [ test "lisp1" run1
@@ -80,4 +90,5 @@ testLispParser =
         , test "lisp9" run9
         , test "lisp10" run10
         , test "lisp11" run11
+        , test "lisp12" run12
         ]
