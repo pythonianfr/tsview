@@ -3,48 +3,70 @@ module LispSuite exposing (testLispParser)
 import Expect
 import Parser exposing (Parser, Problem(..))
 import Test exposing (Test, test)
-import Lisp exposing (parser, Atom(..))
+import Lisp exposing (lispparser, Atom(..), Expr(..))
 
 
 testLispParser : Test
 testLispParser =
     let
-        parse input = Parser.run parser input
+        parse input = Parser.run lispparser input
 
         run1 =
-            \_ -> Expect.equal (parse "(foo)") (Ok [ Symbol "foo" ])
+            \_ -> Expect.equal (parse "(foo)") (Ok <| Expression [ Atom <| Symbol "foo" ])
         run2 =
-            \_ -> Expect.equal (parse "  (foo)  ") (Ok [ Symbol "foo" ])
+            \_ -> Expect.equal
+                  (parse "  (foo)  ")
+                  (Err [{ col = 1, problem = ExpectingSymbol "(", row = 1 }])
         run3 =
             \_ -> Expect.equal
                   (parse "(42)")
-                  (Ok [ Int 42])
+                  (Ok <| Expression [ Atom <| Int 42 ])
         run4 =
             \_ -> Expect.equal
                   (parse "(foo bar quux)")
-                  (Ok [ Symbol "foo", Symbol "bar", Symbol "quux" ])
+                  (Ok <| Expression
+                       [ Atom <| Symbol "foo"
+                       , Atom <| Symbol "bar"
+                       , Atom <| Symbol "quux"
+                       ]
+                  )
         run5 =
-            \_ -> Expect.equal (parse "(foo.bar)") (Ok ([ Symbol "foo.bar" ]))
+            \_ -> Expect.equal
+                  (parse "(foo.bar)")
+                  (Ok <| Expression [ Atom <| Symbol "foo.bar" ])
         run6 =
             \_ -> Expect.equal
                   (parse "(foo \"hello\")")
-                  (Ok [ Symbol "foo", String "hello" ])
+                  (Ok <| Expression [ Atom <| Symbol "foo", Atom <| String "hello" ])
         run7 =
             \_ -> Expect.equal
                   (parse "(\"hello\" \"world\")")
-                  (Ok [ String "hello", String "world" ])
+                  (Ok <| Expression [ Atom <| String "hello", Atom <| String "world" ])
         run8 =
             \_ -> Expect.equal
                   (parse "(42.3)")
-                  (Ok [ Float 42.3])
+                  (Ok <| Expression [ Atom <| Float 42.3])
         run9 =
             \_ -> Expect.equal
                   (parse "(foo nil)")
-                  (Ok [ Symbol "foo", Nil ])
+                  (Ok <| Expression [ Atom <| Symbol "foo", Atom <| Nil ])
         run10 =
             \_ -> Expect.equal
                   (parse "(#t #f)")
-                  (Ok [ Bool True, Bool False ])
+                  (Ok <| Expression [ Atom <| Bool True, Atom <| Bool False ] )
+        run11 =
+            \_ -> Expect.equal
+                  (parse "(add (number 42.3) (fibonacci 7))")
+                  (Ok <| Expression
+                       [ Atom (Symbol "add"),
+                             Expression [ Atom (Symbol "number")
+                                        , Atom (Float 42.3)
+                                        ],
+                             Expression [ Atom (Symbol "fibonacci")
+                                        , Atom (Int 7)
+                                        ]
+                       ]
+                  )
     in
     Test.concat
         [ test "lisp1" run1
@@ -57,4 +79,5 @@ testLispParser =
         , test "lisp8" run8
         , test "lisp9" run9
         , test "lisp10" run10
+        , test "lisp11" run11
         ]

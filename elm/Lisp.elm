@@ -1,4 +1,4 @@
-module Lisp exposing (parser, Atom(..))
+module Lisp exposing (lispparser, Atom(..), Expr(..))
 
 import Char
 import Parser exposing
@@ -97,19 +97,15 @@ atomparser =
 
 
 argsparser =
-    many atomparser
+    Parser.oneOf
+        [ Parser.map Atom atomparser
+        , Parser.lazy (\_ -> lispparser)
+        ]
 
 
-exprparser =
+lispparser =
     parens <|
-        Parser.succeed identity
+        Parser.succeed Expression
             |. spaces
-            |= argsparser
+            |= many argsparser
             |. spaces
-
-
-parser =
-    Parser.succeed identity
-        |. spaces
-        |= exprparser
-        |. spaces
