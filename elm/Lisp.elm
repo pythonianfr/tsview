@@ -4,12 +4,13 @@ import Char
 import Parser exposing
     ( (|.)
     , (|=)
+    , oneOf
     , Parser
     , spaces
     , succeed
     , variable
     )
-import Parser.Extras exposing (parens)
+import Parser.Extras exposing (many, parens)
 import Set
 
 
@@ -17,8 +18,13 @@ type Atom
     = Symbol String
 
 
-symbolparser : Parser String
-symbolparser =
+type Expr
+    = Atom Atom
+    | Expression (List Expr)
+
+
+varnameparser : Parser String
+varnameparser =
     Parser.variable
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c || c == '_' || c == '-'
@@ -26,18 +32,24 @@ symbolparser =
         }
 
 
+atomparser =
+    oneOf [ Parser.map Symbol varnameparser ]
+
+
+argsparser =
+    many atomparser
+
+
 exprparser =
     parens <|
-        succeed Symbol
-            |= symbolparser
-
-
-inlist item =
-    [ item ]
+        succeed identity
+            |. spaces
+            |= argsparser
+            |. spaces
 
 
 parser =
-    succeed inlist
+    succeed identity
         |. spaces
         |= exprparser
         |. spaces
