@@ -63,17 +63,17 @@ stringparser =
 floatparser : Parser Float
 floatparser =
     Parser.oneOf
-    [ Parser.succeed negate |. Parser.symbol "-" |= Parser.float
-    , Parser.float
-    ]
+        [ Parser.succeed negate |. Parser.symbol "-" |= Parser.float
+        , Parser.float
+        ]
 
 
 intparser : Parser Int
 intparser =
     Parser.oneOf
-    [ Parser.succeed negate |. Parser.symbol "-" |= Parser.int
-    , Parser.int
-    ]
+        [ Parser.succeed negate |. Parser.symbol "-" |= Parser.int
+        , Parser.int
+        ]
 
 
 boolparser : Parser Bool
@@ -104,6 +104,8 @@ atomparser =
         , Parser.map Float floatparser
         ]
 
+
+-- top-level recursive expression parser
 
 argsparser =
     Parser.oneOf
