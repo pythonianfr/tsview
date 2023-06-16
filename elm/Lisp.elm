@@ -4,13 +4,8 @@ import Char
 import Parser exposing
     ( (|.)
     , (|=)
-    , float
-    , oneOf
     , Parser
     , spaces
-    , succeed
-    , symbol
-    , variable
     )
 import Parser.Extras exposing (many, parens)
 import Set
@@ -56,17 +51,18 @@ stringparser =
 
 floatparser : Parser Float
 floatparser =
-    oneOf
-    [ succeed negate |. symbol "-" |= float
-    , float
+    Parser.oneOf
+    [ Parser.succeed negate |. Parser.symbol "-" |= Parser.float
+    , Parser.float
     ]
 
 
 atomparser =
-    oneOf [ Parser.map Symbol varnameparser
-          , Parser.map String stringparser
-          , Parser.map Float floatparser
-          ]
+    Parser.oneOf
+        [ Parser.map Symbol varnameparser
+        , Parser.map String stringparser
+        , Parser.map Float floatparser
+        ]
 
 
 argsparser =
@@ -75,14 +71,14 @@ argsparser =
 
 exprparser =
     parens <|
-        succeed identity
+        Parser.succeed identity
             |. spaces
             |= argsparser
             |. spaces
 
 
 parser =
-    succeed identity
+    Parser.succeed identity
         |. spaces
         |= exprparser
         |. spaces
