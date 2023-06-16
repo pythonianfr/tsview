@@ -37,6 +37,10 @@ testLispParser =
             \_ -> Expect.equal
                   (parse "(42.3)")
                   (Ok [ Float 42.3])
+        run9 =
+            \_ -> Expect.equal
+                  (parse "(foo nil)")
+                  (Ok [ Symbol "foo", Nil ])
     in
     Test.concat
         [ test "lisp1" run1
@@ -47,4 +51,5 @@ testLispParser =
         , test "lisp6" run6
         , test "lisp7" run7
         , test "lisp8" run8
+        , test "lisp9" run9
         ]

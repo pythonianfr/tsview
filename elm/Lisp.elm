@@ -16,6 +16,7 @@ type Atom
     | String String
     | Float Float
     | Int Int
+    | Nil
 
 
 type Expr
@@ -66,11 +67,16 @@ intparser =
     ]
 
 
+nilparser : Parser ()
+nilparser =
+    Parser.keyword "nil"
+
 
 atomparser : Parser Atom
 atomparser =
     Parser.oneOf
-        [ Parser.map Symbol varnameparser
+        [ Parser.succeed Nil |. Parser.keyword "nil"
+        , Parser.map Symbol varnameparser
         , Parser.map String stringparser
         -- intparser will start parsing floats and fail, hence we
         -- need to be able to backtrack from it
