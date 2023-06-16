@@ -16,12 +16,15 @@ import Set
 
 type Atom
     = Symbol String
+    | String String
 
 
 type Expr
     = Atom Atom
     | Expression (List Expr)
 
+
+-- atom parsers
 
 varnameparser : Parser String
 varnameparser =
@@ -32,8 +35,26 @@ varnameparser =
         }
 
 
+stringparser : Parser String
+stringparser =
+    let
+        quotechar = '"'
+        quote = String.fromChar quotechar
+    in
+    Parser.succeed identity
+        |. Parser.symbol quote
+        |= Parser.variable
+           { start = always True
+           , inner = (/=) quotechar
+           , reserved = Set.empty
+           }
+        |. Parser.symbol quote
+
+
 atomparser =
-    oneOf [ Parser.map Symbol varnameparser ]
+    oneOf [ Parser.map Symbol varnameparser
+          , Parser.map String stringparser
+          ]
 
 
 argsparser =
