@@ -41,6 +41,10 @@ testLispParser =
             \_ -> Expect.equal
                   (parse "(foo nil)")
                   (Ok [ Symbol "foo", Nil ])
+        run10 =
+            \_ -> Expect.equal
+                  (parse "(#t #f)")
+                  (Ok [ Bool True, Bool False ])
     in
     Test.concat
         [ test "lisp1" run1
@@ -52,4 +56,5 @@ testLispParser =
         , test "lisp7" run7
         , test "lisp8" run8
         , test "lisp9" run9
+        , test "lisp10" run10
         ]

@@ -16,6 +16,7 @@ type Atom
     | String String
     | Float Float
     | Int Int
+    | Bool Bool
     | Nil
 
 
@@ -67,6 +68,14 @@ intparser =
     ]
 
 
+boolparser : Parser Bool
+boolparser =
+    Parser.oneOf
+        [ Parser.succeed True |. Parser.keyword "#t"
+        , Parser.succeed False |. Parser.keyword "#f"
+        ]
+
+
 nilparser : Parser ()
 nilparser =
     Parser.keyword "nil"
@@ -76,6 +85,7 @@ atomparser : Parser Atom
 atomparser =
     Parser.oneOf
         [ Parser.succeed Nil |. Parser.keyword "nil"
+        , Parser.map Bool boolparser
         , Parser.map Symbol varnameparser
         , Parser.map String stringparser
         -- intparser will start parsing floats and fail, hence we
