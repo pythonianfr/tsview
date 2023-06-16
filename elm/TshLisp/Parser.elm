@@ -70,7 +70,7 @@ sexprParser : Parser SExpr
 sexprParser =
     Parser.oneOf
         [ Parser.map T.SInput valueParser
-        , Parser.lazy (\_ -> operatorParser)
+        , Parser.lazy (\_ -> sepxrParser)
         ]
 
 
@@ -90,8 +90,8 @@ operatorSymbolParsers =
         [ "+", "*", "/" ]
 
 
-operatorParser : Parser SExpr
-operatorParser =
+sepxrParser : Parser SExpr
+sepxrParser =
     let
         symbolParser : Parser String
         symbolParser =
@@ -117,7 +117,7 @@ operatorParser =
 fullExprParser =
     Parser.succeed identity
         |. Parser.spaces
-        |= operatorParser
+        |= sepxrParser
         |. Parser.spaces
         |. Parser.end
 
