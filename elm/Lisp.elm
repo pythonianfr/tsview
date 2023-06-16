@@ -4,10 +4,12 @@ import Char
 import Parser exposing
     ( (|.)
     , (|=)
+    , float
     , oneOf
     , Parser
     , spaces
     , succeed
+    , symbol
     , variable
     )
 import Parser.Extras exposing (many, parens)
@@ -17,6 +19,7 @@ import Set
 type Atom
     = Symbol String
     | String String
+    | Float Float
 
 
 type Expr
@@ -51,9 +54,18 @@ stringparser =
         |. Parser.symbol quote
 
 
+floatparser : Parser Float
+floatparser =
+    oneOf
+    [ succeed negate |. symbol "-" |= float
+    , float
+    ]
+
+
 atomparser =
     oneOf [ Parser.map Symbol varnameparser
           , Parser.map String stringparser
+          , Parser.map Float floatparser
           ]
 
 

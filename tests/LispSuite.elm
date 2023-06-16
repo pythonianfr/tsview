@@ -18,7 +18,7 @@ testLispParser =
         run3 =
             \_ -> Expect.equal
                   (parse "(42)")
-                  (Err [{ col = 2, problem = ExpectingSymbol ")", row = 1}])
+                  (Ok [ Float 42])
         run4 =
             \_ -> Expect.equal
                   (parse "(foo bar quux)")
@@ -33,6 +33,10 @@ testLispParser =
             \_ -> Expect.equal
                   (parse "(\"hello\" \"world\")")
                   (Ok [ String "hello", String "world" ])
+        run8 =
+            \_ -> Expect.equal
+                  (parse "(42.3)")
+                  (Ok [ Float 42.3])
     in
     Test.concat
         [ test "lisp1" run1
@@ -42,4 +46,5 @@ testLispParser =
         , test "lisp5" run5
         , test "lisp6" run6
         , test "lisp7" run7
+        , test "lisp8" run8
         ]
