@@ -23,10 +23,13 @@ testLispParser =
             \_ -> Expect.equal
                   (parse "(foo bar quux)")
                   (Ok [ Symbol "foo", Symbol "bar", Symbol "quux" ])
+        run5 =
+            \_ -> Expect.equal (parse "(foo.bar)") (Ok ([ Symbol "foo.bar" ]))
     in
     Test.concat
         [ test "lisp1" run1
         , test "lisp2" run2
         , test "lisp3" run3
         , test "lisp4" run4
+        , test "lisp5" run5
         ]

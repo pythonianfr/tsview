@@ -27,7 +27,7 @@ varnameparser : Parser String
 varnameparser =
     Parser.variable
         { start = Char.isLower
-        , inner = \c -> Char.isAlphaNum c || c == '_' || c == '-'
+        , inner = \c -> Char.isAlphaNum c || c == '_' || c == '-' || c == '.'
         , reserved = Set.empty
         }
 
