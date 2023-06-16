@@ -15,6 +15,7 @@ type Atom
     = Symbol String
     | String String
     | Float Float
+    | Int Int
 
 
 type Expr
@@ -57,10 +58,24 @@ floatparser =
     ]
 
 
+intparser : Parser Int
+intparser =
+    Parser.oneOf
+    [ Parser.succeed negate |. Parser.symbol "-" |= Parser.int
+    , Parser.int
+    ]
+
+
+
+atomparser : Parser Atom
 atomparser =
     Parser.oneOf
         [ Parser.map Symbol varnameparser
         , Parser.map String stringparser
+        -- intparser will start parsing floats and fail, hence we
+        -- need to be able to backtrack from it
+        , Parser.backtrackable <|
+            Parser.map Int intparser
         , Parser.map Float floatparser
         ]
 

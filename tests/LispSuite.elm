@@ -18,7 +18,7 @@ testLispParser =
         run3 =
             \_ -> Expect.equal
                   (parse "(42)")
-                  (Ok [ Float 42])
+                  (Ok [ Int 42])
         run4 =
             \_ -> Expect.equal
                   (parse "(foo bar quux)")
