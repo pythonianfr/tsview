@@ -257,13 +257,10 @@ update msg model =
                                 | meta = allmeta
                                 , seriestype = if isformula then I.Formula else I.Primary
                             }
-                        -- maybe we could avoid that .getformula thing ?
-                        -- however we still need it right now because of the
-                        -- (un)expanded toggle, hence a better model would be needed
                         cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
                               ++ if isformula
                                  then [ I.getformula model model.name "series" GotFormula ]
-                                 else []
+                                 else [ getlog model.baseurl model.name ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -349,14 +346,10 @@ update msg model =
                     , Cmd.batch [ U.pygmentyze model formula CodeHighlight
                                 , getdepth model
                                 , gethascache model
-                                , getlog model.baseurl model.name
                                 ]
                     )
                 Err _ ->
-                    -- there is no formula -> there must be logs !
-                    ( model
-                    , getlog model.baseurl model.name
-                    )
+                    U.nocmd model
 
         GotFormula (Err error) ->
             doerr "gotformula http" <| U.unwraperror error
