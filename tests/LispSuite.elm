@@ -1,9 +1,18 @@
-module LispSuite exposing (testLispParser)
+module LispSuite exposing
+    ( testLispParser
+    , testParsing
+    )
 
 import Expect
-import Parser exposing (Parser, Problem(..))
+import Parser exposing (Parser)
 import Test exposing (Test, test)
-import Lisp exposing (lispparser, Atom(..), Expr(..))
+import Lisp exposing
+    ( Atom(..)
+    , Expr(..)
+    , deadendstostr
+    , lispparser
+    , serialize
+    )
 
 
 testLispParser : Test
@@ -16,7 +25,7 @@ testLispParser =
         run2 =
             \_ -> Expect.equal
                   (parse "  (foo)  ")
-                  (Err [{ col = 1, problem = ExpectingSymbol "(", row = 1 }])
+                  (Err [{ col = 1, problem = Parser.ExpectingSymbol "(", row = 1 }])
         run3 =
             \_ -> Expect.equal
                   (parse "(42)")
@@ -111,3 +120,58 @@ testLispParser =
         , test "lisp12" run12
         , test "lisp13" run13
         ]
+
+
+type alias T =
+    { name : String
+    , input : String
+    , output : String
+    }
+
+
+lisptests : List T
+lisptests =
+    [ T "+ spurious spaces" "( +   2.  6.7 )" "(+ 2 6.7)"
+    , T "+ spurious spaces with keywords"
+        "( + 2   #:flag #t  #:b (+ 1 6))"
+        "(+ 2 #:flag #t #:b (+ 1 6))"
+    , T "+ many args" "( +  3  4  5 )" "(+ 3 4 5)"
+    , T "@ unsupported op"
+        "(@ 3 4)"
+        "FAIL: Expecting Symbol `)` at row 1 col 2"
+    , T "* scientific notation"
+        "(* -9.26e-08 #:b (+ 9.259e-02 -109))"
+        "(* -9.26e-08 #:b (+ 0.09259 -109))"
+    , T "priority OK" "( priority  4 3  6 7 )" "(priority 4 3 6 7)"
+    , T "priority series OK"
+        "( priority  (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:flag #t))"
+        "(priority (* 4 9) (* 3 (+ 2 6)) (+ 7 1 #:flag #t))"
+    , T "#flag #t OK" "(+  #:b 4 #:a 3  #:flag  #t)" "(+ #:b 4 #:a 3 #:flag #t)"
+    , T "#flag duplicated"
+        "(+  3 4  #:flag  nil  #:flag #f)"
+        "(+ 3 4 #:flag nil #:flag #f)"
+    , T "#k1, k2 OK"
+        "(priority  3  4 10  nil  #:k2  7.3 #:k1  \"x\" )"
+        """(priority 3 4 10 nil #:k2 7.3 #:k1 "x")"""
+    ]
+
+
+testParsing : Test
+testParsing =
+    let
+        parseandserialize input output =
+            case Parser.run lispparser input of
+                Ok parsed -> serialize parsed
+                Err err -> "FAIL: " ++ (deadendstostr err)
+    in
+    List.map
+        (\item ->
+            let
+                res =
+                    Expect.equal
+                        (parseandserialize item.input item.output)
+                        (String.trim item.output)
+            in
+            test item.name (always res)
+        )
+        lisptests |> Test.concat
