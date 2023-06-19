@@ -100,7 +100,6 @@ type Msg
     | TvdatePickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
-    | CodeHighlight (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | GotBindings (Result Http.Error String)
     | SwitchLevel String
@@ -248,9 +247,7 @@ update msg model =
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    ( model
-                    , U.pygmentyze model formula CodeHighlight
-                    )
+                    U.nocmd { model | formula = Just formula }
                 Err _ ->
                     -- there is no formula -> there might be logs !
                     -- but right now we don't have them anyway
@@ -274,18 +271,6 @@ update msg model =
 
         GotBindings (Err error) ->
             U.nocmd model
-
-        -- code
-
-        CodeHighlight (Ok rawformula) ->
-            case D.decodeString D.string rawformula of
-                Ok formula ->
-                    U.nocmd { model | formula = Just formula }
-                Err err ->
-                    doerr "codehightlight decode" <| D.errorToString err
-
-        CodeHighlight (Err error) ->
-            doerr "codehighlight http" <| U.unwraperror error
 
         SwitchLevel level ->
             let

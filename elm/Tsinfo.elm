@@ -97,7 +97,6 @@ type Msg
     | TvdatePickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
-    | CodeHighlight (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
     | GotDepth (Result Http.Error String)
     | SwitchLevel String
@@ -342,9 +341,8 @@ update msg model =
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    ( model
-                    , Cmd.batch [ U.pygmentyze model formula CodeHighlight
-                                , getdepth model
+                    ( { model | formula = Just <| formula }
+                    , Cmd.batch [ getdepth model
                                 , gethascache model
                                 ]
                     )
@@ -416,18 +414,6 @@ update msg model =
 
         GotCachePolicy (Err error) ->
             doerr "gotcachepolicy http" <| U.unwraperror error
-
-        -- code
-
-        CodeHighlight (Ok rawformula) ->
-            case D.decodeString D.string rawformula of
-                Ok formula ->
-                    U.nocmd { model | formula = Just formula }
-                Err err ->
-                    doerr "codehightlight decode" <| D.errorToString err
-
-        CodeHighlight (Err error) ->
-            doerr "codehighlight http" <| U.unwraperror error
 
         -- log
 

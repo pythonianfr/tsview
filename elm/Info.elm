@@ -30,6 +30,7 @@ import Http
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
+import Lisp
 import Metadata as M
 import Url.Builder as UB
 import Util as U
@@ -380,10 +381,17 @@ viewformula model toggleevent =
     case model.formula of
         Nothing -> H.div [ ] [ ]
         Just formula ->
+            let
+                parsed = Lisp.parse formula
+            in
             H.div [ ]
                 <| [ H.h2 [ ] [ H.text "Formula" ] ]
                     ++ (depthslider formula)
-                    ++ [ H.span [ ] <| U.tovirtualdom formula "could not parse the formula" ]
+                    ++ [ H.span [] <| case parsed of
+                                          Nothing -> []
+                                          Just parsedformula ->
+                                              Lisp.view parsedformula
+                       ]
 
 
 supervision model =

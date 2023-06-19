@@ -3,10 +3,14 @@ module Lisp exposing
     , Expr(..)
     , deadendstostr
     , lispparser
+    , parse
     , serialize
+    , view
     )
 
 import Char
+import Html as H
+import Html.Attributes as HA
 import Parser exposing
     ( (|.)
     , (|=)
@@ -136,12 +140,18 @@ lispparser =
             |= many argsparser
 
 
+parse formula =
+    case Parser.run lispparser formula of
+        Ok parsed -> Just parsed
+        Err _ -> Nothing
+
+
 -- serializer
 
+cstr = String.fromChar
+
+
 serialize lisp =
-    let
-        cstr = String.fromChar
-    in
     case lisp of
         Atom atom ->
             case atom of
@@ -162,6 +172,57 @@ serialize lisp =
 
         Expression expr ->
             "(" ++ (String.join " " <| List.map serialize expr) ++ ")"
+
+
+-- view
+
+view formula =
+    case formula of
+        Expression expr ->
+            [ H.div
+                  [ HA.class "highlight" ]
+                  [ H.pre [ ] <| viewexpr expr ]
+            ]
+
+        _ ->
+            [ H.div [] [ H.text "This is not a formula." ] ]
+
+
+viewexpr expr =
+    List.concat
+        [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
+        , List.concat <| viewargs expr
+        , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
+        ]
+
+
+viewargs argslist =
+    List.intersperse
+        [ H.span [ HA.class "w" ] [ H.text " " ] ]
+        <| List.map viewatom argslist
+
+
+viewatom atomorexpr =
+    case atomorexpr of
+        Expression expr ->
+            viewexpr expr
+
+        Atom atom ->
+            case atom of
+                Symbol sym ->
+                    [ H.span [ HA.class "nv" ] [ H.text sym ] ]
+                Keyword kw ->
+                    [ H.span [ HA.class "ss" ] [ H.text <| "#:" ++ kw ] ]
+                String str ->
+                    [ H.span [ HA.class "s" ] [ H.text <| (cstr '"') ++ str ++ (cstr '"') ] ]
+                Float flo ->
+                    [ H.span [ HA.class "mf" ] [ H.text <| String.fromFloat flo ] ]
+                Int int ->
+                    [ H.span [ HA.class "mf" ] [ H.text <| String.fromInt int ] ]
+                Bool bool ->
+                    [ H.span [ HA.class "mv" ] [ H.text <| if bool then "#t" else "#f"  ] ]
+                Nil ->
+                    [ H.span [ HA.class "mv" ] [ H.text "nil" ] ]
 
 
 -- errors basic decoder
