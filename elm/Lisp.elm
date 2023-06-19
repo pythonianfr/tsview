@@ -30,9 +30,14 @@ type Expr
 
 symbolparser : Parser String
 symbolparser =
+    let
+        special_chars = String.toList "_-+*/."
+        accept_chars =
+            \c -> List.member c special_chars
+    in
     Parser.variable
-        { start = Char.isLower
-        , inner = \c -> Char.isAlphaNum c || c == '_' || c == '-' || c == '.'
+        { start = \c -> Char.isLower c || accept_chars c
+        , inner = \c -> Char.isAlphaNum c || accept_chars c
         , reserved = Set.empty
         }
 
@@ -117,6 +122,4 @@ argsparser =
 lispparser =
     parens <|
         Parser.succeed Expression
-            |. spaces
             |= many argsparser
-            |. spaces

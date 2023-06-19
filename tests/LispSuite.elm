@@ -76,7 +76,25 @@ testLispParser =
                        , Atom (Int 42)
                        , Atom (Keyword "kw2")
                        , Atom (String "hello")
-                       ])
+                       ]
+                  )
+        run13 =
+            \_ -> Expect.equal
+                  (parse "(+ 2 (* 6.7 (/ pi 2)))")
+                  (Ok <| Expression
+                       [ Atom (Symbol "+")
+                       , Atom (Int 2)
+                       , Expression
+                             [ Atom (Symbol "*")
+                             , Atom (Float 6.7)
+                             , Expression
+                                 [ Atom (Symbol "/")
+                                 , Atom (Symbol "pi")
+                                 , Atom (Int 2)
+                                 ]
+                             ]
+                       ]
+                  )
     in
     Test.concat
         [ test "lisp1" run1
@@ -91,4 +109,5 @@ testLispParser =
         , test "lisp10" run10
         , test "lisp11" run11
         , test "lisp12" run12
+        , test "lisp13" run13
         ]
