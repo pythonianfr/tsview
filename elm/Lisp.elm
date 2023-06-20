@@ -2,6 +2,7 @@ module Lisp exposing
     ( Atom(..)
     , Expr(..)
     , deadendstostr
+    , depth
     , lispparser
     , parse
     , serialize
@@ -144,6 +145,17 @@ parse formula =
     case Parser.run lispparser formula of
         Ok parsed -> Just parsed
         Err _ -> Nothing
+
+
+-- helpers
+
+depth formula =
+    case formula of
+        Atom atom ->
+            0
+        Expression expr ->
+            Maybe.withDefault 0 <|
+                List.maximum <| List.map (\e -> (depth e) + 1) expr
 
 
 -- serializer

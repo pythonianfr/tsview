@@ -1,5 +1,6 @@
 module LispSuite exposing
-    ( testLispParser
+    ( testDepth
+    , testLispParser
     , testParsing
     )
 
@@ -10,6 +11,7 @@ import Lisp exposing
     ( Atom(..)
     , Expr(..)
     , deadendstostr
+    , depth
     , lispparser
     , serialize
     )
@@ -120,6 +122,32 @@ testLispParser =
         , test "lisp12" run12
         , test "lisp13" run13
         ]
+
+
+testDepth : Test
+testDepth =
+    let
+        f1 = "(foo)"
+        f2 = "(foo bar)"
+        f3 = "(foo (bar quux) 42)"
+        f4 = "(foo (bar (quux #:nope nil)))"
+
+        parse input =
+            Parser.run lispparser input
+
+        run expect formula =
+            Expect.equal expect <|
+                case parse formula of
+                    Ok expr -> (depth expr)
+                    Err err -> -1
+    in
+    Test.concat
+        [ test "depth1" (\_ -> run 1 f1)
+        , test "depth2" (\_ -> run 1 f2)
+        , test "depth3" (\_ -> run 2 f3)
+        , test "depth4" (\_ -> run 3 f4)
+        ]
+
 
 
 type alias T =
