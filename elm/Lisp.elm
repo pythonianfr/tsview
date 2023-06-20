@@ -39,6 +39,9 @@ type Expr
     | Expression (List Expr)
 
 
+quote = String.fromChar '"'
+
+
 -- atom parsers
 
 symbolparser : Parser String
@@ -66,7 +69,6 @@ stringparser : Parser String
 stringparser =
     let
         quotechar = '"'
-        quote = String.fromChar quotechar
     in
     Parser.succeed identity
         |. Parser.symbol quote
@@ -183,9 +185,6 @@ width formula =
 
 -- serializer
 
-cstr = String.fromChar
-
-
 serialize lisp =
     case lisp of
         Atom atom ->
@@ -195,7 +194,7 @@ serialize lisp =
                 Keyword kw ->
                     "#:" ++ kw
                 String str ->
-                    (cstr '"') ++ str ++ (cstr '"')
+                    quote ++ str ++ quote
                 Float flo ->
                     String.fromFloat flo
                 Int int ->
@@ -270,23 +269,42 @@ viewexpr indent exprs =
     ]
 
 
+zip = List.map2 Tuple.pair
+
+
 viewargs indent break argslist =
     let
-        wrapindent html =
+        iskeyword arg =
+            case arg of
+                Atom (Keyword _) -> True
+                _ -> False
+
+        keywordargs =
+            -- a list describing the keywordiness of the items
+            -- shifted because we want to apply keywordiness
+            -- to the keyword value (atom following the keyword)
+            False :: List.map iskeyword argslist
+
+        wrapindent arg iskw html =
             -- the tricky business of knowning when to break ...
+            let
+                dobreak = break && not iskw
+            in
             List.concat
-                [ if break -- a line break, because the pygments css does not work for us there
+                [ if dobreak
+                  -- a line break, because the pygments css does not work for us there
                   then [ H.br [] [] ]
                   else []
-                , if break -- the proper amount of left identation *or* just a single spacer
+                , if dobreak
+                  -- the proper amount of left identation *or* just a single spacer
                   then [ H.span [ HA.class "w" ] [ H.text <| spaces indent ] ]
                   else [ H.span [ HA.class "w" ] [ H.text " " ] ]
                 , html
                 ]
     in
     List.map
-        (\arg -> (wrapindent <| viewatom indent arg))
-        argslist
+        (\(arg, iskw) -> (wrapindent arg iskw <| viewatom indent arg))
+        (zip argslist keywordargs)
 
 
 viewatom indent atomorexpr =
@@ -301,7 +319,7 @@ viewatom indent atomorexpr =
                 Keyword kw ->
                     [ H.span [ HA.class "ss" ] [ H.text <| "#:" ++ kw ] ]
                 String str ->
-                    [ H.span [ HA.class "s" ] [ H.text <| (cstr '"') ++ str ++ (cstr '"') ] ]
+                    [ H.span [ HA.class "s" ] [ H.text <| quote ++ str ++ quote ] ]
                 Float flo ->
                     [ H.span [ HA.class "mf" ] [ H.text <| String.fromFloat flo ] ]
                 Int int ->
