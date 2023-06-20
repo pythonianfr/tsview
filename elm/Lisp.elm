@@ -19,7 +19,6 @@ import Parser exposing
     , DeadEnd
     , Parser
     , Problem(..)
-    , spaces
     )
 import Parser.Extras exposing (many, parens)
 import Set
@@ -128,12 +127,12 @@ atomparser =
 
 argsparser =
     Parser.succeed identity
-        |. spaces
+        |. Parser.spaces
         |= Parser.oneOf
            [ Parser.map Atom atomparser
            , Parser.lazy (\_ -> lispparser)
            ]
-        |. spaces
+        |. Parser.spaces
 
 
 lispparser =
@@ -217,7 +216,8 @@ view formula =
         Expression expr ->
             [ H.div
                   [ HA.class "highlight" ]
-                  [ H.pre [ ] <| viewexpr 0 expr ]
+                  [ H.pre [ ] ([ H.span [] [] ] ++ viewexpr 0 expr)
+                  ]
             ]
 
         _ ->
@@ -227,37 +227,66 @@ view formula =
 noop = "no-such-operator"
 
 
-viewexpr indent expr =
+spaces qty =
+    String.repeat (4 * qty) " "
+
+
+viewexpr indent exprs =
     let
         operator =
-            case Maybe.withDefault (Atom <| Symbol noop) <| List.head expr of
+            case Maybe.withDefault (Atom <| Symbol noop) <| List.head exprs of
                 Expression _ -> noop
                 Atom atom ->
                     case atom of
                         Symbol sym -> sym
                         _ -> noop
+
         argslist =
-            case List.tail expr of
+            case List.tail exprs of
                 Nothing -> []
                 Just rest -> rest
+
         hasargs =
             (List.length argslist) > 0
+
+        exprswidth =
+            List.sum <| List.map width exprs
+
+        breakargs =
+            exprswidth > 70
+
+        newindent =
+            indent + (if breakargs then 1 else 0)
+
     in
     List.concat
         [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
         , [ H.span
                 [ HA.class "nv" ]
-                [ H.text <| operator ++ (if hasargs then " " else "") ]
+                [ H.text <| operator ]
           ]
-        , List.concat <| viewargs indent argslist
+        , List.concat <| viewargs newindent breakargs argslist
         , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
-        ]
+    ]
 
 
-viewargs indent argslist =
-    List.intersperse
-        [ H.span [ HA.class "w" ] [ H.text " " ] ]
-        <| List.map (viewatom indent) argslist
+viewargs indent break argslist =
+    let
+        wrapindent html =
+            -- the tricky business of knowning when to break ...
+            List.concat
+                [ if break -- a line break, because the pygments css does not work for us there
+                  then [ H.br [] [] ]
+                  else []
+                , if break -- the proper amount of left identation *or* just a single spacer
+                  then [ H.span [ HA.class "w" ] [ H.text <| spaces indent ] ]
+                  else [ H.span [ HA.class "w" ] [ H.text " " ] ]
+                , html
+                ]
+    in
+    List.map
+        (\arg -> (wrapindent <| viewatom indent arg))
+        argslist
 
 
 viewatom indent atomorexpr =
