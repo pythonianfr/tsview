@@ -7,6 +7,7 @@ module Lisp exposing
     , parse
     , serialize
     , view
+    , width
     )
 
 import Char
@@ -156,6 +157,29 @@ depth formula =
         Expression expr ->
             Maybe.withDefault 0 <|
                 List.maximum <| List.map (\e -> (depth e) + 1) expr
+
+
+width formula =
+    case formula of
+        Atom atom ->
+            case atom of
+                Symbol sym ->
+                    String.length sym
+                Keyword kw ->
+                    (String.length kw) + 2
+                String str ->
+                    String.length str + 2
+                Float flo ->
+                    String.length <| String.fromFloat flo
+                Int int ->
+                    String.length <| String.fromInt int
+                Bool bo ->
+                    2
+                Nil ->
+                    3
+
+        Expression expr ->
+            1 + (List.length expr) + (List.sum <| List.map width expr)
 
 
 -- serializer

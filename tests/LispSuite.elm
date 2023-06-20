@@ -2,6 +2,7 @@ module LispSuite exposing
     ( testDepth
     , testLispParser
     , testParsing
+    , testWidth
     )
 
 import Expect
@@ -14,6 +15,7 @@ import Lisp exposing
     , depth
     , lispparser
     , serialize
+    , width
     )
 
 
@@ -148,6 +150,30 @@ testDepth =
         , test "depth4" (\_ -> run 3 f4)
         ]
 
+
+testWidth : Test
+testWidth =
+    let
+        f1 = "(foo)"
+        f2 = "(foo bar)"
+        f3 = "(foo (bar quux) 42.3 1)"
+        f4 = "(foo #t (bar (quux #:nope nil)))"
+
+        parse input =
+            Parser.run lispparser input
+
+        run expect formula =
+            Expect.equal expect <|
+                case parse formula of
+                    Ok expr -> (width expr)
+                    Err err -> -1
+    in
+    Test.concat
+        [ test "width1" (\_ -> run (String.length f1) f1)
+        , test "width2" (\_ -> run (String.length f2) f2)
+        , test "width3" (\_ -> run (String.length f3) f3)
+        , test "width4" (\_ -> run (String.length f4) f4)
+        ]
 
 
 type alias T =
