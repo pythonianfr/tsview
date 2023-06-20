@@ -181,31 +181,53 @@ view formula =
         Expression expr ->
             [ H.div
                   [ HA.class "highlight" ]
-                  [ H.pre [ ] <| viewexpr expr ]
+                  [ H.pre [ ] <| viewexpr 0 expr ]
             ]
 
         _ ->
             [ H.div [] [ H.text "This is not a formula." ] ]
 
 
-viewexpr expr =
+noop = "no-such-operator"
+
+
+viewexpr indent expr =
+    let
+        operator =
+            case Maybe.withDefault (Atom <| Symbol noop) <| List.head expr of
+                Expression _ -> noop
+                Atom atom ->
+                    case atom of
+                        Symbol sym -> sym
+                        _ -> noop
+        argslist =
+            case List.tail expr of
+                Nothing -> []
+                Just rest -> rest
+        hasargs =
+            (List.length argslist) > 0
+    in
     List.concat
         [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
-        , List.concat <| viewargs expr
+        , [ H.span
+                [ HA.class "nv" ]
+                [ H.text <| operator ++ (if hasargs then " " else "") ]
+          ]
+        , List.concat <| viewargs indent argslist
         , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
         ]
 
 
-viewargs argslist =
+viewargs indent argslist =
     List.intersperse
         [ H.span [ HA.class "w" ] [ H.text " " ] ]
-        <| List.map viewatom argslist
+        <| List.map (viewatom indent) argslist
 
 
-viewatom atomorexpr =
+viewatom indent atomorexpr =
     case atomorexpr of
         Expression expr ->
-            viewexpr expr
+            viewexpr indent expr
 
         Atom atom ->
             case atom of
