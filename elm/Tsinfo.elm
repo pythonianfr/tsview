@@ -258,7 +258,10 @@ update msg model =
                             }
                         cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
                               ++ if isformula
-                                 then [ I.getformula model model.name "series" GotFormula ]
+                                 then [ I.getformula model model.name "series" GotFormula
+                                      , getdepth model
+                                      , gethascache model
+                                      ]
                                  else [ getlog model.baseurl model.name ]
                     in ( newmodel, cmd )
                 Err err ->
@@ -341,11 +344,7 @@ update msg model =
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    ( { model | formula = Just <| formula }
-                    , Cmd.batch [ getdepth model
-                                , gethascache model
-                                ]
-                    )
+                   U.nocmd { model | formula = Just <| formula }
                 Err _ ->
                     U.nocmd model
 
