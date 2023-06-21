@@ -67,7 +67,7 @@ type alias Model =
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
-    , formula : Maybe String
+    , formula : Dict Int String
     , bindings : Maybe Bindings
     -- cache (none yet but minimal data model suppport for genericity)
     , view_nocache : Bool
@@ -199,7 +199,9 @@ update msg model =
                                 , usermeta = usermeta
                             }
                         next = I.getidates model "group" InsertionDates
-                        cmd = Cmd.batch [ I.getformula model model.name "group" GotFormula, next ]
+                        cmd =
+                            Cmd.batch
+                                [ I.getformula model model.name 0 "group" GotFormula, next ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -247,7 +249,9 @@ update msg model =
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
                 Ok formula ->
-                    U.nocmd { model | formula = Just formula }
+                    U.nocmd { model | formula =
+                                  Dict.insert model.formula_depth formula model.formula
+                            }
                 Err _ ->
                     -- there is no formula -> there might be logs !
                     -- but right now we don't have them anyway
@@ -264,7 +268,7 @@ update msg model =
                             { model | bindings = Just bindings }
                     in
                     ( newmodel
-                    , I.getformula newmodel bindings.name "series" GotFormula
+                    , I.getformula newmodel bindings.name 0 "series" GotFormula
                     )
                 Err _ ->
                     U.nocmd model
@@ -578,7 +582,7 @@ view model =
         , I.viewusermeta model metaevents
         , I.viewformula model SwitchLevel
         , viewbindings model
-        , case model.formula of
+        , case Dict.get model.formula_depth model.formula of
               Nothing -> I.viewlog model True
               Just _ -> span [] []
         , viewplot model
@@ -616,7 +620,7 @@ main =
                        -- formula
                        , formula_depth = 0
                        , formula_maxdepth = 0
-                       , formula = Nothing
+                       , formula = Dict.empty
                        , bindings = Nothing
                        -- cache
                        , view_nocache = False

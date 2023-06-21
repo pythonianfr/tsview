@@ -1,5 +1,6 @@
 module Info exposing
     ( delete
+    , formuladecoder
     , getformula
     , getidates
     , getwriteperms
@@ -47,7 +48,19 @@ getwriteperms urlprefix event =
         }
 
 
-getformula model name dtype callback  =
+type alias FormulaResponse =
+    { level : Int
+    , formula : String
+    }
+
+
+formuladecoder =
+    D.map2 FormulaResponse
+        (D.field "level" D.int)
+        (D.field "formula" D.string)
+
+
+getformula model name depth dtype callback  =
     Http.get
         { expect = Http.expectString callback
         , url =
@@ -55,7 +68,7 @@ getformula model name dtype callback  =
                 [ "api", dtype, "formula" ]
                 [ UB.string "name" name
                 , UB.int "display" 1
-                , UB.int "level" model.formula_depth
+                , UB.int "level" depth
                 ]
         }
 
@@ -454,25 +467,35 @@ viewformula model toggleevent =
                                 ] [ ]
                           ]
                     ]
+
+        viewparsed parsed =
+            case parsed of
+                Nothing -> []
+                Just parsedformula ->
+                    Lisp.view parsedformula <|
+                        Dict.fromList [ ("series", viewseries model)
+                                      , ("integration", viewintegration model)
+                                      ]
+
+        displayformula =
+            -- fall back to the level 0 formula if there are still
+            -- in flight queries
+            case Dict.get model.formula_depth model.formula of
+                Just formula ->
+                    Just formula
+
+                Nothing ->
+                    case Dict.get 0 model.formula of
+                        Just formula -> Just formula
+                        Nothing -> Nothing
     in
-    case model.formula of
+    case displayformula of
         Nothing -> H.div [ ] [ ]
         Just formula ->
-            let
-                parsed = Lisp.parse formula
-                viewparsed =
-                    case parsed of
-                        Nothing -> []
-                        Just parsedformula ->
-                            Lisp.view parsedformula <|
-                                Dict.fromList [ ("series", viewseries model)
-                                              , ("integration", viewintegration model)
-                                              ]
-            in
             H.div [ ]
                 <| [ H.h2 [ ] [ H.text "Formula" ] ]
                     ++ (depthslider formula)
-                    ++ [ H.span [] viewparsed ]
+                    ++ [ H.span [] <| viewparsed <| Lisp.parse formula ]
 
 
 viewseealso model =

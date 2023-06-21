@@ -56,7 +56,7 @@ type alias Model =
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
-    , formula : Maybe String
+    , formula : Dict Int String
     -- cache
     , has_cache : Bool
     , view_nocache : Bool
@@ -258,7 +258,9 @@ update msg model =
                             }
                         cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
                               ++ if isformula
-                                 then [ I.getformula model model.name "series" GotFormula
+                                 then [ I.getformula
+                                            model model.name model.formula_depth
+                                            "series" GotFormula
                                       , getdepth model
                                       , gethascache model
                                       ]
@@ -287,7 +289,12 @@ update msg model =
                         Ok depth_ -> depth_
                         Err _ -> 0
             in
-            U.nocmd { model | formula_maxdepth = depth }
+            ( { model | formula_maxdepth = depth }
+            , Cmd.batch (List.map
+                             (\d -> I.getformula model model.name d "series" GotFormula)
+                             <| List.range 0 depth
+                        )
+            )
 
         GotDepth (Err err) ->
             doerr "gotdepth http" <| U.unwraperror err
@@ -342,10 +349,12 @@ update msg model =
             doerr "gotplotdata error" <| U.unwraperror err
 
         GotFormula (Ok rawformula) ->
-            case D.decodeString D.string rawformula of
-                Ok formula ->
-                   U.nocmd { model | formula = Just <| formula }
-                Err _ ->
+            case D.decodeString I.formuladecoder rawformula of
+                Ok resp ->
+                   U.nocmd { model
+                               | formula = Dict.insert resp.level resp.formula model.formula
+                           }
+                Err e ->
                     U.nocmd model
 
         GotFormula (Err error) ->
@@ -356,9 +365,7 @@ update msg model =
                 depth = Maybe.withDefault 0 <| String.toInt level
                 newmodel = { model | formula_depth = depth }
             in
-            ( newmodel
-            , I.getformula newmodel model.name "series" GotFormula
-            )
+            U.nocmd newmodel
 
         -- cache
 
@@ -811,9 +818,9 @@ view model =
         , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model SwitchLevel
-        , case model.formula of
-              Nothing -> I.viewlog model True
-              Just _ -> span [] []
+        , case model.seriestype of
+              I.Primary -> I.viewlog model True
+              I.Formula -> span [] []
         , viewcache model
         , if strseries model then div [] [] else viewplot model
         , I.viewerrors model
@@ -852,7 +859,7 @@ main =
                        -- formula
                        , formula_depth = 0
                        , formula_maxdepth = 0
-                       , formula = Nothing
+                       , formula = Dict.empty
                        -- cache
                        , has_cache = False
                        , view_nocache = False
