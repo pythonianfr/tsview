@@ -352,6 +352,84 @@ editusermeta model events =
             ]
         ]
 
+-- formula
+
+getstring fromatom =
+    case fromatom of
+        Lisp.Expression _ -> "nope"
+        Lisp.Atom atom ->
+            case atom of
+                Lisp.String str -> str
+                _ -> "nope"
+
+
+viewseries model argslist =
+    let
+        name =
+            getstring <|
+                Maybe.withDefault (Lisp.Atom <| Lisp.String "nope") <| List.head argslist
+
+        nameurl =
+            UB.crossOrigin model.baseurl
+                [ "tsinfo" ] [ UB.string "name" name ]
+    in
+    [ H.span [ HA.class "p" ] [ H.text "(" ]
+    , H.span [ HA.class "nv" ] [ H.text "series" ]
+    , H.span [ HA.class "w" ] [ H.text " " ]
+    , H.a
+        [ HA.class "s"
+        , HA.href nameurl
+        ]
+        [ H.span
+              [ HA.class "s" ]
+              [ H.text <| Lisp.quote ++ name ++ Lisp.quote ]
+        ]
+    , H.span [ HA.class "p" ] [ H.text ")" ]
+    ]
+
+
+viewintegration model argslist =
+    let
+        default =
+            Lisp.Atom <| Lisp.String "nope"
+
+        withdefault maybe =
+            Maybe.withDefault default maybe
+
+        name1 =
+            getstring <| withdefault <| List.head argslist
+
+        name2 =
+            getstring <| withdefault <| List.head
+                <| Maybe.withDefault [ default ] <| List.tail argslist
+
+        url name =
+            UB.crossOrigin model.baseurl
+                [ "tsinfo" ] [ UB.string "name" name ]
+    in
+    [ H.span [ HA.class "p" ] [ H.text "(" ]
+    , H.span [ HA.class "nv" ] [ H.text "integration" ]
+    , H.span [ HA.class "w" ] [ H.text " " ]
+    , H.a
+        [ HA.class "s"
+        , HA.href <| url name1
+        ]
+        [ H.span
+              [ HA.class "s" ]
+              [ H.text <| Lisp.quote ++ name1 ++ Lisp.quote ]
+        ]
+    , H.span [ HA.class "w" ] [ H.text " " ]
+    , H.a
+        [ HA.class "s"
+        , HA.href <| url name2
+        ]
+        [ H.span
+              [ HA.class "s" ]
+              [ H.text <| Lisp.quote ++ name2 ++ Lisp.quote ]
+        ]
+    , H.span [ HA.class "p" ] [ H.text ")" ]
+    ]
+
 
 viewformula model toggleevent =
     let
@@ -383,15 +461,19 @@ viewformula model toggleevent =
         Just formula ->
             let
                 parsed = Lisp.parse formula
+                viewparsed =
+                    case parsed of
+                        Nothing -> []
+                        Just parsedformula ->
+                            Lisp.view parsedformula <|
+                                Dict.fromList [ ("series", viewseries model)
+                                              , ("integration", viewintegration model)
+                                              ]
             in
             H.div [ ]
                 <| [ H.h2 [ ] [ H.text "Formula" ] ]
                     ++ (depthslider formula)
-                    ++ [ H.span [] <| case parsed of
-                                          Nothing -> []
-                                          Just parsedformula ->
-                                              Lisp.view parsedformula
-                       ]
+                    ++ [ H.span [] viewparsed ]
 
 
 supervision model =

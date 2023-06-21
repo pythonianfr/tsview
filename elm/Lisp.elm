@@ -5,12 +5,14 @@ module Lisp exposing
     , depth
     , lispparser
     , parse
+    , quote
     , serialize
     , view
     , width
     )
 
 import Char
+import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
 import Parser exposing
@@ -210,12 +212,12 @@ serialize lisp =
 
 -- view
 
-view formula =
+view formula overrides =
     case formula of
         Expression expr ->
             [ H.div
                   [ HA.class "highlight" ]
-                  [ H.pre [ ] ([ H.span [] [] ] ++ viewexpr 0 expr)
+                  [ H.pre [ ] ([ H.span [] [] ] ++ viewexpr 0 expr overrides)
                   ]
             ]
 
@@ -230,7 +232,7 @@ spaces qty =
     String.repeat (4 * qty) " "
 
 
-viewexpr indent exprs =
+viewexpr indent exprs overrides =
     let
         operator =
             case Maybe.withDefault (Atom <| Symbol noop) <| List.head exprs of
@@ -257,22 +259,29 @@ viewexpr indent exprs =
         newindent =
             indent + (if breakargs then 1 else 0)
 
+        override =
+            Dict.get operator overrides
     in
-    List.concat
-        [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
-        , [ H.span
-                [ HA.class "nv" ]
-                [ H.text <| operator ]
-          ]
-        , List.concat <| viewargs newindent breakargs argslist
-        , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
-    ]
+    case override of
+        Nothing ->
+            List.concat
+                [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
+                , [ H.span
+                        [ HA.class "nv" ]
+                        [ H.text <| operator ]
+                  ]
+                , List.concat <| viewargs newindent breakargs argslist overrides
+                , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
+                ]
+
+        Just alternative ->
+            alternative argslist
 
 
 zip = List.map2 Tuple.pair
 
 
-viewargs indent break argslist =
+viewargs indent break argslist overrides =
     let
         iskeyword arg =
             case arg of
@@ -303,14 +312,14 @@ viewargs indent break argslist =
                 ]
     in
     List.map
-        (\(arg, iskw) -> (wrapindent arg iskw <| viewatom indent arg))
+        (\(arg, iskw) -> (wrapindent arg iskw <| viewatom indent arg overrides))
         (zip argslist keywordargs)
 
 
-viewatom indent atomorexpr =
+viewatom indent atomorexpr overrides =
     case atomorexpr of
         Expression expr ->
-            viewexpr indent expr
+            viewexpr indent expr overrides
 
         Atom atom ->
             case atom of
