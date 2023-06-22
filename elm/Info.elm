@@ -8,7 +8,6 @@ module Info exposing
     , rename
     , savemeta
     , SeriesType(..)
-    , supervision
     , viewerrors
     , viewformula
     , viewdatespicker
@@ -476,12 +475,6 @@ viewformula model toggleevent =
                     ++ [ H.span [] viewparsed ]
 
 
-supervision model =
-    case Dict.get "supervision_status" model.meta of
-        Nothing -> "unkown"
-        Just x -> M.metavaltostring x
-
-
 viewseealso model =
     let
         editorlabel =
@@ -507,17 +500,20 @@ viewseealso model =
                   , HA.target "_blank"
                   ] [ H.text editorlabel ]
             ]
-        , if (supervision model) == "formula" then
-              H.div [ ]
-                  [ H.span [ ] [ H.text " ⇒ " ]
-                  , H.a [ HA.href <| UB.crossOrigin
-                              model.baseurl
-                              [ "tsformula" ]
-                              [ UB.string "name" model.name ]
-                        , HA.target "_blank"
-                      ] [ H.text "edit formula" ]
-                  ]
-          else H.span [ ] [ ]
+        , case model.seriestype of
+              Formula ->
+                  H.div [ ]
+                      [ H.span [ ] [ H.text " ⇒ " ]
+                      , H.a [ HA.href <| UB.crossOrigin
+                                  model.baseurl
+                                  [ "tsformula" ]
+                                  [ UB.string "name" model.name ]
+                            , HA.target "_blank"
+                            ] [ H.text "edit formula" ]
+                      ]
+
+              Primary ->
+                  H.span [ ] [ ]
         ]
 
 
