@@ -49,7 +49,7 @@ quote = String.fromChar '"'
 symbolparser : Parser String
 symbolparser =
     let
-        special_chars = String.toList "_-+*/."
+        special_chars = String.toList "_-+*/.<>="
         accept_chars =
             \c -> List.member c special_chars
     in

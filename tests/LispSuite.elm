@@ -108,6 +108,42 @@ testLispParser =
                              ]
                        ]
                   )
+        run14 =
+            \_ -> Expect.equal
+                  (parse "(> 2 3)")
+                  (Ok <| Expression
+                       [ Atom (Symbol ">")
+                       , Atom (Int 2)
+                       , Atom (Int 3)
+                       ]
+                  )
+        run15 =
+            \_ -> Expect.equal
+                  (parse "(< 2 3)")
+                  (Ok <| Expression
+                       [ Atom (Symbol "<")
+                       , Atom (Int 2)
+                       , Atom (Int 3)
+                       ]
+                  )
+        run16 =
+            \_ -> Expect.equal
+                  (parse "(<= 2 3)")
+                  (Ok <| Expression
+                       [ Atom (Symbol "<=")
+                       , Atom (Int 2)
+                       , Atom (Int 3)
+                       ]
+                  )
+        run17 =
+            \_ -> Expect.equal
+                  (parse "(>= 2 3)")
+                  (Ok <| Expression
+                       [ Atom (Symbol ">=")
+                       , Atom (Int 2)
+                       , Atom (Int 3)
+                       ]
+                  )
     in
     Test.concat
         [ test "lisp1" run1
@@ -123,6 +159,10 @@ testLispParser =
         , test "lisp11" run11
         , test "lisp12" run12
         , test "lisp13" run13
+        , test "lisp14" run14
+        , test "lisp15" run15
+        , test "lisp16" run16
+        , test "lisp17" run17
         ]
 
 
