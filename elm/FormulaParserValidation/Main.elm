@@ -48,7 +48,7 @@ type alias Formula =
 
 formulaDecoder : Decoder Formula
 formulaDecoder =
-    D.map2 Formula (D.field "name" D.string) (D.field "code" D.string)
+    D.map2 Formula (D.field "name" D.string) (D.field "formula" D.string)
 
 
 parseFormulas : Spec -> List Formula -> String

@@ -1,4 +1,4 @@
-name,code
+name,formula
 test_real,(priority (* 2.6e-02 (series "a")) (* 1.4e-01 (series "b")) (* 2.3e-03 (series "c")) (* 3.7e-02 (series "d")))
 test_div,(/ (series "a") 500)
 test_constant,(/ (constant 5 (date "2013-01-01") (date "2013-12-31") "a" (date "2013-12-31")) 10)
