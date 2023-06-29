@@ -174,7 +174,33 @@ Timestamp
         return: Timestamp
 -----
 """
+   , T "add"
+        """
+[
+  [
+    "add",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "serieslist",
+        "List[Series]"
+      ]
     ]
+  ]
+]
+"""
+        """
+-----
+Series
+    add
+        arguments:
+            serieslist: List[Series]
+        return: Series
+-----
+"""    ]
 
 
 parsing : Test
