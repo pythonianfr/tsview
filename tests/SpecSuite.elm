@@ -186,7 +186,7 @@ Timestamp
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ]
     ]
   ]

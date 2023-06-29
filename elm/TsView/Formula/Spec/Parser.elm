@@ -73,6 +73,11 @@ expTypeParser =
             |. Parser.symbol "["
             |= Parser.lazy (\_ -> expTypeParser)
             |. Parser.symbol "]"
+        , Parser.succeed S.SList
+            |. Parser.keyword "Packed"
+            |. Parser.symbol "["
+            |= Parser.lazy (\_ -> expTypeParser)
+            |. Parser.symbol "]"
         , Parser.succeed S.Union
             |. Parser.keyword "Union"
             |= (listParser (Parser.lazy (\_ -> expTypeParser))
