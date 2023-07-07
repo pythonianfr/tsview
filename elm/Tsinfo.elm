@@ -678,7 +678,9 @@ viewcache model =
                 , if Dict.isEmpty model.policy
                   then span [ ] [ ]
                   else viewcachepolicy model
-                , viewtogglecached model
+                , if model.has_cache
+                  then viewtogglecached model
+                  else span [] []
                 ]
 
         deleteaction =
@@ -702,7 +704,7 @@ viewcache model =
                            , onClick DeleteCache ]
                     [ text "delete" ]
             else
-                span [ ] [ ]
+                span [] []
 
     in
     case model.seriestype of
@@ -712,6 +714,10 @@ viewcache model =
                         , span [] [ text " " ]
                         , deleteaction
                         ]
+                , if model.has_cache then
+                      span [] []
+                  else
+                      div [] [ text "There is no cache yet." ]
                 , cachecontrol
                 ]
         I.Primary ->
@@ -827,7 +833,7 @@ view model =
         , case model.seriestype of
               I.Primary -> I.viewlog model True
               I.Formula -> span [] []
-        , viewcache model
+        , if (Dict.isEmpty model.policy) then span [] [] else viewcache model
         , if strseries model then div [] [] else viewplot model
         , I.viewerrors model
         ]
