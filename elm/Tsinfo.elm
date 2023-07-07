@@ -12,9 +12,9 @@ import Debouncer.Messages as Debouncer exposing
     )
 import Dict exposing (Dict)
 import Either exposing (Either)
-import Html exposing (..)
-import Html.Attributes as A
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Http
 import Info as I
 import Json.Decode as D
@@ -625,103 +625,108 @@ update msg model =
 viewcachepolicy model =
     let
         elt name =
-            li [] [ text <| name
-                        ++ " → "
-                        ++ (M.dget name model.policy)
-                  ]
+            H.li [] [ H.text <| name
+                          ++ " → "
+                          ++ (M.dget name model.policy)
+                    ]
     in
-    div [ ]
-    [ h2 [ ] [ text "Policy" ]
-    , ul [ A.class "highlight" ] <|
-        List.map elt [ "name"
-                     , "initial_revdate"
-                     , "look_before"
-                     , "look_after"
-                     , "revdate_rule"
-                     , "schedule_rule"
-                     ]
-    ]
+    H.div [ ]
+        [ H.h2 [ ] [ H.text "Policy" ]
+        , H.ul [ HA.class "highlight" ] <|
+            List.map elt [ "name"
+                         , "initial_revdate"
+                         , "look_before"
+                         , "look_after"
+                         , "revdate_rule"
+                         , "schedule_rule"
+                         ]
+        ]
 
 
 viewtogglecached model =
-    div
-    [ A.class "custom-control custom-switch"
-    , A.title <| if model.view_nocache
-                 then "view cached"
-                 else "view uncached"
-    ]
-    [ input
-          [ A.attribute "type" "checkbox"
-          , A.class "custom-control-input"
-          , A.id "view-uncached"
-          , A.checked <| not model.view_nocache
-          , onClick ViewNocache
-          ] [ ]
-    , label
-          [ A.class "custom-control-label"
-          , A.for "view-uncached"
-          ]
-          [ text <| if model.view_nocache
-                    then "view uncached"
-                    else "view cached"
-          ]
-    ]
+    H.div
+        [ HA.class "custom-control custom-switch"
+        , HA.title <| if model.view_nocache
+                      then "view cached"
+                      else "view uncached"
+        ]
+        [ H.input
+              [ HA.attribute "type" "checkbox"
+              , HA.class "custom-control-input"
+              , HA.id "view-uncached"
+              , HA.checked <| not model.view_nocache
+              , HE.onClick ViewNocache
+              ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "view-uncached"
+            ]
+            [ H.text <| if model.view_nocache
+                        then "view uncached"
+                        else "view cached"
+            ]
+        ]
 
 
 viewcache model =
     let
         cachecontrol =
-            span [ ]
+            H.span [ ]
                 [ if List.length model.log > 0
                   then I.viewlog model False
-                  else span [ ] [ ]
+                  else H.span [] []
                 , if Dict.isEmpty model.policy
-                  then span [ ] [ ]
+                  then H.span [] []
                   else viewcachepolicy model
                 , if model.has_cache
                   then viewtogglecached model
-                  else span [] []
+                  else H.span [] []
                 ]
 
         deleteaction =
             if model.has_cache then
                 if model.deleting_cache then
-                    span [ ]
-                        [ button [ A.class "btn btn-warning"
-                                 , A.attribute "type" "button"
-                                 , onClick CacheCancelDeletion ]
-                              [ text "cancel" ]
-                        , span [ ] [ text " " ]
-                        , button [ A.class "btn btn-danger"
-                                 , A.attribute "type" "button"
-                                 , onClick CacheConfirmDeletion ]
-                              [ text "confirm" ]
+                    H.span [ ]
+                        [ H.button
+                              [ HA.class "btn btn-warning"
+                              , HA.attribute "type" "button"
+                              , HE.onClick CacheCancelDeletion ]
+                              [ H.text "cancel" ]
+                        , H.span [] [ H.text " " ]
+                        , H.button
+                            [ HA.class "btn btn-danger"
+                            , HA.attribute "type" "button"
+                            , HE.onClick CacheConfirmDeletion ]
+                            [ H.text "confirm" ]
                         ]
                 else
-                    button [ A.class "btn btn-danger"
-                           , A.attribute "type" "button"
-                           , A.title "This is an irreversible operation."
-                           , onClick DeleteCache ]
-                    [ text "delete" ]
+                    H.button
+                        [ HA.class "btn btn-danger"
+                        , HA.attribute "type" "button"
+                        , HA.title "This is an irreversible operation."
+                        , HE.onClick DeleteCache ]
+                        [ H.text "delete" ]
             else
-                span [] []
+                H.span [] []
 
     in
     case model.seriestype of
         I.Formula ->
-            div []
-                [ h2 [] [ text "Cache"
-                        , span [] [ text " " ]
-                        , deleteaction
-                        ]
+            H.div []
+                [ H.h2
+                      []
+                      [ H.text "Cache"
+                      , H.span [] [ H.text " " ]
+                      , deleteaction
+                      ]
                 , if model.has_cache then
-                      span [] []
+                      H.span [] []
                   else
-                      div [] [ text "There is no cache yet." ]
+                      H.div [] [ H.text "There is no cache yet." ]
                 , cachecontrol
                 ]
         I.Primary ->
-            div [] []
+            H.div [] []
 
 
 viewdatesrange model =
@@ -733,18 +738,18 @@ viewdatesrange model =
                 Just date -> date
     in
     if numidates < 2
-    then div [ ] [ ]
+    then H.div [] []
     else
-        Html.map (provideInput >> DebounceChangedIdate) <|
-            div [ ]
-            [ input
-                  [ A.attribute "type" "range"
-                  , A.min "0"
-                  , A.max (String.fromInt (numidates - 1))
-                  , A.value (String.fromInt model.date_index)
-                  , A.class "form-control-range"
-                  , A.title currdate
-                  , onInput ChangedIdate
+        H.map (provideInput >> DebounceChangedIdate) <|
+            H.div []
+            [ H.input
+                  [ HA.attribute "type" "range"
+                  , HA.min "0"
+                  , HA.max (String.fromInt (numidates - 1))
+                  , HA.value (String.fromInt model.date_index)
+                  , HA.class "form-control-range"
+                  , HA.title currdate
+                  , HE.onInput ChangedIdate
                   ] [ ]
             ]
 
@@ -768,14 +773,14 @@ viewplot model =
                "lines"
         args = plotargs "plot" [plot]
     in
-    div [ ]
-        [ h2 [ ] [ text "Plot" ]
+    H.div []
+        [ H.h2 [] [ H.text "Plot" ]
         , I.viewdatespicker model idatepickerevents
         , viewdatesrange model
-        , div [ A.id "plot" ] [ ]
+        , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
         -- (html component)
-        , node "plot-figure" [ A.attribute "args" args ] [ ]
+        , H.node "plot-figure" [ HA.attribute "args" args ] []
         ]
 
 
@@ -806,35 +811,37 @@ renameevents =
     }
 
 
-view : Model -> Html Msg
+view : Model -> H.Html Msg
 view model =
-    div [ A.style "margin" ".5em" ]
+    H.div
+        [ HA.style "margin" ".5em" ]
         [ if model.source == "local"
           then I.viewdeletion model "series" deleteevents
-          else span [] []
+          else H.span [] []
         , if model.source == "local"
           then I.viewrenameaction model "series" renameevents
-          else span [] []
-        , p [ ]
-              [ span
-                    [ A.class "h1" ]
-                    [ text "Series " ]
-              , span
-                    [ A.class "font-italic h1" ]
-                    [ text <| model.name ++ " " ]
-              , span
-                    [ A.class "badge badge-secondary h4" ]
-                    [ text model.source ]
-              ]
+          else H.span [] []
+        , H.p
+            [ ]
+            [ H.span
+                  [ HA.class "h1" ]
+                  [ H.text "Series " ]
+            , H.span
+                [ HA.class "font-italic h1" ]
+                [ H.text <| model.name ++ " " ]
+            , H.span
+                [ HA.class "badge badge-secondary h4" ]
+                [ H.text model.source ]
+            ]
         , I.viewseealso model
         , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model SwitchLevel
         , case model.seriestype of
               I.Primary -> I.viewlog model True
-              I.Formula -> span [] []
-        , if (Dict.isEmpty model.policy) then span [] [] else viewcache model
-        , if strseries model then div [] [] else viewplot model
+              I.Formula -> H.span [] []
+        , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
+        , if strseries model then H.div [] [] else viewplot model
         , I.viewerrors model
         ]
 
