@@ -633,7 +633,13 @@ viewcachepolicy model =
     div [ ]
     [ h2 [ ] [ text "Policy" ]
     , ul [ A.class "highlight" ] <|
-        List.map elt [ "name", "look_before", "look_after", "revdate_rule", "schedule_rule" ]
+        List.map elt [ "name"
+                     , "initial_revdate"
+                     , "look_before"
+                     , "look_after"
+                     , "revdate_rule"
+                     , "schedule_rule"
+                     ]
     ]
 
 
