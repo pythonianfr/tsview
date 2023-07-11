@@ -375,72 +375,38 @@ getstring fromatom =
                 _ -> "nope"
 
 
-viewseries model argslist =
+linkname model arg =
     let
         name =
-            getstring <|
-                Maybe.withDefault (Lisp.Atom <| Lisp.String "nope") <| List.head argslist
+            getstring arg
 
         nameurl =
             UB.crossOrigin model.baseurl
                 [ "tsinfo" ] [ UB.string "name" name ]
     in
-    [ H.span [ HA.class "p" ] [ H.text "(" ]
-    , H.span [ HA.class "nv" ] [ H.text "series" ]
-    , H.span [ HA.class "w" ] [ H.text " " ]
-    , H.a
-        [ HA.class "s"
-        , HA.href nameurl
-        ]
-        [ H.span
-              [ HA.class "s" ]
-              [ H.text <| Lisp.quote ++ name ++ Lisp.quote ]
-        ]
-    , H.span [ HA.class "p" ] [ H.text ")" ]
+    [ H.a [ HA.class "s"
+          , HA.href nameurl
+          ]
+          [ H.span
+                [ HA.class "s" ]
+                [ H.text <| Lisp.quote ++ name ++ Lisp.quote ]
+          ]
     ]
 
 
-viewintegration model argslist =
-    let
-        default =
-            Lisp.Atom <| Lisp.String "nope"
+viewseriesname model index arg baseview =
+    -- decorate the name in (series "<name>" ...)
+    case index of
+        0 -> linkname model arg
+        _ -> baseview arg
 
-        withdefault maybe =
-            Maybe.withDefault default maybe
 
-        name1 =
-            getstring <| withdefault <| List.head argslist
-
-        name2 =
-            getstring <| withdefault <| List.head
-                <| Maybe.withDefault [ default ] <| List.tail argslist
-
-        url name =
-            UB.crossOrigin model.baseurl
-                [ "tsinfo" ] [ UB.string "name" name ]
-    in
-    [ H.span [ HA.class "p" ] [ H.text "(" ]
-    , H.span [ HA.class "nv" ] [ H.text "integration" ]
-    , H.span [ HA.class "w" ] [ H.text " " ]
-    , H.a
-        [ HA.class "s"
-        , HA.href <| url name1
-        ]
-        [ H.span
-              [ HA.class "s" ]
-              [ H.text <| Lisp.quote ++ name1 ++ Lisp.quote ]
-        ]
-    , H.span [ HA.class "w" ] [ H.text " " ]
-    , H.a
-        [ HA.class "s"
-        , HA.href <| url name2
-        ]
-        [ H.span
-              [ HA.class "s" ]
-              [ H.text <| Lisp.quote ++ name2 ++ Lisp.quote ]
-        ]
-    , H.span [ HA.class "p" ] [ H.text ")" ]
-    ]
+viewintegrationnames model index arg baseview =
+    -- decorate the names in (integration "<name1>" "<name2>" ...)
+    case index of
+        0 -> linkname model arg
+        1 -> linkname model arg
+        _ -> baseview arg
 
 
 viewformula model toggleevent =
@@ -473,8 +439,8 @@ viewformula model toggleevent =
                 Nothing -> []
                 Just parsedformula ->
                     Lisp.view parsedformula <|
-                        Dict.fromList [ ("series", viewseries model)
-                                      , ("integration", viewintegration model)
+                        Dict.fromList [ ("series", viewseriesname model)
+                                      , ("integration", viewintegrationnames model)
                                       ]
 
         displayformula =

@@ -217,7 +217,7 @@ view formula overrides =
         Expression expr ->
             [ H.div
                   [ HA.class "highlight" ]
-                  [ H.pre [ ] ([ H.span [] [] ] ++ viewexpr 0 expr overrides)
+                  [ H.pre [] ([ H.span [] [] ] ++ viewexpr overrides 0 expr)
                   ]
             ]
 
@@ -232,7 +232,7 @@ spaces qty =
     String.repeat (4 * qty) " "
 
 
-viewexpr indent exprs overrides =
+viewexpr overrides indent exprs =
     let
         operator =
             case Maybe.withDefault (Atom <| Symbol noop) <| List.head exprs of
@@ -259,30 +259,26 @@ viewexpr indent exprs overrides =
         newindent =
             indent + (if breakargs then 1 else 0)
 
-        override =
-            Dict.get operator overrides
     in
-    case override of
-        Nothing ->
-            List.concat
-                [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
-                , [ H.span
-                        [ HA.class "nv" ]
-                        [ H.text <| operator ]
-                  ]
-                , List.concat <| viewargs newindent breakargs argslist overrides
-                , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
-                ]
-
-        Just alternative ->
-            alternative argslist
+    List.concat
+        [ [ H.span [ HA.class "p" ] [ H.text "(" ] ]
+        , [ H.span
+                [ HA.class "nv" ]
+                [ H.text <| operator ]
+          ]
+        , List.concat <| viewargs overrides operator newindent breakargs argslist
+        , [ H.span [ HA.class "p" ] [ H.text ")" ] ]
+        ]
 
 
 zip = List.map2 Tuple.pair
 
 
-viewargs indent break argslist overrides =
+viewargs overrides operator indent break argslist  =
     let
+        override =
+            Dict.get operator overrides
+
         iskeyword arg =
             case arg of
                 Atom (Keyword _) -> True
@@ -310,16 +306,27 @@ viewargs indent break argslist overrides =
                   else [ H.span [ HA.class "w" ] [ H.text " " ] ]
                 , html
                 ]
+
+        wrappedviewatom index arg =
+            -- directly call viewatom or call the override plus
+            -- viewatom as a fallback
+            case override of
+                Nothing ->
+                    viewatom overrides indent arg
+                Just func ->
+                    func index arg (viewatom overrides indent) -- partial: eats `arg`
     in
     List.map
-        (\(arg, iskw) -> (wrapindent arg iskw <| viewatom indent arg overrides))
-        (zip argslist keywordargs)
+        (\(index, (arg, iskw)) -> (wrapindent arg iskw <| wrappedviewatom index arg))
+        <| zip
+            (List.range 0 (List.length argslist))
+            (zip argslist keywordargs)
 
 
-viewatom indent atomorexpr overrides =
+viewatom overrides indent atomorexpr =
     case atomorexpr of
         Expression expr ->
-            viewexpr indent expr overrides
+            viewexpr overrides indent expr
 
         Atom atom ->
             case atom of
