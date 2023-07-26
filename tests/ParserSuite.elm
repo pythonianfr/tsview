@@ -159,7 +159,8 @@ jsonSpec =
 
 formulaTests : List T
 formulaTests =
-    [ T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
+    [ T "** OK" "(** (series \"foo\") 0.5)" "FAILED"
+    , T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
     , T "+ series OK" "( + 2   #:flag #t  #:b (+ 1 6))" """
 (+
     2
