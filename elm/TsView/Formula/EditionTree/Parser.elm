@@ -357,7 +357,7 @@ deadEndsToString deadEnds =
                         ++ String.fromInt deadEnd.row
                         ++ " col:"
                         ++ String.fromInt deadEnd.col
-                        ++ "\n"
+                        ++ " "
             in
             case deadEnd.problem of
                 Expecting str ->
