@@ -152,6 +152,23 @@ jsonSpec =
         "Default[str=None]"
       ]
     ]
+  ],
+  [
+   "**",
+   [
+     [
+       "return",
+       "Series"
+     ],
+     [
+       "series",
+       "Series"
+     ],
+     [
+       "num",
+       "Number"
+     ]
+   ]
   ]
 ]
 """
@@ -166,9 +183,10 @@ formulaTests =
     (+ 1 6)
     #:flag #t)
 """
-    , T "+ too many args" "(+ 3 4 5)" "FAILED"
-    , T "@ unsupported op" "(@ 3 4)" "FAILED"
-    , T "+ wrong args" "(+ ab 4)" "FAILED"
+    , T "**" "(** (series \"foo\") 0.5)" "ProblemString Lack of mandatory argument at row:1 col:3"
+    , T "+ too many args" "(+ 3 4 5)" "ExpectingSymbol ) at row:1 col:8"
+    , T "@ unsupported op" "(@ 3 4)" "ExpectingKeyword **at row:1 col:2 ExpectingKeyword todayat row:1 col:2 ExpectingKeyword timedeltaat row:1 col:2 ExpectingKeyword priorityat row:1 col:2 ExpectingKeyword *at row:1 col:2 ExpectingKeyword +at row:1 col:2 ExpectingKeyword seriesat row:1 col:2"
+    , T "+ wrong args" "(+ ab 4)" "ProblemString Lack of mandatory argument at row:1 col:4"
     , T "* Right" "(* -9.26e-08 #:b (+ 9.259e-02 -109))" """
 (*
     -9.26e-8
@@ -186,7 +204,7 @@ formulaTests =
     (+ 7 1 #:flag #t))
 """
     , T "#flag #t OK" "(+  #:b 4 #:a 3  #:flag  #t)" "(+ 3 4 #:flag #t)"
-    , T "#flag duplicated" "(+  3 4  #:flag  #t #:flag #f)" "FAILED"
+    , T "#flag duplicated" "(+  3 4  #:flag  #t #:flag #f)" "ProblemString Duplicate keyword for argument at row:1 col:30 ExpectingKeyword #:flagat row:1 col:30"
     , T "#k1, k2 OK" " (priority  3  4 10  #:k2  7.3 #:k1  \"x\" )" """
 (priority 3 4 10 #:k1 "x" #:k2 7.3)
 """
@@ -234,14 +252,14 @@ formulaTests =
 testParsing : Test
 testParsing =
     let
-        specEither =
-            parseSpecString jsonSpec |> Either.voidLeft "spec parsing failed"
+        parsedspec =
+            parseSpecString jsonSpec |> Either.unpack Tuple.first identity
 
         render : String -> String
         render input =
-            specEither
-                |> Either.andThen (\spec -> parseFormula spec input)
-                |> Either.unpack (always "FAILED") renderString
+            case parseFormula parsedspec input |> Either.toResult of
+                Ok parsedformula -> renderString parsedformula
+                Err err -> String.trim err
     in
     List.map
         (\x ->
