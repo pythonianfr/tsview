@@ -144,6 +144,16 @@ testLispParser =
                        , Atom (Int 3)
                        ]
                   )
+        run18 =
+            \_ -> Expect.equal
+                  (parse "(** (series \"foo\") 4)")
+                  (Ok <| Expression [ Atom <| Symbol "**"
+                                    , Expression [ Atom <| Symbol "series"
+                                                 , Atom <| String "foo"
+                                                 ]
+                                    , Atom <| Int 4
+                                    ]
+                  )
     in
     Test.concat
         [ test "lisp1" run1
@@ -163,6 +173,7 @@ testLispParser =
         , test "lisp15" run15
         , test "lisp16" run16
         , test "lisp17" run17
+        , test "lisp18" run18
         ]
 
 
