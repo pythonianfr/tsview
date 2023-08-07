@@ -7,6 +7,7 @@ module Lisp exposing
     , parse
     , quote
     , serialize
+    , symbolparser
     , view
     , width
     )

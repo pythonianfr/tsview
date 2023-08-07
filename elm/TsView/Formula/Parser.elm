@@ -3,6 +3,7 @@ module TsView.Formula.Parser exposing (..)
 import AssocList as Assoc
 import Dict
 import Either exposing (Either(..))
+import Lisp
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
@@ -152,21 +153,20 @@ parseOperatorArgs spec op =
 parseOperator : Spec -> Parser T.SExpr
 parseOperator spec =
     let
-        parseOperatorKeyword =
-            List.map
-                (\op ->
-                    Parser.succeed op
-                        |. Parser.keyword op.name
-                        |. Parser.spaces
-                        |> Parser.andThen (parseOperatorArgs spec)
-                )
-                (Assoc.values spec)
-                |> Parser.oneOf
+        getopspec opname =
+            case Assoc.get opname spec of
+                Just opspec ->
+                    parseOperatorArgs spec opspec
+                Nothing ->
+                    Parser.problem <| "could not find the operator " ++ opname ++ " in the spec"
     in
-    Parser.succeed identity
+    (Parser.succeed identity
         |. Parser.symbol "("
         |. Parser.spaces
-        |= parseOperatorKeyword
+        |= Lisp.symbolparser
+        |. Parser.spaces
+        |> Parser.andThen getopspec
+    )
         |. Parser.spaces
         |. Parser.symbol ")"
         |. Parser.spaces
