@@ -3,8 +3,10 @@ module TsView.Formula.EditionTree.Parser exposing (parseFormula)
 import AssocList as Assoc
 import Dict
 import Either exposing (Either(..))
+import Lisp
 import List.Extra as List
 import List.Nonempty as NE exposing (Nonempty)
+import Maybe.Extra as Maybe
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
 import Tree exposing (Tree)
 import TsView.Formula.EditionTree.Inspect exposing (inspectEditionTree)
@@ -302,28 +304,25 @@ parseOperatorArgs spec ((ET.Operator _ args optArgs) as op) =
 parseOperator : S.Spec -> S.BaseType -> Parser EditionTree
 parseOperator spec baseType =
     let
-        parseKeyword : List S.Operator -> Parser EditionTree
-        parseKeyword =
-            List.map
-                (\op ->
-                    Parser.succeed (ET.fromSpecOperator op)
-                        |. Parser.keyword op.name
-                        |. Parser.spaces
-                )
-                >> Parser.oneOf
-                >> Parser.andThen (parseOperatorArgs spec)
+        specdict =
+            Dict.fromList
+                <| List.map (\op -> (op.name, op))
+                <| Maybe.unwrap [] NE.toList <| S.getOperators baseType spec
 
-        parseOperatorKeyword : Parser EditionTree
-        parseOperatorKeyword =
-            S.getOperators baseType spec
-                |> Maybe.map (NE.toList >> parseKeyword)
-                |> Maybe.withDefault (Parser.problem "No operator")
+        getopspec opname =
+            case Dict.get opname specdict of
+                Just opspec ->
+                    parseOperatorArgs spec (ET.fromSpecOperator opspec)
+                Nothing ->
+                    Parser.problem <| "could not find the operator " ++ opname ++ " in the spec"
     in
-    Parser.succeed identity
+    (Parser.succeed identity
         |. Parser.symbol "("
         |. Parser.spaces
-        |= parseOperatorKeyword
+        |= Lisp.symbolparser
         |. Parser.spaces
+        |> Parser.andThen getopspec
+    )
         |. Parser.symbol ")"
         |. Parser.spaces
 
