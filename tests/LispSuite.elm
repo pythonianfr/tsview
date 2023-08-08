@@ -71,13 +71,13 @@ testLispParser =
             \_ -> Expect.equal
                   (parse "(add (number 42.3) (fibonacci 7))")
                   (Ok <| Expression
-                       [ Atom (Symbol "add"),
-                             Expression [ Atom (Symbol "number")
-                                        , Atom (Float 42.3)
-                                        ],
-                             Expression [ Atom (Symbol "fibonacci")
-                                        , Atom (Int 7)
-                                        ]
+                       [ Atom (Symbol "add")
+                       , Expression [ Atom (Symbol "number")
+                                    , Atom (Float 42.3)
+                                    ]
+                       , Expression [ Atom (Symbol "fibonacci")
+                                    , Atom (Int 7)
+                                    ]
                        ]
                   )
         run12 =
