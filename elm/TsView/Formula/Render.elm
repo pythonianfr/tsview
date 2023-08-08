@@ -14,7 +14,7 @@ type RenderType
     | Operator String
     | Arg
     | OptArg String
-    | Value T.Value
+    | Value T.EditableValue
 
 
 type alias RenderNode =
@@ -33,10 +33,10 @@ quoted x =
     "\"" ++ x ++ "\""
 
 
-valueToString : T.Value -> String
+valueToString : T.EditableValue -> String
 valueToString value =
     case value of
-        T.NIL ->
+        T.Nil ->
             nil
 
         T.BoolValue True ->
@@ -58,22 +58,19 @@ valueToString value =
             quoted x
 
 
-buildTypeTree : T.SExpr -> List (Tree RenderType)
+buildTypeTree : T.TypedExpr -> List (Tree RenderType)
 buildTypeTree sexpr =
     case sexpr of
-        T.SInput _ ( _, x ) ->
+        T.TLiteral _ ( _, x ) ->
             [ Tree.singleton (Value x) ]
 
-        T.SSeries x ->
-            buildTypeTree x
-
-        T.SList _ xs ->
+        T.TVarargs _ xs ->
             List.concatMap buildTypeTree xs
 
-        T.SUnion _ ( _, x ) ->
+        T.TUnion _ ( _, x ) ->
             buildTypeTree x
 
-        T.SOperator op xs ys ->
+        T.TOperator op xs ys ->
             let
                 args =
                     List.map
@@ -177,7 +174,7 @@ renderTree indent tree =
             renderElement (valueToString x)
 
 
-renderString : T.SExpr -> String
+renderString : T.TypedExpr -> String
 renderString =
     let
         iStr =

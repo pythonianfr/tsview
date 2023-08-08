@@ -7,46 +7,55 @@ import Lisp
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
-import TsView.Formula.Type as T exposing (SExpr, Spec, SpecType)
+import TsView.Formula.Type as T exposing (TypedExpr, Spec, SpecType)
 import TsView.Formula.Utils2 exposing (valueParser)
 import Tuple.Extra as Tuple
 
 
-parseSExpr : Spec -> SpecType -> Parser SExpr
-parseSExpr spec specType =
+parseTypedExpr : Spec -> SpecType -> Parser TypedExpr
+parseTypedExpr spec specType =
     case specType of
-        T.BaseInput x ->
+        T.Editable x ->
             Parser.oneOf
-                [ Parser.map (T.SInput x) (valueParser x |. Parser.spaces)
+                [ Parser.map (T.TLiteral x) (valueParser x |. Parser.spaces)
                 , parseOperator spec
                 ]
 
         T.Series ->
-            Parser.map T.SSeries (parseOperator spec)
+            parseOperator spec
 
-        T.List x ->
-            Parser.map (T.SList x) (parseList spec x)
+        T.Query ->
+            parseOperator spec
+
+        T.Timestamp ->
+            parseOperator spec
+
+        T.Varargs x ->
+            Parser.map (T.TVarargs x) (parseList spec x)
+
+        T.Packed x ->
+            parseOperator spec
 
         T.Union xs ->
-            Parser.map (T.SUnion xs) (parseUnion spec xs)
+            Parser.map (T.TUnion xs) (parseUnion spec xs)
 
 
-parseList : Spec -> SpecType -> Parser (List SExpr)
+parseList : Spec -> SpecType -> Parser (List TypedExpr)
 parseList spec specType =
     Parser.loop []
         (\xs ->
             Parser.oneOf
-                [ parseSExpr spec specType
+                [ parseTypedExpr spec specType
                     |> Parser.map (\x -> x :: xs |> Parser.Loop)
                 , Parser.succeed (List.reverse xs |> Parser.Done)
                 ]
         )
 
 
-parseUnion : Spec -> Nonempty SpecType -> Parser ( SpecType, SExpr )
+parseUnion : Spec -> Nonempty SpecType -> Parser ( SpecType, TypedExpr )
 parseUnion spec =
     NE.toList
-        >> List.map (\x -> Parser.map (Tuple.pair x) (parseSExpr spec x))
+        >> List.map (\x -> Parser.map (Tuple.pair x) (parseTypedExpr spec x))
         >> Parser.oneOf
 
 
@@ -59,7 +68,7 @@ type alias OptArgsSpec =
 
 
 type alias Args =
-    List ( T.Key, SExpr )
+    List ( T.Key, TypedExpr )
 
 
 parseArgs : Spec -> ArgsSpec -> OptArgsSpec -> Args -> Parser Args
@@ -71,7 +80,7 @@ parseArgs spec argsSpec optArgsSpec args =
                 parsePositional =
                     Parser.succeed (\v -> ( k, v ) :: args)
                         |. Parser.spaces
-                        |= parseSExpr spec t
+                        |= parseTypedExpr spec t
             in
             Parser.oneOf
                 [ parsePositional |> Parser.andThen (parseArgs spec xs optArgsSpec)
@@ -89,7 +98,7 @@ parseArgsWithKey spec argsSpec optArgsSpec args =
             Parser.succeed (\v -> ( k, v ) :: ks |> Parser.Loop)
                 |. Parser.keyword ("#:" ++ k)
                 |. Parser.spaces
-                |= parseSExpr spec t
+                |= parseTypedExpr spec t
     in
     Parser.loop args
         (\xs ->
@@ -110,7 +119,7 @@ parseArgsWithKey spec argsSpec optArgsSpec args =
         )
 
 
-parseOperatorArgs : Spec -> T.Operator -> Parser T.SExpr
+parseOperatorArgs : Spec -> T.Operator -> Parser T.TypedExpr
 parseOperatorArgs spec op =
     let
         argKeys =
@@ -147,10 +156,10 @@ parseOperatorArgs spec op =
         |> Parser.map sortByKeys
         |> Parser.map (Assoc.partition (\k _ -> List.member k argKeys))
         |> Parser.andThen checkArgs
-        |> Parser.map (\( args, optArgs ) -> T.SOperator op args optArgs)
+        |> Parser.map (\( args, optArgs ) -> T.TOperator op args optArgs)
 
 
-parseOperator : Spec -> Parser T.SExpr
+parseOperator : Spec -> Parser T.TypedExpr
 parseOperator spec =
     let
         getopspec opname =
@@ -172,7 +181,7 @@ parseOperator spec =
         |. Parser.spaces
 
 
-parseFormula : Spec -> String -> Either String T.SExpr
+parseFormula : Spec -> String -> Either String T.TypedExpr
 parseFormula spec formulaCode =
     let
         runParser =

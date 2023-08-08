@@ -59,9 +59,9 @@ series
         name: SearchString
         date: Timestamp
     optional_arguments:
-        fill: Union[String, Number] Default=NIL
-        prune: Int Default=NIL
-        weight: Number Default=NIL
+        fill: Union[String, Number] Default=nil
+        prune: Int Default=nil
+        weight: Number Default=nil
     return: Series
 -----
 """
@@ -148,8 +148,8 @@ series
     arguments:
         name: SearchString
     optional_arguments:
-        fill: Union[String, Number] Default=NIL
-        weight: Number Default=NIL
+        fill: Union[String, Number] Default=nil
+        weight: Number Default=nil
     return: Series
 -----
 today

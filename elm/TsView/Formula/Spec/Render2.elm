@@ -24,8 +24,8 @@ renderOperator op =
     let
         rdrDft v =
             case v of
-                T.NIL ->
-                    "NIL"
+                T.Nil ->
+                    "nil"
 
                 T.BoolValue x ->
                     U.boolToString x

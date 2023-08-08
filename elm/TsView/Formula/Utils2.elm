@@ -65,7 +65,7 @@ boolToString x =
             "False"
 
 
-valueParser : T.InputType -> Parser ( String, T.Value )
+valueParser : T.LiteralType -> Parser ( String, T.EditableValue )
 valueParser inputType =
     let
         andThen f =
@@ -88,7 +88,7 @@ valueParser inputType =
             stringParser
                 |> andThen (\x -> ( x, T.StringValue x ))
 
-        T.Timestamp ->
+        T.TimestampString ->
             -- XXX should be a date parser ?
             stringParser
                 |> andThen (\x -> ( x, T.TimestampValue x ))
@@ -98,8 +98,8 @@ valueParser inputType =
                 |> andThen (\x -> ( x, T.StringValue x ))
 
 
-strInputType : T.InputType -> String
-strInputType iType =
+strLiteralType : T.LiteralType -> String
+strLiteralType iType =
     case iType of
         T.Int ->
             "Int"
@@ -113,7 +113,7 @@ strInputType iType =
         T.Bool ->
             "Bool"
 
-        T.Timestamp ->
+        T.TimestampString ->
             "Timestamp"
 
         T.SearchString ->
@@ -123,14 +123,23 @@ strInputType iType =
 strSpecType : T.SpecType -> String
 strSpecType sType =
     case sType of
-        T.BaseInput x ->
-            strInputType x
+        T.Editable x ->
+            strLiteralType x
+
+        T.Timestamp ->
+            "Timestamp"
+
+        T.Query ->
+            "Query"
 
         T.Series ->
             "Series"
 
-        T.List x ->
+        T.Varargs x ->
             "List[" ++ strSpecType x ++ "]"
+
+        T.Packed x ->
+            "Packed[" ++ strSpecType x ++ "]"
 
         T.Union xs ->
             let

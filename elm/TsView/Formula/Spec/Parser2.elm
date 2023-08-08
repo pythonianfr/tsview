@@ -18,7 +18,7 @@ type alias RawOperator =
 
 type alias ParsedArguments =
     { args : List ( String, T.SpecType )
-    , optArgs : List ( String, ( T.SpecType, T.Value ) )
+    , optArgs : List ( String, ( T.SpecType, T.EditableValue ) )
     , errors : List String
     }
 
@@ -35,7 +35,7 @@ listParser itemParser =
         }
 
 
-inputTypeParser : Parser T.InputType
+inputTypeParser : Parser T.LiteralType
 inputTypeParser =
     Parser.oneOf
         [ Parser.succeed T.Bool
@@ -46,7 +46,7 @@ inputTypeParser =
             |. Parser.keyword "Number"
         , Parser.succeed T.String
             |. Parser.keyword "str"
-        , Parser.succeed T.Timestamp
+        , Parser.succeed T.TimestampString
             |. Parser.keyword "Timestamp"
         , Parser.succeed T.SearchString
             |. Parser.keyword "seriesname"
@@ -56,11 +56,11 @@ inputTypeParser =
 specTypeParser : Parser T.SpecType
 specTypeParser =
     Parser.oneOf
-        [ Parser.map T.BaseInput inputTypeParser
+        [ Parser.map T.Editable inputTypeParser
         , Parser.succeed T.Series
             |. Parser.keyword "Series"
-        , Parser.succeed T.List
-            |. Parser.keyword "List"
+        , Parser.succeed T.Varargs
+            |. Parser.keyword "List" -- rename this to Varargs in the Python side
             |. Parser.symbol "["
             |= Parser.lazy (\_ -> specTypeParser)
             |. Parser.symbol "]"
@@ -76,24 +76,24 @@ specTypeParser =
         ]
 
 
-parseDefault : Parser ( T.SpecType, T.Value )
+parseDefault : Parser ( T.SpecType, T.EditableValue )
 parseDefault =
     let
         parseNone =
-            Parser.succeed T.NIL |. Parser.keyword "None"
+            Parser.succeed T.Nil |. Parser.keyword "None"
 
-        parseDefaultValue : T.SpecType -> Parser ( T.SpecType, T.Value )
+        parseDefaultValue : T.SpecType -> Parser ( T.SpecType, T.EditableValue )
         parseDefaultValue specType =
             Parser.map (Tuple.pair specType) <|
                 case specType of
-                    T.BaseInput T.Bool ->
+                    T.Editable T.Bool ->
                         Parser.oneOf
                             [ Parser.succeed True |. Parser.keyword "True"
                             , Parser.succeed False |. Parser.keyword "False"
                             ]
                             |> Parser.map T.BoolValue
 
-                    T.BaseInput x ->
+                    T.Editable x ->
                         Parser.oneOf
                             [ parseNone
                             , valueParser x |> Parser.map Tuple.second
