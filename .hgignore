@@ -6,3 +6,4 @@ build
 dist
 data/pgdb
 elm-stuff
+node
