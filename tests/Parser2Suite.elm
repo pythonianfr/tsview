@@ -3,9 +3,9 @@ module Parser2Suite exposing (testParsing)
 import Either
 import Expect
 import Test exposing (Test, test)
-import TsView.Formula.Parser exposing (parseFormula)
-import TsView.Formula.Render exposing (renderString)
-import TsView.Formula.Spec.Parser2 exposing (parseSpecString)
+import Editor.Parser exposing (parseFormula)
+import Editor.Render exposing (renderString)
+import Editor.SpecParser exposing (parseSpecString)
 
 
 type alias T =

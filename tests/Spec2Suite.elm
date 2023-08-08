@@ -1,12 +1,12 @@
 module Spec2Suite exposing (parsing)
 
+import Editor.SpecParser exposing (parseSpecString)
+import Editor.SpecRender exposing (renderSpec)
 import Either exposing (Either(..))
 import Expect
 import Json.Decode as D
 import List.Nonempty as NE exposing (Nonempty)
 import Test exposing (Test, test)
-import TsView.Formula.Spec.Parser2 exposing (parseSpecString)
-import TsView.Formula.Spec.Render2 exposing (renderSpec)
 
 
 type alias T =

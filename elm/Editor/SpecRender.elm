@@ -1,9 +1,9 @@
-module TsView.Formula.Spec.Render2 exposing (renderSpec)
+module Editor.SpecRender exposing (renderSpec)
 
 import AssocList as Assoc
+import Editor.Type as T
+import Editor.Utils as U
 import List.Nonempty as NE exposing (Nonempty)
-import TsView.Formula.Type as T
-import TsView.Formula.Utils2 as U
 
 
 renderSection : String -> (a -> String) -> T.KAssoc a -> List ( Int, String )

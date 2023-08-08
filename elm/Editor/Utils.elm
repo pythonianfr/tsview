@@ -1,9 +1,9 @@
-module TsView.Formula.Utils2 exposing (..)
+module Editor.Utils exposing (..)
 
+import Editor.Type as T
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
 import Set
-import TsView.Formula.Type as T
 
 
 stringParser : Parser String

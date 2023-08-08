@@ -1,4 +1,4 @@
-module TsView.Formula.Type exposing (..)
+module Editor.Type exposing (..)
 
 import AssocList as Assoc
 import List.Nonempty as NE exposing (Nonempty)

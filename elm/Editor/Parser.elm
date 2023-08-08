@@ -1,4 +1,4 @@
-module TsView.Formula.Parser exposing (..)
+module Editor.Parser exposing (..)
 
 import AssocList as Assoc
 import Dict
@@ -7,8 +7,8 @@ import Lisp
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
-import TsView.Formula.Type as T exposing (TypedExpr, Spec, SpecType)
-import TsView.Formula.Utils2 exposing (valueParser)
+import Editor.Type as T exposing (TypedExpr, Spec, SpecType)
+import Editor.Utils exposing (valueParser)
 import Tuple.Extra as Tuple
 
 

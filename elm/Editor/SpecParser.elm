@@ -1,15 +1,15 @@
-module TsView.Formula.Spec.Parser2 exposing
+module Editor.SpecParser exposing
     ( parseSpecString
     , parseSpecValue
     )
 
 import AssocList as Assoc
+import Editor.Type as T
+import Editor.Utils exposing (valueParser)
 import Either exposing (Either(..))
 import Json.Decode as D exposing (Decoder)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
-import TsView.Formula.Type as T
-import TsView.Formula.Utils2 exposing (valueParser)
 
 
 type alias RawOperator =

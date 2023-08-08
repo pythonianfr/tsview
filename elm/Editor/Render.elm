@@ -1,4 +1,4 @@
-module TsView.Formula.Render exposing (renderString)
+module Editor.Render exposing (renderString)
 
 import AssocList as Assoc
 import Bool.Extra as Bool
@@ -6,7 +6,7 @@ import Either exposing (Either(..))
 import List.Extra as List
 import List.Nonempty as NE exposing (Nonempty)
 import Tree exposing (Tree)
-import TsView.Formula.Type as T
+import Editor.Type as T
 
 
 type RenderType
