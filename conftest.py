@@ -21,7 +21,7 @@ def engine(request):
         'log_timezone': 'UTC'}
     )
     e = create_engine(DBURI)
-    schema.init(e, namespace='tsh', drop=True)
+    schema.refinery_schema().create(e, reset=True, rework=True)
     return e
 
 
@@ -38,7 +38,8 @@ class WebTester(webtest.TestApp):
 @pytest.fixture(scope='session')
 def tsa(engine):
     return api.timeseries(
-        str(engine.url)
+        str(engine.url),
+        sources={}
     )
 
 
