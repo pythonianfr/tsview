@@ -219,6 +219,8 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         },
         'bg': {
+            'bindings': '[{"series":"base","group":"base","family":"group"}]',
+            'boundseries': 'f1',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,
@@ -226,13 +228,14 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         },
         'f2': {
+            'formula': '(group "gf1")',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,
             'value_dtype': '<f8',
-            'value_type': 'float64'
-        },
+            'value_type': 'float64'},
         'gf1': {
+            'formula': '(group-add (group "base") (group "base"))',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,

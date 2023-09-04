@@ -301,9 +301,11 @@ def tsview(tsa,
 
         engine = tsa.engine
         q = select(
-            'name', 'text'
+            'name', 'internal_metadata->\'formula\''
         ).table(
-            f'"{tsa.namespace}".group_formula'
+            f'"{tsa.namespace}".group_registry'
+        ).where(
+            'internal_metadata->\'formula\' is not null'
         )
 
         return jsonify(
@@ -320,46 +322,19 @@ def tsview(tsa,
 
         engine = tsa.engine
 
-        q1 = select(
-            'name', 'metadata'
+        q = select(
+            'name', 'internal_metadata', 'metadata'
         ).table(
             f'"{tsa.namespace}".group_registry'
         )
 
-        m1 = [
-            (name, meta)
-            for name, meta in q1.do(engine).fetchall()
-            if meta
-        ]
-
-
-        q2 = select(
-            'name', 'metadata'
-        ).table(
-            f'"{tsa.namespace}".group_formula'
-        )
-
-        m2 = [
-            (name, meta)
-            for name, meta in q2.do(engine).fetchall()
-            if meta
-        ]
-
-        q3 = select(
-            'groupname', 'metadata'
-        ).table(
-            f'"{tsa.namespace}".group_binding'
-        )
-
-        m3 = [
-            (name, meta)
-            for name, meta in q3.do(engine).fetchall()
-            if meta
-        ]
+        m = {
+            name: imeta | (meta or {})
+            for name, imeta, meta in q.do(engine).fetchall()
+        }
 
         return jsonify(
-            dict(m1 + m2 + m3)
+            dict(m)
         )
-
 
     return bp
