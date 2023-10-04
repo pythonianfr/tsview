@@ -73,8 +73,7 @@ def editor(app,
            tsa,
            has_permission=lambda *perm: True,
            routes_pathname_prefix='/tseditor/',
-           request_pathname_prefix='/',
-           additionnal_info=None):
+           request_pathname_prefix='/'):
 
     external_stylesheets = [
         'https://codepen.io/chriddyp/pen/bWLwgP.css',
@@ -243,30 +242,6 @@ def editor(app,
             'author': author
         })
 
-    @dashboard.callback(dash.dependencies.Output('info', 'children'),
-                        [dash.dependencies.Input('tse_var_id_serie', 'children')])
-    def display_info(info_serie):
-        if info_serie is None:
-            return 'None'
-        if not has_permission('viewseries'):
-            return
-        info_serie = json.loads(info_serie)
-        name = info_serie['name']
-        if additionnal_info is not None:
-            info_metadata = additionnal_info(tsa.engine, name)
-            if not info_metadata:
-                return 'None'
-            data = list(info_metadata.items())
-            inside_table = [
-                html.Tr([
-                    html.Td(elt)
-                    for elt in things
-                ])
-                for things in data
-            ]
-            table = html.Table(inside_table, style={'margin': '0 auto'})
-            return table
-
     @dashboard.callback(dash.dependencies.Output('button-container', 'children'),
                         [dash.dependencies.Input('tse_var_id_serie', 'children')])
     def dynamic_button(_):
@@ -360,7 +335,7 @@ def editor(app,
             return editable_table(tsa, name, fromdate, todate)
 
         return components_table(
-            tsa, name, fromdate, todate, author, additionnal_info,
+            tsa, name, fromdate, todate, author, None,
             prefix_link
         )
 
