@@ -63,7 +63,7 @@ setup(name='tsview',
           'tshistory >= 0.18',
           'plotly < 6.0',
           'dash == 2.9.3',
-          'dash-renderer < 2.0',
+          'dash-renderer == 1.9.1',
           'tshistory_formula >= 0.14'
       ],
       package_data={'tsview': [
