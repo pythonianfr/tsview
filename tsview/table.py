@@ -1,7 +1,7 @@
 import pandas as pd
 import dash.html as html
 
-from psyl.lisp import parse, serialize
+from psyl.lisp import parse
 
 from tshistory_formula.interpreter import Interpreter
 from tshistory_formula.helper import inject_toplevel_bindings

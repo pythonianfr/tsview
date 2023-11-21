@@ -2,18 +2,12 @@ import json
 import pandas as pd
 from flask import Blueprint, jsonify, request, render_template, url_for
 
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name
-from pygments.formatters import HtmlFormatter
 from dash import _utils
 
 from sqlhelp import select
-from psyl import lisp
 
-from tshistory.tsio import timeseries
 from tshistory import search
 
-import tshistory_formula.funcs
 from tshistory_formula.registry import FUNCS
 from tshistory_formula.interpreter import jsontypes
 
@@ -39,14 +33,6 @@ def primary_names(tsa):
         for name, kind in cat
         if kind == 'primary'
     )
-
-
-def haseditor():
-    try:
-        import tshistory_editor
-        return True
-    except ImportError:
-        return False
 
 
 def homeurl():
@@ -77,7 +63,7 @@ def tsview(tsa):
 
         return render_template('tsview.html',
                                homeurl=homeurl(),
-                               haseditor=json.dumps(haseditor()),
+                               haseditor=json.dumps(False),  # NOTE: really fix me
                                series=request.args.getlist("series"))
 
     class logargs(_argsdict):

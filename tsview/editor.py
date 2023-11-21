@@ -356,7 +356,7 @@ def editor(app,
         # layering violation ... does the api wants a last_id ? NO !
         try:
             rev_id = tsa.tsh.last_id(tsa.engine, name)
-        except:
+        except:  #noqa
             # very likely a remote series or something fishy, bail out from there
             return ''
         return rev_id
@@ -380,7 +380,7 @@ def editor(app,
             return json.dumps({'msg':'Error :' + str(error), 'diff': None})
         try:
             ts_modif = pd.to_numeric(ts_modif)
-        except:
+        except:  # noqa
             pass
 
         ts_base = tsa.get(

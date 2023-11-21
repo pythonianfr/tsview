@@ -31,7 +31,7 @@ class WebTester(webtest.TestApp):
     def _check_status(self, status, res):
         try:
             super(WebTester, self)._check_status(status, res)
-        except:
+        except:  # noqa
             print('ERRORS', res.errors)
             # raise <- default behaviour on 4xx is silly
 

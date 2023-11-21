@@ -8,9 +8,6 @@ import dash.html as html
 import dash
 import pandas as pd
 
-from tshistory.util import tzaware_serie
-from tshistory.api import timeseries
-
 
 COLOR_BEFORE = 'rgb(20, 200, 20)'
 COLOR_CURRENT = 'rgb(0, 0, 250)'
