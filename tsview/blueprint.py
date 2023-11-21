@@ -11,6 +11,7 @@ from sqlhelp import select
 from psyl import lisp
 
 from tshistory.tsio import timeseries
+from tshistory import search
 
 import tshistory_formula.funcs
 from tshistory_formula.registry import FUNCS

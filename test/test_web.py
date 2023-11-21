@@ -243,3 +243,28 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         }
     }
+
+
+def test_spec_types(client):
+    res = client.get('/queryspec')
+    assert res.json == {
+        '<': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
+        '<=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
+        '=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
+        '>': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
+        '>=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
+        'by.and': {'items': 'Packed[query]', 'return': 'query'},
+        'by.everything': {'return': 'query'},
+        'by.internal-metaitem': {'key': 'str',
+                                 'return': 'query',
+                                 'value': 'Union[str, Number, bool]'},
+        'by.metaitem': {'key': 'str',
+                        'return': 'query',
+                        'value': 'Union[str, Number, bool]'},
+        'by.metakey': {'key': 'str', 'return': 'query'},
+        'by.name': {'query': 'str', 'return': 'query'},
+        'by.not': {'item': 'query', 'return': 'query'},
+        'by.or': {'items': 'Packed[query]', 'return': 'query'},
+        'by.source': {'query': 'query', 'return': 'query'},
+        'by.tzaware': {'return': 'query'}
+    }
