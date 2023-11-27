@@ -145,6 +145,7 @@ logdecoder =
     D.list logentrydecoder
 
 
+getdepth : Model -> Cmd Msg
 getdepth model =
     Http.get
         { expect = Http.expectString GotDepth
@@ -154,6 +155,7 @@ getdepth model =
         }
 
 
+getsource : Model -> String -> Cmd Msg
 getsource model name =
     Http.get
         { expect = Http.expectString GotSource
@@ -163,6 +165,7 @@ getsource model name =
         }
 
 
+getplot : Model -> Bool -> Cmd Msg
 getplot model atidate =
     let
         idate =
@@ -187,6 +190,7 @@ getlog urlprefix name  =
         }
 
 
+gethascache : Model -> Cmd Msg
 gethascache model =
     Http.get
         { url =
@@ -198,6 +202,7 @@ gethascache model =
         }
 
 
+deletecache : Model -> Cmd Msg
 deletecache model =
     Http.request
         { method = "DELETE"
@@ -215,6 +220,7 @@ deletecache model =
         }
 
 
+getcachepolicy : Model -> Cmd Msg
 getcachepolicy model =
     Http.get
         { url =
@@ -233,6 +239,7 @@ updatedchangedidatebouncer =
     }
 
 
+strseries : Model -> Bool
 strseries model =
     case M.dget "value_type" model.meta of
         "object" -> True
@@ -622,6 +629,7 @@ update msg model =
 
 -- views
 
+viewcachepolicy : Model -> H.Html Msg
 viewcachepolicy model =
     let
         elt name =
@@ -643,6 +651,7 @@ viewcachepolicy model =
         ]
 
 
+viewtogglecached : Model -> H.Html Msg
 viewtogglecached model =
     H.div
         [ HA.class "custom-control custom-switch"
@@ -668,6 +677,7 @@ viewtogglecached model =
         ]
 
 
+viewcache : Model -> H.Html Msg
 viewcache model =
     let
         cachecontrol =
@@ -729,6 +739,7 @@ viewcache model =
             H.div [] []
 
 
+viewdatesrange : Model -> H.Html Msg
 viewdatesrange model =
     let
         numidates = Array.length model.insertion_dates
@@ -761,6 +772,7 @@ idatepickerevents =
     }
 
 
+viewplot : Model -> H.Html Msg
 viewplot model =
     let
         plotdata = case model.plotdata of
