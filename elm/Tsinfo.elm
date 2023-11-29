@@ -1,4 +1,4 @@
-module Tsinfo exposing (main)
+port module Tsinfo exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -28,6 +28,8 @@ import Plotter exposing
     , plotargs
     , Series
     )
+import Process as P
+import Task as T
 import Url.Builder as UB
 import Util as U
 
@@ -79,6 +81,7 @@ type alias Model =
     -- renaming
     , renaming : Bool
     , newname : Maybe String
+    , clipboardclass : String
     }
 
 
@@ -129,6 +132,8 @@ type Msg
     | ConfirmRename
     | CancelRename
     | Renamed (Result Http.Error String)
+    | CopyNameToClipboard
+    | ResetClipboardClass
 
 
 logentrydecoder : D.Decoder Logentry
@@ -627,7 +632,23 @@ update msg model =
         Renamed (Err err) ->
             doerr "deletion failed" <| U.unwraperror err
 
+        CopyNameToClipboard ->
+            ( { model | clipboardclass = "bi bi-check2" }
+            , Cmd.batch
+                [ copyToClipboard model.name
+                , T.perform (always (ResetClipboardClass)) (P.sleep 1000)
+                ]
+            )
+
+        ResetClipboardClass ->
+            ( { model | clipboardclass = "bi bi-clipboard" }
+            , Cmd.none
+            )
+
 -- views
+
+port copyToClipboard : String -> Cmd msg
+
 
 viewcachepolicy : Model -> H.Html Msg
 viewcachepolicy model =
@@ -835,12 +856,15 @@ view model =
           else H.span [] []
         , H.p
             [ ]
-            [ H.span
-                  [ HA.class "h1" ]
-                  [ H.text "Series " ]
+            [ H.h5 [ HA.style "color" "grey" ] [ H.text "Series" ]
+            , H.i
+                [ HA.class model.clipboardclass
+                , HE.onClick CopyNameToClipboard
+                ]
+                [  ]
             , H.span
-                [ HA.class "font-italic h1" ]
-                [ H.text <| model.name ++ " " ]
+                [ HA.class "font-italic h4" ]
+                [ H.text <| " " ++ model.name ++ " " ]
             , H.span
                 [ HA.class "badge badge-secondary h4" ]
                 [ H.text model.source ]
@@ -913,6 +937,7 @@ main =
                        -- renaming
                        , renaming = False
                        , newname = Nothing
+                       , clipboardclass = "bi bi-clipboard"
                        }
                in
                ( model
