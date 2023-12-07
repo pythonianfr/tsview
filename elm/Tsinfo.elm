@@ -82,6 +82,7 @@ type alias Model =
     , renaming : Bool
     , newname : Maybe String
     , clipboardclass : String
+    , horizon : String
     }
 
 
@@ -134,6 +135,33 @@ type Msg
     | Renamed (Result Http.Error String)
     | CopyNameToClipboard
     | ResetClipboardClass
+
+
+defaultHorizon : String
+defaultHorizon =
+        "2 weeks"
+
+
+horizons : Dict String String
+horizons =  Dict.fromList
+    [ Tuple.pair "All" ""
+    , Tuple.pair
+        "2 weeks"
+        """(horizon
+            #:date (now)
+            #:past (delta #:days -14)
+            #:future (delta #:days 14)
+            #:offset {offset})
+        """
+    , Tuple.pair
+        "1 month"
+        """
+            (horizon #:date (now)
+            #:past (delta #:days -30)
+            #:future (delta #:days 30)
+            #:offset {offset})
+        """
+    ]
 
 
 logentrydecoder : D.Decoder Logentry
@@ -844,6 +872,28 @@ renameevents =
     }
 
 
+horizonbtnGroup : String -> H.Html Msg
+horizonbtnGroup horizon =
+    H.div
+        [ HA.class "btn-group"]
+        [ H.select
+            [ HA.class "btn btn-outline-dark btn-sm" ]
+            (List.map (renderhorizon horizon)
+                <| List.map (\(k, _) -> k) <| Dict.toList horizons
+            )
+        ]
+
+
+renderhorizon : String -> String -> H.Html msg
+renderhorizon selectedhorizon horizon =
+    H.option
+        [ HA.value horizon
+        , HA.selected <| selectedhorizon  == horizon
+        ]
+        [ H.text horizon ]
+
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
@@ -856,7 +906,9 @@ view model =
           else H.span [] []
         , H.p
             [ ]
-            [ H.h5 [ HA.style "color" "grey" ] [ H.text "Series" ]
+            [ H.h5
+                [ HA.style "color" "grey" ]
+                [ H.text "Series ", horizonbtnGroup model.horizon]
             , H.i
                 [ HA.class model.clipboardclass
                 , HE.onClick CopyNameToClipboard
@@ -938,6 +990,7 @@ main =
                        , renaming = False
                        , newname = Nothing
                        , clipboardclass = "bi bi-clipboard"
+                       , horizon = defaultHorizon
                        }
                in
                ( model
