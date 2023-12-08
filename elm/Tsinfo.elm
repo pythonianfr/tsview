@@ -83,6 +83,7 @@ type alias Model =
     , newname : Maybe String
     , clipboardclass : String
     , horizon : String
+    , offset : Int
     }
 
 
@@ -876,11 +877,23 @@ horizonbtnGroup : String -> H.Html Msg
 horizonbtnGroup horizon =
     H.div
         [ HA.class "btn-group"]
-        [ H.select
-            [ HA.class "btn btn-outline-dark btn-sm" ]
+        [ H.button
+            [ HA.class "btn btn-outline-dark btn-sm"]
+            [ H.i
+                [ HA.class "bi bi-arrow-left"]
+                [ ]
+            ]
+        , H.select
+            [ HA.class "btn btn-outline-dark btn-sm"]
             (List.map (renderhorizon horizon)
                 <| List.map (\(k, _) -> k) <| Dict.toList horizons
             )
+        , H.button
+            [ HA.class "btn btn-outline-dark btn-sm"]
+            [ H.i
+                [ HA.class "bi bi-arrow-right"]
+                [ ]
+            ]
         ]
 
 
@@ -991,6 +1004,7 @@ main =
                        , newname = Nothing
                        , clipboardclass = "bi bi-clipboard"
                        , horizon = defaultHorizon
+                       , offset = 0
                        }
                in
                ( model
