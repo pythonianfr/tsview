@@ -34,6 +34,12 @@ import Url.Builder as UB
 import Util as U
 
 
+type alias Horizon =
+    { horizon : String
+    , offset : Int
+    }
+
+
 type alias Logentry =
     { rev : Int
     , author : String
@@ -142,6 +148,7 @@ type Msg
     | ResetClipboardClass
     | HorizonSelected String
     | UpdateOffset Offset
+    | SetHorizon String
 
 
 defaultHorizon : String
@@ -693,6 +700,13 @@ update msg model =
         UpdateOffset (Right i) ->
             updateHorizon model.horizon (model.offset - i) model
 
+        SetHorizon newHorizon ->
+            case D.decodeString horizonDecoder newHorizon of
+                Ok newHorizonDict ->
+                    updateHorizon newHorizonDict.horizon newHorizonDict.offset model
+                Err _ ->
+                    (model, Cmd.none)
+
 -- views
 
 computedHorizon : String -> Int -> Maybe String
@@ -709,7 +723,26 @@ updateHorizon horizon newOffset model =
                         | horizon = horizon
                         , offset = newOffset }
     in
-    (newmodel, getplot newmodel False)
+    (newmodel, Cmd.batch
+                [ saveToLocalStorage {
+                    horizon = horizon
+                    , offset = newOffset}
+                , getplot newmodel False
+                ]
+    )
+
+
+horizonDecoder : D.Decoder Horizon
+horizonDecoder =
+    D.map2 Horizon
+        (D.field "horizon" D.string)
+        (D.field "offset" D.int)
+
+
+port saveToLocalStorage : Horizon -> Cmd msg
+
+
+port savedHorizon : (String -> msg) -> Sub msg
 
 port copyToClipboard : String -> Cmd msg
 
@@ -1060,7 +1093,8 @@ main =
                    , getcachepolicy model
                    ]
                )
-           sub model = Sub.none
+           sub : Model -> Sub Msg
+           sub model = savedHorizon SetHorizon
        in
            Browser.element
                { init = init

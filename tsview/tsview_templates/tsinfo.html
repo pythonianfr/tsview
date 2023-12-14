@@ -38,22 +38,26 @@
         <div id="app"></div>
         <script src="./tsview_static/tsinfo_elm.js"></script>
         <script>
-          var clipboard = function (value) {
-              var el = document.createElement('textarea');
-              el.value = value;
-              document.body.appendChild(el);
-              el.select();
-              document.execCommand('copy');
-              document.body.removeChild(el);
-          };
-          var app = Elm.Tsinfo.init({
-              node: document.getElementById('app'),
-              flags: {
-                  baseurl : "{{ homeurl }}",
-                  name : "{{ name }}"
-              }
-          });
-          app.ports.copyToClipboard.subscribe(clipboard);
+            var clipboard = function (value) {
+                var el = document.createElement('textarea');
+                el.value = value;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+            };
+            var app = Elm.Tsinfo.init({
+                node: document.getElementById('app'),
+                flags: {
+                    baseurl : "{{ homeurl }}",
+                    name : "{{ name }}"
+                }
+            });
+            app.ports.copyToClipboard.subscribe(clipboard);
+            app.ports.saveToLocalStorage.subscribe(function (horizon) {
+                localStorage.setItem("horizon", JSON.stringify(horizon))
+            });
+            app.ports.savedHorizon.send(localStorage.getItem("horizon"));
         </script>
     </body>
 </html>
