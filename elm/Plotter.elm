@@ -66,11 +66,22 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getplotdata baseurl name idate callback nocache fromdate todate =
+getplotdata baseurl name idate callback nocache fromdate todate horizon =
     let
         query = [ UB.string "name" name ]
         fvd = [ UB.string "from_value_date" fromdate ]
         tvd = [ UB.string "to_value_date" todate ]
+
+        args = List.concat  <| case horizon of
+            Nothing ->
+                [if fromdate /= "" then fvd else []
+                , if todate /= "" then tvd else []]
+
+            Just horizonstr ->
+                let
+                    h = [ UB.string "horizon" <| String.trim horizonstr ]
+                in
+                [if horizonstr /= "" then h else []]
         fullquery date =
             case date of
                 Nothing -> query
@@ -82,8 +93,7 @@ getplotdata baseurl name idate callback nocache fromdate todate =
               ["api", "series", "state"]
               <| (fullquery idate)
               ++ [ UB.int "nocache" nocache]
-              ++ (if fromdate /= "" then fvd else [])
-              ++ (if todate /= "" then tvd else [])
+              ++ args
         , expect = Http.expectString callback
         }
 

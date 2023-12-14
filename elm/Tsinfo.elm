@@ -11,7 +11,7 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
-import Either exposing (Either)
+import Either exposing (Either(..))
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -87,6 +87,10 @@ type alias Model =
     }
 
 
+type alias Offset =
+    Either Int Int
+
+
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
@@ -136,6 +140,8 @@ type Msg
     | Renamed (Result Http.Error String)
     | CopyNameToClipboard
     | ResetClipboardClass
+    | HorizonSelected String
+    | UpdateOffset Offset
 
 
 defaultHorizon : String
@@ -211,6 +217,10 @@ getplot model atidate =
             (U.bool2int model.view_nocache)
             model.mindate
             model.maxdate
+            (computedHorizon
+                 (Maybe.withDefault "" <| Dict.get model.horizon horizons)
+                 model.offset
+            )
 
 
 getlog : String -> String-> Cmd Msg
@@ -674,7 +684,32 @@ update msg model =
             , Cmd.none
             )
 
+        HorizonSelected horizon ->
+            updateHorizon horizon model.offset model
+
+        UpdateOffset (Left i) ->
+            updateHorizon model.horizon (model.offset + i) model
+
+        UpdateOffset (Right i) ->
+            updateHorizon model.horizon (model.offset - i) model
+
 -- views
+
+computedHorizon : String -> Int -> Maybe String
+computedHorizon horizon offset =
+    case horizon of
+        "" -> Nothing
+        _ -> Just <| String.replace "{offset}" (String.fromInt offset) horizon
+
+
+updateHorizon : String -> Int -> Model -> ( Model, Cmd Msg )
+updateHorizon horizon newOffset model =
+    let
+        newmodel = { model
+                        | horizon = horizon
+                        , offset = newOffset }
+    in
+    (newmodel, getplot newmodel False)
 
 port copyToClipboard : String -> Cmd msg
 
@@ -880,18 +915,26 @@ horizonbtnGroup horizon =
         [ H.button
             [ HA.class "btn btn-outline-dark btn-sm"]
             [ H.i
-                [ HA.class "bi bi-arrow-left"]
+                [ HA.class "bi bi-arrow-left"
+                , HE.onClick (UpdateOffset (Left 1))
+                ]
                 [ ]
             ]
         , H.select
-            [ HA.class "btn btn-outline-dark btn-sm"]
+            [ HA.class "btn btn-outline-dark btn-sm"
+            , HE.targetValue
+                |> D.andThen (HorizonSelected >> D.succeed)
+                |> HE.on "change"
+            ]
             (List.map (renderhorizon horizon)
                 <| List.map (\(k, _) -> k) <| Dict.toList horizons
             )
         , H.button
             [ HA.class "btn btn-outline-dark btn-sm"]
             [ H.i
-                [ HA.class "bi bi-arrow-right"]
+                [ HA.class "bi bi-arrow-right"
+                , HE.onClick (UpdateOffset (Right 1))
+                ]
                 [ ]
             ]
         ]

@@ -109,6 +109,7 @@ fetchseries model restrict =
              model.prefix name Nothing (GotPlotData name) 0
              (if restrict then (serializedate model.mindate) else "")
              (if restrict then (serializedate model.maxdate) else "")
+             Nothing
         )
         missing
 
