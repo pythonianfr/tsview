@@ -26,7 +26,6 @@ unwraperror resp =
 
 type alias Policy =
     { name : String
-    , ready : Bool
     , initial_revdate : String
     , look_before : String
     , look_after : String
@@ -67,9 +66,8 @@ type alias Model =
 
 
 policydecoder =
-    D.map8 Policy
+    D.map7 Policy
         (D.field "name" D.string)
-        (D.field "ready" D.bool)
         (D.field "initial_revdate" D.string)
         (D.field "look_before" D.string)
         (D.field "look_after" D.string)
@@ -372,7 +370,7 @@ update msg model =
 
         -- addition
         NewPolicy ->
-            ( { model | adding = Just <| Policy "" False "" "" "" "" "" False }
+            ( { model | adding = Just <| Policy "" "" "" "" "" "" False }
             , Cmd.none
             )
 
@@ -637,7 +635,6 @@ viewpolicy model policy =
                     ]
                     [ H.text policy.name ]
               ]
-        , H.td [] [ H.text <| if policy.ready then "true" else "false" ]
         , H.td [] [ H.text <| policy.initial_revdate ]
         , H.td [] [ H.text <| policy.look_before ]
         , H.td [] [ H.text <| policy.look_after ]
@@ -900,7 +897,7 @@ viewlinkpolicy model policy =
 
 viewpoliciesheader =
     let columns =
-            [ "name", "ready", "initial revision date"
+            [ "name", "initial revision date"
             , "look before", "look after"
             , "rev date rule", "schedule rule", "actions"
             ]
@@ -943,9 +940,6 @@ A cache policy controls the way you build materialized
 views of time series defined as formulas.
 
 It has a `name` to be easily addressable.
-
-The `ready` attribute indicates if the cache has been filled at least
-once.
 
 How a cache is filled:
 
