@@ -218,16 +218,18 @@ getplot model atidate =
         idate =
             Array.get model.date_index model.insertion_dates
     in
-        getplotdata model.baseurl model.name
-            (if atidate then idate else Nothing)
-            GotPlotData
-            (U.bool2int model.view_nocache)
-            model.mindate
-            model.maxdate
-            (computedHorizon
-                 (Maybe.withDefault "" <| Dict.get model.horizon horizons)
+        getplotdata
+            { baseurl = model.baseurl
+            , name = model.name
+            , idate = (if atidate then idate else Nothing)
+            , callback = GotPlotData
+            , nocache = (U.bool2int model.view_nocache)
+            , fromdate = model.mindate
+            , todate = model.maxdate
+            ,horizon = (computedHorizon
+                (Maybe.withDefault "" <| Dict.get model.horizon horizons)
                  model.offset
-            )
+            )}
 
 
 getlog : String -> String-> Cmd Msg
@@ -743,6 +745,7 @@ port saveToLocalStorage : Horizon -> Cmd msg
 
 
 port savedHorizon : (String -> msg) -> Sub msg
+
 
 port copyToClipboard : String -> Cmd msg
 

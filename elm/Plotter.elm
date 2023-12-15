@@ -13,8 +13,8 @@ import Dict exposing (Dict)
 import Http
 import Json.Decode as D
 import Json.Encode as E
+import Maybe.Extra as Maybe
 import Url.Builder as UB
-
 
 -- series
 
@@ -24,6 +24,21 @@ type alias Trace =
     , x : List String
     , y : List Float
     , mode : String
+    }
+
+
+type alias CallBack msg = (Result Http.Error String -> msg)
+
+
+type alias PlotData msg =
+    { baseurl : String
+    , name : String
+    , idate : Maybe String
+    , callback : CallBack msg
+    , nocache : Int
+    , fromdate : String
+    , todate : String
+    , horizon : Maybe String
     }
 
 
@@ -66,37 +81,28 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getplotdata baseurl name idate callback nocache fromdate todate horizon =
+getplotdata : PlotData msg -> Cmd msg
+getplotdata data =
     let
-        query = [ UB.string "name" name ]
-        fvd = [ UB.string "from_value_date" fromdate ]
-        tvd = [ UB.string "to_value_date" todate ]
-
-        args = List.concat  <| case horizon of
-            Nothing ->
-                [if fromdate /= "" then fvd else []
-                , if todate /= "" then tvd else []]
-
-            Just horizonstr ->
-                let
-                    h = [ UB.string "horizon" <| String.trim horizonstr ]
-                in
-                [if horizonstr /= "" then h else []]
-        fullquery date =
-            case date of
-                Nothing -> query
-                Just d -> List.append query
-                          [ UB.string "insertion_date" d ]
-    in
-    Http.get
-        { url = UB.crossOrigin baseurl
-              ["api", "series", "state"]
-              <| (fullquery idate)
-              ++ [ UB.int "nocache" nocache]
-              ++ args
-        , expect = Http.expectString callback
-        }
-
+        stringToMaybe : String -> String -> Maybe UB.QueryParameter
+        stringToMaybe name value =
+            if value == "" then Nothing else Just (UB.string name value)
+        fullquery : List UB.QueryParameter
+        fullquery = Maybe.values <|
+            [ stringToMaybe "name" data.name
+            , Maybe.andThen (stringToMaybe "insertion_date") data.idate
+            , Just <| UB.int "nocache" data.nocache
+            ]
+            ++ Maybe.unwrap
+            [ stringToMaybe "from_value_date" data.fromdate
+            , stringToMaybe "to_value_date" data.todate
+            ]
+            (\horizonstr -> [stringToMaybe "horizon" (String.trim horizonstr)])
+            data.horizon
+    in Http.get
+    { url = UB.crossOrigin data.baseurl ["api", "series", "state"] fullquery
+    , expect = Http.expectString data.callback
+    }
 
 -- groups
 
