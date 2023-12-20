@@ -226,7 +226,7 @@ getplot model atidate =
             , nocache = (U.bool2int model.view_nocache)
             , fromdate = model.mindate
             , todate = model.maxdate
-            ,horizon = (computedHorizon
+            , horizon = (computedHorizon
                 (Maybe.withDefault "" <| Dict.get model.horizon horizons)
                  model.offset
             )}
@@ -383,19 +383,14 @@ update msg model =
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
-                        dates = Dict.keys val
-                        minappdate =
-                            case dates of
-                                head::_ -> U.cleanupdate head
-                                []  -> ""
-                        maxappdate = U.cleanupdate <| Maybe.withDefault "" <| List.maximum dates
+                        tsBounds = formatBoundDates val
                         newmodel =
                             case model.plotdata of
                                 Nothing ->
                                     { model
                                         | plotdata = Just val
-                                        , mindate = U.dateof minappdate
-                                        , maxdate = U.dateof maxappdate
+                                        , mindate = Tuple.first tsBounds
+                                        , maxdate = Tuple.second tsBounds
                                     }
                                 Just data -> { model | plotdata = Just val }
                     in
@@ -718,12 +713,38 @@ computedHorizon horizon offset =
         _ -> Just <| String.replace "{offset}" (String.fromInt offset) horizon
 
 
+formatBoundDates : Series -> (String, String)
+formatBoundDates val =
+            let
+                dates = Dict.keys val
+                minappdate =
+                    case dates of
+                        head::_ -> U.cleanupdate head
+                        []  -> ""
+                maxappdate = U.cleanupdate
+                                <| Maybe.withDefault ""
+                                <| List.maximum dates
+            in (U.dateof minappdate, U.dateof maxappdate)
+
+
+getTsBounds : Maybe Series -> (String, String)
+getTsBounds maybeVal =
+    case maybeVal of
+        Just val ->
+            formatBoundDates val
+        Nothing ->
+            ("", "")
+
+
 updateHorizon : String -> Int -> Model -> ( Model, Cmd Msg )
 updateHorizon horizon newOffset model =
     let
+        newBounds = getTsBounds model.plotdata
         newmodel = { model
                         | horizon = horizon
-                        , offset = newOffset }
+                        , offset = newOffset
+                        , mindate = Tuple.first newBounds
+                        , maxdate = Tuple.second newBounds}
     in
     (newmodel, Cmd.batch
                 [ saveToLocalStorage {
@@ -1098,6 +1119,7 @@ main =
                )
            sub : Model -> Sub Msg
            sub model = savedHorizon SetHorizon
+
        in
            Browser.element
                { init = init

@@ -195,24 +195,12 @@ viewdatespicker model events =
 
         fvdate =
             [ H.label [ HA.for "fvd-picker" ] [ H.text "from value date" ]
-            , H.span [ ] [ H.text " " ]
-            , H.input [ HA.type_ "date"
-                      , HA.id "fvd-picker"
-                      , HA.name "fvd-picker"
-                      , HA.value model.mindate
-                      , HE.onInput events.fvdatepickerchanged
-                      ] [ ]
+            , H.span [ ] [ H.text (" : " ++ model.mindate) ]
             ]
 
         tvdate =
             [ H.label [ HA.for "tvd-picker" ] [ H.text "to value date" ]
-            , H.span [ ] [ H.text " " ]
-            , H.input [ HA.type_ "date"
-                      , HA.id "tvd-picker"
-                      , HA.name "tvd-picker"
-                      , HA.value model.maxdate
-                      , HE.onInput events.tvdatepickerchanged
-                      ] [ ]
+            , H.span [ ] [ H.text (" : " ++ model.maxdate) ]
             ]
 
         spacer = [ H.span [ ] [ H.text " " ] ]

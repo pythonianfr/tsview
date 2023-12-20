@@ -1,5 +1,5 @@
 module Plotter exposing
-    (getplotdata
+    ( getplotdata
     , getgroupplotdata
     , Group
     , groupdecoder
