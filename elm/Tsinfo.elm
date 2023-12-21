@@ -15,11 +15,13 @@ import Either exposing (Either(..))
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
+import Html.Attributes.Extra as HAX
 import Http
 import Info as I
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
+import Maybe.Extra as Maybe
 import Metadata as M
 import Plotter exposing
     ( getplotdata
@@ -90,6 +92,7 @@ type alias Model =
     , clipboardclass : String
     , horizon : String
     , offset : Int
+    , offset_reached : Bool
     }
 
 
@@ -384,17 +387,23 @@ update msg model =
                 Ok val ->
                     let
                         tsBounds = formatBoundDates val
-                        newmodel =
-                            case model.plotdata of
-                                Nothing ->
-                                    { model
-                                        | plotdata = Just val
-                                        , mindate = Tuple.first tsBounds
-                                        , maxdate = Tuple.second tsBounds
-                                    }
-                                Just data -> { model | plotdata = Just val }
+                        modelInit = Maybe.unwrap
+                            { model
+                                | mindate = Tuple.first tsBounds
+                                , maxdate = Tuple.second tsBounds
+                            }
+                            (always model)
+                            model.plotdata
+                        newModel =
+                            if Dict.isEmpty val then
+                                { modelInit | offset_reached = True}
+                            else
+                                { modelInit
+                                    | plotdata = Just val
+                                    , offset_reached = False
+                                }
                     in
-                    U.nocmd newmodel
+                    U.nocmd newModel
                 Err err ->
                     if strseries model
                     then U.nocmd model
@@ -965,15 +974,30 @@ renameevents =
     }
 
 
-horizonbtnGroup : String -> H.Html Msg
-horizonbtnGroup horizon =
+
+offsetDisabledLeft : Model -> Bool
+offsetDisabledLeft {offset, offset_reached, horizon} =
+    ((offset > 0) && offset_reached) || (horizon == "All")
+
+
+offsetDisabledRight : Model -> Bool
+offsetDisabledRight {offset, offset_reached, horizon} =
+    ((offset < 0) && offset_reached) || (horizon == "All")
+
+
+horizonbtnGroup : Model-> H.Html Msg
+horizonbtnGroup model =
     H.div
         [ HA.class "btn-group"]
-        [ H.button
-            [ HA.class "btn btn-outline-dark btn-sm"]
+        [ let disabled = offsetDisabledLeft model in
+        H.button
+            [ HA.class "btn btn-outline-dark btn-sm"
+            , HA.disabled disabled
+            ]
             [ H.i
                 [ HA.class "bi bi-arrow-left"
-                , HE.onClick (UpdateOffset (Left 1))
+                , HAX.attributeIf (not disabled) <|
+                    HE.onClick (UpdateOffset (Left 1))
                 ]
                 [ ]
             ]
@@ -983,14 +1007,18 @@ horizonbtnGroup horizon =
                 |> D.andThen (HorizonSelected >> D.succeed)
                 |> HE.on "change"
             ]
-            (List.map (renderhorizon horizon)
+            (List.map (renderhorizon model.horizon)
                 <| List.map (\(k, _) -> k) <| Dict.toList horizons
             )
-        , H.button
-            [ HA.class "btn btn-outline-dark btn-sm"]
+        , let disabled = offsetDisabledRight model in
+        H.button
+            [ HA.class "btn btn-outline-dark btn-sm"
+            , HA.disabled (offsetDisabledRight model)
+            ]
             [ H.i
                 [ HA.class "bi bi-arrow-right"
-                , HE.onClick (UpdateOffset (Right 1))
+                , HAX.attributeIf (not disabled) <|
+                    HE.onClick (UpdateOffset (Right 1))
                 ]
                 [ ]
             ]
@@ -1004,7 +1032,6 @@ renderhorizon selectedhorizon horizon =
         , HA.selected <| selectedhorizon  == horizon
         ]
         [ H.text horizon ]
-
 
 
 view : Model -> H.Html Msg
@@ -1021,7 +1048,9 @@ view model =
             [ ]
             [ H.h5
                 [ HA.style "color" "grey" ]
-                [ H.text "Series ", horizonbtnGroup model.horizon]
+                [ H.text "Series "
+                , horizonbtnGroup model
+                ]
             , H.i
                 [ HA.class model.clipboardclass
                 , HE.onClick CopyNameToClipboard
@@ -1105,6 +1134,7 @@ main =
                        , clipboardclass = "bi bi-clipboard"
                        , horizon = defaultHorizon
                        , offset = 0
+                       , offset_reached = False
                        }
                in
                ( model
