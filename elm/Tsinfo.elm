@@ -37,9 +37,7 @@ import Util as U
 
 
 type alias Horizon =
-    { horizon : String
-    , offset : Int
-    }
+    { horizon : String }
 
 
 type alias Logentry =
@@ -704,7 +702,7 @@ update msg model =
             )
 
         HorizonSelected horizon ->
-            updateHorizon horizon model.offset model
+            updateHorizon horizon 0 model
 
         UpdateOffset (Left i) ->
             updateHorizon model.horizon (model.offset + i) model
@@ -715,7 +713,7 @@ update msg model =
         SetHorizon newHorizon ->
             case D.decodeString horizonDecoder newHorizon of
                 Ok newHorizonDict ->
-                    updateHorizon newHorizonDict.horizon newHorizonDict.offset model
+                    updateHorizon newHorizonDict.horizon 0 model
                 Err _ ->
                     (model, (getplot model False))
 
@@ -753,8 +751,7 @@ updateHorizon horizon newOffset model =
     in
     (newmodel, Cmd.batch
                 [ saveToLocalStorage {
-                    horizon = horizon
-                    , offset = newOffset}
+                    horizon = horizon }
                 , getplot newmodel False
                 ]
     )
@@ -762,9 +759,7 @@ updateHorizon horizon newOffset model =
 
 horizonDecoder : D.Decoder Horizon
 horizonDecoder =
-    D.map2 Horizon
-        (D.field "horizon" D.string)
-        (D.field "offset" D.int)
+    D.map Horizon <| D.field "horizon" D.string
 
 
 port saveToLocalStorage : Horizon -> Cmd msg
