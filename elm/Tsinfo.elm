@@ -35,10 +35,8 @@ import Task as T
 import Url.Builder as UB
 import Util as U
 
-
 type alias Horizon =
-    { horizon : String }
-
+    { key : Maybe String }
 
 type alias Logentry =
     { rev : Int
@@ -88,9 +86,9 @@ type alias Model =
     , renaming : Bool
     , newname : Maybe String
     , clipboardclass : String
-    , horizon : String
     , offset : Int
     , offset_reached : Bool
+    , horizon : Horizon
     }
 
 
@@ -147,7 +145,7 @@ type Msg
     | Renamed (Result Http.Error String)
     | CopyNameToClipboard
     | ResetClipboardClass
-    | HorizonSelected String
+    | HorizonSelected Horizon
     | UpdateOffset Offset
     | SetHorizon String
 
@@ -159,8 +157,7 @@ defaultHorizon =
 
 horizons : Dict String String
 horizons =  Dict.fromList
-    [ Tuple.pair "All" ""
-    , Tuple.pair
+    [Tuple.pair
         "2 weeks"
         """(horizon
             #:date (now)
@@ -225,20 +222,15 @@ getplot model atidate =
             , idate = (if atidate then idate else Nothing)
             , callback = GotPlotData
             , nocache = (U.bool2int model.view_nocache)
-            , fromdate = (
-                if model.horizon == "All"
-                    then ""
-                else
-                    model.mindate)
-            , todate = (
-                if model.horizon == "All"
-                    then ""
-                else
-                    model.maxdate)
-            , horizon = (computedHorizon
-                (Maybe.withDefault "" <| Dict.get model.horizon horizons)
-                 model.offset
-            )}
+            , fromdate = Maybe.unwrap
+                "" (always model.mindate) model.horizon.key
+            , todate = Maybe.unwrap
+                "" (always model.maxdate) model.horizon.key
+            , horizon = model.horizon.key
+                |> Maybe.andThen (\key-> Dict.get key horizons)
+                |> Maybe.map
+                    (String.replace "{offset}" (String.fromInt model.offset))
+           }
 
 
 getlog : String -> String-> Cmd Msg
@@ -713,18 +705,11 @@ update msg model =
         SetHorizon newHorizon ->
             case D.decodeString horizonDecoder newHorizon of
                 Ok newHorizonDict ->
-                    updateHorizon newHorizonDict.horizon 0 model
+                    updateHorizon newHorizonDict 0 model
                 Err _ ->
                     (model, (getplot model False))
 
 -- views
-
-computedHorizon : String -> Int -> Maybe String
-computedHorizon horizon offset =
-    case horizon of
-        "" -> Nothing
-        _ -> Just <| String.replace "{offset}" (String.fromInt offset) horizon
-
 
 formatBoundDates : Series -> (String, String)
 formatBoundDates val =
@@ -740,9 +725,7 @@ formatBoundDates val =
             in (U.dateof minappdate, U.dateof maxappdate)
 
 
-
-
-updateHorizon : String -> Int -> Model -> ( Model, Cmd Msg )
+updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
 updateHorizon horizon newOffset model =
     let
         newmodel = { model
@@ -750,8 +733,7 @@ updateHorizon horizon newOffset model =
                         , offset = newOffset}
     in
     (newmodel, Cmd.batch
-                [ saveToLocalStorage {
-                    horizon = horizon }
+                [ saveToLocalStorage horizon
                 , getplot newmodel False
                 ]
     )
@@ -759,7 +741,7 @@ updateHorizon horizon newOffset model =
 
 horizonDecoder : D.Decoder Horizon
 horizonDecoder =
-    D.map Horizon <| D.field "horizon" D.string
+    D.map Horizon <| D.field "key" <| D.nullable D.string
 
 
 port saveToLocalStorage : Horizon -> Cmd msg
@@ -968,12 +950,12 @@ renameevents =
 
 offsetDisabledLeft : Model -> Bool
 offsetDisabledLeft {offset, offset_reached, horizon} =
-    ((offset > 0) && offset_reached) || (horizon == "All")
+    ((offset > 0) && offset_reached) || Maybe.isNothing horizon.key
 
 
 offsetDisabledRight : Model -> Bool
 offsetDisabledRight {offset, offset_reached, horizon} =
-    ((offset < 0) && offset_reached) || (horizon == "All")
+    ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
 
 
 horizonbtnGroup : Model-> H.Html Msg
@@ -995,11 +977,12 @@ horizonbtnGroup model =
         , H.select
             [ HA.class "btn btn-outline-dark btn-sm"
             , HE.targetValue
-                |> D.andThen (HorizonSelected >> D.succeed)
+                |> D.andThen readHorizon
+                |> D.map HorizonSelected
                 |> HE.on "change"
             ]
-            (List.map (renderhorizon model.horizon)
-                <| List.map (\(k, _) -> k) <| Dict.toList horizons
+            (List.map (renderhorizon model.horizon.key)
+                <| "All" :: (Dict.keys horizons)
             )
         , let disabled = offsetDisabledRight model in
         H.button
@@ -1016,11 +999,19 @@ horizonbtnGroup model =
         ]
 
 
-renderhorizon : String -> String -> H.Html msg
+readHorizon : String -> D.Decoder Horizon
+readHorizon key = D.succeed <| Horizon <|
+    if List.member key (Dict.keys horizons) then
+        Just key
+    else
+        Nothing
+
+
+renderhorizon : Maybe String -> String -> H.Html msg
 renderhorizon selectedhorizon horizon =
     H.option
         [ HA.value horizon
-        , HA.selected <| selectedhorizon  == horizon
+        , HA.selected <| Maybe.unwrap False ((==) horizon) selectedhorizon
         ]
         [ H.text horizon ]
 
@@ -1123,9 +1114,9 @@ main =
                        , renaming = False
                        , newname = Nothing
                        , clipboardclass = "bi bi-clipboard"
-                       , horizon = defaultHorizon
                        , offset = 0
                        , offset_reached = False
+                       , horizon = {key = Just defaultHorizon}
                        }
                in
                ( model
