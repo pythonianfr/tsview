@@ -227,8 +227,16 @@ getplot model atidate =
             , idate = (if atidate then idate else Nothing)
             , callback = GotPlotData
             , nocache = (U.bool2int model.view_nocache)
-            , fromdate = model.mindate
-            , todate = model.maxdate
+            , fromdate = (
+                if model.horizon == "All"
+                    then ""
+                else
+                    model.mindate)
+            , todate = (
+                if model.horizon == "All"
+                    then ""
+                else
+                    model.maxdate)
             , horizon = (computedHorizon
                 (Maybe.withDefault "" <| Dict.get model.horizon horizons)
                  model.offset
@@ -387,13 +395,11 @@ update msg model =
                 Ok val ->
                     let
                         tsBounds = formatBoundDates val
-                        modelInit = Maybe.unwrap
+                        modelInit =
                             { model
                                 | mindate = Tuple.first tsBounds
                                 , maxdate = Tuple.second tsBounds
                             }
-                            (always model)
-                            model.plotdata
                         newModel =
                             if Dict.isEmpty val then
                                 { modelInit | offset_reached = True}
@@ -711,7 +717,7 @@ update msg model =
                 Ok newHorizonDict ->
                     updateHorizon newHorizonDict.horizon newHorizonDict.offset model
                 Err _ ->
-                    (model, Cmd.none)
+                    (model, (getplot model False))
 
 -- views
 
@@ -736,24 +742,14 @@ formatBoundDates val =
             in (U.dateof minappdate, U.dateof maxappdate)
 
 
-getTsBounds : Maybe Series -> (String, String)
-getTsBounds maybeVal =
-    case maybeVal of
-        Just val ->
-            formatBoundDates val
-        Nothing ->
-            ("", "")
 
 
 updateHorizon : String -> Int -> Model -> ( Model, Cmd Msg )
 updateHorizon horizon newOffset model =
     let
-        newBounds = getTsBounds model.plotdata
         newmodel = { model
                         | horizon = horizon
-                        , offset = newOffset
-                        , mindate = Tuple.first newBounds
-                        , maxdate = Tuple.second newBounds}
+                        , offset = newOffset}
     in
     (newmodel, Cmd.batch
                 [ saveToLocalStorage {
@@ -1142,7 +1138,6 @@ main =
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "series"
                    , getsource model model.name
-                   , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
                    , getcachepolicy model
                    ]
