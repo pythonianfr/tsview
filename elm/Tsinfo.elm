@@ -383,23 +383,24 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    let
-                        tsBounds = formatBoundDates val
-                        modelInit =
-                            { model
+                    if Dict.isEmpty val then
+                        let
+                            last_offset =
+                                if model.offset < 0 then
+                                    model.offset + 1
+                                else
+                                    model.offset - 1
+                        in U.nocmd { model
+                            | offset_reached = True
+                            , offset =  last_offset}
+                    else
+                        let
+                            tsBounds = formatBoundDates val
+                        in U.nocmd { model
                                 | mindate = Tuple.first tsBounds
                                 , maxdate = Tuple.second tsBounds
-                            }
-                        newModel =
-                            if Dict.isEmpty val then
-                                { modelInit | offset_reached = True}
-                            else
-                                { modelInit
-                                    | plotdata = Just val
-                                    , offset_reached = False
-                                }
-                    in
-                    U.nocmd newModel
+                                , offset_reached = False
+                                , plotdata = Just val}
                 Err err ->
                     if strseries model
                     then U.nocmd model
