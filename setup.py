@@ -56,15 +56,15 @@ setup(name='tsview',
       packages=['tsview'],
       zip_safe=False,
       install_requires=[
-          'flask == 2.3.2',
+          'flask == 2.3.3',
           'werkzeug',
           'flask-caching',
           'pytest_sa_pg',
-          'tshistory >= 0.18',
+          'tshistory >= 0.19.4',
           'plotly < 6.0',
           'dash == 2.9.3',
           'dash-renderer == 1.9.1',
-          'tshistory_formula >= 0.14'
+          'tshistory_formula >= 0.15'
       ],
       package_data={'tsview': [
           'tsview_static/*',
