@@ -15,7 +15,6 @@ import Either exposing (Either(..))
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Html.Attributes.Extra as HAX
 import Http
 import Info as I
 import Json.Decode as D
@@ -44,6 +43,12 @@ type alias Logentry =
     , date : String
     , meta : M.UserMetadata
     }
+
+
+type alias IdatePickerEvents =
+    { idatepickerchanged : String -> Msg
+    , fvdatepickerchanged : String -> Msg
+    , tvdatepickerchanged : String -> Msg }
 
 
 type alias Model =
@@ -890,6 +895,7 @@ viewdatesrange model =
             ]
 
 
+idatepickerevents : IdatePickerEvents
 idatepickerevents =
     { idatepickerchanged = IdatePickerChanged
     , fvdatepickerchanged = FvdatePickerChanged
@@ -912,7 +918,8 @@ viewplot model =
     in
     H.div []
         [ H.h2 [] [ H.text "Plot" ]
-        , I.viewdatespicker model idatepickerevents
+        , viewdatespicker model idatepickerevents
+        , horizonbtnGroup model
         , viewdatesrange model
         , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
@@ -948,6 +955,23 @@ renameevents =
     }
 
 
+buttonArrow : String -> Bool ->  H.Html Msg
+buttonArrow direction disabled =
+    let
+        arrow = if direction == "left" then Left else Right
+    in
+    H.button
+        [ HA.class "btn btn-outline-dark btn-sm"
+        , HA.disabled disabled
+        ]
+        [ H.i
+            [ HA.class
+                <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
+            , HE.onClick (UpdateOffset (arrow 1))
+            ]
+            [ ]
+        ]
+
 
 offsetDisabledLeft : Model -> Bool
 offsetDisabledLeft {offset, offset_reached, horizon} =
@@ -959,43 +983,68 @@ offsetDisabledRight {offset, offset_reached, horizon} =
     ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
 
 
-horizonbtnGroup : Model-> H.Html Msg
+selectHorizon : Model -> H.Html Msg
+selectHorizon model =
+    H.select
+        [ HA.class "btn btn-outline-dark btn-sm"
+        , HE.targetValue
+            |> D.andThen readHorizon
+            |> D.map HorizonSelected
+            |> HE.on "change"
+        ]
+        (List.map (renderhorizon model.horizon.key)
+            <| "All" :: (Dict.keys horizons)
+        )
+
+
+horizonbtnGroup : Model -> H.Html Msg
 horizonbtnGroup model =
     H.div
-        [ HA.class "btn-group"]
-        [ let disabled = offsetDisabledLeft model in
-        H.button
-            [ HA.class "btn btn-outline-dark btn-sm"
-            , HA.disabled disabled
+        [ HA.class "row no-gutters align-items-center" ]
+        [ H.div
+            [ HA.class "col-sm-auto" ]
+            [ let disabled = offsetDisabledLeft model in
+                buttonArrow "left" disabled
             ]
-            [ H.i
-                [ HA.class "bi bi-arrow-left"
-                , HAX.attributeIf (not disabled) <|
-                    HE.onClick (UpdateOffset (Left 1))
-                ]
-                [ ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ H.text model.mindate
             ]
-        , H.select
-            [ HA.class "btn btn-outline-dark btn-sm"
-            , HE.targetValue
-                |> D.andThen readHorizon
-                |> D.map HorizonSelected
-                |> HE.on "change"
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ selectHorizon model
             ]
-            (List.map (renderhorizon model.horizon.key)
-                <| "All" :: (Dict.keys horizons)
-            )
-        , let disabled = offsetDisabledRight model in
-        H.button
-            [ HA.class "btn btn-outline-dark btn-sm"
-            , HA.disabled (offsetDisabledRight model)
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ H.text model.maxdate
             ]
-            [ H.i
-                [ HA.class "bi bi-arrow-right"
-                , HAX.attributeIf (not disabled) <|
-                    HE.onClick (UpdateOffset (Right 1))
-                ]
-                [ ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ let disabled = offsetDisabledRight model in
+                buttonArrow "right" disabled
+            ]
+        ]
+
+
+viewdatespicker : Model ->  IdatePickerEvents -> H.Html Msg
+viewdatespicker model events =
+    let
+        currdate =
+            case Array.get model.date_index model.insertion_dates of
+                Nothing -> ""
+                Just date -> U.cleanupdate date
+    in H.div
+        [ HA.class "row" ]
+        [H.div
+            [ HA.class "col" ]
+            [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date : " ]
+            , H.span [ ] [ H.text " " ]
+            , H.input [ HA.type_ "datetime-local"
+                        , HA.id "idate-picker"
+                        , HA.name "idate-picker"
+                        , HA.value currdate
+                        , HE.onInput events.idatepickerchanged
+                        ] [ ]
             ]
         ]
 
