@@ -12,6 +12,15 @@ import Debouncer.Messages as Debouncer exposing
     )
 import Dict exposing (Dict)
 import Either exposing (Either(..))
+import Horizon exposing
+    ( Horizon
+    , HorizonModel
+    , Offset
+    , defaultHorizon
+    , horizonbtnGroup
+    , horizons
+    , updateHorizonModel
+    )
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -27,15 +36,12 @@ import Plotter exposing
     , seriesdecoder
     , scatterplot
     , plotargs
-    , Series
     )
 import Process as P
 import Task as T
 import Url.Builder as UB
 import Util as U
 
-type alias Horizon =
-    { key : Maybe String }
 
 type alias Logentry =
     { rev : Int
@@ -76,10 +82,7 @@ type alias Model =
     -- log
     , log : List Logentry
     -- plot
-    , timeSeries : Series
     , insertion_dates : Array String
-    , mindate : String
-    , maxdate : String
     , date_index : Int
     , date_index_deb : Debouncer Msg
     -- user meta edition
@@ -93,12 +96,8 @@ type alias Model =
     , clipboardclass : String
     , offset : Int
     , offset_reached : Bool
-    , horizon : Horizon
+    , horizon : HorizonModel Float
     }
-
-
-type alias Offset =
-    Either Int Int
 
 
 type Msg
@@ -155,32 +154,6 @@ type Msg
     | SetHorizon String
 
 
-defaultHorizon : String
-defaultHorizon =
-        "2 weeks"
-
-
-horizons : Dict String String
-horizons =  Dict.fromList
-    [Tuple.pair
-        "2 weeks"
-        """(horizon
-            #:date (now)
-            #:past (delta #:days -14)
-            #:future (delta #:days 14)
-            #:offset {offset})
-        """
-    , Tuple.pair
-        "1 month"
-        """
-            (horizon #:date (now)
-            #:past (delta #:days -30)
-            #:future (delta #:days 30)
-            #:offset {offset})
-        """
-    ]
-
-
 logentrydecoder : D.Decoder Logentry
 logentrydecoder =
     D.map4 Logentry
@@ -228,13 +201,13 @@ getplot model atidate =
             , callback = GotPlotData
             , nocache = (U.bool2int model.view_nocache)
             , fromdate = Maybe.unwrap
-                "" (always model.mindate) model.horizon.key
+                "" (always model.horizon.mindate) model.horizon.horizon.key
             , todate = Maybe.unwrap
-                "" (always model.maxdate) model.horizon.key
-            , horizon = model.horizon.key
+                "" (always model.horizon.maxdate) model.horizon.horizon.key
+            , horizon = model.horizon.horizon.key
                 |> Maybe.andThen (\key-> Dict.get key horizons)
                 |> Maybe.map
-                    (String.replace "{offset}" (String.fromInt model.offset))
+                    (String.replace "{offset}" (String.fromInt model.horizon.offset))
            }
 
 
@@ -388,24 +361,10 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    if Dict.isEmpty val then
-                        let
-                            last_offset =
-                                if model.offset < 0 then
-                                    model.offset + 1
-                                else
-                                    model.offset - 1
-                        in U.nocmd { model
-                            | offset_reached = True
-                            , offset =  last_offset}
-                    else
-                        let
-                            tsBounds = formatBoundDates val
-                        in U.nocmd { model
-                                | mindate = Tuple.first tsBounds
-                                , maxdate = Tuple.second tsBounds
-                                , offset_reached = False
-                                , timeSeries = val}
+                    U.nocmd { model
+                        | horizon =
+                            updateHorizonModel model.horizon val
+                            }
                 Err err ->
                     if strseries model
                     then U.nocmd model
@@ -543,7 +502,11 @@ update msg model =
 
         FvdatePickerChanged value ->
             let
-                newmodel = { model | mindate = value }
+                newHorizonModel = model.horizon
+                newmodel = { model
+                    | horizon = {
+                        newHorizonModel
+                            | mindate = value }}
             in
                 ( newmodel
                 , getplot newmodel True
@@ -551,7 +514,11 @@ update msg model =
 
         TvdatePickerChanged value ->
             let
-                newmodel = { model | maxdate = value }
+                newHorizonModel = model.horizon
+                newmodel = { model
+                    | horizon = {
+                        newHorizonModel
+                            | maxdate = value }}
             in
                 ( newmodel
                 , getplot newmodel True
@@ -703,10 +670,10 @@ update msg model =
             updateHorizon horizon 0 model
 
         UpdateOffset (Left i) ->
-            updateHorizon model.horizon (model.offset + i) model
+            updateHorizon model.horizon.horizon (model.horizon.offset + i) model
 
         UpdateOffset (Right i) ->
-            updateHorizon model.horizon (model.offset - i) model
+            updateHorizon model.horizon.horizon (model.horizon.offset - i) model
 
         SetHorizon newHorizon ->
             case D.decodeString horizonDecoder newHorizon of
@@ -717,26 +684,15 @@ update msg model =
 
 -- views
 
-formatBoundDates : Series -> (String, String)
-formatBoundDates val =
-            let
-                dates = Dict.keys val
-                minappdate =
-                    case dates of
-                        head::_ -> U.cleanupdate head
-                        []  -> ""
-                maxappdate = U.cleanupdate
-                                <| Maybe.withDefault ""
-                                <| List.maximum dates
-            in (U.dateof minappdate, U.dateof maxappdate)
-
-
 updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
 updateHorizon horizon newOffset model =
     let
+        newHorizonModel = model.horizon
         newmodel = { model
-                        | horizon = horizon
-                        , offset = newOffset}
+                        | horizon =
+                            { newHorizonModel
+                                | horizon = horizon
+                                , offset = newOffset}}
     in
     (newmodel, Cmd.batch
                 [ saveToLocalStorage horizon
@@ -907,15 +863,15 @@ viewplot : Model -> H.Html Msg
 viewplot model =
     let
         plot = scatterplot model.name
-               (Dict.keys model.timeSeries)
-               (Dict.values model.timeSeries)
+               (Dict.keys model.horizon.timeSeries)
+               (Dict.values model.horizon.timeSeries)
                "lines"
         args = plotargs "plot" [plot]
     in
     H.div []
         [ H.h2 [] [ H.text "Plot" ]
         , viewdatespicker model idatepickerevents
-        , horizonbtnGroup model
+        , horizonbtnGroup model.horizon UpdateOffset HorizonSelected
         , viewdatesrange model
         , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
@@ -951,76 +907,6 @@ renameevents =
     }
 
 
-buttonArrow : String -> Bool ->  H.Html Msg
-buttonArrow direction disabled =
-    let
-        arrow = if direction == "left" then Left else Right
-    in
-    H.button
-        [ HA.class "btn btn-outline-dark btn-sm"
-        , HA.disabled disabled
-        ]
-        [ H.i
-            [ HA.class
-                <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
-            , HE.onClick (UpdateOffset (arrow 1))
-            ]
-            [ ]
-        ]
-
-
-offsetDisabledLeft : Model -> Bool
-offsetDisabledLeft {offset, offset_reached, horizon} =
-    ((offset > 0) && offset_reached) || Maybe.isNothing horizon.key
-
-
-offsetDisabledRight : Model -> Bool
-offsetDisabledRight {offset, offset_reached, horizon} =
-    ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
-
-
-selectHorizon : Model -> H.Html Msg
-selectHorizon model =
-    H.select
-        [ HA.class "btn btn-outline-dark btn-sm"
-        , HE.targetValue
-            |> D.andThen readHorizon
-            |> D.map HorizonSelected
-            |> HE.on "change"
-        ]
-        (List.map (renderhorizon model.horizon.key)
-            <| "All" :: (Dict.keys horizons)
-        )
-
-
-horizonbtnGroup : Model -> H.Html Msg
-horizonbtnGroup model =
-    H.div
-        [ HA.class "row no-gutters align-items-center" ]
-        [ H.div
-            [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledLeft model in
-                buttonArrow "left" disabled
-            ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ H.text model.mindate
-            ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ selectHorizon model
-            ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ H.text model.maxdate
-            ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledRight model in
-                buttonArrow "right" disabled
-            ]
-        ]
-
 
 viewdatespicker : Model ->  IdatePickerEvents -> H.Html Msg
 viewdatespicker model events =
@@ -1045,23 +931,6 @@ viewdatespicker model events =
         ]
 
 
-readHorizon : String -> D.Decoder Horizon
-readHorizon key = D.succeed <| Horizon <|
-    if List.member key (Dict.keys horizons) then
-        Just key
-    else
-        Nothing
-
-
-renderhorizon : Maybe String -> String -> H.Html msg
-renderhorizon selectedhorizon horizon =
-    H.option
-        [ HA.value horizon
-        , HA.selected <| Maybe.unwrap False ((==) horizon) selectedhorizon
-        ]
-        [ H.text horizon ]
-
-
 view : Model -> H.Html Msg
 view model =
     H.div
@@ -1077,7 +946,7 @@ view model =
             [ H.h5
                 [ HA.style "color" "grey" ]
                 [ H.text "Series "
-                , horizonbtnGroup model
+                , horizonbtnGroup model.horizon UpdateOffset HorizonSelected
                 ]
             , H.i
                 [ HA.class model.clipboardclass
@@ -1145,10 +1014,7 @@ main =
                        -- log
                        , log = [ ]
                        -- plot
-                       , timeSeries = Dict.empty
                        , insertion_dates = Array.empty
-                       , mindate = ""
-                       , maxdate = ""
                        , date_index = 0
                        , date_index_deb = debouncerconfig
                        -- user meta edittion
@@ -1162,7 +1028,14 @@ main =
                        , clipboardclass = "bi bi-clipboard"
                        , offset = 0
                        , offset_reached = False
-                       , horizon = {key = Just defaultHorizon}
+                       , horizon =
+                             { offset = 0
+                             , offset_reached = False
+                             , horizon = { key = Just defaultHorizon }
+                             , mindate = ""
+                             , maxdate = ""
+                             , timeSeries = Dict.empty
+                             }
                        }
                in
                ( model
