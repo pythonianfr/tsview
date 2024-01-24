@@ -351,4 +351,15 @@ def tsview(tsa):
             dict(m)
         )
 
+    @bp.route('/tseditor')
+    def tseditor():
+        if not has_permission('viewseries'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'tseditor.html',
+            homeurl=homeurl(),
+            name=request.args.get('name')
+        )
+
     return bp
