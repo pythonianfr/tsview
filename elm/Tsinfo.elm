@@ -32,7 +32,7 @@ import JsonTree as JT exposing (TaggedValue(..))
 import Maybe.Extra as Maybe
 import Metadata as M
 import Plotter exposing
-    ( getplotdata
+    ( getData
     , seriesdecoder
     , scatterplot
     , plotargs
@@ -194,7 +194,7 @@ getplot model atidate =
         idate =
             Array.get model.date_index model.insertion_dates
     in
-        getplotdata
+        getData
             { baseurl = model.baseurl
             , name = model.name
             , idate = (if atidate then idate else Nothing)
@@ -209,6 +209,8 @@ getplot model atidate =
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
            }
+           "state"
+           "false"
 
 
 getlog : String -> String-> Cmd Msg

@@ -1,5 +1,5 @@
 module Plotter exposing
-    ( getplotdata
+    ( getData
     , getgroupplotdata
     , Group
     , groupdecoder
@@ -81,8 +81,8 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getplotdata : PlotData msg -> Cmd msg
-getplotdata data =
+getData : PlotData msg -> String -> String -> Cmd msg
+getData data apiPoint keepNans =
     let
         stringToMaybe : String -> String -> Maybe UB.QueryParameter
         stringToMaybe name value =
@@ -92,6 +92,7 @@ getplotdata data =
             [ stringToMaybe "name" data.name
             , Maybe.andThen (stringToMaybe "insertion_date") data.idate
             , Just <| UB.int "nocache" data.nocache
+            , stringToMaybe "_keep_nans" keepNans
             ]
             ++ Maybe.unwrap
             [ stringToMaybe "from_value_date" data.fromdate
@@ -100,7 +101,7 @@ getplotdata data =
             (\horizonstr -> [stringToMaybe "horizon" (String.trim horizonstr)])
             data.horizon
     in Http.get
-    { url = UB.crossOrigin data.baseurl ["api", "series", "state"] fullquery
+    { url = UB.crossOrigin data.baseurl ["api", "series", apiPoint] fullquery
     , expect = Http.expectString data.callback
     }
 
