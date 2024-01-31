@@ -5,9 +5,13 @@ import Browser
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
-    ( HorizonModel
+    ( Horizon
+    , HorizonModel
+    , Offset
     , defaultHorizon
+    , horizonbtnGroup
     , horizons
+    , updateHorizonModel
     )
 import Http
 import Html as H
@@ -32,14 +36,16 @@ type alias Model =
     }
 
 
-type Msg =
-    GotEditData (Result Http.Error String)
-
+type Msg
+    = GotEditData (Result Http.Error String)
+    | HorizonSelected Horizon
+    | UpdateOffset Offset
 
 type alias Entry =
     { series : Float
     , markers : Bool
     }
+
 
 entryDecoder : D.Decoder Entry
 entryDecoder =
@@ -81,21 +87,41 @@ geteditor model atidate =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+
         GotEditData (Ok rawdata) ->
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
-                    let
-                        newHorizonModel = model.horizonModel
-                    in  ( { model
-                            | horizonModel =
-                                { newHorizonModel | timeSeries = val }
-                            }
-                        , Cmd.none )
+                 U.nocmd {
+                        model | horizonModel =
+                            updateHorizonModel model.horizonModel val}
                 Err _ ->
-                    (model, Cmd.none)
+                  (model, Cmd.none)
 
         GotEditData (Err _) ->
-                    (model, Cmd.none)
+                  (model, Cmd.none)
+
+        HorizonSelected horizon ->
+            updateHorizon horizon 0 model
+
+        UpdateOffset (Left i) ->
+            updateHorizon model.horizonModel.horizon (model.horizonModel.offset + i) model
+
+        UpdateOffset (Right i) ->
+            updateHorizon model.horizonModel.horizon (model.horizonModel.offset - i) model
+
+
+
+updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
+updateHorizon horizon newOffset model =
+    let
+        newHorizonModel = model.horizonModel
+        newmodel = { model
+                        | horizonModel =
+                            { newHorizonModel
+                                | horizon = horizon
+                                , offset = newOffset}}
+    in
+    (newmodel, geteditor newmodel False)
 
 
 viewPlotData : Model -> H.Html Msg
@@ -117,7 +143,8 @@ view : Model -> H.Html Msg
 view model =
     H.div
         [ ]
-        [ viewPlotData model
+        [ horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
+        , viewPlotData model
         ]
 
 
