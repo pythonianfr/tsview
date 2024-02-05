@@ -24,7 +24,9 @@ import Plotter exposing
     , scatterplot
     , plotargs
     )
+import Url.Builder as UB
 import Util as U
+import Json.Encode as E
 
 
 type alias Model =
@@ -43,6 +45,8 @@ type Msg
     | HorizonSelected Horizon
     | UpdateOffset Offset
     | InputChanged String String
+    | SaveEditedData
+    | GotEditedData (Result Http.Error String)
 
 
 type alias Entry =
@@ -129,6 +133,14 @@ update msg model =
                 | editedtimeSeries = newDict}
             , Cmd.none )
 
+        SaveEditedData ->
+            (model, patchEditedData model)
+
+        GotEditedData (Ok _) ->
+            ({ model | editedtimeSeries = Dict.empty }, geteditor model False)
+
+        GotEditedData (Err _) ->
+            (model, geteditor model False)
 
 checkSeries : String -> String -> Dict String Entry -> Bool
 checkSeries date value data =
@@ -169,6 +181,83 @@ updateHorizon horizon newOffset model =
                                 , offset = newOffset}}
     in
     (newmodel, geteditor newmodel False)
+
+
+patchEditedData : Model -> Cmd Msg
+patchEditedData model =
+    Http.request
+        { method = "PATCH"
+        , body = Http.jsonBody <| E.object
+                 [ ("name", E.string model.name )
+                 , ("author" , E.string "webui" )
+                 , ("tzaware", E.bool True)
+                 , ("series", encodeEditedData model.editedtimeSeries)
+                 , ("supervision", E.bool True)
+                 ]
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "series", "state" ] [ ]
+        , expect = Http.expectString GotEditedData
+        }
+
+
+encodeEditedData : EditedData -> E.Value
+encodeEditedData editedData =
+    E.dict
+        identity
+        (\value ->
+            if value == "" then
+                E.null
+            else
+                E.float (Maybe.withDefault 0.0 (String.toFloat value))
+        )
+        editedData
+
+
+
+viewEditedRow : EditedData -> H.Html Msg
+viewEditedRow editedData =
+    let
+        row : (String, String) -> H.Html Msg
+        row (date, value) =
+            H.tr
+                [ ]
+                [ H.td [ ] [ H.text (String.slice 0 19 date) ]
+                , H.td [ ] [ H.text value]
+                ]
+    in
+    if Dict.isEmpty editedData then
+            H.div [ ][ ]
+    else
+        H.div [ HA.class "col-sm" ]
+        [ H.button
+            [ HA.class "btn btn-warning"
+            , HA.attribute "type" "button"
+            , HE.onClick SaveEditedData ]
+            [ H.text "Save" ]
+        , H.table
+            [ HA.class "table-sm table-bordered custom-table table-striped" ]
+            [ H.thead
+                [ ]
+                [ H.tr
+                    [ ]
+                    [ H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Dates" ]
+                    , H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Value" ]
+                    ]
+                ]
+            , H.tbody
+                [ ]
+                (List.map row (Dict.toList editedData))
+            ]
+        ]
 
 
 viewRow : (String, Entry) -> H.Html Msg
@@ -233,42 +322,6 @@ view model =
                 [ editTable model
                 , viewEditedRow model.editedtimeSeries
                 ]
-            ]
-        ]
-
-
-viewEditedRow : EditedData -> H.Html Msg
-viewEditedRow editedData =
-    let
-        row : (String, String) -> H.Html Msg
-        row (date, value) =
-            H.tr
-                [ ]
-                [ H.td [ ] [ H.text (String.slice 0 19 date) ]
-                , H.td [ ] [ H.text value]
-                ]
-    in
-    if Dict.isEmpty editedData then
-            H.div [ ][ ]
-    else
-        H.div [ HA.class "col-sm" ]
-        [ H.table
-            [ HA.class "table-sm table-bordered custom-table table-striped" ]
-            [ H.thead
-                [ ]
-                [ H.tr
-                    [ ]
-                    [ H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Dates" ]
-                    , H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Value" ]
-                    ]
-                ]
-            , H.tbody
-                [ ]
-                (List.map row (Dict.toList editedData))
             ]
         ]
 
