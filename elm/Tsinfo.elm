@@ -76,7 +76,7 @@ type alias Model =
     -- log
     , log : List Logentry
     -- plot
-    , plotdata : Maybe Series
+    , timeSeries : Series
     , insertion_dates : Array String
     , mindate : String
     , maxdate : String
@@ -405,7 +405,7 @@ update msg model =
                                 | mindate = Tuple.first tsBounds
                                 , maxdate = Tuple.second tsBounds
                                 , offset_reached = False
-                                , plotdata = Just val}
+                                , timeSeries = val}
                 Err err ->
                     if strseries model
                     then U.nocmd model
@@ -906,13 +906,9 @@ idatepickerevents =
 viewplot : Model -> H.Html Msg
 viewplot model =
     let
-        plotdata = case model.plotdata of
-                       Nothing -> Dict.empty
-                       Just data -> data
-
         plot = scatterplot model.name
-               (Dict.keys plotdata)
-               (Dict.values plotdata)
+               (Dict.keys model.timeSeries)
+               (Dict.values model.timeSeries)
                "lines"
         args = plotargs "plot" [plot]
     in
@@ -1149,7 +1145,7 @@ main =
                        -- log
                        , log = [ ]
                        -- plot
-                       , plotdata = Nothing
+                       , timeSeries = Dict.empty
                        , insertion_dates = Array.empty
                        , mindate = ""
                        , maxdate = ""
