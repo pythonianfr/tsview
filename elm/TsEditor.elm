@@ -42,6 +42,7 @@ type Msg
     = GotEditData (Result Http.Error String)
     | HorizonSelected Horizon
     | UpdateOffset Offset
+    | InputChanged String String
 
 
 type alias Entry =
@@ -116,6 +117,30 @@ update msg model =
         UpdateOffset (Right i) ->
             updateHorizon model.horizonModel.horizon (model.horizonModel.offset - i) model
 
+        InputChanged date value ->
+            let
+                newDict =
+                    if checkSeries date value model.horizonModel.timeSeries then
+                        Dict.remove date model.editedtimeSeries
+                    else
+                        Dict.insert date value model.editedtimeSeries
+            in
+            ( { model
+                | editedtimeSeries = newDict}
+            , Cmd.none )
+
+
+checkSeries : String -> String -> Dict String Entry -> Bool
+checkSeries date value data =
+    case Dict.get date data of
+        Just { series } ->
+            if series == String.toFloat value then
+                True
+            else
+                False
+        Nothing ->
+            True
+
 
 updateData : EditedData -> Dict String Entry -> Dict String Entry
 updateData editedData data =
@@ -154,6 +179,14 @@ viewRow ( date, data ) =
                 [HA.class "table-danger"]
             else
                 []
+        initialValue =  Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
+        propagedMessage : String -> D.Decoder Msg
+        propagedMessage value =
+            if value == initialValue then
+                D.fail "no propagation"
+            else
+                D.succeed (InputChanged date value)
+
     in
     H.tr rowStyle
         [ H.td
@@ -162,8 +195,13 @@ viewRow ( date, data ) =
             ]
         , H.td
             [ ]
-            [ H.text <|
-                Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
+            [ H.input
+                [ HA.placeholder "Enter your value"
+                , HA.type_ "number"
+                , HA.value initialValue
+                , HE.on "input" (D.andThen propagedMessage HE.targetValue)
+                ]
+                [ ]
             ]
         ]
 
