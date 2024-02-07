@@ -16,6 +16,7 @@ import Horizon exposing
 import Http
 import Html as H
 import Html.Attributes as HA
+import Html.Events as HE
 import Json.Decode as D
 import Maybe.Extra as Maybe
 import Plotter exposing
@@ -41,8 +42,9 @@ type Msg
     | HorizonSelected Horizon
     | UpdateOffset Offset
 
+
 type alias Entry =
-    { series : Float
+    { series : Maybe Float
     , markers : Bool
     }
 
@@ -50,7 +52,7 @@ type alias Entry =
 entryDecoder : D.Decoder Entry
 entryDecoder =
     D.map2 Entry
-        (D.field "series" D.float)
+        (D.field "series" (D.maybe D.float))
         (D.field "markers" D.bool)
 
 
@@ -129,7 +131,7 @@ viewPlotData model =
     let
         plot = scatterplot model.name
             (Dict.keys model.horizonModel.timeSeries)
-            (List.map (\x -> x.series) (Dict.values  model.horizonModel.timeSeries))
+            (List.map (\x -> x.series) (Dict.values model.horizonModel.timeSeries))
             "lines"
         args = plotargs "plot" [plot]
     in H.div

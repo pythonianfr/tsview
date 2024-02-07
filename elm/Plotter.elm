@@ -13,6 +13,7 @@ import Dict exposing (Dict)
 import Http
 import Json.Decode as D
 import Json.Encode as E
+import Json.Encode.Extra as E
 import Maybe.Extra as Maybe
 import Url.Builder as UB
 
@@ -22,7 +23,7 @@ type alias Trace =
     { type_ : String
     , name : String
     , x : List String
-    , y : List Float
+    , y : List (Maybe Float)
     , mode : String
     }
 
@@ -48,21 +49,21 @@ encodetrace t =
         [ ( "type", E.string t.type_ )
         , ( "name", E.string t.name )
         , ( "x", E.list E.string t.x )
-        , ( "y", E.list E.float t.y )
+        , ( "y", E.list (E.maybe E.float) t.y )
         , ( "mode", E.string t.mode )
         ]
 
 
 type alias Series =
-    Dict String Float
+    Dict String (Maybe Float)
 
 
 seriesdecoder =
-    D.dict D.float
+    D.dict (D.maybe D.float)
 
 
 type alias TraceArgs =
-    String -> List String -> List Float -> String -> Trace
+    String -> List String -> List (Maybe Float) -> String -> Trace
 
 
 scatterplot : TraceArgs
@@ -108,11 +109,11 @@ getData data apiPoint keepNans =
 -- groups
 
 type alias Group =
-    Dict String (Dict String Float)
+    Dict String (Dict String (Maybe Float))
 
 
 groupdecoder =
-    D.dict (D.dict D.float)
+    D.dict (D.dict (D.maybe D.float))
 
 
 getgroupplotdata baseurl name idate callback fromdate todate =

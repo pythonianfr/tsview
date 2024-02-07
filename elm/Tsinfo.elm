@@ -94,9 +94,7 @@ type alias Model =
     , renaming : Bool
     , newname : Maybe String
     , clipboardclass : String
-    , offset : Int
-    , offset_reached : Bool
-    , horizon : HorizonModel Float
+    , horizon : HorizonModel (Maybe Float)
     }
 
 
@@ -1028,8 +1026,6 @@ main =
                        , renaming = False
                        , newname = Nothing
                        , clipboardclass = "bi bi-clipboard"
-                       , offset = 0
-                       , offset_reached = False
                        , horizon =
                              { offset = 0
                              , offset_reached = False
