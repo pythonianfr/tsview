@@ -30,6 +30,7 @@ import Util as U
 type alias Model =
     { baseurl : String
     , date_index : Int
+    , editedtimeSeries : EditedData
     , horizonModel : HorizonModel Entry
     , insertion_dates : Array String
     , name : String
@@ -47,6 +48,10 @@ type alias Entry =
     { series : Maybe Float
     , markers : Bool
     }
+
+
+type alias EditedData =
+   Dict String String
 
 
 entryDecoder : D.Decoder Entry
@@ -112,6 +117,21 @@ update msg model =
             updateHorizon model.horizonModel.horizon (model.horizonModel.offset - i) model
 
 
+updateData : EditedData -> Dict String Entry -> Dict String Entry
+updateData editedData data =
+    Dict.foldl
+        (\key editedDataValue accData ->
+            case Dict.get key accData of
+                Just dataValue ->
+                    Dict.insert key { dataValue
+                        | series = String.toFloat editedDataValue } accData
+
+                Nothing ->
+                    accData
+        )
+        data
+        editedData
+
 
 updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
 updateHorizon horizon newOffset model =
@@ -124,6 +144,28 @@ updateHorizon horizon newOffset model =
                                 , offset = newOffset}}
     in
     (newmodel, geteditor newmodel False)
+
+
+viewRow : (String, Entry) -> H.Html Msg
+viewRow ( date, data ) =
+    let
+        rowStyle =
+            if data.markers then
+                [HA.class "table-danger"]
+            else
+                []
+    in
+    H.tr rowStyle
+        [ H.td
+            [ ]
+            [ H.text (String.slice 0 19 date)
+            ]
+        , H.td
+            [ ]
+            [ H.text <|
+                Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
+            ]
+        ]
 
 
 viewPlotData : Model -> H.Html Msg
@@ -147,6 +189,84 @@ view model =
         [ ]
         [ horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
         , viewPlotData model
+        , H.div [ HA.class "container" ]
+            [ H.div
+                [ HA.class "row" ]
+                [ editTable model
+                , viewEditedRow model.editedtimeSeries
+                ]
+            ]
+        ]
+
+
+viewEditedRow : EditedData -> H.Html Msg
+viewEditedRow editedData =
+    let
+        row : (String, String) -> H.Html Msg
+        row (date, value) =
+            H.tr
+                [ ]
+                [ H.td [ ] [ H.text (String.slice 0 19 date) ]
+                , H.td [ ] [ H.text value]
+                ]
+    in
+    if Dict.isEmpty editedData then
+            H.div [ ][ ]
+    else
+        H.div [ HA.class "col-sm" ]
+        [ H.table
+            [ HA.class "table-sm table-bordered custom-table table-striped" ]
+            [ H.thead
+                [ ]
+                [ H.tr
+                    [ ]
+                    [ H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Dates" ]
+                    , H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Value" ]
+                    ]
+                ]
+            , H.tbody
+                [ ]
+                (List.map row (Dict.toList editedData))
+            ]
+        ]
+
+
+editTable : Model -> H.Html Msg
+editTable model =
+    if Dict.isEmpty model.horizonModel.timeSeries then
+        H.div [ ][ ]
+    else
+        H.div
+        [ HA.class "col-sm" ]
+        [ H.table
+            [ HA.class
+                "table-sm table-bordered custom-table table-striped"
+            ]
+            [ H.thead [ ]
+                [ H.tr [ ]
+                    [ H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Dates" ]
+                    , H.th
+                        [ HA.scope "col" ]
+                        [ H.text "Value" ]
+                    ]
+                ]
+            , H.tbody [ ]
+                (List.map
+                    viewRow
+                    (Dict.toList
+                        (updateData
+                            model.editedtimeSeries
+                            model.horizonModel.timeSeries
+                        )
+                    )
+                )
+            ]
         ]
 
 
@@ -164,6 +284,7 @@ main =
                    model =
                         { baseurl = input.baseurl
                         , date_index = 0
+                        , editedtimeSeries = Dict.empty
                         ,  horizonModel =
                             { offset = 0
                             , offset_reached = False
