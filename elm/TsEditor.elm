@@ -111,14 +111,14 @@ update msg model =
         GotEditData (Ok rawdata) ->
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
-                 U.nocmd {
-                        model | horizonModel =
-                            updateHorizonModel model.horizonModel val}
+                 U.nocmd { model | horizonModel =
+                               updateHorizonModel model.horizonModel val
+                         }
                 Err _ ->
-                  (model, Cmd.none)
+                  U.nocmd model
 
         GotEditData (Err _) ->
-                  (model, Cmd.none)
+            U.nocmd model
 
         HorizonSelected horizon ->
             updateHorizon horizon 0 model
@@ -137,9 +137,7 @@ update msg model =
                     else
                         Dict.insert date value model.editedtimeSeries
             in
-            ( { model
-                | editedtimeSeries = newDict}
-            , Cmd.none )
+            U.nocmd { model | editedtimeSeries = newDict}
 
         SaveEditedData ->
             (model, patchEditedData model)
@@ -197,7 +195,9 @@ updateHorizon horizon newOffset model =
                         | horizonModel =
                             { newHorizonModel
                                 | horizon = horizon
-                                , offset = newOffset}}
+                                , offset = newOffset
+                            }
+                   }
     in
     (newmodel, geteditor newmodel False)
 
@@ -219,9 +219,9 @@ patchEditedData model =
         , body = Http.jsonBody <| E.object
                  [ ("name", E.string model.name )
                  , ("author" , E.string "webui" )
-                 , ("tzaware", E.bool tzaware)
-                 , ("series", encodeEditedData model.editedtimeSeries)
-                 , ("supervision", E.bool True)
+                 , ("tzaware", E.bool tzaware )
+                 , ("series", encodeEditedData model.editedtimeSeries )
+                 , ("supervision", E.bool True )
                  ]
         , headers = []
         , timeout = Nothing
@@ -247,7 +247,6 @@ encodeEditedData editedData =
         editedData
 
 
-
 viewEditedRow : EditedData -> H.Html Msg
 viewEditedRow editedData =
     let
@@ -259,8 +258,8 @@ viewEditedRow editedData =
                 , H.td [ ] [ H.text value]
                 ]
     in
-    if Dict.isEmpty editedData then
-            H.div [ ][ ]
+    if Dict.isEmpty editedData
+    then H.div [ ][ ]
     else
         H.div [ HA.class "col-sm" ]
         [ H.button
@@ -297,14 +296,13 @@ viewRow ( date, data ) =
                 [HA.class "table-danger"]
             else
                 []
-        initialValue =  Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
+        initialValue = Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
         propagedMessage : String -> D.Decoder Msg
         propagedMessage value =
             if value == initialValue then
                 D.fail "no propagation"
             else
                 D.succeed (InputChanged date value)
-
     in
     H.tr rowStyle
         [ H.td
@@ -357,8 +355,8 @@ view model =
 
 editTable : Model -> H.Html Msg
 editTable model =
-    if Dict.isEmpty model.horizonModel.timeSeries then
-        H.div [ ][ ]
+    if Dict.isEmpty model.horizonModel.timeSeries
+    then H.div [ ][ ]
     else
         H.div
         [ HA.class "col-sm" ]
