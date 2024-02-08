@@ -19,6 +19,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
 import Maybe.Extra as Maybe
+import Metadata as M
 import Plotter exposing
     ( getData
     , scatterplot
@@ -31,6 +32,8 @@ import Json.Encode as E
 
 type alias Model =
     { baseurl : String
+    , errors : List String
+    , meta : M.StdMetadata
     , date_index : Int
     , editedtimeSeries : EditedData
     , horizonModel : HorizonModel Entry
@@ -42,6 +45,7 @@ type alias Model =
 
 type Msg
     = GotEditData (Result Http.Error String)
+    | GotMetadata (Result Http.Error String)
     | HorizonSelected Horizon
     | UpdateOffset Offset
     | InputChanged String String
@@ -98,6 +102,10 @@ geteditor model atidate =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
+    let
+        doerr tag error =
+            U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
+    in
     case msg of
 
         GotEditData (Ok rawdata) ->
@@ -142,6 +150,17 @@ update msg model =
         GotEditedData (Err _) ->
             (model, geteditor model False)
 
+        GotMetadata (Ok result) ->
+            case D.decodeString M.decodemeta result of
+                Ok allmeta ->
+                    U.nocmd { model | meta = allmeta }
+                Err err ->
+                    doerr "gotmeta decode" <| D.errorToString err
+
+        GotMetadata (Err err) ->
+            doerr "gotmeta http" <| U.unwraperror err
+
+
 checkSeries : String -> String -> Dict String Entry -> Bool
 checkSeries date value data =
     case Dict.get date data of
@@ -185,12 +204,22 @@ updateHorizon horizon newOffset model =
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
+    let
+        mtzaware =
+            Maybe.withDefault (M.MBool True) <|
+                Dict.get "tzaware" model.meta
+
+        tzaware =
+            case mtzaware of
+                M.MBool b -> b
+                _ -> True
+    in
     Http.request
         { method = "PATCH"
         , body = Http.jsonBody <| E.object
                  [ ("name", E.string model.name )
                  , ("author" , E.string "webui" )
-                 , ("tzaware", E.bool True)
+                 , ("tzaware", E.bool tzaware)
                  , ("series", encodeEditedData model.editedtimeSeries)
                  , ("supervision", E.bool True)
                  ]
@@ -374,6 +403,8 @@ main =
                let
                    model =
                         { baseurl = input.baseurl
+                        , errors = []
+                        , meta = Dict.empty
                         , date_index = 0
                         , editedtimeSeries = Dict.empty
                         ,  horizonModel =
@@ -389,7 +420,12 @@ main =
                         , view_nocache = False
                         }
                in
-               ( model, (geteditor model False) )
+               ( model
+               , Cmd.batch
+                   [ (geteditor model False)
+                   , M.getsysmetadata model.baseurl model.name GotMetadata "series"
+                   ]
+               )
 
        in
            Browser.element
