@@ -29,12 +29,6 @@ def set_read_only(self, names, msg='Attribute is read-only'):
 _utils.AttributeDict.set_read_only = set_read_only
 
 
-bp = Blueprint('tsview', __name__,
-               template_folder='tsview_templates',
-               static_folder='tsview_static',
-)
-
-
 def primary_names(tsa):
     cat = list(tsa.catalog(
         allsources=False
@@ -68,6 +62,12 @@ def has_roles(*required_roles):
 
 
 def tsview(tsa):
+    bp = Blueprint(
+        'tsview',
+        __name__,
+        template_folder='tsview_templates',
+        static_folder='tsview_static',
+    )
 
     @bp.route('/tsview')
     def home():
