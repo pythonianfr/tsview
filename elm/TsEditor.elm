@@ -32,6 +32,7 @@ import Json.Encode as E
 
 type alias Model =
     { baseurl : String
+    , editedDataError : Bool
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
@@ -56,6 +57,7 @@ type Msg
 type alias Entry =
     { series : Maybe Float
     , markers : Bool
+    , processingEdition : Bool
     }
 
 
@@ -65,9 +67,10 @@ type alias EditedData =
 
 entryDecoder : D.Decoder Entry
 entryDecoder =
-    D.map2 Entry
+    D.map3 Entry
         (D.field "series" (D.maybe D.float))
         (D.field "markers" D.bool)
+        (D.succeed False)
 
 
 dataDecoder : D.Decoder (Dict String Entry)
@@ -111,9 +114,9 @@ update msg model =
         GotEditData (Ok rawdata) ->
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
-                 U.nocmd { model | horizonModel =
-                               updateHorizonModel model.horizonModel val
-                         }
+                    U.nocmd { model | horizonModel =
+                                updateHorizonModel model.horizonModel val
+                            }
                 Err _ ->
                   U.nocmd model
 
@@ -131,13 +134,22 @@ update msg model =
 
         InputChanged date value ->
             let
-                newDict =
+                newModel =
                     if checkSeries date value model.horizonModel.timeSeries then
-                        Dict.remove date model.editedtimeSeries
+                      updateProcessingModel
+                        model
+                        False
+                        date
+                        (Dict.remove date model.editedtimeSeries)
                     else
-                        Dict.insert date value model.editedtimeSeries
+                 updateProcessingModel
+                        model
+                        True
+                        date
+                        (Dict.insert date value model.editedtimeSeries)
+
             in
-            U.nocmd { model | editedtimeSeries = newDict}
+            U.nocmd newModel
 
         SaveEditedData ->
             (model, patchEditedData model)
@@ -146,7 +158,7 @@ update msg model =
             ({ model | editedtimeSeries = Dict.empty }, geteditor model False)
 
         GotEditedData (Err _) ->
-            (model, geteditor model False)
+            U.nocmd { model | editedDataError = True }
 
         GotMetadata (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -157,6 +169,26 @@ update msg model =
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
+
+
+updateProcessingModel : Model -> Bool -> String -> EditedData -> Model
+updateProcessingModel model editionProcessing date editedData =
+    let
+        horizonModel = model.horizonModel
+        timeSeries = horizonModel.timeSeries
+        updatedTimeSeries = Dict.update
+            date (updateProcessingEdition editionProcessing) timeSeries
+        updatedHorizonModel = { horizonModel | timeSeries = updatedTimeSeries }
+    in
+    { model | editedtimeSeries = editedData
+    , horizonModel = updatedHorizonModel}
+
+
+
+updateProcessingEdition : Bool -> Maybe Entry -> Maybe Entry
+updateProcessingEdition newProcessingValue maybeEntry =
+    Maybe.map (\entry ->
+        { entry | processingEdition = newProcessingValue }) maybeEntry
 
 
 checkSeries : String -> String -> Dict String Entry -> Bool
@@ -178,7 +210,8 @@ updateData editedData data =
             case Dict.get key accData of
                 Just dataValue ->
                     Dict.insert key { dataValue
-                        | series = String.toFloat editedDataValue } accData
+                        | series = String.toFloat editedDataValue
+                    } accData
 
                 Nothing ->
                     accData
@@ -247,8 +280,8 @@ encodeEditedData editedData =
         editedData
 
 
-viewEditedRow : EditedData -> H.Html Msg
-viewEditedRow editedData =
+viewEditedRow : Model -> H.Html Msg
+viewEditedRow model =
     let
         row : (String, String) -> H.Html Msg
         row (date, value) =
@@ -258,8 +291,8 @@ viewEditedRow editedData =
                 , H.td [ ] [ H.text value]
                 ]
     in
-    if Dict.isEmpty editedData
-    then H.div [ ][ ]
+    if Dict.isEmpty model.editedtimeSeries then
+        H.div [ ][ ]
     else
         H.div [ HA.class "col-sm" ]
         [ H.button
@@ -267,6 +300,10 @@ viewEditedRow editedData =
             , HA.attribute "type" "button"
             , HE.onClick SaveEditedData ]
             [ H.text "Save" ]
+        , if model.editedDataError then
+            H.text "Server error: please try again "
+        else
+            H.text ""
         , H.table
             [ HA.class "table-sm table-bordered custom-table table-striped" ]
             [ H.thead
@@ -282,8 +319,8 @@ viewEditedRow editedData =
                     ]
                 ]
             , H.tbody
-                [ ]
-                (List.map row (Dict.toList editedData))
+                [ HA.class "text-warning" ]
+                (List.map row (Dict.toList model.editedtimeSeries))
             ]
         ]
 
@@ -292,8 +329,12 @@ viewRow : (String, Entry) -> H.Html Msg
 viewRow ( date, data ) =
     let
         rowStyle =
-            if data.markers then
-                [HA.class "table-danger"]
+            if data.processingEdition then
+                [HA.class "text-warning"]
+            else if data.markers then
+                [HA.class "text-success"]
+            else if Maybe.isNothing data.series then
+                [HA.class "text-danger"]
             else
                 []
         initialValue = Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
@@ -312,7 +353,7 @@ viewRow ( date, data ) =
         , H.td
             [ ]
             [ H.input
-                [ HA.placeholder "Enter your value"
+                [ HA.placeholder "enter your value"
                 , HA.type_ "number"
                 , HA.value initialValue
                 , HE.on "input" (D.andThen propagedMessage HE.targetValue)
@@ -347,7 +388,7 @@ view model =
             [ H.div
                 [ HA.class "row" ]
                 [ editTable model
-                , viewEditedRow model.editedtimeSeries
+                , viewEditedRow model
                 ]
             ]
         ]
@@ -401,6 +442,7 @@ main =
                let
                    model =
                         { baseurl = input.baseurl
+                        , editedDataError = False
                         , errors = []
                         , meta = Dict.empty
                         , date_index = 0
@@ -432,3 +474,6 @@ main =
                , update = update
                , subscriptions = \model -> Sub.none
                }
+
+
+

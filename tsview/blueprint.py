@@ -351,7 +351,7 @@ def tsview(tsa):
             dict(m)
         )
 
-    @bp.route('/tseditor')
+    @bp.route('/tseditor_')
     def tseditor():
         if not has_permission('viewseries'):
             return 'Nothing to see there.'
