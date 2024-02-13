@@ -56,8 +56,7 @@ type Msg
 
 type alias Entry =
     { series : Maybe Float
-    , markers : Bool
-    , processingEdition : Bool
+    , markers : Maybe Bool
     }
 
 
@@ -67,10 +66,9 @@ type alias EditedData =
 
 entryDecoder : D.Decoder Entry
 entryDecoder =
-    D.map3 Entry
+    D.map2 Entry
         (D.field "series" (D.maybe D.float))
-        (D.field "markers" D.bool)
-        (D.succeed False)
+        (D.field "markers" (D.maybe D.bool))
 
 
 dataDecoder : D.Decoder (Dict String Entry)
@@ -134,22 +132,13 @@ update msg model =
 
         InputChanged date value ->
             let
-                newModel =
+                newDict =
                     if checkSeries date value model.horizonModel.timeSeries then
-                      updateProcessingModel
-                        model
-                        False
-                        date
-                        (Dict.remove date model.editedtimeSeries)
+                        Dict.remove date model.editedtimeSeries
                     else
-                 updateProcessingModel
-                        model
-                        True
-                        date
-                        (Dict.insert date value model.editedtimeSeries)
-
+                        Dict.insert date value model.editedtimeSeries
             in
-            U.nocmd newModel
+            U.nocmd { model | editedtimeSeries = newDict}
 
         SaveEditedData ->
             (model, patchEditedData model)
@@ -169,26 +158,6 @@ update msg model =
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
-
-
-updateProcessingModel : Model -> Bool -> String -> EditedData -> Model
-updateProcessingModel model editionProcessing date editedData =
-    let
-        horizonModel = model.horizonModel
-        timeSeries = horizonModel.timeSeries
-        updatedTimeSeries = Dict.update
-            date (updateProcessingEdition editionProcessing) timeSeries
-        updatedHorizonModel = { horizonModel | timeSeries = updatedTimeSeries }
-    in
-    { model | editedtimeSeries = editedData
-    , horizonModel = updatedHorizonModel}
-
-
-
-updateProcessingEdition : Bool -> Maybe Entry -> Maybe Entry
-updateProcessingEdition newProcessingValue maybeEntry =
-    Maybe.map (\entry ->
-        { entry | processingEdition = newProcessingValue }) maybeEntry
 
 
 checkSeries : String -> String -> Dict String Entry -> Bool
@@ -211,6 +180,7 @@ updateData editedData data =
                 Just dataValue ->
                     Dict.insert key { dataValue
                         | series = String.toFloat editedDataValue
+                        , markers = Nothing
                     } accData
 
                 Nothing ->
@@ -329,14 +299,17 @@ viewRow : (String, Entry) -> H.Html Msg
 viewRow ( date, data ) =
     let
         rowStyle =
-            if data.processingEdition then
-                [HA.class "text-warning"]
-            else if data.markers then
-                [HA.class "text-success"]
-            else if Maybe.isNothing data.series then
-                [HA.class "text-danger"]
-            else
-                []
+            case data.markers of
+                Just True ->
+                    [HA.class "text-success"]
+                Just False ->
+                    if Maybe.isNothing data.series then
+                       [HA.class "text-danger"]
+                    else
+                        [ ]
+                Nothing ->
+                    [HA.class "text-warning"]
+
         initialValue = Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
         propagedMessage : String -> D.Decoder Msg
         propagedMessage value =
