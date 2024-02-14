@@ -32,14 +32,18 @@ import Json.Encode as E
 
 type alias Model =
     { baseurl : String
+    , contentCell: String
     , editedDataError : Bool
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
     , editedtimeSeries : EditedData
     , horizonModel : HorizonModel Entry
+    , indexToInsert: Maybe String
     , insertion_dates : Array String
     , name : String
+    , processedPasted: List String
+    , rawPasted: String
     , view_nocache : Bool
     }
 
@@ -52,6 +56,8 @@ type Msg
     | InputChanged String String
     | SaveEditedData
     | GotEditedData (Result Http.Error String)
+    | BasicInput String String
+    | Paste PasteType
 
 
 type alias Entry =
@@ -64,6 +70,21 @@ type alias EditedData =
    Dict String String
 
 
+type alias PasteType =
+    { text: String
+    , index: String}
+
+
+textDecoder: D.Decoder String
+textDecoder =
+     D.at [ "detail", "text" ] D.string
+
+
+indexDecoder: D.Decoder String
+indexDecoder =
+     D.at [ "detail", "index" ] D.string
+
+
 entryDecoder : D.Decoder Entry
 entryDecoder =
     D.map2 Entry
@@ -71,10 +92,41 @@ entryDecoder =
         (D.field "markers" (D.maybe D.bool))
 
 
+pasteWithDataDecoder : D.Decoder PasteType
+pasteWithDataDecoder =
+        D.map2 PasteType textDecoder indexDecoder
+
+
 dataDecoder : D.Decoder (Dict String Entry)
 dataDecoder =
     D.dict entryDecoder
 
+
+onPaste : (PasteType -> msg) -> H.Attribute msg
+onPaste msg =
+  HE.on "pastewithdata" (D.map msg pasteWithDataDecoder)
+
+
+process: String -> List String
+process raw =
+
+    if String.contains "\n" raw
+    then
+        String.split "\n" raw
+    else
+    if String.contains "\r" raw
+    then
+        String.split "\r" raw
+    else
+    if String.contains " " raw
+    then
+        String.split " " raw
+    else
+        [raw]
+
+
+injectInTable: List String -> String
+injectInTable values = Maybe.withDefault "" (List.head values)
 
 geteditor : Model -> Bool -> Cmd Msg
 geteditor model atidate =
@@ -158,6 +210,17 @@ update msg model =
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
+
+        BasicInput index pasted -> (
+            { model | contentCell = injectInTable (process pasted)
+                    , indexToInsert = Just index}
+            , Cmd.none )
+        Paste payload -> (
+            { model | rawPasted = payload.text
+                    , processedPasted = process payload.text
+                    , contentCell = injectInTable (process payload.text)
+                    , indexToInsert = Just payload.index}
+            , Cmd.none)
 
 
 checkSeries : String -> String -> Dict String Entry -> Bool
@@ -309,14 +372,7 @@ viewRow ( date, data ) =
                         [ ]
                 Nothing ->
                     [HA.class "text-warning"]
-
         initialValue = Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
-        propagedMessage : String -> D.Decoder Msg
-        propagedMessage value =
-            if value == initialValue then
-                D.fail "no propagation"
-            else
-                D.succeed (InputChanged date value)
     in
     H.tr rowStyle
         [ H.td
@@ -329,12 +385,12 @@ viewRow ( date, data ) =
                 [ HA.placeholder "enter your value"
                 , HA.type_ "number"
                 , HA.value initialValue
-                , HE.on "input" (D.andThen propagedMessage HE.targetValue)
+                , HE.onInput (InputChanged date)
+                , HA.id date
                 ]
                 [ ]
             ]
         ]
-
 
 viewPlotData : Model -> H.Html Msg
 viewPlotData model =
@@ -351,6 +407,29 @@ viewPlotData model =
         ]
 
 
+viewCopyPast : Model -> H.Html Msg
+viewCopyPast model =
+    H.div []
+    [
+    H.table []
+          [ H.tr []
+               [ H.td [] [H.text "2024-01-01"]
+               , H.td [HA.style "width" "150px"]
+                   [ H.input
+                        [ HA.id "my-input"
+                        , HA.attribute "index" "42"
+                        , onPaste Paste
+                        , HE.onInput (BasicInput "42")
+                        , HA.value model.contentCell]
+                        [] ]]]
+   , H.div [] [H.text ("Pasted raw = " ++ model.rawPasted)]
+   , H.div []  (List.map (\ cell -> H.div [] [H.text cell]) model.processedPasted)
+   , H.div [] [H.text ("content " ++ model.contentCell)]
+  , H.div [] [H.text ( "The pasted values should be inserted from the index:  "
+                   ++ Maybe.withDefault "Nothing to paste yet" model.indexToInsert ) ]
+    ]
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
@@ -364,6 +443,7 @@ view model =
                 , viewEditedRow model
                 ]
             ]
+        , viewCopyPast model
         ]
 
 
@@ -415,6 +495,7 @@ main =
                let
                    model =
                         { baseurl = input.baseurl
+                        , contentCell = "68"
                         , editedDataError = False
                         , errors = []
                         , meta = Dict.empty
@@ -428,8 +509,11 @@ main =
                             , maxdate = ""
                             , timeSeries = Dict.empty
                             }
+                        , indexToInsert = Nothing
                         , insertion_dates = Array.empty
                         , name = input.name
+                        , processedPasted = []
+                        , rawPasted = ""
                         , view_nocache = False
                         }
                in

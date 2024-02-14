@@ -48,6 +48,26 @@
                     name : "{{ name }}"
                 }
             });
+
+            const inputs = document.querySelectorAll("#ts_table td:nth-child(2) input");
+            const ids = Array.from(inputs).map(toto => toto.id);
+            console.log(ids);
+
+
+        // myinput.onpaste = e => {
+        //     e.preventDefault();
+        //     const clipboardData = e.clipboardData || window.clipboardData;
+        //     const text = clipboardData.getData('text') || "";
+        //     const index = myinput.getAttribute('index')
+        //     const newEvent = new CustomEvent("pastewithdata", {
+        //         detail: {
+        //             text: text,
+        //             index: index
+        //         }
+        //     });
+        //     myinput.dispatchEvent(newEvent);
+        //     return false;
+        // };
         </script>
     </body>
 </html>
