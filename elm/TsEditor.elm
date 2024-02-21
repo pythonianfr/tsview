@@ -37,7 +37,6 @@ type alias Model =
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
-    , editedtimeSeries : EditedData
     , horizonModel : HorizonModel Entry
     , indexToInsert: Maybe String
     , insertion_dates : Array String
@@ -62,12 +61,10 @@ type Msg
 
 type alias Entry =
     { series : Maybe Float
-    , markers : Maybe Bool
+    , markers : Bool
+    , editedValue : Maybe String
+    , index : Int
     }
-
-
-type alias EditedData =
-   Dict String String
 
 
 type alias PasteType =
@@ -87,9 +84,11 @@ indexDecoder =
 
 entryDecoder : D.Decoder Entry
 entryDecoder =
-    D.map2 Entry
+    D.map4 Entry
         (D.field "series" (D.maybe D.float))
-        (D.field "markers" (D.maybe D.bool))
+        (D.field "markers" D.bool)
+        (D.succeed Nothing)
+        (D.succeed 0)
 
 
 pasteWithDataDecoder : D.Decoder PasteType
@@ -125,8 +124,9 @@ process raw =
         [raw]
 
 
-injectInTable: List String -> String
+injectInTable : List String -> String
 injectInTable values = Maybe.withDefault "" (List.head values)
+
 
 geteditor : Model -> Bool -> Cmd Msg
 geteditor model atidate =
@@ -153,6 +153,14 @@ geteditor model atidate =
            "true"
 
 
+incrementIndex : Int -> (String, Entry) -> (String, Entry)
+incrementIndex increment tupleDateData =
+    let
+        data = Tuple.second tupleDateData
+    in
+    (Tuple.first tupleDateData, { data | index = increment })
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     let
@@ -164,8 +172,16 @@ update msg model =
         GotEditData (Ok rawdata) ->
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
+                    let
+                       incrementedVal = Dict.fromList
+                            (List.indexedMap
+                                incrementIndex
+                                (Dict.toList val)
+                            )
+                    in
                     U.nocmd { model | horizonModel =
-                                updateHorizonModel model.horizonModel val
+                                updateHorizonModel
+                                    model.horizonModel incrementedVal
                             }
                 Err _ ->
                   U.nocmd model
@@ -184,19 +200,19 @@ update msg model =
 
         InputChanged date value ->
             let
-                newDict =
-                    if checkSeries date value model.horizonModel.timeSeries then
-                        Dict.remove date model.editedtimeSeries
-                    else
-                        Dict.insert date value model.editedtimeSeries
+                newEntry = Dict.update
+                    date (updateEntry value) model.horizonModel.timeSeries
+                newHorizonModel = model.horizonModel
             in
-            U.nocmd { model | editedtimeSeries = newDict}
+            U.nocmd { model
+                | horizonModel = { newHorizonModel | timeSeries = newEntry }
+                }
 
         SaveEditedData ->
             (model, patchEditedData model)
 
         GotEditedData (Ok _) ->
-            ({ model | editedtimeSeries = Dict.empty }, geteditor model False)
+            (model, geteditor model False)
 
         GotEditedData (Err _) ->
             U.nocmd { model | editedDataError = True }
@@ -223,34 +239,16 @@ update msg model =
             , Cmd.none)
 
 
-checkSeries : String -> String -> Dict String Entry -> Bool
-checkSeries date value data =
-    case Dict.get date data of
-        Just { series } ->
-            if series == String.toFloat value then
-                True
+updateEntry : String -> Maybe Entry -> Maybe Entry
+updateEntry value maybeEntry =
+    maybeEntry
+        |> Maybe.andThen (\entry ->
+            if (Maybe.withDefault
+                "" (Maybe.map String.fromFloat entry.series)) /= value then
+                Just { entry | editedValue = Just value }
             else
-                False
-        Nothing ->
-            True
-
-
-updateData : EditedData -> Dict String Entry -> Dict String Entry
-updateData editedData data =
-    Dict.foldl
-        (\key editedDataValue accData ->
-            case Dict.get key accData of
-                Just dataValue ->
-                    Dict.insert key { dataValue
-                        | series = String.toFloat editedDataValue
-                        , markers = Nothing
-                    } accData
-
-                Nothing ->
-                    accData
+                Just { entry | editedValue = Nothing }
         )
-        data
-        editedData
 
 
 updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
@@ -279,6 +277,11 @@ patchEditedData model =
             case mtzaware of
                 M.MBool b -> b
                 _ -> True
+
+        filteredDict =
+            model.horizonModel.timeSeries
+                |> Dict.filter (\_ value -> Maybe.isJust value.editedValue)
+                |> Dict.map (\_ value -> Maybe.withDefault "" value.editedValue)
     in
     Http.request
         { method = "PATCH"
@@ -286,7 +289,7 @@ patchEditedData model =
                  [ ("name", E.string model.name )
                  , ("author" , E.string "webui" )
                  , ("tzaware", E.bool tzaware )
-                 , ("series", encodeEditedData model.editedtimeSeries )
+                 , ("series", encodeEditedData filteredDict )
                  , ("supervision", E.bool True )
                  ]
         , headers = []
@@ -300,7 +303,7 @@ patchEditedData model =
         }
 
 
-encodeEditedData : EditedData -> E.Value
+encodeEditedData : Dict String String -> E.Value
 encodeEditedData editedData =
     E.dict
         identity
@@ -316,15 +319,18 @@ encodeEditedData editedData =
 viewEditedRow : Model -> H.Html Msg
 viewEditedRow model =
     let
-        row : (String, String) -> H.Html Msg
-        row (date, value) =
+        row : (String, Entry) -> H.Html Msg
+        row (date, entry) =
             H.tr
                 [ ]
                 [ H.td [ ] [ H.text (String.slice 0 19 date) ]
-                , H.td [ ] [ H.text value]
+                , H.td [ ] [ H.text (Maybe.withDefault "" entry.editedValue)]
                 ]
+        filtredDict = Dict.filter
+            (\_ entry -> Maybe.isJust entry.editedValue)
+            model.horizonModel.timeSeries
     in
-    if Dict.isEmpty model.editedtimeSeries then
+    if Dict.isEmpty filtredDict then
         H.div [ ][ ]
     else
         H.div [ HA.class "col-sm" ]
@@ -353,26 +359,29 @@ viewEditedRow model =
                 ]
             , H.tbody
                 [ HA.class "text-warning" ]
-                (List.map row (Dict.toList model.editedtimeSeries))
+                (List.map row (Dict.toList filtredDict))
             ]
         ]
 
 
 viewRow : (String, Entry) -> H.Html Msg
-viewRow ( date, data ) =
+viewRow ( date, entry ) =
     let
+        data =
+            if Maybe.isJust entry.editedValue then
+                Maybe.withDefault "" entry.editedValue
+            else
+                 Maybe.withDefault "" (Maybe.map String.fromFloat entry.series)
+
         rowStyle =
-            case data.markers of
-                Just True ->
-                    [HA.class "text-success"]
-                Just False ->
-                    if Maybe.isNothing data.series then
-                       [HA.class "text-danger"]
-                    else
-                        [ ]
-                Nothing ->
-                    [HA.class "text-warning"]
-        initialValue = Maybe.withDefault "" (Maybe.map String.fromFloat data.series)
+            if Maybe.isJust entry.editedValue then
+                [HA.class "text-warning"]
+            else if entry.markers == True then
+                [HA.class "text-success"]
+            else if Maybe.isNothing entry.series then
+                [HA.class "text-danger"]
+            else
+                [ ]
     in
     H.tr rowStyle
         [ H.td
@@ -384,7 +393,7 @@ viewRow ( date, data ) =
             [ H.input
                 [ HA.placeholder "enter your value"
                 , HA.type_ "number"
-                , HA.value initialValue
+                , HA.value data
                 , HE.onInput (InputChanged date)
                 , HA.id date
                 ]
@@ -471,12 +480,7 @@ editTable model =
             , H.tbody [ ]
                 (List.map
                     viewRow
-                    (Dict.toList
-                        (updateData
-                            model.editedtimeSeries
-                            model.horizonModel.timeSeries
-                        )
-                    )
+                    (Dict.toList model.horizonModel.timeSeries)
                 )
             ]
         ]
@@ -500,7 +504,6 @@ main =
                         , errors = []
                         , meta = Dict.empty
                         , date_index = 0
-                        , editedtimeSeries = Dict.empty
                         ,  horizonModel =
                             { offset = 0
                             , offset_reached = False
