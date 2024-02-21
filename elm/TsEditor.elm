@@ -55,7 +55,6 @@ type Msg
     | InputChanged String String
     | SaveEditedData
     | GotEditedData (Result Http.Error String)
-    | BasicInput String String
     | Paste PasteType
 
 
@@ -124,10 +123,6 @@ process raw =
         [raw]
 
 
-injectInTable : List String -> String
-injectInTable values = Maybe.withDefault "" (List.head values)
-
-
 geteditor : Model -> Bool -> Cmd Msg
 geteditor model atidate =
     let
@@ -173,7 +168,7 @@ update msg model =
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
-                       incrementedVal = Dict.fromList
+                        incrementedVal = Dict.fromList
                             (List.indexedMap
                                 incrementIndex
                                 (Dict.toList val)
@@ -200,12 +195,12 @@ update msg model =
 
         InputChanged date value ->
             let
-                newEntry = Dict.update
-                    date (updateEntry value) model.horizonModel.timeSeries
+                newtimeSeries = Dict.update
+                    date (updateEntry (parseCopyPastedData value)) model.horizonModel.timeSeries
                 newHorizonModel = model.horizonModel
             in
             U.nocmd { model
-                | horizonModel = { newHorizonModel | timeSeries = newEntry }
+                | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
                 }
 
         SaveEditedData ->
@@ -227,25 +222,62 @@ update msg model =
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
 
-        BasicInput index pasted -> (
-            { model | contentCell = injectInTable (process pasted)
-                    , indexToInsert = Just index}
-            , Cmd.none )
-        Paste payload -> (
-            { model | rawPasted = payload.text
-                    , processedPasted = process payload.text
-                    , contentCell = injectInTable (process payload.text)
-                    , indexToInsert = Just payload.index}
-            , Cmd.none)
+        Paste payload ->
+            let
+                newtimeSeries = getPastedDict model payload
+                newHorizonModel = model.horizonModel
+            in
+            U.nocmd { model
+                | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
+                }
 
 
-updateEntry : String -> Maybe Entry -> Maybe Entry
+parseCopyPastedData : String -> Maybe String
+parseCopyPastedData value =
+    case String.toFloat (String.replace "," "." value) of
+        Just _ ->
+            Just (String.replace "," "." value)
+
+        Nothing ->
+            if value == "" then
+                Just ""
+            else
+                Nothing
+
+
+getPastedDict : Model -> PasteType -> Dict String Entry
+getPastedDict model payload =
+    let
+        newValues = List.map parseCopyPastedData (process payload.text)
+        firstIndex = Maybe.unwrap
+            0
+            (\entry -> entry.index)
+            (Dict.get (payload.index) model.horizonModel.timeSeries)
+        listIndex = List.range
+                        firstIndex (firstIndex + (List.length newValues) - 1)
+        listDates = Dict.keys
+                        (Dict.filter
+                        (\_ value -> List.member value.index listIndex)
+                        model.horizonModel.timeSeries)
+        copyPastedDict = Dict.fromList
+            (List.map2
+                Tuple.pair listDates newValues)
+    in Dict.merge
+        (\_ _ dict -> dict)
+        (\key _ value dict -> Dict.update key (updateEntry value) dict)
+        (\_ _ dict -> dict)
+        model.horizonModel.timeSeries
+        copyPastedDict
+        model.horizonModel.timeSeries
+
+
+updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
 updateEntry value maybeEntry =
     maybeEntry
         |> Maybe.andThen (\entry ->
-            if (Maybe.withDefault
-                "" (Maybe.map String.fromFloat entry.series)) /= value then
-                Just { entry | editedValue = Just value }
+            if (parseCopyPastedData (
+                (Maybe.unwrap "" String.fromFloat entry.series))) /= value then
+                Just { entry | editedValue = value }
             else
                 Just { entry | editedValue = Nothing }
         )
@@ -371,7 +403,7 @@ viewRow ( date, entry ) =
             if Maybe.isJust entry.editedValue then
                 Maybe.withDefault "" entry.editedValue
             else
-                 Maybe.withDefault "" (Maybe.map String.fromFloat entry.series)
+                 Maybe.unwrap "" String.fromFloat entry.series
 
         rowStyle =
             if Maybe.isJust entry.editedValue then
@@ -391,11 +423,12 @@ viewRow ( date, entry ) =
         , H.td
             [ ]
             [ H.input
-                [ HA.placeholder "enter your value"
-                , HA.type_ "number"
+                [ HA.class "pasteble"
+                , HA.placeholder "enter your value"
                 , HA.value data
                 , HE.onInput (InputChanged date)
-                , HA.id date
+                , HA.attribute "index" date
+                , onPaste Paste
                 ]
                 [ ]
             ]
@@ -416,29 +449,6 @@ viewPlotData model =
         ]
 
 
-viewCopyPast : Model -> H.Html Msg
-viewCopyPast model =
-    H.div []
-    [
-    H.table []
-          [ H.tr []
-               [ H.td [] [H.text "2024-01-01"]
-               , H.td [HA.style "width" "150px"]
-                   [ H.input
-                        [ HA.id "my-input"
-                        , HA.attribute "index" "42"
-                        , onPaste Paste
-                        , HE.onInput (BasicInput "42")
-                        , HA.value model.contentCell]
-                        [] ]]]
-   , H.div [] [H.text ("Pasted raw = " ++ model.rawPasted)]
-   , H.div []  (List.map (\ cell -> H.div [] [H.text cell]) model.processedPasted)
-   , H.div [] [H.text ("content " ++ model.contentCell)]
-  , H.div [] [H.text ( "The pasted values should be inserted from the index:  "
-                   ++ Maybe.withDefault "Nothing to paste yet" model.indexToInsert ) ]
-    ]
-
-
 view : Model -> H.Html Msg
 view model =
     H.div
@@ -452,7 +462,6 @@ view model =
                 , viewEditedRow model
                 ]
             ]
-        , viewCopyPast model
         ]
 
 
@@ -483,6 +492,11 @@ editTable model =
                     (Dict.toList model.horizonModel.timeSeries)
                 )
             ]
+        , H.node "eval-js"
+            [ HA.attribute
+                "myjs"
+                ("applyCopyPaste("++model.horizonModel.maxdate++");") ]
+            [ ]
         ]
 
 
@@ -534,6 +548,3 @@ main =
                , update = update
                , subscriptions = \model -> Sub.none
                }
-
-
-

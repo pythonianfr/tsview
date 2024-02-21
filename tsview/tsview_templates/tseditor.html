@@ -49,25 +49,35 @@
                 }
             });
 
-            const inputs = document.querySelectorAll("#ts_table td:nth-child(2) input");
-            const ids = Array.from(inputs).map(toto => toto.id);
-            console.log(ids);
+        function applyCopyPaste () {
+            var myinputs = document.getElementsByClassName("pasteble")
+            for (var i = 0; i<myinputs.length; i++){
+                let myinput = myinputs[i]
+                myinput.onpaste = e => {
+                    e.preventDefault();
+                    const clipboardData = e.clipboardData || window.clipboardData;
+                    const text = clipboardData.getData('text') || "";
+                    const index = myinput.getAttribute('index')
+                    const newEvent = new CustomEvent("pastewithdata", {
+                        detail: {
+                            text: text,
+                            index: index
+                        }
+                    });
+                    myinput.dispatchEvent(newEvent);
+                    return false;
+                };
+            };}
 
-
-        // myinput.onpaste = e => {
-        //     e.preventDefault();
-        //     const clipboardData = e.clipboardData || window.clipboardData;
-        //     const text = clipboardData.getData('text') || "";
-        //     const index = myinput.getAttribute('index')
-        //     const newEvent = new CustomEvent("pastewithdata", {
-        //         detail: {
-        //             text: text,
-        //             index: index
-        //         }
-        //     });
-        //     myinput.dispatchEvent(newEvent);
-        //     return false;
-        // };
+        class EvalJs extends HTMLElement {
+            static get observedAttributes() {
+                return ['myjs'];
+            }
+            attributeChangedCallback(name, oldValue, newValue) {
+            eval(newValue);
+            }
+        }
+        window.customElements.define('eval-js', EvalJs);
         </script>
     </body>
 </html>

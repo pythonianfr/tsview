@@ -94,6 +94,7 @@ getData data apiPoint keepNans =
             , Maybe.andThen (stringToMaybe "insertion_date") data.idate
             , Just <| UB.int "nocache" data.nocache
             , stringToMaybe "_keep_nans" keepNans
+            , stringToMaybe "inferred_freq" "true"
             ]
             ++ Maybe.unwrap
             [ stringToMaybe "from_value_date" data.fromdate
