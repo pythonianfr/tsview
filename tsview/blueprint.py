@@ -353,7 +353,7 @@ def tsview(tsa):
 
     @bp.route('/tseditor_')
     def tseditor():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template(
