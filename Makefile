@@ -4,7 +4,7 @@ NODE_PATH ?= /usr/lib/node_modules
 ACE_TAR ?= v1.4.11.tar.gz
 ACE_URL ?= https://github.com/ajaxorg/ace-builds/archive
 
-all: delete info groupinfo search plot cache formula pygmentize
+all: delete info groupinfo search plot cache qeditor formula pygmentize
 
 delete:
 	elm make elm/Delete.elm $(FLAGS) --output tsview/tsview_static/delete_elm.js
@@ -24,6 +24,8 @@ plot:
 cache:
 	elm make elm/Cache.elm $(FLAGS) --output tsview/tsview_static/cache_elm.js
 
+qeditor:
+	elm make elm/Queryeditor.elm $(FLAGS) --output tsview/tsview_static/qeditor_elm.js
 
 # now vendored in tsview_static
 # tsview/tsview_static/ace:
@@ -60,4 +62,5 @@ cleanbuild:
 	rm tsview/tsview_static/search_elm.js -f
 	rm tsview/tsview_static/formula_elm.js -f
 	rm tsview/tsview_static/cache.js -f
+	rm tsview/tsview_static/qeditor.js -f
 	rm elm/FormulaParserValidation/tsformula_elm_parser.js -f

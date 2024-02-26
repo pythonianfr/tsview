@@ -204,6 +204,29 @@ def tsview(tsa):
             date_format='iso'
         )
 
+    # query editor
+
+    @bp.route('/queryspec')
+    def queryspec():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        types = {}
+        for lispname, kname in search._OPMAP.items():
+            types[lispname] = search.query.klassbyname(kname).__sig__()
+
+        return jsonify(types)
+
+    @bp.route('/queryeditor')
+    def queryeditor():
+        if not has_roles('admin', 'rw'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'queryeditor.html',
+            homeurl=homeurl()
+        )
+
     # info
 
     @bp.route('/tsinfo')
