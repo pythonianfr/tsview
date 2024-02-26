@@ -62,15 +62,16 @@ def homeurl():
     return baseurl
 
 
-PERMISSIONS = ('catalog', 'viewseries', 'delete', 'editmetadata')
+def has_roles(*required_roles):
+    role = request.environ.get('ROLE') or 'guest'
+    return role in required_roles
 
 
-def tsview(tsa,
-           has_permission=lambda perm: True):
+def tsview(tsa):
 
     @bp.route('/tsview')
     def home():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template('tsview.html',
@@ -94,8 +95,9 @@ def tsview(tsa,
 
     @bp.route('/tslog')
     def tslog():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
+
         args = logargs(request.args)
         log = tsa.log(
             name=args.series
@@ -108,7 +110,7 @@ def tsview(tsa,
 
     @bp.route('/tsdelete')
     def tsdelete():
-        if has_permission('delete'):
+        if has_roles('admin', 'rw'):
             return render_template('tsedit.html',
                                    edit_kind="Delete",
                                    homeurl=homeurl())
@@ -117,16 +119,17 @@ def tsview(tsa,
 
     @bp.route('/formulacache')
     def formulacache():
-        return render_template(
-            'cache.html',
-            homeurl=homeurl()
-        )
+        if has_roles('admin', 'rw', 'ro'):
+            return render_template(
+                'cache.html',
+                homeurl=homeurl()
+            )
 
     # formula editor
 
     @bp.route('/spec')
     def spec():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return json.dumps(
@@ -141,8 +144,9 @@ def tsview(tsa,
 
     @bp.route('/tsformula')
     def tsformula():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
+
         name = request.args.get('name')
         formula = None
         if name:
@@ -157,7 +161,7 @@ def tsview(tsa,
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
     def tsformula_pygmentize():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return json.dumps(
@@ -169,7 +173,7 @@ def tsview(tsa,
 
     @bp.route('/tsformula/operators')
     def formula_operators():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template(
@@ -184,7 +188,7 @@ def tsview(tsa,
 
     @bp.route('/tsformula/try')
     def tryformula():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         # here we take a big bad shortcut ...
@@ -204,7 +208,7 @@ def tsview(tsa,
 
     @bp.route('/tsinfo')
     def tsinfo():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template(
@@ -215,7 +219,7 @@ def tsview(tsa,
 
     @bp.route('/groupinfo')
     def groupinfo():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template(
@@ -227,14 +231,14 @@ def tsview(tsa,
     @bp.route('/tsinfo/canwrite')
     def canwrite():
         return json.dumps(
-            has_permission('editmetadata')
+            has_roles('admin', 'rw')
         )
 
     # catalog
 
     @bp.route('/tssearch')
     def tssearch():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         return render_template(
@@ -244,7 +248,7 @@ def tsview(tsa,
 
     @bp.route('/tssearch/allmetadata')
     def all_series_metadata():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         # here we take a big bad shortcut ...
@@ -269,7 +273,7 @@ def tsview(tsa,
 
     @bp.route('/tssearch/allformula')
     def all_series_formulas():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         # here we take a big bad shortcut ...
@@ -296,7 +300,7 @@ def tsview(tsa,
 
     @bp.route('/groupsearch/allformula')
     def all_group_formulas():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         engine = tsa.engine
@@ -317,7 +321,7 @@ def tsview(tsa,
 
     @bp.route('/groupsearch/allmetadata')
     def all_group_metadata():
-        if not has_permission('viewseries'):
+        if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
         engine = tsa.engine

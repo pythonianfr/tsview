@@ -13,10 +13,7 @@ def make_app(tsa):
         url_prefix='/api'
     )
     app.register_blueprint(
-        tsview(
-            tsa,
-            has_permission=lambda perm: True
-        )
+        tsview(tsa)
     )
     historic(app, tsa)
     return app

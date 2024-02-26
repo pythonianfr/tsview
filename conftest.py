@@ -6,6 +6,7 @@ from pytest_sa_pg import db
 from sqlalchemy import create_engine
 
 from tshistory import api
+from tshistory.http.util import nosecurity
 from tshistory_refinery import schema
 from tsview import app
 
@@ -45,5 +46,7 @@ def tsa(engine):
 
 @pytest.fixture(scope='session')
 def client(tsa):
-    wsgi = app.make_app(tsa)
+    wsgi = nosecurity(
+        app.make_app(tsa)
+    )
     yield WebTester(wsgi)
