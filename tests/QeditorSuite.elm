@@ -1,4 +1,7 @@
-module QeditorSuite exposing ( testSerialize )
+module QeditorSuite exposing
+    ( testParse
+    , testSerialize
+    )
 
 import Expect
 import Test exposing (Test, test)
@@ -10,6 +13,7 @@ import Lisp exposing
 import Queryeditor exposing
     ( FilterNode(..)
     , Value(..)
+    , parse
     , serialize
     )
 
@@ -218,4 +222,131 @@ testSerialize =
         , test "lte str str" run17
         , test "lte str int" run18
         , test "lte str float" run19
+        ]
+
+
+testParse : Test
+testParse =
+    let
+        run1 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.tzaware" ])
+                  (Ok <| TzAware)
+
+        run2 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.name", String "foo" ])
+                  (Ok <| ByName "foo")
+
+        run3 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.metakey", String "foo" ])
+                  (Ok <| ByMetakey "foo")
+
+        run4 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.formula" ])
+                  (Ok <| Formula)
+
+        run5 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.formulacontents", String "foo" ])
+                  (Ok <| FormulaContents "foo")
+
+        run6 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "=", String "foo", String "bar" ])
+                  (Ok <| Eq "foo" (Str "bar"))
+
+        run7 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "=", String "foo", Int 42 ])
+                  (Ok <| Eq "foo" (Number 42.0))
+
+        run8 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "=", String "foo", Float 42.0 ])
+                  (Ok <| Eq "foo" (Number 42.0))
+
+        run9 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<", String "foo", String "bar" ])
+                  (Ok <| Lt "foo" (Str "bar"))
+
+        run10 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<", String "foo", Int 42 ])
+                  (Ok <| Lt "foo" (Number 42.0))
+
+        run11 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<", String "foo", Float 42.0 ])
+                  (Ok <| Lt "foo" (Number 42.0))
+
+        run12 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<=", String "foo", String "bar" ])
+                  (Ok <| Lte "foo" (Str "bar"))
+
+        run13 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<=", String "foo", Int 42 ])
+                  (Ok <| Lte "foo" (Number 42.0))
+
+        run14 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "<=", String "foo", Float 42.0 ])
+                  (Ok <| Lte "foo" (Number 42.0))
+
+        run15 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">", String "foo", String "bar" ])
+                  (Ok <| Gt "foo" (Str "bar"))
+
+        run16 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">", String "foo", Int 42 ])
+                  (Ok <| Gt "foo" (Number 42.0))
+
+        run17 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">", String "foo", Float 42.0 ])
+                  (Ok <| Gt "foo" (Number 42.0))
+
+        run18 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">=", String "foo", String "bar" ])
+                  (Ok <| Gte "foo" (Str "bar"))
+
+        run19 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">=", String "foo", Int 42 ])
+                  (Ok <| Gte "foo" (Number 42.0))
+
+        run20 =
+            \_ -> Expect.equal
+                  (parse [ Symbol ">=", String "foo", Float 42.0 ])
+                  (Ok <| Gte "foo" (Number 42.0))
+    in
+    Test.concat
+        [ test "parse tzaware" run1
+        , test "parse byname" run2
+        , test "parse bymetakey" run3
+        , test "parse byformula" run4
+        , test "parse byformulacontents" run5
+        , test "parse eq str str" run6
+        , test "parse eq str int" run7
+        , test "parse eq str float" run8
+        , test "parse lt str str" run9
+        , test "parse lt str int" run10
+        , test "parse lt str float" run11
+        , test "parse lte str str" run12
+        , test "parse lte str int" run13
+        , test "parse lte str float" run14
+        , test "parse gt str str" run15
+        , test "parse gt str int" run16
+        , test "parse gt str float" run17
+        , test "parse gte str str" run18
+        , test "parse gte str int" run19
+        , test "parse gte str float" run20
         ]

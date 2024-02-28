@@ -2,6 +2,7 @@ module Queryeditor exposing
     ( FilterNode(..)
     , Value(..)
     , main
+    , parse
     , serialize
     )
 
@@ -36,6 +37,58 @@ type FilterNode
     | Not FilterNode
     | And (List FilterNode)
     | Or (List FilterNode)
+
+
+signature : List Atom -> Result String (Atom, List Atom)
+signature expr =
+    case expr of
+        [ op ] -> Ok (op, [])
+        (op::args) -> Ok (op, args)
+        _ -> Err "missing arguments"
+
+
+onestring opname args op =
+    case args of
+        [ name ] ->
+            case name of
+                String str -> Ok <| op str
+                _ -> Err <| "bad arguments for " ++ opname
+        _ -> Err <| "bad arguments for " ++ opname
+
+
+twoargs opname args op =
+    case args of
+        (arg1::arg2::_) ->
+            case arg1 of
+                String a1str ->
+                    case arg2 of
+                        String a2str -> Ok <| op a1str (Str a2str)
+                        Int a2int -> Ok <| op a1str (Number <| toFloat a2int)
+                        Float a2float -> Ok <| op a1str (Number a2float)
+                        _ -> Err <| "bad arguments for " ++ opname
+                _ -> Err <| "bad arguments for " ++ opname
+        _ -> Err <| "bad arguments for " ++ opname
+
+
+parse expr =
+    case signature(expr) of
+        Err err -> Err err
+        Ok (op, args) ->
+            case op of
+                Symbol opname ->
+                    case opname of
+                        "by.tzaware" -> Ok TzAware
+                        "by.formula" -> Ok Formula
+                        "by.name" -> onestring "name" args ByName
+                        "by.metakey" -> onestring "metakey" args ByMetakey
+                        "by.formulacontents" -> onestring "formulacontents" args FormulaContents
+                        "=" -> twoargs "=" args Eq
+                        "<" -> twoargs "<" args Lt
+                        "<=" -> twoargs "<=" args Lte
+                        ">" -> twoargs ">" args Gt
+                        ">=" -> twoargs ">=" args Gte
+                        _ -> Err "bad operator "
+                _ -> Err "bad operator "
 
 
 serialize node =
