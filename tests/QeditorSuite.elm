@@ -327,6 +327,22 @@ testParse =
             \_ -> Expect.equal
                   (parse [ Symbol ">=", String "foo", Float 42.0 ])
                   (Ok <| Gte "foo" (Number 42.0))
+
+        run21 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.metaitem", String "foo", String "bar" ])
+                  (Ok <| ByMetaITem "foo" (Str "bar"))
+
+        run22 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.metaitem", String "foo", Int 42 ])
+                  (Ok <| ByMetaITem "foo" (Number 42.0))
+
+        run23 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.metaitem", String "foo", Float 42.0 ])
+                  (Ok <| ByMetaITem "foo" (Number 42.0))
+
     in
     Test.concat
         [ test "parse tzaware" run1
@@ -349,4 +365,7 @@ testParse =
         , test "parse gte str str" run18
         , test "parse gte str int" run19
         , test "parse gte str float" run20
+        , test "parse metaitem str str" run21
+        , test "parse metaitem str int" run22
+        , test "parse metaitem str float" run23
         ]

@@ -29,6 +29,7 @@ type FilterNode
     | FormulaContents String
     | ByName String
     | ByMetakey String
+    | ByMetaITem String Value
     | Eq String Value
     | Lt String Value
     | Gt String Value
@@ -82,6 +83,7 @@ parse expr =
                         "by.name" -> onestring "name" args ByName
                         "by.metakey" -> onestring "metakey" args ByMetakey
                         "by.formulacontents" -> onestring "formulacontents" args FormulaContents
+                        "by.metaitem" -> twoargs "metaitem" args ByMetaITem
                         "=" -> twoargs "=" args Eq
                         "<" -> twoargs "<" args Lt
                         "<=" -> twoargs "<=" args Lte
@@ -113,6 +115,19 @@ serialize node =
             Expression [ Atom <| Symbol "by.metakey"
                        , Atom <| String key
                        ]
+
+        ByMetaITem key val ->
+            case val of
+                Str str ->
+                    Expression [ Atom <| Symbol "by.metaitem"
+                               , Atom <| String key
+                               , Atom <| String str
+                               ]
+                Number num ->
+                    Expression [ Atom <| Symbol "by.metaitem"
+                               , Atom <| String key
+                               , Atom <| Float num
+                               ]
 
         Eq key val ->
             case val of
