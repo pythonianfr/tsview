@@ -28,6 +28,7 @@ type FilterNode
     | Formula
     | FormulaContents String
     | ByName String
+    | BySource String
     | ByMetakey String
     | ByMetaITem String Value
     | Eq String Value
@@ -81,6 +82,7 @@ parse expr =
                         "by.tzaware" -> Ok TzAware
                         "by.formula" -> Ok Formula
                         "by.name" -> onestring "name" args ByName
+                        "by.source" -> onestring "source" args BySource
                         "by.metakey" -> onestring "metakey" args ByMetakey
                         "by.formulacontents" -> onestring "formulacontents" args FormulaContents
                         "by.metaitem" -> twoargs "metaitem" args ByMetaITem
@@ -109,6 +111,11 @@ serialize node =
         ByName name ->
             Expression [ Atom <| Symbol "by.name"
                        , Atom <| String name
+                       ]
+
+        BySource source ->
+            Expression [ Atom <| Symbol "by.source"
+                       , Atom <| String source
                        ]
 
         ByMetakey key ->

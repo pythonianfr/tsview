@@ -201,6 +201,14 @@ testSerialize =
                               ]
                   )
 
+        run20 =
+            \_ -> Expect.equal
+                  (serialize <| BySource "remote")
+                  (Expression [ Atom <| Symbol "by.source"
+                              , Atom <| String "remote"
+                              ]
+                  )
+
     in
     Test.concat
         [ test "tzaware" run1
@@ -222,6 +230,7 @@ testSerialize =
         , test "lte str str" run17
         , test "lte str int" run18
         , test "lte str float" run19
+        , test "bysource" run20
         ]
 
 
@@ -343,6 +352,11 @@ testParse =
                   (parse [ Symbol "by.metaitem", String "foo", Float 42.0 ])
                   (Ok <| ByMetaITem "foo" (Number 42.0))
 
+        run24 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.source", String "remote" ])
+                  (Ok <| BySource "remote")
+
     in
     Test.concat
         [ test "parse tzaware" run1
@@ -368,4 +382,5 @@ testParse =
         , test "parse metaitem str str" run21
         , test "parse metaitem str int" run22
         , test "parse metaitem str float" run23
+        , test "parse bysource" run24
         ]
