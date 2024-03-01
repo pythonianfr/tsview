@@ -30,6 +30,8 @@ type FilterNode
     | FormulaContents String
     | ByName String
     | BySource String
+    | ByCache
+    | ByCachePolicy String
     | ByMetakey String
     | ByMetaITem String Value
     | ByInternalMetaitem String Value
@@ -90,6 +92,8 @@ parse expr =
                         "by.formulacontents" -> onestring "formulacontents" args FormulaContents
                         "by.metaitem" -> twoargs "metaitem" args ByMetaITem
                         "by.internalmetaitem" -> twoargs "inetrnalmetaitem" args ByInternalMetaitem
+                        "by.cache" -> Ok ByCache
+                        "by.cachepolicy" -> onestring "cachepolicy" args ByCachePolicy
                         "=" -> twoargs "=" args Eq
                         "<" -> twoargs "<" args Lt
                         "<=" -> twoargs "<=" args Lte
@@ -123,6 +127,14 @@ serialize node =
         BySource source ->
             Expression [ Atom <| Symbol "by.source"
                        , Atom <| String source
+                       ]
+
+        ByCache ->
+            Expression [ Atom <| Symbol "by.cache" ]
+
+        ByCachePolicy policy ->
+            Expression [ Atom <| Symbol "by.cachepolicy"
+                       , Atom <| String policy
                        ]
 
         ByMetakey key ->
