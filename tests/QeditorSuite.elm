@@ -209,6 +209,38 @@ testSerialize =
                               ]
                   )
 
+        run21 =
+            \_ -> Expect.equal
+                  (serialize <| ByInternalMetaitem "key" (Str "foo"))
+                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                              , Atom <| String "key"
+                              , Atom <| String "foo"
+                              ]
+                  )
+
+        run22 =
+            \_ -> Expect.equal
+                  (serialize <| ByInternalMetaitem "key" (Number 42))
+                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                              , Atom <| String "key"
+                              , Atom <| Float 42.0
+                              ]
+                  )
+
+        run23 =
+            \_ -> Expect.equal
+                  (serialize <| ByInternalMetaitem "key" (Number 42.0))
+                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                              , Atom <| String "key"
+                              , Atom <| Float 42.0
+                              ]
+                  )
+
+        run24 =
+            \_ -> Expect.equal
+                  (serialize Everything)
+                  (Expression [ Atom <| Symbol "by.everything" ])
+
     in
     Test.concat
         [ test "tzaware" run1
@@ -231,6 +263,10 @@ testSerialize =
         , test "lte str int" run18
         , test "lte str float" run19
         , test "bysource" run20
+        , test "internalmetaitem str str" run21
+        , test "internalmetaitem str int" run22
+        , test "internalmetaitem str float" run23
+        , test "everythinf" run24
         ]
 
 
@@ -357,6 +393,26 @@ testParse =
                   (parse [ Symbol "by.source", String "remote" ])
                   (Ok <| BySource "remote")
 
+        run25 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.everything" ])
+                  (Ok <| Everything)
+
+        run26 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.internalmetaitem", String "foo", String "bar" ])
+                  (Ok <| ByInternalMetaitem "foo" (Str "bar"))
+
+        run27 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.internalmetaitem", String "foo", Int 42 ])
+                  (Ok <| ByInternalMetaitem "foo" (Number 42.0))
+
+        run28 =
+            \_ -> Expect.equal
+                  (parse [ Symbol "by.internalmetaitem", String "foo", Float 42.0 ])
+                  (Ok <| ByInternalMetaitem "foo" (Number 42.0))
+
     in
     Test.concat
         [ test "parse tzaware" run1
@@ -383,4 +439,8 @@ testParse =
         , test "parse metaitem str int" run22
         , test "parse metaitem str float" run23
         , test "parse bysource" run24
+        , test "parse everything" run25
+        , test "parse imetaitem str str" run26
+        , test "parse imetaitem str int" run27
+        , test "parse imetaitem str float" run28
         ]

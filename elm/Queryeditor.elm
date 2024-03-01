@@ -24,13 +24,15 @@ type Value
 
 
 type FilterNode
-    = TzAware
+    = Everything
+    | TzAware
     | Formula
     | FormulaContents String
     | ByName String
     | BySource String
     | ByMetakey String
     | ByMetaITem String Value
+    | ByInternalMetaitem String Value
     | Eq String Value
     | Lt String Value
     | Gt String Value
@@ -79,6 +81,7 @@ parse expr =
             case op of
                 Symbol opname ->
                     case opname of
+                        "by.everything" -> Ok Everything
                         "by.tzaware" -> Ok TzAware
                         "by.formula" -> Ok Formula
                         "by.name" -> onestring "name" args ByName
@@ -86,6 +89,7 @@ parse expr =
                         "by.metakey" -> onestring "metakey" args ByMetakey
                         "by.formulacontents" -> onestring "formulacontents" args FormulaContents
                         "by.metaitem" -> twoargs "metaitem" args ByMetaITem
+                        "by.internalmetaitem" -> twoargs "inetrnalmetaitem" args ByInternalMetaitem
                         "=" -> twoargs "=" args Eq
                         "<" -> twoargs "<" args Lt
                         "<=" -> twoargs "<=" args Lte
@@ -97,6 +101,9 @@ parse expr =
 
 serialize node =
     case node of
+        Everything ->
+            Expression [ Atom <| Symbol "by.everything" ]
+
         TzAware ->
             Expression [ Atom <| Symbol "by.tzaware" ]
 
@@ -132,6 +139,19 @@ serialize node =
                                ]
                 Number num ->
                     Expression [ Atom <| Symbol "by.metaitem"
+                               , Atom <| String key
+                               , Atom <| Float num
+                               ]
+
+        ByInternalMetaitem key val ->
+            case val of
+                Str str ->
+                    Expression [ Atom <| Symbol "by.internalmetaitem"
+                               , Atom <| String key
+                               , Atom <| String str
+                               ]
+                Number num ->
+                    Expression [ Atom <| Symbol "by.internalmetaitem"
                                , Atom <| String key
                                , Atom <| Float num
                                ]
