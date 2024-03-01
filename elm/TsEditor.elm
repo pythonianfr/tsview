@@ -17,6 +17,7 @@ import Http
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
+import Info as I
 import Json.Decode as D
 import Maybe.Extra as Maybe
 import Metadata as M
@@ -56,6 +57,9 @@ type Msg
     | SaveEditedData
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
+    | InsertionDates (Result Http.Error String)
+    | GetLastInsertionDates (Result Http.Error String)
+    | GetLastEditedData (Result Http.Error String)
 
 
 type alias Entry =
@@ -105,7 +109,7 @@ onPaste msg =
   HE.on "pastewithdata" (D.map msg pasteWithDataDecoder)
 
 
-process: String -> List String
+process : String -> List String
 process raw =
 
     if String.contains "\n" raw
@@ -123,8 +127,8 @@ process raw =
         [raw]
 
 
-geteditor : Model -> Bool -> Cmd Msg
-geteditor model atidate =
+geteditor : Model -> Bool -> (Result Http.Error String -> Msg) -> Cmd Msg
+geteditor model atidate msg =
     let
         idate =
             Array.get model.date_index model.insertion_dates
@@ -133,7 +137,7 @@ geteditor model atidate =
             { baseurl = model.baseurl
             , name = model.name
             , idate = (if atidate then idate else Nothing)
-            , callback = GotEditData
+            , callback = msg
             , nocache = (U.bool2int model.view_nocache)
             , fromdate = Maybe.unwrap
                 "" (always model.horizonModel.mindate) model.horizonModel.horizon.key
@@ -203,8 +207,70 @@ update msg model =
                 | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
                 }
 
+        GetLastInsertionDates (Ok rawdates) ->
+            case D.decodeString I.idatesdecoder rawdates of
+                Ok dates ->
+                    let
+                        currentInsertionDate =
+                            Array.get model.date_index model.insertion_dates
+                        lastInsertionDate = Array.get
+                            (List.length dates - 1)
+                            (Array.fromList dates)
+                    in
+                    if currentInsertionDate /= lastInsertionDate then
+                        ( model, (geteditor model False GetLastEditedData) )
+                    else
+                        (model, patchEditedData model)
+
+                Err err ->
+                    doerr "idates decode" <| D.errorToString err
+
+        GetLastInsertionDates (Err error) ->
+            doerr "idates http" <| U.unwraperror error
+
+        GetLastEditedData (Ok rawdata) ->
+            case D.decodeString dataDecoder rawdata of
+                Ok val ->
+                    let
+                        incrementedVal = Dict.fromList
+                            (List.indexedMap
+                                incrementIndex
+                                (Dict.toList val)
+                            )
+
+                        editEntry : Entry -> Maybe Entry -> Maybe Entry
+                        editEntry value maybeEntry =
+                            Maybe.andThen
+                                (\entry ->
+                                    Just { entry
+                                        | editedValue = value.editedValue })
+                                maybeEntry
+
+                        newDict =
+                            Dict.merge
+                                (\_ _ dict -> dict)
+                                (\key _ value dict ->
+                                    Dict.update key (editEntry value) dict)
+                                (\_ _ dict -> dict)
+                                incrementedVal
+                                model.horizonModel.timeSeries
+                                incrementedVal
+
+                        newModel = { model | horizonModel =
+                                updateHorizonModel
+                                    model.horizonModel newDict
+                            }
+                    in
+                    (newModel, patchEditedData newModel)
+
+                Err _ ->
+                  U.nocmd model
+
+        GetLastEditedData (Err _) ->
+            U.nocmd model
+
         SaveEditedData ->
-            (model, patchEditedData model)
+            ( model, I.getidates model "series" GetLastInsertionDates)
 
         GotEditedData (Ok _) ->
             (model, geteditor model False)
@@ -231,6 +297,21 @@ update msg model =
                 | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
                 }
 
+        InsertionDates (Ok rawdates) ->
+            case D.decodeString I.idatesdecoder rawdates of
+                Ok dates ->
+                    U.nocmd { model
+                                | insertion_dates = Array.fromList dates
+                                , date_index = List.length dates - 1
+                            }
+                Err err ->
+                    doerr "idates decode" <| D.errorToString err
+
+        InsertionDates (Err error) ->
+            doerr "idates http" <| U.unwraperror error
+
+        RandomNumber number ->
+            ({ model | randomNumber = number }, Cmd.none)
 
 parseCopyPastedData : String -> Maybe String
 parseCopyPastedData value =
@@ -467,8 +548,8 @@ view model =
 
 editTable : Model -> H.Html Msg
 editTable model =
-    if Dict.isEmpty model.horizonModel.timeSeries
-    then H.div [ ][ ]
+    if Dict.isEmpty model.horizonModel.timeSeries then
+        H.div [ ][ ]
     else
         H.div
         [ HA.class "col-sm" ]
@@ -538,6 +619,7 @@ main =
                , Cmd.batch
                    [ (geteditor model False)
                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
+                   , I.getidates model "series" InsertionDates
                    ]
                )
 
