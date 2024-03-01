@@ -10,7 +10,7 @@ import Lisp exposing
     ( Atom(..)
     , Expr(..)
     )
-import Queryeditor exposing
+import Filter exposing
     ( FilterNode(..)
     , Value(..)
     , parse
