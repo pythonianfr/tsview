@@ -29,6 +29,7 @@ import Plotter exposing
 import Url.Builder as UB
 import Util as U
 import Json.Encode as E
+import Random
 
 
 type alias Model =
@@ -45,6 +46,7 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , view_nocache : Bool
+    , randomNumber : Int
     }
 
 
@@ -60,6 +62,7 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
+    | RandomNumber Int
 
 
 type alias Entry =
@@ -273,7 +276,10 @@ update msg model =
             ( model, I.getidates model "series" GetLastInsertionDates)
 
         GotEditedData (Ok _) ->
-            (model, geteditor model False)
+            (model, Cmd.batch [
+                    geteditor model False GotEditData,
+                    Random.generate RandomNumber randomInt]
+            )
 
         GotEditedData (Err _) ->
             U.nocmd { model | editedDataError = True }
@@ -312,6 +318,12 @@ update msg model =
 
         RandomNumber number ->
             ({ model | randomNumber = number }, Cmd.none)
+
+
+randomInt : Random.Generator Int
+randomInt =
+  Random.int 0 999999999
+
 
 parseCopyPastedData : String -> Maybe String
 parseCopyPastedData value =
@@ -376,7 +388,9 @@ updateHorizon horizon newOffset model =
                             }
                    }
     in
-    (newmodel, geteditor newmodel False)
+    (newmodel, Cmd.batch [
+         geteditor newmodel False GotEditData,
+        Random.generate RandomNumber randomInt])
 
 
 patchEditedData : Model -> Cmd Msg
@@ -444,7 +458,7 @@ viewEditedRow model =
             model.horizonModel.timeSeries
     in
     if Dict.isEmpty filtredDict then
-        H.div [ ][ ]
+        H.div [ HA.class "col-sm" ][ ]
     else
         H.div [ HA.class "col-sm" ]
         [ H.button
@@ -576,7 +590,7 @@ editTable model =
         , H.node "eval-js"
             [ HA.attribute
                 "myjs"
-                ("applyCopyPaste("++model.horizonModel.maxdate++");") ]
+                ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");") ]
             [ ]
         ]
 
@@ -611,13 +625,14 @@ main =
                         , insertion_dates = Array.empty
                         , name = input.name
                         , processedPasted = []
+                        , randomNumber = 0
                         , rawPasted = ""
                         , view_nocache = False
                         }
                in
                ( model
                , Cmd.batch
-                   [ (geteditor model False)
+                   [ (geteditor model False GotEditData)
                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
                    , I.getidates model "series" InsertionDates
                    ]
