@@ -1,6 +1,7 @@
 module Filter exposing
     ( FilterNode(..)
     , Value(..)
+    , fromlisp
     , parse
     , serialize
     )
@@ -123,6 +124,15 @@ parse expr =
                                 _ -> Err "bad operator "
                         _ -> Err "bad operator "
                 _ -> Err "bad operator "
+
+
+fromlisp string =
+    case Lisp.parse string of
+        Nothing ->
+            Err <| "could not parse the input expression: " ++ string
+
+        Just parsedlisp ->
+            parse parsedlisp
 
 
 serialize node =

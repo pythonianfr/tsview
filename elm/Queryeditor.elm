@@ -2,6 +2,11 @@ module Queryeditor exposing ( main )
 
 import Browser
 import Dict
+import Filter exposing
+    ( FilterNode(..)
+    , fromlisp
+    , parse
+    )
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -21,6 +26,7 @@ type alias Model =
     -- current basket
     , name : Maybe String
     , basket : Maybe String
+    , edited : Maybe FilterNode
     }
 
 
@@ -112,8 +118,13 @@ update msg model =
         GotBasketDefinition (Ok rawbasket) ->
             case JD.decodeString JD.string rawbasket of
                 Ok def ->
-                    U.nocmd { model | basket = Just def }
-
+                    case fromlisp def of
+                        Ok parsed ->
+                            U.nocmd { model
+                                        | basket = Just def
+                                        , edited = Just parsed
+                                    }
+                        Err err -> doerr "parse basket" err
                 Err err ->
                     doerr "getbasketdefinition decode" <| JD.errorToString err
 
@@ -136,6 +147,7 @@ main =
                        , baskets = []
                        , name = Nothing
                        , basket = Nothing
+                       , edited = Nothing
                        }
                in
                ( model, getbaskets model )

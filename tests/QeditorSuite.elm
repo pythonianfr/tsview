@@ -13,9 +13,24 @@ import Lisp exposing
 import Filter exposing
     ( FilterNode(..)
     , Value(..)
+    , fromlisp
     , parse
     , serialize
     )
+
+
+
+testFromLispString : Test
+testFromLispString =
+    let
+        run1 =
+            \_ -> Expect.equal
+                  ( Result.map serialize
+                        <| fromlisp "(by.everything)"
+                  )
+                  (Ok <| Expression [ Atom <| String "by.everything" ])
+    in
+    Test.concat [ test "from lisp" run1 ]
 
 
 testSerialize : Test
