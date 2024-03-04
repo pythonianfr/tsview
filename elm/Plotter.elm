@@ -40,6 +40,7 @@ type alias PlotData msg =
     , fromdate : String
     , todate : String
     , horizon : Maybe String
+    , tzone : String
     }
 
 
@@ -95,6 +96,7 @@ getData data apiPoint keepNans =
             , Just <| UB.int "nocache" data.nocache
             , stringToMaybe "_keep_nans" keepNans
             , stringToMaybe "inferred_freq" "true"
+            , stringToMaybe "tzone" data.tzone
             ]
             ++ Maybe.unwrap
             [ stringToMaybe "from_value_date" data.fromdate

@@ -206,6 +206,7 @@ getplot model atidate =
                 |> Maybe.andThen (\key-> Dict.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
+            , tzone = "UTC"
            }
            "state"
            "false"

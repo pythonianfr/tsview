@@ -47,6 +47,7 @@ type alias Model =
     , rawPasted: String
     , view_nocache : Bool
     , randomNumber : Int
+    , tzone : String
     }
 
 
@@ -63,6 +64,7 @@ type Msg
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | RandomNumber Int
+    | TimeZoneSelected String
 
 
 type alias Entry =
@@ -150,6 +152,7 @@ geteditor model atidate msg =
                 |> Maybe.andThen (\key-> Dict.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
+            , tzone = model.tzone
            }
            "supervision"
            "true"
@@ -240,7 +243,6 @@ update msg model =
                                 incrementIndex
                                 (Dict.toList val)
                             )
-
                         editEntry : Entry -> Maybe Entry -> Maybe Entry
                         editEntry value maybeEntry =
                             Maybe.andThen
@@ -267,7 +269,7 @@ update msg model =
                     (newModel, patchEditedData newModel)
 
                 Err _ ->
-                  U.nocmd model
+                    U.nocmd model
 
         GetLastEditedData (Err _) ->
             U.nocmd model
@@ -318,6 +320,17 @@ update msg model =
 
         RandomNumber number ->
             ({ model | randomNumber = number }, Cmd.none)
+
+        TimeZoneSelected timeZone ->
+            let
+                newModel = { model | tzone = timeZone }
+            in
+            ( newModel
+            , Cmd.batch [
+                geteditor model False GotEditData
+                , I.getidates model "series" InsertionDates
+                ]
+            )
 
 
 randomInt : Random.Generator Int
@@ -418,6 +431,7 @@ patchEditedData model =
                  , ("tzaware", E.bool tzaware )
                  , ("series", encodeEditedData filteredDict )
                  , ("supervision", E.bool True )
+                 , ("tzone", E.string model.tzone)
                  ]
         , headers = []
         , timeout = Nothing
@@ -544,11 +558,35 @@ viewPlotData model =
         ]
 
 
+selectTimeZone : Model -> H.Html Msg
+selectTimeZone model =
+    let
+        decodeTimeZone : String -> D.Decoder Msg
+        decodeTimeZone timeZone =
+            D.succeed (TimeZoneSelected timeZone)
+
+    in
+    H.select
+        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
+        ]
+        (List.map (renderTimeZone model.tzone) ["UTC", "CET"])
+
+
+renderTimeZone : String -> String -> H.Html Msg
+renderTimeZone selectedhorizon timeZone =
+    H.option
+        [ HA.value timeZone
+        , HA.selected (selectedhorizon == timeZone)
+        ]
+        [ H.text timeZone ]
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
         [ ]
-        [ horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
+        [ selectTimeZone model
+        , horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
         , viewPlotData model
         , H.div [ HA.class "container" ]
             [ H.div
@@ -627,6 +665,7 @@ main =
                         , processedPasted = []
                         , randomNumber = 0
                         , rawPasted = ""
+                        , tzone = "UTC"
                         , view_nocache = False
                         }
                in

@@ -113,6 +113,7 @@ fetchseries model restrict =
         , fromdate = (if restrict then (serializedate model.mindate) else "")
         , todate = (if restrict then (serializedate model.maxdate) else "")
         ,horizon = Nothing
+        , tzone = "UTC"
         }
         "state"
         "false")
