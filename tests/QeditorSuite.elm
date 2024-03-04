@@ -275,142 +275,238 @@ testParse =
     let
         run1 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.tzaware" ])
+                  (parse <| Expression [ Atom <| Symbol "by.tzaware" ])
                   (Ok <| TzAware)
 
         run2 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.name", String "foo" ])
+                  (parse <| Expression [ Atom <| Symbol "by.name"
+                                       , Atom <| String "foo"
+                                       ]
+                  )
                   (Ok <| ByName "foo")
 
         run3 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.metakey", String "foo" ])
+                  (parse <| Expression [ Atom <| Symbol "by.metakey"
+                                       , Atom <| String "foo"
+                                       ]
+                  )
                   (Ok <| ByMetakey "foo")
 
         run4 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.formula" ])
+                  (parse <| Expression [ Atom <| Symbol "by.formula" ])
                   (Ok <| Formula)
 
         run5 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.formulacontents", String "foo" ])
+                  (parse <| Expression [ Atom <| Symbol "by.formulacontents"
+                                       , Atom <| String "foo"
+                                       ]
+                  )
                   (Ok <| FormulaContents "foo")
 
         run6 =
             \_ -> Expect.equal
-                  (parse [ Symbol "=", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol "="
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| Eq "foo" (Str "bar"))
 
         run7 =
             \_ -> Expect.equal
-                  (parse [ Symbol "=", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol "="
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| Eq "foo" (Number 42.0))
 
         run8 =
             \_ -> Expect.equal
-                  (parse [ Symbol "=", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol "="
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| Eq "foo" (Number 42.0))
 
         run9 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol "<"
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| Lt "foo" (Str "bar"))
 
         run10 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol "<"
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| Lt "foo" (Number 42.0))
 
         run11 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol "<"
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| Lt "foo" (Number 42.0))
 
         run12 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<=", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol "<="
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| Lte "foo" (Str "bar"))
 
         run13 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<=", String "foo", Int 42 ])
+                  (parse  <| Expression [ Atom <| Symbol "<="
+                                        , Atom <| String "foo"
+                                        , Atom <| Int 42
+                                        ]
+                  )
                   (Ok <| Lte "foo" (Number 42.0))
 
         run14 =
             \_ -> Expect.equal
-                  (parse [ Symbol "<=", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol "<="
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| Lte "foo" (Number 42.0))
 
         run15 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol ">"
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| Gt "foo" (Str "bar"))
 
         run16 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol ">"
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| Gt "foo" (Number 42.0))
 
         run17 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol ">"
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| Gt "foo" (Number 42.0))
 
         run18 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">=", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol ">="
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| Gte "foo" (Str "bar"))
 
         run19 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">=", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol ">="
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| Gte "foo" (Number 42.0))
 
         run20 =
             \_ -> Expect.equal
-                  (parse [ Symbol ">=", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol ">="
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| Gte "foo" (Number 42.0))
 
         run21 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.metaitem", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol "by.metaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| ByMetaITem "foo" (Str "bar"))
 
         run22 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.metaitem", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol "by.metaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| ByMetaITem "foo" (Number 42.0))
 
         run23 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.metaitem", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol "by.metaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| ByMetaITem "foo" (Number 42.0))
 
         run24 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.source", String "remote" ])
+                  (parse <| Expression [ Atom <| Symbol "by.source"
+                                       , Atom <| String "remote"
+                                       ]
+                  )
                   (Ok <| BySource "remote")
 
         run25 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.everything" ])
+                  (parse <| Expression [ Atom <| Symbol "by.everything" ])
                   (Ok <| Everything)
 
         run26 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.internalmetaitem", String "foo", String "bar" ])
+                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| String "bar"
+                                       ]
+                  )
                   (Ok <| ByInternalMetaitem "foo" (Str "bar"))
 
         run27 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.internalmetaitem", String "foo", Int 42 ])
+                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| Int 42
+                                       ]
+                  )
                   (Ok <| ByInternalMetaitem "foo" (Number 42.0))
 
         run28 =
             \_ -> Expect.equal
-                  (parse [ Symbol "by.internalmetaitem", String "foo", Float 42.0 ])
+                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                                       , Atom <| String "foo"
+                                       , Atom <| Float 42.0
+                                       ]
+                  )
                   (Ok <| ByInternalMetaitem "foo" (Number 42.0))
 
     in

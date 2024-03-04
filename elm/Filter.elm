@@ -37,19 +37,24 @@ type FilterNode
     | Or (List FilterNode)
 
 
-signature : List Atom -> Result String (Atom, List Atom)
 signature expr =
     case expr of
-        [ op ] -> Ok (op, [])
-        (op::args) -> Ok (op, args)
-        _ -> Err "missing arguments"
+        Expression atomlist ->
+            case atomlist of
+                [ op ] -> Ok (op, [])
+                (op::args) -> Ok (op, args)
+                _ -> Err "missing arguments"
+        _ -> Err "wtf was that ?"
 
 
 onestring opname args op =
     case args of
         [ name ] ->
             case name of
-                String str -> Ok <| op str
+                Atom atom ->
+                    case atom of
+                        String str -> Ok <| op str
+                        _ -> Err <| "bad arguments for " ++ opname
                 _ -> Err <| "bad arguments for " ++ opname
         _ -> Err <| "bad arguments for " ++ opname
 
@@ -58,11 +63,17 @@ twoargs opname args op =
     case args of
         (arg1::arg2::_) ->
             case arg1 of
-                String a1str ->
-                    case arg2 of
-                        String a2str -> Ok <| op a1str (Str a2str)
-                        Int a2int -> Ok <| op a1str (Number <| toFloat a2int)
-                        Float a2float -> Ok <| op a1str (Number a2float)
+                Atom atom ->
+                    case atom of
+                        String a1str ->
+                            case arg2 of
+                                Atom atom2 ->
+                                    case atom2 of
+                                        String a2str -> Ok <| op a1str (Str a2str)
+                                        Int a2int -> Ok <| op a1str (Number <| toFloat a2int)
+                                        Float a2float -> Ok <| op a1str (Number a2float)
+                                        _ -> Err <| "bad arguments for " ++ opname
+                                _ -> Err <| "bad arguments for " ++ opname
                         _ -> Err <| "bad arguments for " ++ opname
                 _ -> Err <| "bad arguments for " ++ opname
         _ -> Err <| "bad arguments for " ++ opname
@@ -73,24 +84,43 @@ parse expr =
         Err err -> Err err
         Ok (op, args) ->
             case op of
-                Symbol opname ->
-                    case opname of
-                        "by.everything" -> Ok Everything
-                        "by.tzaware" -> Ok TzAware
-                        "by.formula" -> Ok Formula
-                        "by.name" -> onestring "name" args ByName
-                        "by.source" -> onestring "source" args BySource
-                        "by.metakey" -> onestring "metakey" args ByMetakey
-                        "by.formulacontents" -> onestring "formulacontents" args FormulaContents
-                        "by.metaitem" -> twoargs "metaitem" args ByMetaITem
-                        "by.internalmetaitem" -> twoargs "inetrnalmetaitem" args ByInternalMetaitem
-                        "by.cache" -> Ok ByCache
-                        "by.cachepolicy" -> onestring "cachepolicy" args ByCachePolicy
-                        "=" -> twoargs "=" args Eq
-                        "<" -> twoargs "<" args Lt
-                        "<=" -> twoargs "<=" args Lte
-                        ">" -> twoargs ">" args Gt
-                        ">=" -> twoargs ">=" args Gte
+                Atom atom ->
+                    case atom of
+                        Symbol opname ->
+                            case opname of
+                                "by.everything" ->
+                                    Ok Everything
+                                "by.tzaware" ->
+                                    Ok TzAware
+                                "by.formula" ->
+                                    Ok Formula
+                                "by.name" ->
+                                    onestring "name" args ByName
+                                "by.source" ->
+                                    onestring "source" args BySource
+                                "by.metakey" ->
+                                    onestring "metakey" args ByMetakey
+                                "by.formulacontents" ->
+                                    onestring "formulacontents" args FormulaContents
+                                "by.metaitem" ->
+                                    twoargs "metaitem" args ByMetaITem
+                                "by.internalmetaitem" ->
+                                    twoargs "inetrnalmetaitem" args ByInternalMetaitem
+                                "by.cache" ->
+                                    Ok ByCache
+                                "by.cachepolicy" ->
+                                    onestring "cachepolicy" args ByCachePolicy
+                                "=" ->
+                                    twoargs "=" args Eq
+                                "<" ->
+                                    twoargs "<" args Lt
+                                "<=" ->
+                                    twoargs "<=" args Lte
+                                ">" ->
+                                    twoargs ">" args Gt
+                                ">=" ->
+                                    twoargs ">=" args Gte
+                                _ -> Err "bad operator "
                         _ -> Err "bad operator "
                 _ -> Err "bad operator "
 
