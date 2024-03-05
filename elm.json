@@ -23,6 +23,7 @@
             "elm-community/basics-extra": "4.1.0",
             "elm-community/list-extra": "8.2.4",
             "elm-community/maybe-extra": "5.3.0",
+            "elm-community/result-extra": "2.4.0",
             "hayleigh-dot-dev/tuple-extra": "1.0.0",
             "hecrj/html-parser": "2.3.4",
             "jorgengranseth/elm-string-format": "1.0.1",

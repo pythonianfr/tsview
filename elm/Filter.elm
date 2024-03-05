@@ -11,6 +11,9 @@ import Lisp exposing
     , Expr(..)
     )
 
+import Result.Extra exposing ( partition )
+
+
 type Value
     = Str String
     | Number Float
@@ -84,6 +87,39 @@ twoargs opname args op =
         _ -> Err <| "bad arguments for " ++ opname
 
 
+notargs: String -> List Lisp.Expr -> (FilterNode -> FilterNode) -> Result String FilterNode
+notargs opname args op =
+    -- [by.not [...] ]
+    -- only one subexpression, which must be simply parsed
+    let
+        (parsedargs, errors) = partition <| List.map parse args
+    in
+    case List.length errors of
+        0 ->
+            case parsedargs of
+                [ parsedarg ] ->
+                    Ok <| op parsedarg
+                _ ->
+                    Err <| "in " ++ opname
+        _ ->
+            Err <| Maybe.withDefault ("in " ++ opname) <| List.head errors
+
+
+nargs: String -> List Lisp.Expr -> (List FilterNode -> FilterNode) -> Result String FilterNode
+nargs opname args op =
+    -- [by.and [...] [...] ...]
+    -- only subexpressions, which must be simply parsed
+    let
+        (parsedargs, errors) = partition <| List.map parse args
+    in
+    case List.length errors of
+        0 ->
+            Ok <| op parsedargs
+        _ ->
+            Err <| Maybe.withDefault ("in " ++ opname) <| List.head errors
+
+
+parse: Lisp.Expr -> Result String FilterNode
 parse expr =
     case signature(expr) of
         Err err -> Err err
@@ -125,6 +161,12 @@ parse expr =
                                     twoargs ">" args Gt
                                 ">=" ->
                                     twoargs ">=" args Gte
+                                "by.not" ->
+                                    notargs "not" args Not
+                                "by.and" ->
+                                    nargs "and" args And
+                                "by.or" ->
+                                    nargs "or" args Or
                                 _ -> Err "bad operator "
                         _ -> Err "bad operator "
                 _ -> Err "bad operator "

@@ -524,6 +524,37 @@ testParse =
                   )
                   (Ok <| ByInternalMetaitem "foo" (Number 42.0))
 
+        run29 =
+            \_ -> Expect.equal
+                  (parse <| Expression [ Atom <| Symbol "by.not"
+                                       , Expression [ Atom <| Symbol "by.tzaware" ]
+                                       ]
+                  )
+                 (Ok <| Not TzAware )
+
+        run30 =
+            \_ -> Expect.equal
+                  (parse <| Expression [ Atom <| Symbol "by.not"
+                                       , Expression [ Atom <| Symbol "by.and"
+                                                    , Expression [ Atom <| Symbol "by.tzaware" ]
+                                                    , Expression [ Atom <| Symbol "by.name"
+                                                                 , Atom <| String "foo"
+                                                                 ]
+                                                    ]
+                                       ]
+                  )
+                 (Ok <| Not <| And [ TzAware, ByName "foo" ])
+
+        run31 =
+            \_ -> Expect.equal
+                  (parse <| Expression [ Atom <| Symbol "by.or"
+                                       , Expression [ Atom <| Symbol "by.tzaware" ]
+                                       , Expression [ Atom <| Symbol "by.name"
+                                                    , Atom <| String "foo"
+                                                    ]
+                                       ]
+                  )
+                 (Ok <| Or [ TzAware, ByName "foo" ])
     in
     Test.concat
         [ test "parse tzaware" run1
@@ -554,4 +585,7 @@ testParse =
         , test "parse imetaitem str str" run26
         , test "parse imetaitem str int" run27
         , test "parse imetaitem str float" run28
+        , test "parse not tzaware" run29
+        , test "parse not and (tzaware byname)" run30
+        , test "parse or (tzaware byname)" run31
         ]
