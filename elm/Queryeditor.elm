@@ -53,42 +53,6 @@ getbasket model name =
         }
 
 
-view model =
-    let
-        unpacksbasket basketname =
-            JD.succeed <| SelectedBasket basketname
-
-        basketoption basketname =
-            H.option
-                [ HA.value basketname ]
-                [ H.text basketname ]
-
-        basketslist =
-            [ H.select
-                  [ HA.name "basket"
-                  , HE.on "change" (JD.andThen unpacksbasket HE.targetValue)
-                  , HA.class "form-control"
-                  ]
-                  <| List.map basketoption model.baskets
-            ]
-
-        currentbasket =
-            case model.basket of
-                Just basket ->
-                    case Lisp.parse basket of
-                        Just tree -> H.div [] (Lisp.view tree Dict.empty )
-                        Nothing -> H.span [] []
-
-                Nothing ->
-                    H.span [] []
-    in
-    H.div []
-        [ H.h1 [] [ H.text "Baskets" ]
-        , H.div [] basketslist
-        , H.div [] [ currentbasket ]
-        ]
-
-
 update msg model =
     let
         doerr tag error =
@@ -130,6 +94,42 @@ update msg model =
 
         GotBasketDefinition (Err err) ->
             doerr "getbasketdefinition http" <| U.unwraperror err
+
+
+view model =
+    let
+        unpacksbasket basketname =
+            JD.succeed <| SelectedBasket basketname
+
+        basketoption basketname =
+            H.option
+                [ HA.value basketname ]
+                [ H.text basketname ]
+
+        basketslist =
+            [ H.select
+                  [ HA.name "basket"
+                  , HE.on "change" (JD.andThen unpacksbasket HE.targetValue)
+                  , HA.class "form-control"
+                  ]
+                  <| List.map basketoption model.baskets
+            ]
+
+        currentbasket =
+            case model.basket of
+                Just basket ->
+                    case Lisp.parse basket of
+                        Just tree -> H.div [] (Lisp.view tree Dict.empty )
+                        Nothing -> H.span [] []
+
+                Nothing ->
+                    H.span [] []
+    in
+    H.div []
+        [ H.h1 [] [ H.text "Baskets" ]
+        , H.div [] basketslist
+        , H.div [] [ currentbasket ]
+        ]
 
 
 type alias Input =
