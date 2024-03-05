@@ -38,7 +38,9 @@ type FilterNode
     | Or (List FilterNode)
 
 
+signature: Lisp.Expr -> Result String (Lisp.Expr, List Lisp.Expr)
 signature expr =
+    -- extract head / tail to get operation and its arguments
     case expr of
         Expression atomlist ->
             case atomlist of
@@ -48,6 +50,7 @@ signature expr =
         _ -> Err "wtf was that ?"
 
 
+onestring: String -> List Lisp.Expr -> (String -> FilterNode) -> Result String FilterNode
 onestring opname args op =
     case args of
         [ name ] ->
@@ -60,6 +63,7 @@ onestring opname args op =
         _ -> Err <| "bad arguments for " ++ opname
 
 
+twoargs: String -> List Lisp.Expr -> (String -> Value -> FilterNode) -> Result String FilterNode
 twoargs opname args op =
     case args of
         (arg1::arg2::_) ->
@@ -126,6 +130,7 @@ parse expr =
                 _ -> Err "bad operator "
 
 
+fromlisp: String -> Result String FilterNode
 fromlisp string =
     case Lisp.parse string of
         Nothing ->
@@ -135,6 +140,7 @@ fromlisp string =
             parse parsedlisp
 
 
+serialize: FilterNode -> Lisp.Expr
 serialize node =
     case node of
         Everything ->
