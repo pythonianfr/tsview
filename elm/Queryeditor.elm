@@ -4,6 +4,7 @@ import Browser
 import Dict
 import Filter exposing
     ( FilterNode(..)
+    , Value(..)
     , fromlisp
     , parse
     )
@@ -34,7 +35,7 @@ type Msg
     = GotBasketNames (Result Http.Error String)
     | SelectedBasket String
     | GotBasketDefinition (Result Http.Error String)
-
+    | DeleteNode FilterNode
 
 getbaskets model =
     Http.get
@@ -95,6 +96,120 @@ update msg model =
         GotBasketDefinition (Err err) ->
             doerr "getbasketdefinition http" <| U.unwraperror err
 
+        DeleteNode node ->
+            U.nocmd model
+
+
+strvalue: Value -> String
+strvalue val =
+    case val of
+        Str v -> v
+        Number n -> String.fromFloat n
+
+
+viewsingleton: String -> H.Html Msg
+viewsingleton name =
+    H.ul [] [ H.li [] [ H.text name ] ]
+
+
+viewstrparam: String -> String -> H.Html Msg
+viewstrparam name param =
+    H.ul [] [ H.li [] [ H.text <| name ++ " " ++ param ] ]
+
+
+viewtwoparams: String -> String -> Value -> H.Html Msg
+viewtwoparams name param1 param2 =
+    H.ul [] [ H.li []
+                  [ H.text <| name ++ " " ++ param1 ++ " " ++ (strvalue param2) ]
+            ]
+
+
+viewterm: FilterNode -> H.Html Msg
+viewterm term  =
+    case term of
+        TzAware ->
+            viewsingleton "tzaware"
+
+        Everything ->
+            viewsingleton "everything"
+
+        Formula ->
+            viewsingleton "formula"
+
+        ByCache ->
+            viewsingleton "cache"
+
+        FormulaContents contents ->
+            viewstrparam "formulacontents " contents
+
+        ByName name ->
+            viewstrparam "byname " name
+
+        BySource name ->
+            viewstrparam "bysource " name
+
+        ByCachePolicy name ->
+            viewstrparam "cachepolicy " name
+
+        ByMetakey key ->
+            viewstrparam "metakey" key
+
+        ByMetaITem key val ->
+            viewtwoparams "bymetaitem " key val
+
+        ByInternalMetaitem key val ->
+            viewtwoparams "bymetaitem " key val
+
+        Eq key val ->
+            viewtwoparams "=" key val
+
+        Lt key val ->
+            viewtwoparams "<" key val
+
+        Lte key val ->
+            viewtwoparams "<=" key val
+
+        Gt key val ->
+            viewtwoparams ">" key val
+
+        Gte key val ->
+            viewtwoparams ">=" key val
+
+        Not thing ->
+            H.ul []
+                [ H.li [] [ H.summary [] [ H.text "not", viewterm thing ] ] ]
+
+        And things ->
+            H.ul []
+                [ H.li []
+                      ([ H.summary [] [ H.text "and" ] ]
+                           ++ (List.map viewterm things))
+                ]
+
+        Or things ->
+            H.ul []
+                [ H.li []
+                      ([ H.summary [] [ H.text "or" ] ]
+                           ++ (List.map viewterm things))
+                ]
+
+
+vieweditor model =
+    case model.edited of
+        Nothing -> H.span [] []
+        Just edited ->
+            H.ul
+                [ HA.class "tree"]
+                [ H.li
+                      []
+                      [ H.details
+                            [ HA.attribute "open" "" ]
+                            [ H.summary [] []
+                            , viewterm edited
+                            ]
+                      ]
+                ]
+
 
 view model =
     let
@@ -129,6 +244,7 @@ view model =
         [ H.h1 [] [ H.text "Baskets" ]
         , H.div [] basketslist
         , H.div [] [ currentbasket ]
+        , vieweditor model
         ]
 
 
