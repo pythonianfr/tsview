@@ -48,6 +48,7 @@ type alias Model =
     , view_nocache : Bool
     , randomNumber : Int
     , tzone : String
+    , inferredFreq : Bool
     }
 
 
@@ -65,6 +66,7 @@ type Msg
     | GetLastEditedData (Result Http.Error String)
     | RandomNumber Int
     | TimeZoneSelected String
+    | InferredFreq Bool
 
 
 type alias Entry =
@@ -153,6 +155,7 @@ geteditor model atidate msg =
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
             , tzone = model.tzone
+            , inferredFreq = model.inferredFreq
            }
            "supervision"
            "true"
@@ -327,10 +330,17 @@ update msg model =
             in
             ( newModel
             , Cmd.batch [
-                geteditor model False GotEditData
-                , I.getidates model "series" InsertionDates
+                geteditor newModel False GotEditData
+                , I.getidates newModel "series" InsertionDates
                 ]
             )
+
+        InferredFreq isChecked ->
+            let
+                newModel = { model | inferredFreq = isChecked}
+            in
+            ( newModel
+            , geteditor newModel False GotEditData )
 
 
 randomInt : Random.Generator Int
@@ -581,11 +591,33 @@ renderTimeZone selectedhorizon timeZone =
         [ H.text timeZone ]
 
 
+inferredFreqSwith : Model -> H.Html Msg
+inferredFreqSwith model =
+    H.div
+        [ HA.class "custom-control custom-switch"]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "flexSwitchCheckDefault"
+            , HA.checked model.inferredFreq
+            , HE.onCheck InferredFreq
+            ]
+            [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "flexSwitchCheckDefault"
+            ]
+            [ H.text "Inferred Frequence"]
+
+        ]
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
         [ ]
-        [ selectTimeZone model
+        [ inferredFreqSwith model
+        , selectTimeZone model
         , horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
         , viewPlotData model
         , H.div [ HA.class "container" ]
@@ -651,7 +683,7 @@ main =
                         , errors = []
                         , meta = Dict.empty
                         , date_index = 0
-                        ,  horizonModel =
+                        , horizonModel =
                             { offset = 0
                             , offset_reached = False
                             , horizon = {key = Just defaultHorizon}
@@ -661,6 +693,7 @@ main =
                             }
                         , indexToInsert = Nothing
                         , insertion_dates = Array.empty
+                        , inferredFreq = True
                         , name = input.name
                         , processedPasted = []
                         , randomNumber = 0

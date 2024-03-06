@@ -114,6 +114,7 @@ fetchseries model restrict =
         , todate = (if restrict then (serializedate model.maxdate) else "")
         ,horizon = Nothing
         , tzone = "UTC"
+        , inferredFreq = True
         }
         "state"
         "false")

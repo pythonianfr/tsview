@@ -16,7 +16,7 @@ import Json.Encode as E
 import Json.Encode.Extra as E
 import Maybe.Extra as Maybe
 import Url.Builder as UB
-
+import Bool.Extra
 -- series
 
 type alias Trace =
@@ -40,6 +40,7 @@ type alias PlotData msg =
     , fromdate : String
     , todate : String
     , horizon : Maybe String
+    , inferredFreq : Bool
     , tzone : String
     }
 
@@ -83,6 +84,15 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
+stringFromBool : Bool -> String
+stringFromBool value =
+  if value then
+    "true"
+
+  else
+    "false"
+
+
 getData : PlotData msg -> String -> String -> Cmd msg
 getData data apiPoint keepNans =
     let
@@ -95,7 +105,7 @@ getData data apiPoint keepNans =
             , Maybe.andThen (stringToMaybe "insertion_date") data.idate
             , Just <| UB.int "nocache" data.nocache
             , stringToMaybe "_keep_nans" keepNans
-            , stringToMaybe "inferred_freq" "true"
+            , stringToMaybe "inferred_freq" (stringFromBool data.inferredFreq)
             , stringToMaybe "tzone" data.tzone
             ]
             ++ Maybe.unwrap

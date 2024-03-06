@@ -207,6 +207,7 @@ getplot model atidate =
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
             , tzone = "UTC"
+            , inferredFreq = True
            }
            "state"
            "false"
