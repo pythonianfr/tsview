@@ -13,13 +13,20 @@ import Debouncer.Messages as Debouncer exposing
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
-    ( Horizon
+    ( DataInCache
+    , Horizon
     , HorizonModel
     , Offset
+    , dataInCacheDecoder
     , defaultHorizon
     , horizonbtnGroup
     , horizons
+    , saveToLocalStorage
+    , savedDataInCache
+    , updateDataInCache
+    , updateHorizon
     , updateHorizonModel
+    , updateOffset
     )
 import Html as H
 import Html.Attributes as HA
@@ -149,7 +156,7 @@ type Msg
     | ResetClipboardClass
     | HorizonSelected Horizon
     | UpdateOffset Offset
-    | SetHorizon String
+    | SetDataInCache String
 
 
 logentrydecoder : D.Decoder Logentry
@@ -206,8 +213,8 @@ getplot model atidate =
                 |> Maybe.andThen (\key-> Dict.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
-            , tzone = "UTC"
-            , inferredFreq = True
+            , tzone = model.horizon.timeZone
+            , inferredFreq = model.horizon.inferredFreq
            }
            "state"
            "false"
@@ -669,49 +676,57 @@ update msg model =
             )
 
         HorizonSelected horizon ->
-            updateHorizon horizon 0 model
+            let
+                dataInCache = DataInCache
+                    horizon.key
+                    model.horizon.timeZone
+                    model.horizon.inferredFreq
+
+                newModel = { model | horizon =
+                    updateHorizon horizon model.horizon
+                    }
+            in
+            ( newModel
+            , Cmd.batch [
+                getplot newModel False
+                , saveToLocalStorage dataInCache]
+            )
 
         UpdateOffset (Left i) ->
-            updateHorizon model.horizon.horizon (model.horizon.offset + i) model
+            updateModelOffset model i
 
         UpdateOffset (Right i) ->
-            updateHorizon model.horizon.horizon (model.horizon.offset - i) model
+            updateModelOffset model -i
 
-        SetHorizon newHorizon ->
-            case D.decodeString horizonDecoder newHorizon of
-                Ok newHorizonDict ->
-                    updateHorizon newHorizonDict 0 model
+        SetDataInCache newDataInCache ->
+            case D.decodeString dataInCacheDecoder newDataInCache of
+                Ok newDataInCacheDict ->
+                    let
+                        newModel = {
+                            model | horizon =  updateDataInCache
+                                newDataInCacheDict model.horizon
+                            }
+                    in
+                    (newModel, Cmd.batch [
+                        getplot newModel False
+                        , saveToLocalStorage newDataInCacheDict]
+                    )
                 Err _ ->
-                    (model, (getplot model False))
+                    (model, getplot model False)
 
 -- views
 
-updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
-updateHorizon horizon newOffset model =
+updateModelOffset : Model -> Int -> (Model, Cmd Msg)
+updateModelOffset model i =
     let
-        newHorizonModel = model.horizon
-        newmodel = { model
-                        | horizon =
-                            { newHorizonModel
-                                | horizon = horizon
-                                , offset = newOffset}}
+        offset = (model.horizon.offset + i)
+        newModel = { model
+            | horizon = updateOffset
+                offset
+                model.horizon
+            }
     in
-    (newmodel, Cmd.batch
-                [ saveToLocalStorage horizon
-                , getplot newmodel False
-                ]
-    )
-
-
-horizonDecoder : D.Decoder Horizon
-horizonDecoder =
-    D.map Horizon <| D.field "key" <| D.nullable D.string
-
-
-port saveToLocalStorage : Horizon -> Cmd msg
-
-
-port savedHorizon : (String -> msg) -> Sub msg
+    (newModel, getplot newModel False )
 
 
 port copyToClipboard : String -> Cmd msg
@@ -1029,14 +1044,16 @@ main =
                        , newname = Nothing
                        , clipboardclass = "bi bi-clipboard"
                        , horizon =
-                             { offset = 0
-                             , offset_reached = False
-                             , horizon = { key = Just defaultHorizon }
-                             , mindate = ""
-                             , maxdate = ""
-                             , timeSeries = Dict.empty
-                             }
+                            { offset = 0
+                            , offset_reached = False
+                            , horizon = {key = Just defaultHorizon}
+                            , inferredFreq = False
+                            , mindate = ""
+                            , maxdate = ""
+                            , timeSeries = Dict.empty
+                            , timeZone = "UTC"
                        }
+                    }
                in
                ( model
                , Cmd.batch
@@ -1047,13 +1064,10 @@ main =
                    , getcachepolicy model
                    ]
                )
-           sub : Model -> Sub Msg
-           sub model = savedHorizon SetHorizon
-
        in
            Browser.element
                { init = init
                , view = view
                , update = update
-               , subscriptions = sub
+               , subscriptions = \_ -> savedDataInCache SetDataInCache
                }

@@ -48,36 +48,39 @@
                     name : "{{ name }}"
                 }
             });
+            function applyCopyPaste () {
+                var myinputs = document.getElementsByClassName("pasteble")
+                for (var i = 0; i<myinputs.length; i++){
+                    let myinput = myinputs[i]
+                    myinput.onpaste = e => {
+                        e.preventDefault();
+                        const clipboardData = e.clipboardData || window.clipboardData;
+                        const text = clipboardData.getData('text') || "";
+                        const index = myinput.getAttribute('index')
+                        const newEvent = new CustomEvent("pastewithdata", {
+                            detail: {
+                                text: text,
+                                index: index
+                            }
+                        });
+                        myinput.dispatchEvent(newEvent);
+                        return false;
+                    };
+                };}
 
-        function applyCopyPaste () {
-            var myinputs = document.getElementsByClassName("pasteble")
-            for (var i = 0; i<myinputs.length; i++){
-                let myinput = myinputs[i]
-                myinput.onpaste = e => {
-                    e.preventDefault();
-                    const clipboardData = e.clipboardData || window.clipboardData;
-                    const text = clipboardData.getData('text') || "";
-                    const index = myinput.getAttribute('index')
-                    const newEvent = new CustomEvent("pastewithdata", {
-                        detail: {
-                            text: text,
-                            index: index
-                        }
-                    });
-                    myinput.dispatchEvent(newEvent);
-                    return false;
-                };
-            };}
-
-        class EvalJs extends HTMLElement {
-            static get observedAttributes() {
-                return ['myjs'];
+            class EvalJs extends HTMLElement {
+                static get observedAttributes() {
+                    return ['myjs'];
+                }
+                attributeChangedCallback(name, oldValue, newValue) {
+                eval(newValue);
+                }
             }
-            attributeChangedCallback(name, oldValue, newValue) {
-            eval(newValue);
-            }
-        }
-        window.customElements.define('eval-js', EvalJs);
+            window.customElements.define('eval-js', EvalJs);
+            app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+                localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
+            });
+            app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
         </script>
     </body>
 </html>

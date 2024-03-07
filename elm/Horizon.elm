@@ -1,11 +1,18 @@
-module Horizon exposing
-    ( Horizon
+port module Horizon exposing
+    ( DataInCache
+    , Horizon
     , HorizonModel
     , Offset
+    , dataInCacheDecoder
     , defaultHorizon
     , horizonbtnGroup
     , horizons
+    , saveToLocalStorage
+    , savedDataInCache
+    , updateDataInCache
+    , updateHorizon
     , updateHorizonModel
+    , updateOffset
     )
 
 import Dict exposing (Dict)
@@ -26,15 +33,37 @@ type alias HorizonModel v =
     { offset : Int
     , offset_reached : Bool
     , horizon : Horizon
+    , inferredFreq : Bool
     , mindate : String
     , maxdate : String
     , timeSeries : Dict String v
+    , timeZone : String
     }
 
 
 type alias Horizon =
     { key : Maybe String }
 
+
+type alias DataInCache =
+    { horizon : Maybe String
+    , timeZone : String
+    , inferredFreq : Bool
+    }
+
+
+port saveToLocalStorage : DataInCache -> Cmd msg
+
+
+port savedDataInCache : (String -> msg) -> Sub msg
+
+
+dataInCacheDecoder : D.Decoder DataInCache
+dataInCacheDecoder =
+    D.map3 DataInCache
+        (D.field "horizon" (D.nullable D.string))
+        (D.field "timeZone" D.string)
+        (D.field "inferredFreq" D.bool)
 
 defaultHorizon : String
 defaultHorizon =
@@ -60,6 +89,27 @@ horizons =  Dict.fromList
             #:offset {offset})
         """
     ]
+
+updateOffset : Int -> HorizonModel v -> HorizonModel v
+updateOffset newOffset model =
+    { model | offset = newOffset }
+
+
+updateHorizon : Horizon -> HorizonModel v -> HorizonModel v
+updateHorizon horizon model =
+    { model
+        | horizon = horizon
+        , offset = 0
+    }
+
+
+updateDataInCache : DataInCache -> HorizonModel v -> HorizonModel v
+updateDataInCache dataInCache model =
+    { model
+        | horizon = { key = dataInCache.horizon }
+        , inferredFreq = dataInCache.inferredFreq
+        , timeZone = dataInCache.timeZone
+    }
 
 
 updateHorizonModel : HorizonModel v -> Dict String v -> HorizonModel v

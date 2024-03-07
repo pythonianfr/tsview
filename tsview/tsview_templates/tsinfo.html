@@ -54,10 +54,10 @@
                 }
             });
             app.ports.copyToClipboard.subscribe(clipboard);
-            app.ports.saveToLocalStorage.subscribe(function (horizon) {
-                localStorage.setItem("horizon", JSON.stringify(horizon))
+            app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+                localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
             });
-            app.ports.savedHorizon.send(localStorage.getItem("horizon"));
+            app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
         </script>
     </body>
 </html>

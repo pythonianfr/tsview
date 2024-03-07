@@ -5,13 +5,20 @@ import Browser
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
-    ( Horizon
+    ( DataInCache
+    , Horizon
     , HorizonModel
     , Offset
+    , dataInCacheDecoder
     , defaultHorizon
     , horizonbtnGroup
     , horizons
+    , saveToLocalStorage
+    , savedDataInCache
+    , updateDataInCache
+    , updateHorizon
     , updateHorizonModel
+    , updateOffset
     )
 import Http
 import Html as H
@@ -47,8 +54,6 @@ type alias Model =
     , rawPasted: String
     , view_nocache : Bool
     , randomNumber : Int
-    , tzone : String
-    , inferredFreq : Bool
     }
 
 
@@ -67,6 +72,7 @@ type Msg
     | RandomNumber Int
     | TimeZoneSelected String
     | InferredFreq Bool
+    | SetDataInCache String
 
 
 type alias Entry =
@@ -154,8 +160,8 @@ geteditor model atidate msg =
                 |> Maybe.andThen (\key-> Dict.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
-            , tzone = model.tzone
-            , inferredFreq = model.inferredFreq
+            , tzone = model.horizonModel.timeZone
+            , inferredFreq = model.horizonModel.inferredFreq
            }
            "supervision"
            "true"
@@ -198,13 +204,28 @@ update msg model =
             U.nocmd model
 
         HorizonSelected horizon ->
-            updateHorizon horizon 0 model
+            let
+                dataInCache = DataInCache
+                    horizon.key
+                    model.horizonModel.timeZone
+                    model.horizonModel.inferredFreq
+
+                newModel = { model | horizonModel =
+                    updateHorizon horizon model.horizonModel
+                    }
+            in
+            ( newModel
+            , Cmd.batch [
+                geteditor newModel False GotEditData
+                , Random.generate RandomNumber randomInt
+                , saveToLocalStorage dataInCache]
+            )
 
         UpdateOffset (Left i) ->
-            updateHorizon model.horizonModel.horizon (model.horizonModel.offset + i) model
+            updateModelOffset model i
 
         UpdateOffset (Right i) ->
-            updateHorizon model.horizonModel.horizon (model.horizonModel.offset - i) model
+            updateModelOffset model -i
 
         InputChanged date value ->
             let
@@ -326,21 +347,65 @@ update msg model =
 
         TimeZoneSelected timeZone ->
             let
-                newModel = { model | tzone = timeZone }
+                newHorizonModel = model.horizonModel
+                newModel = { model
+                                | horizonModel =
+                                    { newHorizonModel
+                                        | timeZone = timeZone
+                                    }
+                        }
+                dataInCache = DataInCache
+                    model.horizonModel.horizon.key
+                    timeZone
+                    model.horizonModel.inferredFreq
+
             in
             ( newModel
             , Cmd.batch [
                 geteditor newModel False GotEditData
                 , I.getidates newModel "series" InsertionDates
+                , saveToLocalStorage dataInCache
                 ]
             )
 
         InferredFreq isChecked ->
             let
-                newModel = { model | inferredFreq = isChecked}
+                newHorizonModel = model.horizonModel
+                newModel = { model
+                                | horizonModel =
+                                    { newHorizonModel
+                                        | inferredFreq = isChecked
+                                    }
+                        }
+                dataInCache = DataInCache
+                    model.horizonModel.horizon.key
+                    model.horizonModel.timeZone
+                    isChecked
             in
+
             ( newModel
-            , geteditor newModel False GotEditData )
+            , Cmd.batch [
+                geteditor newModel False GotEditData
+                , saveToLocalStorage dataInCache
+                ]
+            )
+
+        SetDataInCache newDataInCache ->
+            case D.decodeString dataInCacheDecoder newDataInCache of
+                Ok newDataInCacheDict ->
+                    let
+                        newModel = {
+                            model | horizonModel =  updateDataInCache
+                                newDataInCacheDict model.horizonModel
+                            }
+                    in
+                    (newModel, Cmd.batch [
+                        geteditor newModel False GotEditData
+                        , Random.generate RandomNumber randomInt
+                        , saveToLocalStorage newDataInCacheDict]
+                    )
+                Err _ ->
+                    (model, (geteditor model False GotEditData))
 
 
 randomInt : Random.Generator Int
@@ -399,21 +464,20 @@ updateEntry value maybeEntry =
         )
 
 
-updateHorizon : Horizon -> Int -> Model -> ( Model, Cmd Msg )
-updateHorizon horizon newOffset model =
+updateModelOffset : Model -> Int -> (Model, Cmd Msg)
+updateModelOffset model i =
     let
-        newHorizonModel = model.horizonModel
-        newmodel = { model
-                        | horizonModel =
-                            { newHorizonModel
-                                | horizon = horizon
-                                , offset = newOffset
-                            }
-                   }
+        offset = (model.horizonModel.offset + i)
+        newModel = { model
+            | horizonModel = updateOffset
+                offset
+                model.horizonModel
+            }
     in
-    (newmodel, Cmd.batch [
-         geteditor newmodel False GotEditData,
-        Random.generate RandomNumber randomInt])
+    (newModel, Cmd.batch [
+        geteditor newModel False GotEditData
+        , Random.generate RandomNumber randomInt]
+    )
 
 
 patchEditedData : Model -> Cmd Msg
@@ -441,7 +505,7 @@ patchEditedData model =
                  , ("tzaware", E.bool tzaware )
                  , ("series", encodeEditedData filteredDict )
                  , ("supervision", E.bool True )
-                 , ("tzone", E.string model.tzone)
+                 , ("tzone", E.string model.horizonModel.timeZone)
                  ]
         , headers = []
         , timeout = Nothing
@@ -579,7 +643,7 @@ selectTimeZone model =
     H.select
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
         ]
-        (List.map (renderTimeZone model.tzone) ["UTC", "CET"])
+        (List.map (renderTimeZone model.horizonModel.timeZone) ["UTC", "CET"])
 
 
 renderTimeZone : String -> String -> H.Html Msg
@@ -599,7 +663,7 @@ inferredFreqSwith model =
             [ HA.attribute "type" "checkbox"
             , HA.class "custom-control-input"
             , HA.id "flexSwitchCheckDefault"
-            , HA.checked model.inferredFreq
+            , HA.checked model.horizonModel.inferredFreq
             , HE.onCheck InferredFreq
             ]
             [ ]
@@ -687,18 +751,18 @@ main =
                             { offset = 0
                             , offset_reached = False
                             , horizon = {key = Just defaultHorizon}
+                            , inferredFreq = False
                             , mindate = ""
                             , maxdate = ""
                             , timeSeries = Dict.empty
+                            , timeZone = "UTC"
                             }
                         , indexToInsert = Nothing
                         , insertion_dates = Array.empty
-                        , inferredFreq = True
                         , name = input.name
                         , processedPasted = []
                         , randomNumber = 0
                         , rawPasted = ""
-                        , tzone = "UTC"
                         , view_nocache = False
                         }
                in
@@ -715,5 +779,5 @@ main =
                { init = init
                , view = view
                , update = update
-               , subscriptions = \model -> Sub.none
+               , subscriptions = \_ -> savedDataInCache SetDataInCache
                }
