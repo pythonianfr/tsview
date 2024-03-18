@@ -1,4 +1,4 @@
-module TsEditor exposing (main)
+port module TsEditor exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -52,8 +52,10 @@ type alias Model =
     , name : String
     , processedPasted: List String
     , rawPasted: String
+    , initialTs : Dict String Entry
     , view_nocache : Bool
     , randomNumber : Int
+
     }
 
 
@@ -73,6 +75,7 @@ type Msg
     | TimeZoneSelected String
     | InferredFreq Bool
     | SetDataInCache String
+    | NewDates (List String)
 
 
 type alias Entry =
@@ -193,7 +196,9 @@ update msg model =
                                 (Dict.toList val)
                             )
                     in
-                    U.nocmd { model | horizonModel =
+                    U.nocmd { model |
+                        initialTs = incrementedVal
+                        , horizonModel =
                                 updateHorizonModel
                                     model.horizonModel incrementedVal
                             }
@@ -267,24 +272,7 @@ update msg model =
                                 incrementIndex
                                 (Dict.toList val)
                             )
-                        editEntry : Entry -> Maybe Entry -> Maybe Entry
-                        editEntry value maybeEntry =
-                            Maybe.andThen
-                                (\entry ->
-                                    Just { entry
-                                        | editedValue = value.editedValue })
-                                maybeEntry
-
-                        newDict =
-                            Dict.merge
-                                (\_ _ dict -> dict)
-                                (\key _ value dict ->
-                                    Dict.update key (editEntry value) dict)
-                                (\_ _ dict -> dict)
-                                incrementedVal
-                                model.horizonModel.timeSeries
-                                incrementedVal
-
+                        newDict = updateEditedValue model incrementedVal
                         newModel = { model | horizonModel =
                                 updateHorizonModel
                                     model.horizonModel newDict
@@ -406,6 +394,55 @@ update msg model =
                     )
                 Err _ ->
                     (model, (geteditor model False GotEditData))
+
+        NewDates listDates ->
+            let
+                newHorizonModel = model.horizonModel
+                newinitalTs = updateEditedValue model model.initialTs
+                newModel =
+                    if List.isEmpty listDates then
+                        { model
+                            | horizonModel =
+                                { newHorizonModel
+                                    | timeSeries = newinitalTs
+                                }
+                        }
+                    else
+                        let
+                            newTs = (Dict.filter
+                                (\key _ -> List.member key listDates)
+                                model.horizonModel.timeSeries)
+                        in { model
+                                | initialTs = newinitalTs
+                                , horizonModel =
+                                    { newHorizonModel
+                                        | timeSeries = newTs
+                                    }
+                            }
+            in (newModel, Cmd.none)
+
+
+port dateInInterval : (List String -> msg) -> Sub msg
+
+
+updateEditedValue : Model -> Dict String Entry -> Dict String Entry
+updateEditedValue model initialDict =
+    let
+        editEntry : Entry -> Maybe Entry -> Maybe Entry
+        editEntry value maybeEntry =
+            Maybe.andThen
+                (\entry ->
+                    Just { entry
+                        | editedValue = value.editedValue })
+                maybeEntry
+    in Dict.merge
+        (\_ _ dict -> dict)
+        (\key _ value dict ->
+            Dict.update key (editEntry value) dict)
+        (\_ _ dict -> dict)
+        initialDict
+        model.horizonModel.timeSeries
+        initialDict
 
 
 randomInt : Random.Generator Int
@@ -601,7 +638,7 @@ viewRow ( date, entry ) =
     H.tr rowStyle
         [ H.td
             [ ]
-            [ H.text (String.slice 0 19 date)
+            [ H.text date
             ]
         , H.td
             [ ]
@@ -737,47 +774,48 @@ type alias Input =
 
 main : Program Input Model Msg
 main =
-       let
-           init input =
-               let
-                   model =
-                        { baseurl = input.baseurl
-                        , contentCell = "68"
-                        , editedDataError = False
-                        , errors = []
-                        , meta = Dict.empty
-                        , date_index = 0
-                        , horizonModel =
-                            { offset = 0
-                            , offset_reached = False
-                            , horizon = {key = Just defaultHorizon}
-                            , inferredFreq = False
-                            , mindate = ""
-                            , maxdate = ""
-                            , timeSeries = Dict.empty
-                            , timeZone = "UTC"
-                            }
-                        , indexToInsert = Nothing
-                        , insertion_dates = Array.empty
-                        , name = input.name
-                        , processedPasted = []
-                        , randomNumber = 0
-                        , rawPasted = ""
-                        , view_nocache = False
+    let
+        init input =
+            let
+                model =
+                    { baseurl = input.baseurl
+                    , contentCell = "68"
+                    , editedDataError = False
+                    , errors = []
+                    , meta = Dict.empty
+                    , date_index = 0
+                    , horizonModel =
+                        { offset = 0
+                        , offset_reached = False
+                        , horizon = {key = Just defaultHorizon}
+                        , inferredFreq = False
+                        , mindate = ""
+                        , maxdate = ""
+                        , timeSeries = Dict.empty
+                        , timeZone = "UTC"
                         }
-               in
-               ( model
-               , Cmd.batch
-                   [ (geteditor model False GotEditData)
-                   , M.getsysmetadata model.baseurl model.name GotMetadata "series"
-                   , I.getidates model "series" InsertionDates
-                   ]
-               )
+                    , indexToInsert = Nothing
+                    , insertion_dates = Array.empty
+                    , name = input.name
+                    , processedPasted = []
+                    , randomNumber = 0
+                    , rawPasted = ""
+                    , initialTs = Dict.empty
+                    , view_nocache = False
+                    }
+            in ( model, Cmd.batch
+                [ (geteditor model False GotEditData)
+                , M.getsysmetadata model.baseurl model.name GotMetadata "series"
+                , I.getidates model "series" InsertionDates
+                ]
+            )
 
-       in
-           Browser.element
-               { init = init
-               , view = view
-               , update = update
-               , subscriptions = \_ -> savedDataInCache SetDataInCache
-               }
+    in Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = \_ -> Sub.batch
+            [ savedDataInCache SetDataInCache
+            , dateInInterval NewDates
+            ]
+    }
