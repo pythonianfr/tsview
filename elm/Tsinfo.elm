@@ -63,6 +63,11 @@ type alias IdatePickerEvents =
     , fvdatepickerchanged : String -> Msg
     , tvdatepickerchanged : String -> Msg }
 
+type PlotStatus
+    = Loading
+    | Success
+    | Failure
+
 
 type alias Model =
     { baseurl : String
@@ -102,6 +107,7 @@ type alias Model =
     , newname : Maybe String
     , clipboardclass : String
     , horizon : HorizonModel (Maybe Float)
+    , plotStatus : PlotStatus
     }
 
 
@@ -318,7 +324,15 @@ update msg model =
                     doerr "gotmeta decode" <| D.errorToString err
 
         GotSysMeta (Err err) ->
-            doerr "gotsysmeta http"  <| U.unwraperror err
+            let
+                newModel = { model
+                    | errors = List.append
+                        model.errors
+                        [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
+                    , plotStatus = Failure
+                    }
+            in
+            ( newModel, Cmd.none)
 
         GotUserMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -370,10 +384,14 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    U.nocmd { model
-                        | horizon =
+                    let
+                        newModel = { model
+                            | horizon =
                             updateHorizonModel model.horizon val
+                            , plotStatus = Success
                             }
+                    in
+                    U.nocmd newModel
                 Err err ->
                     if strseries model
                     then U.nocmd model
@@ -434,7 +452,12 @@ update msg model =
             doerr "cachedeleted http" <| U.unwraperror error
 
         ViewNocache ->
-            let mod = { model | view_nocache = not model.view_nocache } in
+            let
+                mod = { model
+                    | view_nocache = not model.view_nocache
+                    , plotStatus = Loading
+                    }
+            in
             ( mod
             , Cmd.batch
                 [ I.getidates mod "series" InsertionDates
@@ -756,11 +779,19 @@ viewcachepolicy model =
 
 viewtogglecached : Model -> H.Html Msg
 viewtogglecached model =
+    let
+        title =
+            if model.plotStatus == Loading then
+                "Loading ..."
+            else if model.view_nocache then
+                "view cached"
+            else
+                "view uncached"
+
+    in
     H.div
         [ HA.class "custom-control custom-switch"
-        , HA.title <| if model.view_nocache
-                      then "view cached"
-                      else "view uncached"
+        , HA.title title
         ]
         [ H.input
               [ HA.attribute "type" "checkbox"
@@ -768,14 +799,13 @@ viewtogglecached model =
               , HA.id "view-uncached"
               , HA.checked <| not model.view_nocache
               , HE.onClick ViewNocache
+              , HA.disabled (model.plotStatus == Loading)
               ] [ ]
         , H.label
             [ HA.class "custom-control-label"
             , HA.for "view-uncached"
             ]
-            [ H.text <| if model.view_nocache
-                        then "view uncached"
-                        else "view cached"
+            [ H.text title
             ]
         ]
 
@@ -1053,6 +1083,7 @@ main =
                             , timeSeries = Dict.empty
                             , timeZone = "UTC"
                        }
+                       , plotStatus = Loading
                     }
                in
                ( model
