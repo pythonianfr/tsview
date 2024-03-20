@@ -419,7 +419,7 @@ update msg model =
                                         | timeSeries = newTs
                                     }
                             }
-            in (newModel, Cmd.none)
+            in (newModel, Random.generate RandomNumber randomInt)
 
 
 port dateInInterval : (List String -> msg) -> Sub msg
@@ -733,37 +733,50 @@ view model =
 
 editTable : Model -> H.Html Msg
 editTable model =
-    if Dict.isEmpty model.horizonModel.timeSeries then
-        H.div [ ][ ]
-    else
-        H.div
-        [ HA.class "col-sm" ]
-        [ H.table
-            [ HA.class
-                "table-sm table-bordered custom-table table-striped"
-            ]
-            [ H.thead [ ]
-                [ H.tr [ ]
-                    [ H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Dates" ]
-                    , H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Value" ]
-                    ]
-                ]
-            , H.tbody [ ]
-                (List.map
-                    viewRow
-                    (Dict.toList model.horizonModel.timeSeries)
-                )
-            ]
-        , H.node "eval-js"
+    let
+        node = H.node "eval-js"
             [ HA.attribute
                 "myjs"
-                ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");") ]
+                ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
+            ]
             [ ]
-        ]
+    in
+    if Dict.isEmpty model.horizonModel.timeSeries then
+        H.div [ ][ ]
+    else if Dict.size model.horizonModel.timeSeries > 1000 then
+        H.div
+            [ ]
+            [ H.text
+                """ Too many points to display. Please select a smaller time
+                frame or an area on the graph."""
+            , node
+            ]
+    else
+
+        H.div
+            [ HA.class "col-sm" ]
+            [ H.table
+                [ HA.class
+                    "table-sm table-bordered custom-table table-striped"
+                ]
+                [ H.thead [ ]
+                    [ H.tr [ ]
+                        [ H.th
+                            [ HA.scope "col" ]
+                            [ H.text "Dates" ]
+                        , H.th
+                            [ HA.scope "col" ]
+                            [ H.text "Value" ]
+                        ]
+                    ]
+                , H.tbody [ ]
+                    (List.map
+                        viewRow
+                        (Dict.toList model.horizonModel.timeSeries)
+                    )
+                ]
+            , node
+            ]
 
 
 type alias Input =
