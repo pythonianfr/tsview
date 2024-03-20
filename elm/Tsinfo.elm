@@ -19,7 +19,6 @@ import Horizon exposing
     , Offset
     , dataInCacheDecoder
     , defaultHorizon
-    , horizonbtnGroup
     , horizons
     , saveToLocalStorage
     , savedDataInCache
@@ -27,6 +26,7 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
+    , widgetHorizon
     )
 import Html as H
 import Html.Attributes as HA
@@ -163,6 +163,8 @@ type Msg
     | HorizonSelected Horizon
     | UpdateOffset Offset
     | SetDataInCache String
+    | TimeZoneSelected String
+    | InferredFreq Bool
 
 
 logentrydecoder : D.Decoder Logentry
@@ -223,7 +225,7 @@ getplot model atidate =
             , inferredFreq = model.horizon.inferredFreq
            }
            "state"
-           "false"
+           "true"
 
 
 getlog : String -> String-> Cmd Msg
@@ -737,6 +739,52 @@ update msg model =
                 Err _ ->
                     (model, getplot model False)
 
+        TimeZoneSelected timeZone ->
+            let
+                newHorizonModel = model.horizon
+                newModel = { model
+                                | horizon =
+                                    { newHorizonModel
+                                        | timeZone = timeZone
+                                    }
+                        }
+                dataInCache = DataInCache
+                    model.horizon.horizon.key
+                    timeZone
+                    model.horizon.inferredFreq
+
+            in
+            ( newModel
+            , Cmd.batch [
+                getplot model False
+                , I.getidates newModel "series" InsertionDates
+                , saveToLocalStorage dataInCache
+                ]
+            )
+
+        InferredFreq isChecked ->
+            let
+                newHorizonModel = model.horizon
+                newModel = { model
+                                | horizon =
+                                    { newHorizonModel
+                                        | inferredFreq = isChecked
+                                    }
+                        }
+                dataInCache = DataInCache
+                    model.horizon.horizon.key
+                    model.horizon.timeZone
+                    isChecked
+            in
+
+            ( newModel
+            , Cmd.batch [
+                getplot model False
+                , saveToLocalStorage dataInCache
+                ]
+            )
+
+
 -- views
 
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
@@ -918,7 +966,13 @@ viewplot model =
     H.div []
         [ H.h2 [] [ H.text "Plot" ]
         , viewdatespicker model idatepickerevents
-        , horizonbtnGroup model.horizon UpdateOffset HorizonSelected
+        , widgetHorizon
+            model.horizon
+                { inferredFreqMsg = InferredFreq
+                , timeZoneMsg = TimeZoneSelected
+                , offsetMsg = UpdateOffset
+                , timeDeltaMsg = HorizonSelected
+                }
         , viewdatesrange model
         , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
@@ -993,7 +1047,13 @@ view model =
             [ H.h5
                 [ HA.style "color" "grey" ]
                 [ H.text "Series "
-                , horizonbtnGroup model.horizon UpdateOffset HorizonSelected
+                , widgetHorizon
+                    model.horizon
+                        { inferredFreqMsg = InferredFreq
+                        , timeZoneMsg = TimeZoneSelected
+                        , offsetMsg = UpdateOffset
+                        , timeDeltaMsg = HorizonSelected
+                        }
                 ]
             , H.i
                 [ HA.class model.clipboardclass

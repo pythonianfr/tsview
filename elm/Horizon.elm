@@ -5,7 +5,6 @@ port module Horizon exposing
     , Offset
     , dataInCacheDecoder
     , defaultHorizon
-    , horizonbtnGroup
     , horizons
     , saveToLocalStorage
     , savedDataInCache
@@ -13,6 +12,7 @@ port module Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
+    , widgetHorizon
     )
 
 import Dict exposing (Dict)
@@ -49,6 +49,14 @@ type alias DataInCache =
     { horizon : Maybe String
     , timeZone : String
     , inferredFreq : Bool
+    }
+
+
+type alias HorizonMsg msg =
+    { inferredFreqMsg : ( Bool -> msg )
+    , timeZoneMsg : ( String -> msg )
+    , offsetMsg : ( Offset -> msg )
+    , timeDeltaMsg : ( Horizon -> msg )
     }
 
 
@@ -158,31 +166,29 @@ offsetDisabledRight {offset, offset_reached, horizon} =
     ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
 
 
-buttonArrow : String -> Bool ->  ( Offset -> msg ) -> H.Html msg
-buttonArrow direction disabled message =
+buttonArrow : String -> Bool ->  HorizonMsg msg -> H.Html msg
+buttonArrow direction disabled horizonMsg =
     let
         arrow = if direction == "left" then Left else Right
     in
     H.button
-        [ HA.class "btn btn-outline-dark btn-sm"
-        , HA.disabled disabled
+        [ HA.disabled disabled
         ]
         [ H.i
             [ HA.class
                 <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
-            , HE.onClick (message (arrow 1))
+            , HE.onClick (horizonMsg.offsetMsg (arrow 1))
             ]
             [ ]
         ]
 
 
-selectHorizon : HorizonModel v -> ( Horizon -> msg ) -> H.Html msg
-selectHorizon model message =
+selectHorizon : HorizonModel v -> HorizonMsg msg -> H.Html msg
+selectHorizon model horizonMsg =
     H.select
-        [ HA.class "btn btn-outline-dark btn-sm"
-        , HE.targetValue
+        [ HE.targetValue
             |> D.andThen readHorizon
-            |> D.map message
+            |> D.map horizonMsg.timeDeltaMsg
             |> HE.on "change"
         ]
         (List.map (renderhorizon model.horizon.key)
@@ -199,7 +205,6 @@ renderhorizon selectedhorizon horizon =
         [ H.text horizon ]
 
 
-
 readHorizon : String -> D.Decoder Horizon
 readHorizon key = D.succeed <| Horizon <|
     if List.member key (Dict.keys horizons) then
@@ -208,30 +213,105 @@ readHorizon key = D.succeed <| Horizon <|
         Nothing
 
 
-horizonbtnGroup : HorizonModel v -> ( Offset -> msg ) -> ( Horizon -> msg ) -> H.Html msg
-horizonbtnGroup model msgOffset msgHorizon =
+renderTimeZone : String -> String -> H.Html msg
+renderTimeZone selectedhorizon timeZone =
+    H.option
+        [ HA.value timeZone
+        , HA.selected (selectedhorizon == timeZone)
+        ]
+        [ H.text timeZone ]
+
+
+divSelectTimeZone : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divSelectTimeZone model horizonMsg =
+    let
+        decodeTimeZone : String -> D.Decoder msg
+        decodeTimeZone timeZone =
+            D.succeed (horizonMsg.timeZoneMsg timeZone)
+
+    in
     H.div
-        [ HA.class "row no-gutters align-items-center" ]
-        [ H.div
-            [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledLeft model in
-                buttonArrow "left" disabled msgOffset
+        [ HA.class "time-zone"]
+        [ H.select
+            [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
             ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ H.text model.mindate
+            (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
+        ]
+
+
+divArrowLeft : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divArrowLeft model horizonMsg =
+    H.div
+        [ HA.class "arrow-left" ]
+        [ let disabled = offsetDisabledLeft model in
+            buttonArrow "left" disabled horizonMsg
+        ]
+
+divBoundLeft : HorizonModel v -> H.Html msg
+divBoundLeft model =
+    H.div
+        [ HA.class "bound-left" ]
+        [ H.text model.mindate]
+
+
+divTimeDelta : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divTimeDelta model horizonMsg =
+    H.div
+        [ HA.class "time-delta" ]
+        [ selectHorizon model horizonMsg]
+
+
+divBoundRight : HorizonModel v -> H.Html msg
+divBoundRight model =
+    H.div
+        [ HA.class "bound-right" ]
+        [ H.text model.maxdate]
+
+
+divArrowRight : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divArrowRight model horizonMsg =
+    H.div
+        [ HA.class "arrow-right" ]
+        [ let disabled = offsetDisabledRight model in
+            buttonArrow "right" disabled horizonMsg
+        ]
+
+
+divInferredFreqSwith : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divInferredFreqSwith model horizonMsg =
+    H.div
+        [ HA.class "inferred-freq"]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.id "flexSwitchCheckDefault"
+            , HA.checked model.inferredFreq
+            , HE.onCheck horizonMsg.inferredFreqMsg
             ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ selectHorizon model msgHorizon
+            [ ]
+        , H.label
+            [ HA.for "flexSwitchCheckDefault"
             ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ H.text model.maxdate
-            ]
-        , H.div
-            [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledRight model in
-                buttonArrow "right" disabled msgOffset
-            ]
+            [ H.text "Inferred Frequence"]
+        ]
+
+
+divTimeFrame : HorizonModel v -> HorizonMsg msg -> H.Html msg
+divTimeFrame model horizonMsg =
+    H.div
+        [ HA.class "time-interval" ]
+        [ divArrowLeft model horizonMsg
+        , divBoundLeft model
+        , divTimeDelta model horizonMsg
+        , divBoundRight model
+        ,divArrowRight model horizonMsg
+        ]
+
+
+widgetHorizon : HorizonModel v -> HorizonMsg msg -> H.Html msg
+widgetHorizon model horizonMsg =
+    H.div
+        [ HA.class "horizon-widget"]
+        [ divSelectTimeZone model horizonMsg
+        , divTimeFrame model horizonMsg
+        , divInferredFreqSwith model horizonMsg
         ]

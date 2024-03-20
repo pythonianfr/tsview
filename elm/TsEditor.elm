@@ -11,7 +11,6 @@ import Horizon exposing
     , Offset
     , dataInCacheDecoder
     , defaultHorizon
-    , horizonbtnGroup
     , horizons
     , saveToLocalStorage
     , savedDataInCache
@@ -19,6 +18,7 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
+    , widgetHorizon
     )
 import Http
 import Html as H
@@ -669,57 +669,17 @@ viewPlotData model =
         ]
 
 
-selectTimeZone : Model -> H.Html Msg
-selectTimeZone model =
-    let
-        decodeTimeZone : String -> D.Decoder Msg
-        decodeTimeZone timeZone =
-            D.succeed (TimeZoneSelected timeZone)
-
-    in
-    H.select
-        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
-        ]
-        (List.map (renderTimeZone model.horizonModel.timeZone) ["UTC", "CET"])
-
-
-renderTimeZone : String -> String -> H.Html Msg
-renderTimeZone selectedhorizon timeZone =
-    H.option
-        [ HA.value timeZone
-        , HA.selected (selectedhorizon == timeZone)
-        ]
-        [ H.text timeZone ]
-
-
-inferredFreqSwith : Model -> H.Html Msg
-inferredFreqSwith model =
-    H.div
-        [ HA.class "custom-control custom-switch"]
-        [ H.input
-            [ HA.attribute "type" "checkbox"
-            , HA.class "custom-control-input"
-            , HA.id "flexSwitchCheckDefault"
-            , HA.checked model.horizonModel.inferredFreq
-            , HE.onCheck InferredFreq
-            ]
-            [ ]
-        , H.label
-            [ HA.class "custom-control-label"
-            , HA.for "flexSwitchCheckDefault"
-            ]
-            [ H.text "Inferred Frequence"]
-
-        ]
-
-
 view : Model -> H.Html Msg
 view model =
     H.div
         [ ]
-        [ inferredFreqSwith model
-        , selectTimeZone model
-        , horizonbtnGroup model.horizonModel UpdateOffset HorizonSelected
+        [ widgetHorizon
+            model.horizonModel
+            { inferredFreqMsg = InferredFreq
+            , timeZoneMsg = TimeZoneSelected
+            , offsetMsg = UpdateOffset
+            , timeDeltaMsg = HorizonSelected
+            }
         , viewPlotData model
         , H.div [ HA.class "container" ]
             [ H.div
