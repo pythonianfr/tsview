@@ -1,0 +1,76 @@
+.tseditor-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-column-gap: 10px;
+}
+
+.tables {
+    display: grid;
+    grid-template:
+    "button-save-data button-save-data"
+    "data-table save-data-table";
+    justify-content: center;
+    column-gap: 50px;
+    row-gap: 20px;
+}
+
+.table-style {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.table-style td, .table-style th {
+    border: 1px solid #ddd;
+    padding: 5px;
+}
+
+.table-style tr:nth-child(even) {
+    background-color: #EFF1ED;
+}
+
+.table-style tr:hover {
+background-color: #ddd;
+}
+
+.table-style th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+}
+
+.data-table {
+    grid-area: data-table;
+}
+
+.save-data-table {
+    grid-area: save-data-table;
+}
+
+.button-save-data {
+    grid-area: button-save-data;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 20%;
+}
+
+.greenbutton {
+    padding: 0.65rem 0.75rem;
+    background: #35845F;
+    border: 1px solid #35845F;
+    box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+    border-radius: 8px;
+    color: white !important;
+    font-family: "Ubuntu"
+}
+
+.row-green {
+    color: #35845F
+}
+
+.row-red {
+    color: #AB2D25
+}
+
+.row-blue {
+    color: #466271
+}
