@@ -568,35 +568,47 @@ encodeEditedData editedData =
         editedData
 
 
-viewEditedRow : Model -> H.Html Msg
-viewEditedRow model =
+divButtonSaveData : Dict String Entry -> H.Html Msg
+divButtonSaveData filtredDict =
+    let
+        className = [ HA.class "button-save-data" ]
+    in
+    if Dict.isEmpty filtredDict then
+        H.div
+            className
+            [ ]
+    else
+        H.div
+            className
+            [ H.button
+                [ HA.class "greenbutton"
+                , HA.attribute "type" "button"
+                , HE.onClick SaveEditedData ]
+                [ H.text "Save" ]
+            ]
+
+
+divSaveDataTable : Dict String Entry -> H.Html Msg
+divSaveDataTable filtredDict =
     let
         row : (String, Entry) -> H.Html Msg
         row (date, entry) =
             H.tr
                 [ ]
-                [ H.td [ ] [ H.text (String.slice 0 19 date) ]
+                [ H.td [ ] [ H.text date ]
                 , H.td [ ] [ H.text (Maybe.withDefault "" entry.editedValue)]
                 ]
-        filtredDict = Dict.filter
-            (\_ entry -> Maybe.isJust entry.editedValue)
-            model.horizonModel.timeSeries
+        className = [ HA.class "save-data-table" ]
     in
     if Dict.isEmpty filtredDict then
-        H.div [ HA.class "col-sm" ][ ]
+        H.div
+            className
+            [ ]
     else
-        H.div [ HA.class "col-sm" ]
-        [ H.button
-            [ HA.class "btn btn-warning"
-            , HA.attribute "type" "button"
-            , HE.onClick SaveEditedData ]
-            [ H.text "Save" ]
-        , if model.editedDataError then
-            H.text "Server error: please try again "
-        else
-            H.text ""
-        , H.table
-            [ HA.class "table-sm table-bordered custom-table table-striped" ]
+        H.div
+        className
+        [ H.table
+            [ HA.class "table-style" ]
             [ H.thead
                 [ ]
                 [ H.tr
@@ -606,13 +618,27 @@ viewEditedRow model =
                         [ H.text "Dates" ]
                     , H.th
                         [ HA.scope "col" ]
-                        [ H.text "Value" ]
+                        [ H.text "Values" ]
                     ]
                 ]
             , H.tbody
-                [ HA.class "text-warning" ]
+                [ HA.class "row-green" ]
                 (List.map row (Dict.toList filtredDict))
             ]
+        ]
+
+
+divTablesSection : Model -> H.Html Msg
+divTablesSection model =
+    let
+        filtredDict = Dict.filter
+            (\_ entry -> Maybe.isJust entry.editedValue)
+            model.horizonModel.timeSeries
+    in H.div
+        [ HA.class "tables" ]
+        [ divButtonSaveData filtredDict
+        , editTable model
+        , divSaveDataTable filtredDict
         ]
 
 
@@ -627,23 +653,23 @@ viewRow ( date, entry ) =
 
         rowStyle =
             if Maybe.isJust entry.editedValue then
-                [HA.class "text-warning"]
+                "row-green"
             else if entry.markers == True then
-                [HA.class "text-success"]
+                "row-blue"
             else if Maybe.isNothing entry.series then
-                [HA.class "text-danger"]
+                "row-red"
             else
-                [ ]
+                ""
     in
-    H.tr rowStyle
+    H.tr [ ]
         [ H.td
-            [ ]
+            [ HA.class rowStyle]
             [ H.text date
             ]
         , H.td
             [ ]
             [ H.input
-                [ HA.class "pasteble"
+                [ HA.class ("pasteble " ++ rowStyle)
                 , HA.placeholder "enter your value"
                 , HA.value data
                 , HE.onInput (InputChanged date)
@@ -663,7 +689,7 @@ viewPlotData model =
             "lines"
         args = plotargs "plot" [plot]
     in H.div
-        [ ]
+        [ HA.class "graph"]
         [ H.div [ HA.id "plot" ] [ ]
         , H.node "plot-figure" [ HA.attribute "args" args ] []
         ]
@@ -672,7 +698,7 @@ viewPlotData model =
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ ]
+        [ HA.class "tseditor-content"]
         [ widgetHorizon
             model.horizonModel
             { inferredFreqMsg = InferredFreq
@@ -681,13 +707,7 @@ view model =
             , timeDeltaMsg = HorizonSelected
             }
         , viewPlotData model
-        , H.div [ HA.class "container" ]
-            [ H.div
-                [ HA.class "row" ]
-                [ editTable model
-                , viewEditedRow model
-                ]
-            ]
+        , divTablesSection model
         ]
 
 
@@ -700,25 +720,23 @@ editTable model =
                 ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
             ]
             [ ]
+        className = HA.class "data-table"
     in
     if Dict.isEmpty model.horizonModel.timeSeries then
-        H.div [ ][ ]
+        H.div [ className ][ ]
     else if Dict.size model.horizonModel.timeSeries > 1000 then
         H.div
-            [ ]
+            [ className ]
             [ H.text
                 """ Too many points to display. Please select a smaller time
                 frame or an area on the graph."""
             , node
             ]
     else
-
         H.div
-            [ HA.class "col-sm" ]
+            [ className ]
             [ H.table
-                [ HA.class
-                    "table-sm table-bordered custom-table table-striped"
-                ]
+                [ HA.class "table-style" ]
                 [ H.thead [ ]
                     [ H.tr [ ]
                         [ H.th
@@ -726,7 +744,7 @@ editTable model =
                             [ H.text "Dates" ]
                         , H.th
                             [ HA.scope "col" ]
-                            [ H.text "Value" ]
+                            [ H.text "Values" ]
                         ]
                     ]
                 , H.tbody [ ]
