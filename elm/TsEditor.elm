@@ -42,7 +42,6 @@ import Random
 type alias Model =
     { baseurl : String
     , contentCell: String
-    , editedDataError : Bool
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
@@ -55,7 +54,7 @@ type alias Model =
     , initialTs : Dict String Entry
     , view_nocache : Bool
     , randomNumber : Int
-
+    , plotStatus : PlotStatus
     }
 
 
@@ -89,6 +88,13 @@ type alias Entry =
 type alias PasteType =
     { text: String
     , index: String}
+
+
+type PlotStatus
+    = Init
+    | Loading
+    | Success
+    | Failure
 
 
 textDecoder: D.Decoder String
@@ -197,7 +203,8 @@ update msg model =
                             )
                     in
                     U.nocmd { model |
-                        initialTs = incrementedVal
+                        plotStatus = Success
+                        , initialTs = incrementedVal
                         , horizonModel =
                                 updateHorizonModel
                                     model.horizonModel incrementedVal
@@ -206,7 +213,7 @@ update msg model =
                   U.nocmd model
 
         GotEditData (Err _) ->
-            U.nocmd model
+            U.nocmd { model | plotStatus = Failure }
 
         HorizonSelected horizon ->
             let
@@ -215,8 +222,9 @@ update msg model =
                     model.horizonModel.timeZone
                     model.horizonModel.inferredFreq
 
-                newModel = { model | horizonModel =
-                    updateHorizon horizon model.horizonModel
+                newModel = { model
+                    | plotStatus = Loading
+                    , horizonModel =  updateHorizon horizon model.horizonModel
                     }
             in
             ( newModel
@@ -287,7 +295,8 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
-            ( model, I.getidates model "series" GetLastInsertionDates)
+            ( { model | plotStatus = Loading }
+            , I.getidates model "series" GetLastInsertionDates)
 
         GotEditedData (Ok _) ->
             (model, Cmd.batch [
@@ -296,7 +305,8 @@ update msg model =
             )
 
         GotEditedData (Err _) ->
-            U.nocmd { model | editedDataError = True }
+            U.nocmd { model
+                | plotStatus = Failure }
 
         GotMetadata (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -337,7 +347,8 @@ update msg model =
             let
                 newHorizonModel = model.horizonModel
                 newModel = { model
-                                | horizonModel =
+                                | plotStatus = Loading
+                                , horizonModel =
                                     { newHorizonModel
                                         | timeZone = timeZone
                                     }
@@ -360,7 +371,8 @@ update msg model =
             let
                 newHorizonModel = model.horizonModel
                 newModel = { model
-                                | horizonModel =
+                                | plotStatus = Loading
+                                , horizonModel =
                                     { newHorizonModel
                                         | inferredFreq = isChecked
                                     }
@@ -383,9 +395,11 @@ update msg model =
                 Ok newDataInCacheDict ->
                     let
                         newModel = {
-                            model | horizonModel =  updateDataInCache
-                                newDataInCacheDict model.horizonModel
-                            }
+                            model
+                                | plotStatus = Loading
+                                , horizonModel =  updateDataInCache
+                                    newDataInCacheDict model.horizonModel
+                                }
                     in
                     (newModel, Cmd.batch [
                         geteditor newModel False GotEditData
@@ -506,7 +520,8 @@ updateModelOffset model i =
     let
         offset = (model.horizonModel.offset + i)
         newModel = { model
-            | horizonModel = updateOffset
+            | plotStatus = Loading
+            , horizonModel = updateOffset
                 offset
                 model.horizonModel
             }
@@ -568,10 +583,17 @@ encodeEditedData editedData =
         editedData
 
 
-divButtonSaveData : Dict String Entry -> H.Html Msg
-divButtonSaveData filtredDict =
+divButtonSaveData : PlotStatus -> Dict String Entry -> H.Html Msg
+divButtonSaveData plotStatus filtredDict =
     let
         className = [ HA.class "button-save-data" ]
+        textButton =
+            if plotStatus == Loading then
+                "Saving ... please wait"
+            else if plotStatus == Success then
+                "Save"
+            else
+                "Fail, please try again"
     in
     if Dict.isEmpty filtredDict then
         H.div
@@ -583,8 +605,10 @@ divButtonSaveData filtredDict =
             [ H.button
                 [ HA.class "greenbutton"
                 , HA.attribute "type" "button"
-                , HE.onClick SaveEditedData ]
-                [ H.text "Save" ]
+                , HE.onClick SaveEditedData
+                , HA.disabled (plotStatus == Loading)
+                ]
+                [ H.text textButton ]
             ]
 
 
@@ -636,7 +660,7 @@ divTablesSection model =
             model.horizonModel.timeSeries
     in H.div
         [ HA.class "tables" ]
-        [ divButtonSaveData filtredDict
+        [ divButtonSaveData model.plotStatus filtredDict
         , editTable model
         , divSaveDataTable filtredDict
         ]
@@ -680,6 +704,7 @@ viewRow ( date, entry ) =
             ]
         ]
 
+
 viewPlotData : Model -> H.Html Msg
 viewPlotData model =
     let
@@ -695,6 +720,18 @@ viewPlotData model =
         ]
 
 
+statusText : PlotStatus -> String
+statusText plotStatus =
+    if plotStatus == Init then
+        "Init"
+    else if plotStatus == Loading then
+        "Loading ..."
+    else if plotStatus == Success then
+        ""
+    else
+        "Failure"
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
@@ -706,6 +743,17 @@ view model =
             , offsetMsg = UpdateOffset
             , timeDeltaMsg = HorizonSelected
             }
+        , H.div
+            [ HA.class "status-plot" ]
+            [ if model.plotStatus == Init then
+                H.text "The graph is loading, please wait"
+            else if (Dict.isEmpty model.horizonModel.timeSeries)
+                    && (model.plotStatus == Success) then
+                H.text """It seems there is no data to display in this
+                    interval, select another one."""
+            else
+                H.text (statusText model.plotStatus)
+            ]
         , viewPlotData model
         , divTablesSection model
         ]
@@ -771,7 +819,6 @@ main =
                 model =
                     { baseurl = input.baseurl
                     , contentCell = "68"
-                    , editedDataError = False
                     , errors = []
                     , meta = Dict.empty
                     , date_index = 0
@@ -793,10 +840,10 @@ main =
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , view_nocache = False
+                    , plotStatus = Init
                     }
             in ( model, Cmd.batch
-                [ (geteditor model False GotEditData)
-                , M.getsysmetadata model.baseurl model.name GotMetadata "series"
+                [ M.getsysmetadata model.baseurl model.name GotMetadata "series"
                 , I.getidates model "series" InsertionDates
                 ]
             )

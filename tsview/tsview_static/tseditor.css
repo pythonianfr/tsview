@@ -1,10 +1,28 @@
 .tseditor-content {
     display: grid;
-    grid-template-columns: 1fr;
-    grid-column-gap: 10px;
+    grid-template-areas: "horizon-widget"
+                         "status-plot"
+                         "graph"
+                         "tables";
+    row-gap: 20px;
+    text-align: center;
+}
+
+.horizon-widget {
+    grid-area: horizon-widget;
+}
+
+.status-plot {
+    grid-area: status-plot;
+    min-height: 20px;
+}
+
+.graph {
+    grid-area: graph;
 }
 
 .tables {
+    grid-area: tables;
     display: grid;
     grid-template:
     "button-save-data button-save-data"
