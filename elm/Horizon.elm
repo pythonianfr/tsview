@@ -13,6 +13,7 @@ port module Horizon exposing
     , updateHorizonModel
     , updateOffset
     , widgetHorizon
+    , oldHorizonbtnGroup
     )
 
 import Dict exposing (Dict)
@@ -166,13 +167,14 @@ offsetDisabledRight {offset, offset_reached, horizon} =
     ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
 
 
-buttonArrow : String -> Bool ->  HorizonMsg msg -> H.Html msg
-buttonArrow direction disabled horizonMsg =
+buttonArrow : String -> Bool ->  HorizonMsg msg -> String -> H.Html msg
+buttonArrow direction disabled horizonMsg className =
     let
         arrow = if direction == "left" then Left else Right
     in
     H.button
-        [ HA.disabled disabled
+        [ HA.class className
+        , HA.disabled disabled
         ]
         [ H.i
             [ HA.class
@@ -244,7 +246,7 @@ divArrowLeft model horizonMsg =
     H.div
         [ HA.class "arrow-left" ]
         [ let disabled = offsetDisabledLeft model in
-            buttonArrow "left" disabled horizonMsg
+            buttonArrow "left" disabled horizonMsg ""
         ]
 
 divBoundLeft : HorizonModel v -> H.Html msg
@@ -273,7 +275,7 @@ divArrowRight model horizonMsg =
     H.div
         [ HA.class "arrow-right" ]
         [ let disabled = offsetDisabledRight model in
-            buttonArrow "right" disabled horizonMsg
+            buttonArrow "right" disabled horizonMsg ""
         ]
 
 
@@ -315,3 +317,72 @@ widgetHorizon model horizonMsg =
         , divTimeFrame model horizonMsg
         , divInferredFreqSwith model horizonMsg
         ]
+
+
+oldHorizonbtnGroup : HorizonModel v -> HorizonMsg msg -> H.Html msg
+oldHorizonbtnGroup model horizonMsg =
+    H.div
+        [ HA.class "row no-gutters align-items-center" ]
+        [ H.div
+            [ HA.class "col-sm-auto" ]
+            [ oldSelectTimeZone model horizonMsg ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ let disabled = offsetDisabledLeft model in
+                buttonArrow "left" disabled horizonMsg "btn btn-outline-dark btn-sm"
+            ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ H.text model.mindate
+            ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ selectHorizon model horizonMsg
+            ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ H.text model.maxdate
+            ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ let disabled = offsetDisabledRight model in
+                buttonArrow "right" disabled horizonMsg "btn btn-outline-dark btn-sm"
+            ]
+        , H.div
+            [ HA.class "col-sm-auto" ]
+            [ oldInferredFreqSwith model horizonMsg ]
+        ]
+
+
+oldInferredFreqSwith : HorizonModel v -> HorizonMsg msg -> H.Html msg
+oldInferredFreqSwith model horizonMsg =
+    H.div
+        [ HA.class "custom-control custom-switch"]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "flexSwitchCheckDefault"
+            , HA.checked model.inferredFreq
+            , HE.onCheck horizonMsg.inferredFreqMsg
+            ]
+            [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "flexSwitchCheckDefault"
+            ]
+            [ H.text "Inferred Frequence"]
+        ]
+
+
+oldSelectTimeZone : HorizonModel v -> HorizonMsg msg -> H.Html msg
+oldSelectTimeZone model horizonMsg =
+    let
+        decodeTimeZone : String -> D.Decoder msg
+        decodeTimeZone timeZone =
+            D.succeed (horizonMsg.timeZoneMsg timeZone)
+
+    in
+    H.select
+        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
+        ]
+        (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])

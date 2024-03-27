@@ -26,7 +26,7 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
-    , widgetHorizon
+    , oldHorizonbtnGroup
     )
 import Html as H
 import Html.Attributes as HA
@@ -966,7 +966,7 @@ viewplot model =
     H.div []
         [ H.h2 [] [ H.text "Plot" ]
         , viewdatespicker model idatepickerevents
-        , widgetHorizon
+        , oldHorizonbtnGroup
             model.horizon
                 { inferredFreqMsg = InferredFreq
                 , timeZoneMsg = TimeZoneSelected
@@ -1047,7 +1047,7 @@ view model =
             [ H.h5
                 [ HA.style "color" "grey" ]
                 [ H.text "Series "
-                , widgetHorizon
+                , oldHorizonbtnGroup
                     model.horizon
                         { inferredFreqMsg = InferredFreq
                         , timeZoneMsg = TimeZoneSelected
