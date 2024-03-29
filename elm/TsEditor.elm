@@ -824,7 +824,6 @@ main =
                     , date_index = 0
                     , horizonModel =
                         { offset = 0
-                        , offset_reached = False
                         , horizon = {key = Just defaultHorizon}
                         , inferredFreq = False
                         , mindate = ""

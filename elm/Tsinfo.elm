@@ -1135,7 +1135,6 @@ main =
                        , clipboardclass = "bi bi-clipboard"
                        , horizon =
                             { offset = 0
-                            , offset_reached = False
                             , horizon = {key = Just defaultHorizon}
                             , inferredFreq = False
                             , mindate = ""

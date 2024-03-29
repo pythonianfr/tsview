@@ -32,7 +32,6 @@ type alias Offset =
 
 type alias HorizonModel v =
     { offset : Int
-    , offset_reached : Bool
     , horizon : Horizon
     , inferredFreq : Bool
     , mindate : String
@@ -123,24 +122,12 @@ updateDataInCache dataInCache model =
 
 updateHorizonModel : HorizonModel v -> Dict String v -> HorizonModel v
 updateHorizonModel model val =
-    if Dict.isEmpty val then
-        let
-            last_offset =
-                if model.offset < 0 then
-                    model.offset + 1
-                else
-                    model.offset - 1
-        in { model
-            | offset_reached = True
-            , offset = last_offset}
-    else
-        let
-            tsBounds = formatBoundDates val
-        in { model
-                | mindate = Tuple.first tsBounds
-                , maxdate = Tuple.second tsBounds
-                , offset_reached = False
-                , timeSeries = val}
+    let
+        tsBounds = formatBoundDates val
+    in { model
+            | mindate = Tuple.first tsBounds
+            , maxdate = Tuple.second tsBounds
+            , timeSeries = val}
 
 
 formatBoundDates : Dict String v -> (String, String)
@@ -157,24 +144,13 @@ formatBoundDates val =
             in (U.dateof minappdate, U.dateof maxappdate)
 
 
-offsetDisabledLeft : HorizonModel v -> Bool
-offsetDisabledLeft {offset, offset_reached, horizon} =
-    ((offset > 0) && offset_reached) || Maybe.isNothing horizon.key
-
-
-offsetDisabledRight : HorizonModel v -> Bool
-offsetDisabledRight {offset, offset_reached, horizon} =
-    ((offset < 0) && offset_reached) || Maybe.isNothing horizon.key
-
-
-buttonArrow : String -> Bool ->  HorizonMsg msg -> String -> H.Html msg
-buttonArrow direction disabled horizonMsg className =
+buttonArrow : String  -> HorizonMsg msg -> String -> H.Html msg
+buttonArrow direction horizonMsg className =
     let
         arrow = if direction == "left" then Left else Right
     in
     H.button
         [ HA.class className
-        , HA.disabled disabled
         ]
         [ H.i
             [ HA.class
@@ -241,13 +217,11 @@ divSelectTimeZone model horizonMsg =
         ]
 
 
-divArrowLeft : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divArrowLeft model horizonMsg =
+divArrowLeft : HorizonMsg msg -> H.Html msg
+divArrowLeft horizonMsg =
     H.div
         [ HA.class "arrow-left" ]
-        [ let disabled = offsetDisabledLeft model in
-            buttonArrow "left" disabled horizonMsg ""
-        ]
+        [ buttonArrow "left" horizonMsg ""]
 
 divBoundLeft : HorizonModel v -> H.Html msg
 divBoundLeft model =
@@ -270,13 +244,11 @@ divBoundRight model =
         [ H.text model.maxdate]
 
 
-divArrowRight : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divArrowRight model horizonMsg =
+divArrowRight : HorizonMsg msg -> H.Html msg
+divArrowRight horizonMsg =
     H.div
         [ HA.class "arrow-right" ]
-        [ let disabled = offsetDisabledRight model in
-            buttonArrow "right" disabled horizonMsg ""
-        ]
+        [ buttonArrow "right" horizonMsg "" ]
 
 
 divInferredFreqSwith : HorizonModel v -> HorizonMsg msg -> H.Html msg
@@ -301,11 +273,11 @@ divTimeFrame : HorizonModel v -> HorizonMsg msg -> H.Html msg
 divTimeFrame model horizonMsg =
     H.div
         [ HA.class "time-interval" ]
-        [ divArrowLeft model horizonMsg
+        [ divArrowLeft horizonMsg
         , divBoundLeft model
         , divTimeDelta model horizonMsg
         , divBoundRight model
-        ,divArrowRight model horizonMsg
+        ,divArrowRight horizonMsg
         ]
 
 
@@ -328,8 +300,7 @@ oldHorizonbtnGroup model horizonMsg =
             [ oldSelectTimeZone model horizonMsg ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledLeft model in
-                buttonArrow "left" disabled horizonMsg "btn btn-outline-dark btn-sm"
+            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm"
             ]
         , H.div
             [ HA.class "col-sm-auto" ]
@@ -345,8 +316,7 @@ oldHorizonbtnGroup model horizonMsg =
             ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ let disabled = offsetDisabledRight model in
-                buttonArrow "right" disabled horizonMsg "btn btn-outline-dark btn-sm"
+            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm"
             ]
         , H.div
             [ HA.class "col-sm-auto" ]
