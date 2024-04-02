@@ -334,7 +334,7 @@ update msg model =
                     , plotStatus = Failure
                     }
             in
-            ( newModel, Cmd.none)
+            U.nocmd newModel
 
         GotUserMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -516,7 +516,7 @@ update msg model =
                 newmodel = { model | date_index = index }
             in
             case Array.get index model.insertion_dates of
-                Nothing -> ( model, Cmd.none )
+                Nothing -> U.nocmd model
                 Just date ->
                     ( newmodel
                     , getplot newmodel True
@@ -595,12 +595,10 @@ update msg model =
                          (U.snd model.metaitem)
                          model.editeditems
             in
-            ( { model
-                  | metaitem = ("", "")
-                  , editeditems = edited
-              }
-            , Cmd.none
-            )
+            U.nocmd { model
+                        | metaitem = ("", "")
+                        , editeditems = edited
+                    }
 
         SaveMeta ->
             let
@@ -696,9 +694,7 @@ update msg model =
             )
 
         ResetClipboardClass ->
-            ( { model | clipboardclass = "bi bi-clipboard" }
-            , Cmd.none
-            )
+            U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
         HorizonSelected horizon ->
             let

@@ -308,7 +308,7 @@ update msg model =
                 newmodel = { model | date_index = index }
             in
             case Array.get index model.insertion_dates of
-                Nothing -> ( model, Cmd.none )
+                Nothing -> U.nocmd model
                 Just date ->
                     ( newmodel
                     , getplot newmodel True
@@ -379,12 +379,10 @@ update msg model =
                          (U.snd model.metaitem)
                          model.editeditems
             in
-            ( { model
-                  | metaitem = ("", "")
-                  , editeditems = edited
-              }
-            , Cmd.none
-            )
+            U.nocmd { model
+                        | metaitem = ("", "")
+                        , editeditems = edited
+                    }
 
         SaveMeta ->
             let

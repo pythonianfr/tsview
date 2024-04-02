@@ -341,7 +341,7 @@ update msg model =
             doerr "idates http" <| U.unwraperror error
 
         RandomNumber number ->
-            ({ model | randomNumber = number }, Cmd.none)
+            U.nocmd { model | randomNumber = number }
 
         TimeZoneSelected timeZone ->
             let

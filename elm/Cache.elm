@@ -336,7 +336,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotPolicies (Ok policies) ->
-            ( { model | policies = policies }, Cmd.none )
+            U.nocmd { model | policies = policies }
 
         GotPolicies (Err err) ->
             U.nocmd <| model
@@ -353,14 +353,10 @@ update msg model =
 
         -- deletion
         AskDeletePolicy name ->
-            ( { model | deleting = Just name }
-            , Cmd.none
-            )
+            U.nocmd { model | deleting = Just name }
 
         CancelDeletePolicy ->
-            ( { model | deleting = Nothing }
-            , Cmd.none
-            )
+            U.nocmd { model | deleting = Nothing }
 
         DeletePolicy name ->
             ( model, deletepolicy model name )
@@ -370,9 +366,7 @@ update msg model =
 
         -- addition
         NewPolicy ->
-            ( { model | adding = Just <| Policy "" "" "" "" "" "" False }
-            , Cmd.none
-            )
+            U.nocmd { model | adding = Just <| Policy "" "" "" "" "" "" False }
 
         PolicyField policy field value ->
             let
