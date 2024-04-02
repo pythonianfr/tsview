@@ -351,7 +351,7 @@ def tsview(tsa):
             dict(m)
         )
 
-    @bp.route('/tseditor_')
+    @bp.route('/tseditor')
     def tseditor():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
