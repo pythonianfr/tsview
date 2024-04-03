@@ -73,30 +73,32 @@ dataInCacheDecoder =
         (D.field "timeZone" D.string)
         (D.field "inferredFreq" D.bool)
 
+
 defaultHorizon : String
 defaultHorizon =
-        "2 weeks"
+    "2 weeks"
 
 
 horizons : Dict String String
 horizons =  Dict.fromList
-    [Tuple.pair
-        "2 weeks"
-        """(horizon
-            #:date (now)
-            #:past (delta #:days -14)
-            #:future (delta #:days 14)
-            #:offset {offset})
-        """
+    [ Tuple.pair
+          "2 weeks"
+          """(horizon
+           #:date (now)
+           #:past (delta #:days -14)
+           #:future (delta #:days 14)
+           #:offset {offset})
+           """
     , Tuple.pair
         "1 month"
         """
-            (horizon #:date (now)
-            #:past (delta #:days -30)
-            #:future (delta #:days 30)
-            #:offset {offset})
+         (horizon #:date (now)
+         #:past (delta #:days -30)
+         #:future (delta #:days 30)
+         #:offset {offset})
         """
     ]
+
 
 updateOffset : Int -> HorizonModel v -> HorizonModel v
 updateOffset newOffset model =
@@ -125,23 +127,24 @@ updateHorizonModel model val =
     let
         tsBounds = formatBoundDates val
     in { model
-            | mindate = Tuple.first tsBounds
-            , maxdate = Tuple.second tsBounds
-            , timeSeries = val}
+           | mindate = Tuple.first tsBounds
+           , maxdate = Tuple.second tsBounds
+           , timeSeries = val
+       }
 
 
 formatBoundDates : Dict String v -> (String, String)
 formatBoundDates val =
-            let
-                dates = Dict.keys val
-                minappdate =
-                    case dates of
-                        head::_ -> U.cleanupdate head
-                        []  -> ""
-                maxappdate = U.cleanupdate
-                                <| Maybe.withDefault ""
-                                <| List.maximum dates
-            in (U.dateof minappdate, U.dateof maxappdate)
+    let
+        dates = Dict.keys val
+        minappdate =
+            case dates of
+                head::_ -> U.cleanupdate head
+                []  -> ""
+        maxappdate = U.cleanupdate
+                     <| Maybe.withDefault ""
+                     <| List.maximum dates
+    in ( U.dateof minappdate, U.dateof maxappdate )
 
 
 buttonArrow : String  -> HorizonMsg msg -> String -> H.Html msg
@@ -150,14 +153,11 @@ buttonArrow direction horizonMsg className =
         arrow = if direction == "left" then Left else Right
     in
     H.button
-        [ HA.class className
-        ]
+        [ HA.class className ]
         [ H.i
-            [ HA.class
-                <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
+            [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
             , HE.onClick (horizonMsg.offsetMsg (arrow 1))
-            ]
-            [ ]
+            ] [ ]
         ]
 
 
@@ -211,9 +211,8 @@ divSelectTimeZone model horizonMsg =
     H.div
         [ HA.class "time-zone"]
         [ H.select
-            [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
-            ]
-            (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
+              [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
+              (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
         ]
 
 
@@ -221,27 +220,28 @@ divArrowLeft : HorizonMsg msg -> H.Html msg
 divArrowLeft horizonMsg =
     H.div
         [ HA.class "arrow-left" ]
-        [ buttonArrow "left" horizonMsg ""]
+        [ buttonArrow "left" horizonMsg "" ]
+
 
 divBoundLeft : HorizonModel v -> H.Html msg
 divBoundLeft model =
     H.div
         [ HA.class "bound-left" ]
-        [ H.text model.mindate]
+        [ H.text model.mindate ]
 
 
 divTimeDelta : HorizonModel v -> HorizonMsg msg -> H.Html msg
 divTimeDelta model horizonMsg =
     H.div
         [ HA.class "time-delta" ]
-        [ selectHorizon model horizonMsg]
+        [ selectHorizon model horizonMsg ]
 
 
 divBoundRight : HorizonModel v -> H.Html msg
 divBoundRight model =
     H.div
         [ HA.class "bound-right" ]
-        [ H.text model.maxdate]
+        [ H.text model.maxdate ]
 
 
 divArrowRight : HorizonMsg msg -> H.Html msg
@@ -261,10 +261,9 @@ divInferredFreqSwith model horizonMsg =
             , HA.checked model.inferredFreq
             , HE.onCheck horizonMsg.inferredFreqMsg
             ]
-            [ ]
+              [ ]
         , H.label
-            [ HA.for "flexSwitchCheckDefault"
-            ]
+            [ HA.for "flexSwitchCheckDefault" ]
             [ H.text "Inferred Frequence"]
         ]
 
@@ -277,7 +276,7 @@ divTimeFrame model horizonMsg =
         , divBoundLeft model
         , divTimeDelta model horizonMsg
         , divBoundRight model
-        ,divArrowRight horizonMsg
+        , divArrowRight horizonMsg
         ]
 
 
@@ -300,24 +299,19 @@ oldHorizonbtnGroup model horizonMsg =
             [ oldSelectTimeZone model horizonMsg ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm"
-            ]
+            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ H.text model.mindate
-            ]
+            [ H.text model.mindate ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ selectHorizon model horizonMsg
-            ]
+            [ selectHorizon model horizonMsg ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ H.text model.maxdate
-            ]
+            [ H.text model.maxdate ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm"
-            ]
+            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
             [ HA.class "col-sm-auto" ]
             [ oldInferredFreqSwith model horizonMsg ]
@@ -334,13 +328,12 @@ oldInferredFreqSwith model horizonMsg =
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
             , HE.onCheck horizonMsg.inferredFreqMsg
-            ]
-            [ ]
+            ] [ ]
         , H.label
             [ HA.class "custom-control-label"
             , HA.for "flexSwitchCheckDefault"
             ]
-            [ H.text "Inferred Frequence"]
+            [ H.text "Inferred Frequence" ]
         ]
 
 
@@ -353,6 +346,5 @@ oldSelectTimeZone model horizonMsg =
 
     in
     H.select
-        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
-        ]
+        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])

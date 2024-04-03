@@ -61,7 +61,9 @@ type alias Logentry =
 type alias IdatePickerEvents =
     { idatepickerchanged : String -> Msg
     , fvdatepickerchanged : String -> Msg
-    , tvdatepickerchanged : String -> Msg }
+    , tvdatepickerchanged : String -> Msg
+    }
+
 
 type PlotStatus
     = Loading
@@ -530,33 +532,33 @@ update msg model =
                             Array.map U.cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
                 newmodel = { model | date_index = newindex }
-            in ( newmodel
-               , getplot newmodel True
-               )
+            in
+            ( newmodel
+            , getplot newmodel True
+            )
 
         FvdatePickerChanged value ->
             let
                 newHorizonModel = model.horizon
-                newmodel = { model
-                    | horizon = {
-                        newHorizonModel
-                            | mindate = value }}
+                newmodel =
+                    { model | horizon =
+                          { newHorizonModel | mindate = value }
+                    }
             in
-                ( newmodel
-                , getplot newmodel True
-                )
+            ( newmodel
+            , getplot newmodel True
+            )
 
         TvdatePickerChanged value ->
             let
                 newHorizonModel = model.horizon
-                newmodel = { model
-                    | horizon = {
-                        newHorizonModel
-                            | maxdate = value }}
+                newmodel = { model | horizon =
+                                 { newHorizonModel | maxdate = value }
+                           }
             in
-                ( newmodel
-                , getplot newmodel True
-                )
+            ( newmodel
+            , getplot newmodel True
+            )
 
         -- user metadata edition
 
@@ -698,19 +700,19 @@ update msg model =
 
         HorizonSelected horizon ->
             let
-                dataInCache = DataInCache
-                    horizon.key
-                    model.horizon.timeZone
-                    model.horizon.inferredFreq
+                dataInCache =
+                    DataInCache
+                        horizon.key
+                        model.horizon.timeZone
+                        model.horizon.inferredFreq
 
-                newModel = { model | horizon =
-                    updateHorizon horizon model.horizon
-                    }
+                newModel = { model | horizon = updateHorizon horizon model.horizon }
             in
             ( newModel
-            , Cmd.batch [
-                getplot newModel False
-                , saveToLocalStorage dataInCache]
+            , Cmd.batch
+                [ getplot newModel False
+                , saveToLocalStorage dataInCache
+                ]
             )
 
         UpdateOffset (Left i) ->
@@ -723,14 +725,16 @@ update msg model =
             case D.decodeString dataInCacheDecoder newDataInCache of
                 Ok newDataInCacheDict ->
                     let
-                        newModel = {
-                            model | horizon =  updateDataInCache
-                                newDataInCacheDict model.horizon
+                        newModel =
+                            { model | horizon =
+                                  updateDataInCache newDataInCacheDict model.horizon
                             }
                     in
-                    (newModel, Cmd.batch [
-                        getplot newModel False
-                        , saveToLocalStorage newDataInCacheDict]
+                    ( newModel,
+                          Cmd.batch
+                          [ getplot newModel False
+                          , saveToLocalStorage newDataInCacheDict
+                          ]
                     )
                 Err _ ->
                     (model, getplot model False)
@@ -738,21 +742,19 @@ update msg model =
         TimeZoneSelected timeZone ->
             let
                 newHorizonModel = model.horizon
-                newModel = { model
-                                | horizon =
-                                    { newHorizonModel
-                                        | timeZone = timeZone
-                                    }
-                        }
-                dataInCache = DataInCache
-                    model.horizon.horizon.key
-                    timeZone
-                    model.horizon.inferredFreq
+                newModel = { model | horizon =
+                                 { newHorizonModel | timeZone = timeZone }
+                           }
+                dataInCache =
+                    DataInCache
+                        model.horizon.horizon.key
+                        timeZone
+                        model.horizon.inferredFreq
 
             in
             ( newModel
-            , Cmd.batch [
-                getplot model False
+            , Cmd.batch
+                [ getplot model False
                 , I.getidates newModel "series" InsertionDates
                 , saveToLocalStorage dataInCache
                 ]
@@ -761,21 +763,18 @@ update msg model =
         InferredFreq isChecked ->
             let
                 newHorizonModel = model.horizon
-                newModel = { model
-                                | horizon =
-                                    { newHorizonModel
-                                        | inferredFreq = isChecked
-                                    }
-                        }
-                dataInCache = DataInCache
-                    model.horizon.horizon.key
-                    model.horizon.timeZone
-                    isChecked
+                newModel = { model | horizon =
+                                 { newHorizonModel | inferredFreq = isChecked }
+                           }
+                dataInCache =
+                    DataInCache
+                        model.horizon.horizon.key
+                        model.horizon.timeZone
+                        isChecked
             in
-
             ( newModel
-            , Cmd.batch [
-                getplot model False
+            , Cmd.batch
+                [ getplot model False
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -787,13 +786,13 @@ updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
     let
         offset = (model.horizon.offset + i)
-        newModel = { model
-            | horizon = updateOffset
-                offset
-                model.horizon
-            }
+        newModel = { model | horizon =
+                         updateOffset offset model.horizon
+                   }
     in
-    (newModel, getplot newModel False )
+    ( newModel
+    , getplot newModel False
+    )
 
 
 port copyToClipboard : String -> Cmd msg
@@ -849,8 +848,7 @@ viewtogglecached model =
             [ HA.class "custom-control-label"
             , HA.for "view-uncached"
             ]
-            [ H.text title
-            ]
+            [ H.text title ]
         ]
 
 
