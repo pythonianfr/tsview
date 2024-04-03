@@ -82,6 +82,14 @@ defaultHorizon =
 horizons : Dict String String
 horizons =  Dict.fromList
     [ Tuple.pair
+          "1 week"
+          """(horizon
+           #:date (now)
+           #:past (delta #:days -7)
+           #:future (delta #:days 7)
+           #:offset {offset})
+           """
+     , Tuple.pair
           "2 weeks"
           """(horizon
            #:date (now)
@@ -90,13 +98,29 @@ horizons =  Dict.fromList
            #:offset {offset})
            """
     , Tuple.pair
-        "1 month"
-        """
-         (horizon #:date (now)
-         #:past (delta #:days -30)
-         #:future (delta #:days 30)
-         #:offset {offset})
-        """
+          "1 month"
+          """
+           (horizon #:date (now)
+           #:past (delta #:months -1)
+           #:future (delta #:months 1)
+           #:offset {offset})
+           """
+    , Tuple.pair
+          "3 months"
+          """
+           (horizon #:date (now)
+           #:past (delta #:months -3)
+           #:future (delta #:months 3)
+           #:offset {offset})
+           """
+    , Tuple.pair
+          "1 year"
+          """
+           (horizon #:date (now)
+           #:past (delta #:years -1)
+           #:future (delta #:years 1)
+           #:offset {offset})
+           """
     ]
 
 
