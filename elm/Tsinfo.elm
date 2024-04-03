@@ -960,13 +960,6 @@ viewplot model =
     H.div []
         [ H.h2 [] [ H.text "Plot" ]
         , viewdatespicker model idatepickerevents
-        , oldHorizonbtnGroup
-            model.horizon
-                { inferredFreqMsg = InferredFreq
-                , timeZoneMsg = TimeZoneSelected
-                , offsetMsg = UpdateOffset
-                , timeDeltaMsg = HorizonSelected
-                }
         , viewdatesrange model
         , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
