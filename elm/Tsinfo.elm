@@ -38,6 +38,7 @@ import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Maybe.Extra as Maybe
 import Metadata as M
+import OrderedDict as OD
 import Plotter exposing
     ( getData
     , seriesdecoder
@@ -220,7 +221,7 @@ getplot model atidate =
             , todate = Maybe.unwrap
                 "" (always model.horizon.maxdate) model.horizon.horizon.key
             , horizon = model.horizon.horizon.key
-                |> Maybe.andThen (\key-> Dict.get key horizons)
+                |> Maybe.andThen (\key-> OD.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
             , tzone = model.horizon.timeZone

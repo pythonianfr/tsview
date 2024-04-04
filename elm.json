@@ -28,6 +28,7 @@
             "elm-community/result-extra": "2.4.0",
             "hayleigh-dot-dev/tuple-extra": "1.0.0",
             "hecrj/html-parser": "2.3.4",
+            "j-maas/elm-ordered-containers": "1.0.0",
             "jorgengranseth/elm-string-format": "1.0.1",
             "justinmimbs/date": "4.0.1",
             "jzxhuang/http-extras": "2.1.0",

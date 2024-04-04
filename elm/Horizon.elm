@@ -22,6 +22,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
 import Maybe.Extra as Maybe
+import OrderedDict as OD
 import Util as U
 
 
@@ -78,8 +79,8 @@ defaultHorizon =
     "2 weeks"
 
 
-horizons : Dict String String
-horizons =  Dict.fromList
+horizons : OD.OrderedDict String String
+horizons =  OD.fromList
     [ ( "1 week"
       , """(horizon
          #:date (now)
@@ -193,7 +194,7 @@ selectHorizon model horizonMsg =
             |> HE.on "change"
         ]
         (List.map (renderhorizon model.horizon.key)
-            <| "All" :: (Dict.keys horizons)
+            <| "All" :: (OD.keys horizons)
         )
 
 
@@ -208,7 +209,7 @@ renderhorizon selectedhorizon horizon =
 
 readHorizon : String -> D.Decoder Horizon
 readHorizon key = D.succeed <| Horizon <|
-    if List.member key (Dict.keys horizons) then
+    if List.member key (OD.keys horizons) then
         Just key
     else
         Nothing
