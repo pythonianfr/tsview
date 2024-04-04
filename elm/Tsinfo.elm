@@ -20,13 +20,13 @@ import Horizon exposing
     , dataInCacheDecoder
     , defaultHorizon
     , horizons
+    , horizonwidget
     , saveToLocalStorage
     , savedDataInCache
     , updateDataInCache
     , updateHorizon
     , updateHorizonModel
     , updateOffset
-    , oldHorizonbtnGroup
     )
 import Html as H
 import Html.Attributes as HA
@@ -1034,7 +1034,7 @@ view model =
             [ H.h5
                 [ HA.style "color" "grey" ]
                 [ H.text "Series "
-                , oldHorizonbtnGroup
+                , horizonwidget
                     model.horizon
                         { inferredFreqMsg = InferredFreq
                         , timeZoneMsg = TimeZoneSelected

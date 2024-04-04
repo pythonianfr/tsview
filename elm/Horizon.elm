@@ -6,14 +6,13 @@ port module Horizon exposing
     , dataInCacheDecoder
     , defaultHorizon
     , horizons
+    , horizonwidget
     , saveToLocalStorage
     , savedDataInCache
     , updateDataInCache
     , updateHorizon
     , updateHorizonModel
     , updateOffset
-    , widgetHorizon
-    , oldHorizonbtnGroup
     )
 
 import Dict exposing (Dict)
@@ -81,46 +80,46 @@ defaultHorizon =
 
 horizons : Dict String String
 horizons =  Dict.fromList
-    [ Tuple.pair
-          "1 week"
-          """(horizon
-           #:date (now)
-           #:past (delta #:days -7)
-           #:future (delta #:days 7)
-           #:offset {offset})
-           """
-     , Tuple.pair
-          "2 weeks"
-          """(horizon
-           #:date (now)
-           #:past (delta #:days -14)
-           #:future (delta #:days 14)
-           #:offset {offset})
-           """
-    , Tuple.pair
-          "1 month"
+    [ ( "1 week"
+      , """(horizon
+         #:date (now)
+         #:past (delta #:days -7)
+         #:future (delta #:days 7)
+         #:offset {offset})
+         """
+      )
+     , ( "2 weeks"
+       , """(horizon
+          #:date (now)
+          #:past (delta #:days -14)
+          #:future (delta #:days 14)
+          #:offset {offset})
           """
-           (horizon #:date (now)
-           #:past (delta #:months -1)
-           #:future (delta #:months 1)
-           #:offset {offset})
-           """
-    , Tuple.pair
-          "3 months"
-          """
-           (horizon #:date (now)
-           #:past (delta #:months -3)
-           #:future (delta #:months 3)
-           #:offset {offset})
-           """
-    , Tuple.pair
-          "1 year"
-          """
-           (horizon #:date (now)
-           #:past (delta #:years -1)
-           #:future (delta #:years 1)
-           #:offset {offset})
-           """
+       )
+    , ( "1 month"
+      , """
+         (horizon #:date (now)
+         #:past (delta #:months -1)
+         #:future (delta #:months 1)
+         #:offset {offset})
+         """
+      )
+    , ( "3 months"
+      , """
+         (horizon #:date (now)
+         #:past (delta #:months -3)
+         #:future (delta #:months 3)
+         #:offset {offset})
+         """
+      )
+    , ( "1 year"
+      , """
+         (horizon #:date (now)
+         #:past (delta #:years -1)
+         #:future (delta #:years 1)
+         #:offset {offset})
+         """
+      )
     ]
 
 
@@ -233,7 +232,7 @@ divSelectTimeZone model horizonMsg =
 
     in
     H.div
-        [ HA.class "time-zone"]
+        [ ]
         [ H.select
               [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
               (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
@@ -250,14 +249,14 @@ divArrowLeft horizonMsg =
 divBoundLeft : HorizonModel v -> H.Html msg
 divBoundLeft model =
     H.div
-        [ HA.class "bound-left" ]
+        [ ]
         [ H.text model.mindate ]
 
 
 divTimeDelta : HorizonModel v -> HorizonMsg msg -> H.Html msg
 divTimeDelta model horizonMsg =
     H.div
-        [ HA.class "time-delta" ]
+        [ ]
         [ selectHorizon model horizonMsg ]
 
 
@@ -288,7 +287,7 @@ divInferredFreqSwith model horizonMsg =
               [ ]
         , H.label
             [ HA.for "flexSwitchCheckDefault" ]
-            [ H.text "Inferred Frequence"]
+            [ H.text "inferred frequency"]
         ]
 
 
@@ -304,23 +303,13 @@ divTimeFrame model horizonMsg =
         ]
 
 
-widgetHorizon : HorizonModel v -> HorizonMsg msg -> H.Html msg
-widgetHorizon model horizonMsg =
-    H.div
-        [ HA.class "horizon-widget"]
-        [ divSelectTimeZone model horizonMsg
-        , divTimeFrame model horizonMsg
-        , divInferredFreqSwith model horizonMsg
-        ]
-
-
-oldHorizonbtnGroup : HorizonModel v -> HorizonMsg msg -> H.Html msg
-oldHorizonbtnGroup model horizonMsg =
+horizonwidget : HorizonModel v -> HorizonMsg msg -> H.Html msg
+horizonwidget model horizonMsg =
     H.div
         [ HA.class "row no-gutters align-items-center" ]
         [ H.div
             [ HA.class "col-sm-auto" ]
-            [ oldSelectTimeZone model horizonMsg ]
+            [ tzonedropdown model horizonMsg ]
         , H.div
             [ HA.class "col-sm-auto" ]
             [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
@@ -338,12 +327,12 @@ oldHorizonbtnGroup model horizonMsg =
             [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
             [ HA.class "col-sm-auto" ]
-            [ oldInferredFreqSwith model horizonMsg ]
+            [ inferredfreqswitch model horizonMsg ]
         ]
 
 
-oldInferredFreqSwith : HorizonModel v -> HorizonMsg msg -> H.Html msg
-oldInferredFreqSwith model horizonMsg =
+inferredfreqswitch : HorizonModel v -> HorizonMsg msg -> H.Html msg
+inferredfreqswitch model horizonMsg =
     H.div
         [ HA.class "custom-control custom-switch"]
         [ H.input
@@ -357,12 +346,12 @@ oldInferredFreqSwith model horizonMsg =
             [ HA.class "custom-control-label"
             , HA.for "flexSwitchCheckDefault"
             ]
-            [ H.text "Inferred Frequence" ]
+            [ H.text "inferred frequency" ]
         ]
 
 
-oldSelectTimeZone : HorizonModel v -> HorizonMsg msg -> H.Html msg
-oldSelectTimeZone model horizonMsg =
+tzonedropdown : HorizonModel v -> HorizonMsg msg -> H.Html msg
+tzonedropdown model horizonMsg =
     let
         decodeTimeZone : String -> D.Decoder msg
         decodeTimeZone timeZone =
