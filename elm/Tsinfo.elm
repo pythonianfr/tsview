@@ -1020,16 +1020,21 @@ viewdatespicker model events =
         ]
 
 
+viewactionwidgets model =
+    [ if model.source == "local"
+      then I.viewdeletion model "series" deleteevents
+      else H.span [] []
+    , if model.source == "local"
+      then I.viewrenameaction model "series" renameevents
+      else H.span [] []
+    ]
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
         [ HA.style "margin" ".5em" ]
-        [ if model.source == "local"
-          then I.viewdeletion model "series" deleteevents
-          else H.span [] []
-        , if model.source == "local"
-          then I.viewrenameaction model "series" renameevents
-          else H.span [] []
+        [ H.span [] <| viewactionwidgets model
         , H.p
             [ ]
             [ H.h5
