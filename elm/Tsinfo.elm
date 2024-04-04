@@ -33,6 +33,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import Info as I
+import Info exposing (SeriesType(..))
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
@@ -1021,12 +1022,49 @@ viewdatespicker model events =
 
 
 viewactionwidgets model =
-    [ if model.source == "local"
-      then I.viewdeletion model "series" deleteevents
-      else H.span [] []
-    , if model.source == "local"
-      then I.viewrenameaction model "series" renameevents
-      else H.span [] []
+    let
+        editorlabel =
+            case model.seriestype of
+                Primary ->  "edit values ⧉"
+                Formula ->  "show values ⧉"
+    in
+    [ H.div
+          [ HA.style "color" "grey", HA.class "title-like action-left" ]
+          [ H.text "Series " ]
+    , horizonwidget
+        model.horizon
+            { inferredFreqMsg = InferredFreq
+            , timeZoneMsg = TimeZoneSelected
+            , offsetMsg = UpdateOffset
+            , timeDeltaMsg = HorizonSelected
+            }
+        "action-center"
+    , H.div [ HA.class "action-right" ]
+        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
+              , HA.target "_blank"
+              ]
+              [ H.text "browse history ⧉" ]
+        , H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
+                    [ UB.string "name" model.name ]
+              , HA.target "_blank"
+              ]
+            [ H.text editorlabel ]
+        , case model.seriestype of
+              Formula ->
+                  H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
+                            [ UB.string "name" model.name ]
+                      , HA.target "_blank"
+                      ]
+                      [ H.text "edit formula" ]
+              Primary ->
+                  H.span [ ] [ ]
+        , if model.source == "local"
+          then I.viewdeletion model "series" deleteevents
+          else H.span [] []
+        , if model.source == "local"
+          then I.viewrenameaction model "series" renameevents
+          else H.span [] []
+        ]
     ]
 
 
@@ -1034,21 +1072,10 @@ view : Model -> H.Html Msg
 view model =
     H.div
         [ HA.style "margin" ".5em" ]
-        [ H.span [] <| viewactionwidgets model
+        [ H.span [ HA.class "action-container" ] <| viewactionwidgets model
         , H.p
             [ ]
-            [ H.h5
-                [ HA.style "color" "grey" ]
-                [ H.text "Series "
-                , horizonwidget
-                    model.horizon
-                        { inferredFreqMsg = InferredFreq
-                        , timeZoneMsg = TimeZoneSelected
-                        , offsetMsg = UpdateOffset
-                        , timeDeltaMsg = HorizonSelected
-                        }
-                ]
-            , H.i
+            [ H.i
                 [ HA.class model.clipboardclass
                 , HE.onClick CopyNameToClipboard
                 ]
@@ -1060,15 +1087,14 @@ view model =
                 [ HA.class "badge badge-secondary h4" ]
                 [ H.text model.source ]
             ]
-        , I.viewseealso model
+        , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
+        , if strseries model then H.div [] [] else viewplot model
         , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model SwitchLevel
         , case model.seriestype of
               I.Primary -> I.viewlog model True
               I.Formula -> H.span [] []
-        , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
-        , if strseries model then H.div [] [] else viewplot model
         , I.viewerrors model
         ]
 

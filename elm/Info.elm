@@ -456,8 +456,8 @@ viewseealso model =
     let
         editorlabel =
             case model.seriestype of
-                Primary ->  "edit values"
-                Formula ->  "show values"
+                Primary ->  "edit values ⧉"
+                Formula ->  "show values ⧉"
     in
     H.div [ ]
         [ H.div [ ]
@@ -466,7 +466,7 @@ viewseealso model =
                           model.baseurl
                           [ "tshistory", model.name ] [ ]
                     , HA.target "_blank"
-                    ] [ H.text "browse history" ]
+                    ] [ H.text "browse history ⧉" ]
               ]
         , H.div [ ]
             [ H.span [ ] [ H.text " ⇒ " ]
@@ -532,9 +532,9 @@ viewlog model showtitle =
     else H.div [ ] [ ]
 
 
-viewdeletion model dtype events =
+viewdeletion model dtype events  =
     if model.deleting then
-        H.div [ HA.style "float" "right" ]
+        H.div [ ]
             [ H.button
                   [ HA.type_ "button"
                   , HA.class "btn btn-warning"
@@ -549,7 +549,7 @@ viewdeletion model dtype events =
                   [ H.text "cancel" ]
             ]
     else
-        H.div [ HA.style "float" "right" ]
+        H.div [ ]
             [ H.button
                   [ HA.type_ "button"
                   , HA.class "btn btn-danger"
@@ -566,7 +566,7 @@ viewrenameaction model dtype events =
                     Nothing -> model.name
                     Just newname -> newname
         in
-        H.div [ HA.style "float" "right" ]
+        H.div [ ]
             [ H.input [ HA.class "form-control-sm"
                       , HA.size 80
                       , HA.type_ "text"

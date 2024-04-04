@@ -240,94 +240,30 @@ divSelectTimeZone model horizonMsg =
         ]
 
 
-divArrowLeft : HorizonMsg msg -> H.Html msg
-divArrowLeft horizonMsg =
+horizonwidget : HorizonModel v -> HorizonMsg msg -> String -> H.Html msg
+horizonwidget model horizonMsg klass =
     H.div
-        [ HA.class "arrow-left" ]
-        [ buttonArrow "left" horizonMsg "" ]
-
-
-divBoundLeft : HorizonModel v -> H.Html msg
-divBoundLeft model =
-    H.div
-        [ ]
-        [ H.text model.mindate ]
-
-
-divTimeDelta : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divTimeDelta model horizonMsg =
-    H.div
-        [ ]
-        [ selectHorizon model horizonMsg ]
-
-
-divBoundRight : HorizonModel v -> H.Html msg
-divBoundRight model =
-    H.div
-        [ HA.class "bound-right" ]
-        [ H.text model.maxdate ]
-
-
-divArrowRight : HorizonMsg msg -> H.Html msg
-divArrowRight horizonMsg =
-    H.div
-        [ HA.class "arrow-right" ]
-        [ buttonArrow "right" horizonMsg "" ]
-
-
-divInferredFreqSwith : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divInferredFreqSwith model horizonMsg =
-    H.div
-        [ HA.class "inferred-freq"]
-        [ H.input
-            [ HA.attribute "type" "checkbox"
-            , HA.id "flexSwitchCheckDefault"
-            , HA.checked model.inferredFreq
-            , HE.onCheck horizonMsg.inferredFreqMsg
-            ]
-              [ ]
-        , H.label
-            [ HA.for "flexSwitchCheckDefault" ]
-            [ H.text "inferred frequency"]
-        ]
-
-
-divTimeFrame : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divTimeFrame model horizonMsg =
-    H.div
-        [ HA.class "time-interval" ]
-        [ divArrowLeft horizonMsg
-        , divBoundLeft model
-        , divTimeDelta model horizonMsg
-        , divBoundRight model
-        , divArrowRight horizonMsg
-        ]
-
-
-horizonwidget : HorizonModel v -> HorizonMsg msg -> H.Html msg
-horizonwidget model horizonMsg =
-    H.div
-        [ HA.class "row no-gutters align-items-center" ]
+        [ HA.class klass ]
         [ H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ tzonedropdown model horizonMsg ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ H.text model.mindate ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ selectHorizon model horizonMsg ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ H.text model.maxdate ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
-            [ HA.class "col-sm-auto" ]
+            []
             [ inferredfreqswitch model horizonMsg ]
         ]
 
@@ -347,7 +283,7 @@ inferredfreqswitch model horizonMsg =
             [ HA.class "custom-control-label"
             , HA.for "flexSwitchCheckDefault"
             ]
-            [ H.text "inferred frequency" ]
+            [ H.text "inferred freq" ]
         ]
 
 
