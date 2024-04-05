@@ -26,8 +26,14 @@
                         Plotly.react(
                             args.div,
                             args.data,
-                            {showlegend: false},
-                            {displaylogo: false, displayModeBar: false}
+                            {},
+                            {
+                                displaylogo: false,
+                                displayModeBar: true,
+                                displaylogo: false,
+                                responsive: true,
+                                modeBarButtonsToRemove: ['sendDataToCloud']
+                            }
                         );
                     }
                 }
