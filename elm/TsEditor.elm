@@ -18,7 +18,7 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
-    , widgetHorizon
+    , horizonwidget
     )
 import Http
 import Html as H
@@ -28,6 +28,7 @@ import Info as I
 import Json.Decode as D
 import Maybe.Extra as Maybe
 import Metadata as M
+import OrderedDict as OD
 import Plotter exposing
     ( getData
     , scatterplot
@@ -87,7 +88,8 @@ type alias Entry =
 
 type alias PasteType =
     { text: String
-    , index: String}
+    , index: String
+    }
 
 
 type PlotStatus
@@ -133,20 +135,13 @@ onPaste msg =
 
 process : String -> List String
 process raw =
-
     if String.contains "\n" raw
-    then
-        String.split "\n" raw
-    else
-    if String.contains "\r" raw
-    then
-        String.split "\r" raw
-    else
-    if String.contains " " raw
-    then
-        String.split " " raw
-    else
-        [raw]
+    then String.split "\n" raw
+    else if String.contains "\r" raw
+    then String.split "\r" raw
+    else if String.contains " " raw
+    then String.split " " raw
+    else [raw]
 
 
 geteditor : Model -> Bool -> (Result Http.Error String -> Msg) -> Cmd Msg
@@ -166,7 +161,7 @@ geteditor model atidate msg =
             , todate = Maybe.unwrap
                 "" (always model.horizonModel.maxdate) model.horizonModel.horizon.key
             , horizon = model.horizonModel.horizon.key
-                |> Maybe.andThen (\key-> Dict.get key horizons)
+                |> Maybe.andThen (\key-> OD.get key horizons)
                 |> Maybe.map
                     (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
             , tzone = model.horizonModel.timeZone
@@ -181,7 +176,7 @@ incrementIndex increment tupleDateData =
     let
         data = Tuple.second tupleDateData
     in
-    (Tuple.first tupleDateData, { data | index = increment })
+    ( Tuple.first tupleDateData, { data | index = increment } )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -191,23 +186,21 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
-
         GotEditData (Ok rawdata) ->
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
-                        incrementedVal = Dict.fromList
-                            (List.indexedMap
+                        incrementedVal =
+                            Dict.fromList <| List.indexedMap
                                 incrementIndex
                                 (Dict.toList val)
-                            )
                     in
-                    U.nocmd { model |
-                        plotStatus = Success
-                        , initialTs = incrementedVal
-                        , horizonModel =
-                                updateHorizonModel
-                                    model.horizonModel incrementedVal
+                    U.nocmd { model
+                                | plotStatus = Success
+                                , initialTs = incrementedVal
+                                , horizonModel =
+                                  updateHorizonModel
+                                  model.horizonModel incrementedVal
                             }
                 Err _ ->
                   U.nocmd model
@@ -217,21 +210,23 @@ update msg model =
 
         HorizonSelected horizon ->
             let
-                dataInCache = DataInCache
-                    horizon.key
-                    model.horizonModel.timeZone
-                    model.horizonModel.inferredFreq
+                dataInCache =
+                    DataInCache
+                        horizon.key
+                        model.horizonModel.timeZone
+                        model.horizonModel.inferredFreq
 
                 newModel = { model
-                    | plotStatus = Loading
-                    , horizonModel =  updateHorizon horizon model.horizonModel
-                    }
+                               | plotStatus = Loading
+                               , horizonModel =  updateHorizon horizon model.horizonModel
+                           }
             in
             ( newModel
-            , Cmd.batch [
-                geteditor newModel False GotEditData
+            , Cmd.batch
+                [ geteditor newModel False GotEditData
                 , Random.generate RandomNumber randomInt
-                , saveToLocalStorage dataInCache]
+                , saveToLocalStorage dataInCache
+                ]
             )
 
         UpdateOffset (Left i) ->
@@ -242,28 +237,33 @@ update msg model =
 
         InputChanged date value ->
             let
-                newtimeSeries = Dict.update
-                    date (updateEntry (parseCopyPastedData value)) model.horizonModel.timeSeries
-                newHorizonModel = model.horizonModel
+                newtimeSeries =
+                    Dict.update
+                        date (updateEntry (parseCopyPastedData value)) model.horizonModel.timeSeries
+                newHorizonModel =
+                    model.horizonModel
             in
             U.nocmd { model
-                | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
-                }
+                        | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
+                    }
 
         GetLastInsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
                         currentInsertionDate =
-                            Array.get model.date_index model.insertion_dates
-                        lastInsertionDate = Array.get
-                            (List.length dates - 1)
-                            (Array.fromList dates)
+                            Array.get
+                                model.date_index
+                                model.insertion_dates
+                        lastInsertionDate =
+                            Array.get
+                                (List.length dates - 1)
+                                (Array.fromList dates)
                     in
                     if currentInsertionDate /= lastInsertionDate then
-                        ( model, (geteditor model False GetLastEditedData) )
+                        ( model, ( geteditor model False GetLastEditedData) )
                     else
-                        (model, patchEditedData model)
+                        ( model, patchEditedData model )
 
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -275,18 +275,21 @@ update msg model =
             case D.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
-                        incrementedVal = Dict.fromList
-                            (List.indexedMap
-                                incrementIndex
-                                (Dict.toList val)
-                            )
-                        newDict = updateEditedValue model incrementedVal
-                        newModel = { model | horizonModel =
-                                updateHorizonModel
-                                    model.horizonModel newDict
+                        incrementedVal =
+                            Dict.fromList <|
+                                List.indexedMap
+                                    incrementIndex
+                                    (Dict.toList val)
+                        newDict =
+                            updateEditedValue model incrementedVal
+                        newModel =
+                            { model
+                                | horizonModel = updateHorizonModel model.horizonModel newDict
                             }
                     in
-                    (newModel, patchEditedData newModel)
+                    ( newModel
+                    , patchEditedData newModel
+                    )
 
                 Err _ ->
                     U.nocmd model
@@ -296,17 +299,19 @@ update msg model =
 
         SaveEditedData ->
             ( { model | plotStatus = Loading }
-            , I.getidates model "series" GetLastInsertionDates)
+            , I.getidates model "series" GetLastInsertionDates
+            )
 
         GotEditedData (Ok _) ->
-            (model, Cmd.batch [
-                    geteditor model False GotEditData,
-                    Random.generate RandomNumber randomInt]
+            ( model
+            , Cmd.batch
+                  [ geteditor model False GotEditData
+                  , Random.generate RandomNumber randomInt
+                  ]
             )
 
         GotEditedData (Err _) ->
-            U.nocmd { model
-                | plotStatus = Failure }
+            U.nocmd { model | plotStatus = Failure }
 
         GotMetadata (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -323,9 +328,7 @@ update msg model =
                 newtimeSeries = getPastedDict model payload
                 newHorizonModel = model.horizonModel
             in
-            U.nocmd { model
-                | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
-                }
+            U.nocmd { model | horizonModel = { newHorizonModel | timeSeries = newtimeSeries } }
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -347,21 +350,19 @@ update msg model =
             let
                 newHorizonModel = model.horizonModel
                 newModel = { model
-                                | plotStatus = Loading
-                                , horizonModel =
-                                    { newHorizonModel
-                                        | timeZone = timeZone
-                                    }
-                        }
-                dataInCache = DataInCache
-                    model.horizonModel.horizon.key
-                    timeZone
-                    model.horizonModel.inferredFreq
+                               | plotStatus = Loading
+                               , horizonModel = { newHorizonModel | timeZone = timeZone }
+                           }
+                dataInCache =
+                    DataInCache
+                        model.horizonModel.horizon.key
+                        timeZone
+                        model.horizonModel.inferredFreq
 
             in
             ( newModel
-            , Cmd.batch [
-                geteditor newModel False GotEditData
+            , Cmd.batch
+                [ geteditor newModel False GotEditData
                 , I.getidates newModel "series" InsertionDates
                 , saveToLocalStorage dataInCache
                 ]
@@ -371,21 +372,18 @@ update msg model =
             let
                 newHorizonModel = model.horizonModel
                 newModel = { model
-                                | plotStatus = Loading
-                                , horizonModel =
-                                    { newHorizonModel
-                                        | inferredFreq = isChecked
-                                    }
-                        }
-                dataInCache = DataInCache
-                    model.horizonModel.horizon.key
-                    model.horizonModel.timeZone
-                    isChecked
+                               | plotStatus = Loading
+                               , horizonModel = { newHorizonModel | inferredFreq = isChecked }
+                           }
+                dataInCache =
+                    DataInCache
+                        model.horizonModel.horizon.key
+                        model.horizonModel.timeZone
+                        isChecked
             in
-
             ( newModel
-            , Cmd.batch [
-                geteditor newModel False GotEditData
+            , Cmd.batch
+                [ geteditor newModel False GotEditData
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -394,46 +392,49 @@ update msg model =
             case D.decodeString dataInCacheDecoder newDataInCache of
                 Ok newDataInCacheDict ->
                     let
-                        newModel = {
-                            model
+                        newModel =
+                            { model
                                 | plotStatus = Loading
-                                , horizonModel =  updateDataInCache
-                                    newDataInCacheDict model.horizonModel
-                                }
+                                , horizonModel =
+                                  updateDataInCache newDataInCacheDict model.horizonModel
+                            }
                     in
-                    (newModel, Cmd.batch [
-                        geteditor newModel False GotEditData
+                    ( newModel
+                    , Cmd.batch
+                        [ geteditor newModel False GotEditData
                         , Random.generate RandomNumber randomInt
-                        , saveToLocalStorage newDataInCacheDict]
+                        , saveToLocalStorage newDataInCacheDict
+                        ]
                     )
                 Err _ ->
                     (model, (geteditor model False GotEditData))
 
         NewDates listDates ->
             let
-                newHorizonModel = model.horizonModel
-                newinitalTs = updateEditedValue model model.initialTs
+                newHorizonModel =
+                    model.horizonModel
+                newinitalTs =
+                    updateEditedValue model model.initialTs
                 newModel =
                     if List.isEmpty listDates then
                         { model
-                            | horizonModel =
-                                { newHorizonModel
-                                    | timeSeries = newinitalTs
-                                }
+                            | horizonModel = { newHorizonModel | timeSeries = newinitalTs }
                         }
                     else
                         let
-                            newTs = (Dict.filter
-                                (\key _ -> List.member key listDates)
-                                model.horizonModel.timeSeries)
-                        in { model
-                                | initialTs = newinitalTs
-                                , horizonModel =
-                                    { newHorizonModel
-                                        | timeSeries = newTs
-                                    }
-                            }
-            in (newModel, Random.generate RandomNumber randomInt)
+                            newTs =
+                                Dict.filter
+                                    (\key _ -> List.member key listDates)
+                                    model.horizonModel.timeSeries
+                        in
+                        { model
+                            | initialTs = newinitalTs
+                            , horizonModel = { newHorizonModel | timeSeries = newTs }
+                        }
+            in
+            ( newModel
+            , Random.generate RandomNumber randomInt
+            )
 
 
 port dateInInterval : (List String -> msg) -> Sub msg
@@ -446,13 +447,15 @@ updateEditedValue model initialDict =
         editEntry value maybeEntry =
             Maybe.andThen
                 (\entry ->
-                    Just { entry
-                        | editedValue = value.editedValue })
+                    Just { entry | editedValue = value.editedValue }
+                )
                 maybeEntry
-    in Dict.merge
+    in
+    Dict.merge
         (\_ _ dict -> dict)
         (\key _ value dict ->
-            Dict.update key (editEntry value) dict)
+             Dict.update key (editEntry value) dict
+        )
         (\_ _ dict -> dict)
         initialDict
         model.horizonModel.timeSeries
@@ -480,21 +483,25 @@ parseCopyPastedData value =
 getPastedDict : Model -> PasteType -> Dict String Entry
 getPastedDict model payload =
     let
-        newValues = List.map parseCopyPastedData (process payload.text)
-        firstIndex = Maybe.unwrap
-            0
-            (\entry -> entry.index)
-            (Dict.get (payload.index) model.horizonModel.timeSeries)
-        listIndex = List.range
-                        firstIndex (firstIndex + (List.length newValues) - 1)
-        listDates = Dict.keys
-                        (Dict.filter
-                        (\_ value -> List.member value.index listIndex)
-                        model.horizonModel.timeSeries)
-        copyPastedDict = Dict.fromList
-            (List.map2
-                Tuple.pair listDates newValues)
-    in Dict.merge
+        newValues =
+            List.map parseCopyPastedData (process payload.text)
+        firstIndex =
+            Maybe.unwrap
+                0
+                (\entry -> entry.index)
+                (Dict.get (payload.index) model.horizonModel.timeSeries)
+        listIndex =
+            List.range firstIndex (firstIndex + (List.length newValues) - 1)
+        listDates =
+            Dict.keys
+                (Dict.filter
+                     (\_ value -> List.member value.index listIndex)
+                     model.horizonModel.timeSeries
+                )
+        copyPastedDict =
+            Dict.fromList <| List.map2 Tuple.pair listDates newValues
+    in
+    Dict.merge
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update key (updateEntry value) dict)
         (\_ _ dict -> dict)
@@ -506,29 +513,28 @@ getPastedDict model payload =
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
 updateEntry value maybeEntry =
     maybeEntry
-        |> Maybe.andThen (\entry ->
-            if (parseCopyPastedData (
-                (Maybe.unwrap "" String.fromFloat entry.series))) /= value then
-                Just { entry | editedValue = value }
-            else
-                Just { entry | editedValue = Nothing }
-        )
+        |> Maybe.andThen
+           (\entry ->
+                if (parseCopyPastedData (Maybe.unwrap "" String.fromFloat entry.series)) /= value
+                then Just { entry | editedValue = value }
+                else Just { entry | editedValue = Nothing }
+           )
 
 
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
     let
         offset = (model.horizonModel.offset + i)
-        newModel = { model
-            | plotStatus = Loading
-            , horizonModel = updateOffset
-                offset
-                model.horizonModel
+        newModel =
+            { model | plotStatus = Loading
+            , horizonModel = updateOffset offset model.horizonModel
             }
     in
-    (newModel, Cmd.batch [
-        geteditor newModel False GotEditData
-        , Random.generate RandomNumber randomInt]
+    ( newModel
+    , Cmd.batch
+        [ geteditor newModel False GotEditData
+        , Random.generate RandomNumber randomInt
+        ]
     )
 
 
@@ -562,10 +568,8 @@ patchEditedData model =
         , headers = []
         , timeout = Nothing
         , tracker = Nothing
-        , url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "series", "state" ] [ ]
+        , url = UB.crossOrigin model.baseurl
+                [ "api", "series", "state" ] [ ]
         , expect = Http.expectString GotEditedData
         }
 
@@ -575,10 +579,9 @@ encodeEditedData editedData =
     E.dict
         identity
         (\value ->
-            if value == "" then
-                E.null
-            else
-                E.float (Maybe.withDefault 0.0 (String.toFloat value))
+            if value == ""
+            then E.null
+            else E.float (Maybe.withDefault 0.0 (String.toFloat value))
         )
         editedData
 
@@ -588,12 +591,11 @@ divButtonSaveData plotStatus filtredDict =
     let
         className = [ HA.class "button-save-data" ]
         textButton =
-            if plotStatus == Loading then
-                "Saving ... please wait"
-            else if plotStatus == Success then
-                "Save"
-            else
-                "Fail, please try again"
+            if plotStatus == Loading
+            then "Saving ... please wait"
+            else if plotStatus == Success
+                 then "Save"
+                 else "Fail, please try again"
     in
     if Dict.isEmpty filtredDict then
         H.div
@@ -603,12 +605,12 @@ divButtonSaveData plotStatus filtredDict =
         H.div
             className
             [ H.button
-                [ HA.class "greenbutton"
-                , HA.attribute "type" "button"
-                , HE.onClick SaveEditedData
-                , HA.disabled (plotStatus == Loading)
-                ]
-                [ H.text textButton ]
+                  [ HA.class "greenbutton"
+                  , HA.attribute "type" "button"
+                  , HE.onClick SaveEditedData
+                  , HA.disabled (plotStatus == Loading)
+                  ]
+                  [ H.text textButton ]
             ]
 
 
@@ -622,34 +624,33 @@ divSaveDataTable filtredDict =
                 [ H.td [ ] [ H.text date ]
                 , H.td [ ] [ H.text (Maybe.withDefault "" entry.editedValue)]
                 ]
-        className = [ HA.class "save-data-table" ]
+        classlist =
+            [ HA.class "save-data-table" ]
     in
     if Dict.isEmpty filtredDict then
-        H.div
-            className
-            [ ]
+        H.div classlist [ ]
     else
         H.div
-        className
-        [ H.table
-            [ HA.class "table-style" ]
-            [ H.thead
-                [ ]
-                [ H.tr
-                    [ ]
-                    [ H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Dates" ]
-                    , H.th
-                        [ HA.scope "col" ]
-                        [ H.text "Values" ]
-                    ]
-                ]
-            , H.tbody
-                [ HA.class "row-green" ]
-                (List.map row (Dict.toList filtredDict))
+            classlist
+            [ H.table
+                  [ HA.class "table-style" ]
+                  [ H.thead
+                        [ ]
+                        [ H.tr
+                              [ ]
+                              [ H.th
+                                    [ HA.scope "col" ]
+                                    [ H.text "Dates" ]
+                              , H.th
+                                  [ HA.scope "col" ]
+                                  [ H.text "Values" ]
+                              ]
+                        ]
+                  , H.tbody
+                      [ HA.class "row-green" ]
+                      (List.map row (Dict.toList filtredDict))
+                  ]
             ]
-        ]
 
 
 divTablesSection : Model -> H.Html Msg
@@ -658,7 +659,8 @@ divTablesSection model =
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.editedValue)
             model.horizonModel.timeSeries
-    in H.div
+    in
+    H.div
         [ HA.class "tables" ]
         [ divButtonSaveData model.plotStatus filtredDict
         , editTable model
@@ -670,37 +672,34 @@ viewRow : (String, Entry) -> H.Html Msg
 viewRow ( date, entry ) =
     let
         data =
-            if Maybe.isJust entry.editedValue then
-                Maybe.withDefault "" entry.editedValue
-            else
-                 Maybe.unwrap "" String.fromFloat entry.series
+            if Maybe.isJust entry.editedValue
+            then Maybe.withDefault "" entry.editedValue
+            else Maybe.unwrap "" String.fromFloat entry.series
 
         rowStyle =
-            if Maybe.isJust entry.editedValue then
-                "row-green"
-            else if entry.markers == True then
-                "row-blue"
-            else if Maybe.isNothing entry.series then
-                "row-red"
-            else
-                ""
+            if Maybe.isJust entry.editedValue
+            then "row-green"
+            else if entry.markers == True
+                 then "row-blue"
+                 else if Maybe.isNothing entry.series
+                      then "row-red"
+                      else ""
     in
     H.tr [ ]
         [ H.td
-            [ HA.class rowStyle]
-            [ H.text date
-            ]
+              [ HA.class rowStyle]
+              [ H.text date ]
         , H.td
             [ ]
             [ H.input
-                [ HA.class ("pasteble " ++ rowStyle)
-                , HA.placeholder "enter your value"
-                , HA.value data
-                , HE.onInput (InputChanged date)
-                , HA.attribute "index" date
-                , onPaste Paste
-                ]
-                [ ]
+                  [ HA.class ("pasteble " ++ rowStyle)
+                  , HA.placeholder "enter your value"
+                  , HA.value data
+                  , HE.onInput (InputChanged date)
+                  , HA.attribute "index" date
+                  , onPaste Paste
+                  ]
+                  [ ]
             ]
         ]
 
@@ -708,12 +707,15 @@ viewRow ( date, entry ) =
 viewPlotData : Model -> H.Html Msg
 viewPlotData model =
     let
-        plot = scatterplot model.name
-            (Dict.keys model.horizonModel.timeSeries)
-            (List.map (\x -> x.series) (Dict.values model.horizonModel.timeSeries))
-            "lines"
-        args = plotargs "plot" [plot]
-    in H.div
+        plot =
+            scatterplot model.name
+                (Dict.keys model.horizonModel.timeSeries)
+                (List.map (\x -> x.series) (Dict.values model.horizonModel.timeSeries))
+                "lines"
+        args =
+            plotargs "plot" [plot]
+    in
+    H.div
         [ HA.class "graph"]
         [ H.div [ HA.id "plot" ] [ ]
         , H.node "plot-figure" [ HA.attribute "args" args ] []
@@ -735,24 +737,23 @@ statusText plotStatus =
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ HA.class "tseditor-content"]
-        [ widgetHorizon
-            model.horizonModel
-            { inferredFreqMsg = InferredFreq
-            , timeZoneMsg = TimeZoneSelected
-            , offsetMsg = UpdateOffset
-            , timeDeltaMsg = HorizonSelected
-            }
+        [ HA.class "tseditor-content" ]
+        [ horizonwidget
+              model.horizonModel
+              { inferredFreqMsg = InferredFreq
+              , timeZoneMsg = TimeZoneSelected
+              , offsetMsg = UpdateOffset
+              , timeDeltaMsg = HorizonSelected
+              }
+              "action-center"
         , H.div
             [ HA.class "status-plot" ]
-            [ if model.plotStatus == Init then
-                H.text "The graph is loading, please wait"
-            else if (Dict.isEmpty model.horizonModel.timeSeries)
-                    && (model.plotStatus == Success) then
-                H.text """It seems there is no data to display in this
-                    interval, select another one."""
-            else
-                H.text (statusText model.plotStatus)
+            [ if model.plotStatus == Init
+              then H.text "The graph is loading, please wait"
+              else if (Dict.isEmpty model.horizonModel.timeSeries) && (model.plotStatus == Success)
+                   then H.text """It seems there is no data to display in this
+                                interval, select another one."""
+                   else H.text (statusText model.plotStatus)
             ]
         , viewPlotData model
         , divTablesSection model
@@ -764,43 +765,40 @@ editTable model =
     let
         node = H.node "eval-js"
             [ HA.attribute
-                "myjs"
-                ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
+                  "myjs"
+                  ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
             ]
             [ ]
-        className = HA.class "data-table"
+        class = HA.class "data-table"
     in
-    if Dict.isEmpty model.horizonModel.timeSeries then
-        H.div [ className ][ ]
-    else if Dict.size model.horizonModel.timeSeries > 1000 then
-        H.div
-            [ className ]
-            [ H.text
-                """ Too many points to display. Please select a smaller time
-                frame or an area on the graph."""
+    if Dict.isEmpty model.horizonModel.timeSeries
+    then H.div [ class ][ ]
+    else
+        if Dict.size model.horizonModel.timeSeries > 1000
+        then H.div
+            [ class ]
+            [ H.text """ Too many points to display. Please select a smaller time
+                      frame or an area on the graph."""
             , node
             ]
     else
         H.div
-            [ className ]
+            [ class ]
             [ H.table
-                [ HA.class "table-style" ]
-                [ H.thead [ ]
-                    [ H.tr [ ]
-                        [ H.th
-                            [ HA.scope "col" ]
-                            [ H.text "Dates" ]
-                        , H.th
-                            [ HA.scope "col" ]
-                            [ H.text "Values" ]
+                  [ HA.class "table-style" ]
+                  [ H.thead [ ]
+                        [ H.tr [ ]
+                              [ H.th
+                                    [ HA.scope "col" ]
+                                    [ H.text "Dates" ]
+                              , H.th
+                                  [ HA.scope "col" ]
+                                  [ H.text "Values" ]
+                              ]
                         ]
-                    ]
-                , H.tbody [ ]
-                    (List.map
-                        viewRow
-                        (Dict.toList model.horizonModel.timeSeries)
-                    )
-                ]
+                  , H.tbody [ ]
+                      (List.map viewRow (Dict.toList model.horizonModel.timeSeries))
+                  ]
             , node
             ]
 
@@ -823,14 +821,14 @@ main =
                     , meta = Dict.empty
                     , date_index = 0
                     , horizonModel =
-                        { offset = 0
-                        , horizon = {key = Just defaultHorizon}
-                        , inferredFreq = False
-                        , mindate = ""
-                        , maxdate = ""
-                        , timeSeries = Dict.empty
-                        , timeZone = "UTC"
-                        }
+                          { offset = 0
+                          , horizon = {key = Just defaultHorizon}
+                          , inferredFreq = False
+                          , mindate = ""
+                          , maxdate = ""
+                          , timeSeries = Dict.empty
+                          , timeZone = "UTC"
+                          }
                     , indexToInsert = Nothing
                     , insertion_dates = Array.empty
                     , name = input.name
@@ -841,7 +839,9 @@ main =
                     , view_nocache = False
                     , plotStatus = Init
                     }
-            in ( model, Cmd.batch
+            in
+            ( model
+            , Cmd.batch
                 [ M.getsysmetadata model.baseurl model.name GotMetadata "series"
                 , I.getidates model "series" InsertionDates
                 ]
@@ -851,8 +851,9 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.batch
-            [ savedDataInCache SetDataInCache
-            , dateInInterval NewDates
-            ]
+        , subscriptions =
+              \_ -> Sub.batch
+                    [ savedDataInCache SetDataInCache
+                    , dateInInterval NewDates
+                    ]
     }
