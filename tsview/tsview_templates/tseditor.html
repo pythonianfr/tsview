@@ -3,91 +3,88 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet" href="{{url_for('tsview.static', filename='tseditor.css')}}">
-        <link rel="stylesheet" href="{{url_for('tsview.static', filename='horizon.css')}}">
         <link rel="stylesheet"
               href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
         <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
-        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='pygmentize.css') }}"/>
-        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
         <script src="https://unpkg.com/@webcomponents/custom-elements@1.2.1/custom-elements.min.js">
         </script>
+        <link rel="stylesheet" href="{{url_for('tsview.static', filename='tseditor.css')}}">
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='pygmentize.css') }}"/>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
         <script>
-        class PlotFigure extends HTMLElement {
-            static get observedAttributes() {
-                return ['args'];
-            }
-            attributeChangedCallback(name, old_value, new_value) {
-                if ( name == 'args' ) {
-                    let args = JSON.parse(new_value);
-                    Plotly.newPlot(
-                        args.div,
-                        args.data,
-                        {showlegend: false},
-                        {displaylogo: false, displayModeBar: false}
-                    );
-                    document.getElementById(args.div).on('plotly_relayout', function(eventData) {
-                        var intervalDates = args.data[0].x.filter(function(date) {
-                                let convertedDate = new Date(date)
-                                let convertedBoundInf = new Date(eventData['xaxis.range[0]'])
-                                let convertedBoundSup = new Date(eventData['xaxis.range[1]'])
-                                return convertedDate >= convertedBoundInf && convertedDate <= convertedBoundSup;
-                            });
-                        app.ports.dateInInterval.send(intervalDates);
-                    });
-                }
-            }
-        }
-        window.customElements.define("plot-figure", PlotFigure);
+         class PlotFigure extends HTMLElement {
+             static get observedAttributes() {
+                 return ['args'];
+             }
+             attributeChangedCallback(name, old_value, new_value) {
+                 if ( name == 'args' ) {
+                     let args = JSON.parse(new_value);
+                     Plotly.newPlot(
+                         args.div,
+                         args.data,
+                         {showlegend: false},
+                         {displaylogo: false, displayModeBar: false}
+                     );
+                     document.getElementById(args.div).on('plotly_relayout', function(eventData) {
+                         var intervalDates = args.data[0].x.filter(function(date) {
+                             let convertedDate = new Date(date)
+                             let convertedBoundInf = new Date(eventData['xaxis.range[0]'])
+                             let convertedBoundSup = new Date(eventData['xaxis.range[1]'])
+                             return convertedDate >= convertedBoundInf && convertedDate <= convertedBoundSup;
+                         });
+                         app.ports.dateInInterval.send(intervalDates);
+                     });
+                 }
+             }
+         }
+         window.customElements.define("plot-figure", PlotFigure);
         </script>
-        <style>
-        </style>
     </head>
     <body>
         <div id="app"></div>
         <script src="./tsview_static/tseditor_elm.js"></script>
         <script>
-            app = Elm.TsEditor.init({
-                node: document.getElementById('app'),
-                flags: {
-                    baseurl : "{{ homeurl }}",
-                    name : "{{ name }}"
-                }
-            });
+         app = Elm.TsEditor.init({
+             node: document.getElementById('app'),
+             flags: {
+                 baseurl : "{{ homeurl }}",
+                 name : "{{ name }}"
+             }
+         });
 
-            function applyCopyPaste () {
-                var myinputs = document.getElementsByClassName("pasteble")
-                for (var i = 0; i<myinputs.length; i++){
-                    let myinput = myinputs[i]
-                    myinput.onpaste = e => {
-                        e.preventDefault();
-                        const clipboardData = e.clipboardData || window.clipboardData;
-                        const text = clipboardData.getData('text') || "";
-                        const index = myinput.getAttribute('index')
-                        const newEvent = new CustomEvent("pastewithdata", {
-                            detail: {
-                                text: text,
-                                index: index
-                            }
-                        });
-                        myinput.dispatchEvent(newEvent);
-                        return false;
-                    };
-                };}
+         function applyCopyPaste () {
+             var myinputs = document.getElementsByClassName("pasteble")
+             for (var i = 0; i < myinputs.length; i++) {
+                 let myinput = myinputs[i]
+                 myinput.onpaste = e => {
+                     e.preventDefault();
+                     const clipboardData = e.clipboardData || window.clipboardData;
+                     const text = clipboardData.getData('text') || "";
+                     const index = myinput.getAttribute('index')
+                     const newEvent = new CustomEvent("pastewithdata", {
+                         detail: {
+                             text: text,
+                             index: index
+                         }
+                     });
+                     myinput.dispatchEvent(newEvent);
+                     return false;
+                 };
+             };}
 
-            class EvalJs extends HTMLElement {
-                static get observedAttributes() {
-                    return ['myjs'];
-                }
-                attributeChangedCallback(name, oldValue, newValue) {
-                eval(newValue);
-                }
-            }
-            window.customElements.define('eval-js', EvalJs);
-            app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
-                localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
-            });
-            app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
+         class EvalJs extends HTMLElement {
+             static get observedAttributes() {
+                 return ['myjs'];
+             }
+             attributeChangedCallback(name, oldValue, newValue) {
+                 eval(newValue);
+             }
+         }
+         window.customElements.define('eval-js', EvalJs);
+         app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+             localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
+         });
+         app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
         </script>
     </body>
 </html>
