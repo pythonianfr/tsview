@@ -166,9 +166,9 @@ geteditor model atidate msg =
                     (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
             , tzone = model.horizonModel.timeZone
             , inferredFreq = model.horizonModel.inferredFreq
+            , keepnans = True
            }
            "supervision"
-           "true"
 
 
 incrementIndex : Int -> (String, Entry) -> (String, Entry)

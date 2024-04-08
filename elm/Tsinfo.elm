@@ -229,9 +229,9 @@ getplot model atidate =
                     (String.replace "{offset}" (String.fromInt model.horizon.offset))
             , tzone = model.horizon.timeZone
             , inferredFreq = model.horizon.inferredFreq
+            , keepnans = False
            }
            "state"
-           "true"
 
 
 getlog : String -> String-> Cmd Msg

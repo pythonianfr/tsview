@@ -28,7 +28,8 @@ type alias Trace =
     }
 
 
-type alias CallBack msg = (Result Http.Error String -> msg)
+type alias CallBack msg =
+    (Result Http.Error String -> msg)
 
 
 type alias PlotData msg =
@@ -42,6 +43,7 @@ type alias PlotData msg =
     , horizon : Maybe String
     , inferredFreq : Bool
     , tzone : String
+    , keepnans : Bool
     }
 
 
@@ -84,17 +86,8 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-stringFromBool : Bool -> String
-stringFromBool value =
-  if value then
-    "true"
-
-  else
-    "false"
-
-
-getData : PlotData msg -> String -> String -> Cmd msg
-getData data apiPoint keepNans =
+getData : PlotData msg -> String -> Cmd msg
+getData data apiPoint =
     let
         stringToMaybe : String -> String -> Maybe UB.QueryParameter
         stringToMaybe name value =
@@ -104,20 +97,21 @@ getData data apiPoint keepNans =
             [ stringToMaybe "name" data.name
             , Maybe.andThen (stringToMaybe "insertion_date") data.idate
             , Just <| UB.int "nocache" data.nocache
-            , stringToMaybe "_keep_nans" keepNans
-            , stringToMaybe "inferred_freq" (stringFromBool data.inferredFreq)
+            , stringToMaybe "_keep_nans" (if data.keepnans then "true" else "false")
+            , stringToMaybe "inferred_freq" (if data.inferredFreq then "true" else "false")
             , stringToMaybe "tzone" data.tzone
             ]
             ++ Maybe.unwrap
             [ stringToMaybe "from_value_date" data.fromdate
             , stringToMaybe "to_value_date" data.todate
             ]
-            (\horizonstr -> [stringToMaybe "horizon" (String.trim horizonstr)])
+            (\horizonstr -> [ stringToMaybe "horizon" (String.trim horizonstr) ])
             data.horizon
-    in Http.get
-    { url = UB.crossOrigin data.baseurl ["api", "series", apiPoint] fullquery
-    , expect = Http.expectString data.callback
-    }
+    in
+    Http.get
+        { url = UB.crossOrigin data.baseurl ["api", "series", apiPoint] fullquery
+        , expect = Http.expectString data.callback
+        }
 
 -- groups
 

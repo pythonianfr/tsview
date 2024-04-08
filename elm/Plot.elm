@@ -104,20 +104,23 @@ fetchseries model restrict =
         ismissing series =
             not <| Dict.member series model.loadedseries
         missing = List.filter ismissing selected
-    in List.map ( \name -> getData
-        { baseurl = model.prefix
-        , name = name
-        , idate = Nothing
-        , callback = GotPlotData name
-        , nocache = 0
-        , fromdate = (if restrict then (serializedate model.mindate) else "")
-        , todate = (if restrict then (serializedate model.maxdate) else "")
-        ,horizon = Nothing
-        , tzone = "UTC"
-        , inferredFreq = True
-        }
-        "state"
-        "false")
+    in
+    List.map
+        (\name -> getData
+             { baseurl = model.prefix
+             , name = name
+             , idate = Nothing
+             , callback = GotPlotData name
+             , nocache = 0
+             , fromdate = (if restrict then (serializedate model.mindate) else "")
+             , todate = (if restrict then (serializedate model.maxdate) else "")
+             , horizon = Nothing
+             , tzone = "UTC"
+             , inferredFreq = True
+             , keepnans = False
+             }
+             "state"
+        )
         missing
 
 
