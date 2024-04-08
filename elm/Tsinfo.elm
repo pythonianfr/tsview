@@ -1072,25 +1072,28 @@ viewactionwidgets model =
     ]
 
 
+viewtitle model =
+    H.p
+        [ ]
+        [ H.i
+              [ HA.class model.clipboardclass
+              , HE.onClick CopyNameToClipboard
+              ] [ ]
+        , H.span
+            [ HA.class "font-italic h4" ]
+            [ H.text <| " " ++ model.name ++ " " ]
+        , H.span
+            [ HA.class "badge badge-secondary h4" ]
+            [ H.text model.source ]
+        ]
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
         [ HA.style "margin" ".5em" ]
         [ H.span [ HA.class "action-container" ] <| viewactionwidgets model
-        , H.p
-            [ ]
-            [ H.i
-                [ HA.class model.clipboardclass
-                , HE.onClick CopyNameToClipboard
-                ]
-                [  ]
-            , H.span
-                [ HA.class "font-italic h4" ]
-                [ H.text <| " " ++ model.name ++ " " ]
-            , H.span
-                [ HA.class "badge badge-secondary h4" ]
-                [ H.text model.source ]
-            ]
+        , viewtitle model
         , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
         , if strseries model then H.div [] [] else viewplot model
         , I.viewmeta model
