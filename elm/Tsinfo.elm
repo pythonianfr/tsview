@@ -162,8 +162,10 @@ type Msg
     | ConfirmRename
     | CancelRename
     | Renamed (Result Http.Error String)
+    -- clipboard
     | CopyNameToClipboard
     | ResetClipboardClass
+    -- horizon
     | HorizonSelected Horizon
     | UpdateOffset Offset
     | SetDataInCache String
@@ -331,14 +333,14 @@ update msg model =
 
         GotSysMeta (Err err) ->
             let
-                newModel = { model
-                    | errors = List.append
-                        model.errors
-                        [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
-                    , plotStatus = Failure
+                newmodel =
+                    { model
+                        | errors = List.append model.errors
+                          [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
+                        , plotStatus = Failure
                     }
             in
-            U.nocmd newModel
+            U.nocmd newmodel
 
         GotUserMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -391,13 +393,13 @@ update msg model =
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
-                        newModel = { model
-                            | horizon =
-                            updateHorizonModel model.horizon val
-                            , plotStatus = Success
+                        newmodel =
+                            { model
+                                | horizon = updateHorizonModel model.horizon val
+                                , plotStatus = Success
                             }
                     in
-                    U.nocmd newModel
+                    U.nocmd newmodel
                 Err err ->
                     if strseries model
                     then U.nocmd model
@@ -708,11 +710,11 @@ update msg model =
                         model.horizon.timeZone
                         model.horizon.inferredFreq
 
-                newModel = { model | horizon = updateHorizon horizon model.horizon }
+                newmodel = { model | horizon = updateHorizon horizon model.horizon }
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
-                [ getplot newModel False
+                [ getplot newmodel False
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -727,26 +729,27 @@ update msg model =
             case D.decodeString dataInCacheDecoder newDataInCache of
                 Ok newDataInCacheDict ->
                     let
-                        newModel =
+                        newmodel =
                             { model | horizon =
                                   updateDataInCache newDataInCacheDict model.horizon
                             }
                     in
-                    ( newModel,
-                          Cmd.batch
-                          [ getplot newModel False
-                          , saveToLocalStorage newDataInCacheDict
-                          ]
+                    ( newmodel
+                    , Cmd.batch
+                        [ getplot newmodel False
+                        , saveToLocalStorage newDataInCacheDict
+                        ]
                     )
                 Err _ ->
                     (model, getplot model False)
 
         TimeZoneSelected timeZone ->
             let
-                newHorizonModel = model.horizon
-                newModel = { model | horizon =
-                                 { newHorizonModel | timeZone = timeZone }
-                           }
+                horizon = model.horizon
+                newmodel =
+                    { model |
+                          horizon = { horizon | timeZone = timeZone }
+                    }
                 dataInCache =
                     DataInCache
                         model.horizon.horizon.key
@@ -754,27 +757,28 @@ update msg model =
                         model.horizon.inferredFreq
 
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
                 [ getplot model False
-                , I.getidates newModel "series" InsertionDates
+                , I.getidates newmodel "series" InsertionDates
                 , saveToLocalStorage dataInCache
                 ]
             )
 
         InferredFreq isChecked ->
             let
-                newHorizonModel = model.horizon
-                newModel = { model | horizon =
-                                 { newHorizonModel | inferredFreq = isChecked }
-                           }
+                horizon = model.horizon
+
+                newmodel =
+                    { model | horizon = { horizon | inferredFreq = isChecked } }
+
                 dataInCache =
                     DataInCache
                         model.horizon.horizon.key
                         model.horizon.timeZone
                         isChecked
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
                 [ getplot model False
                 , saveToLocalStorage dataInCache
@@ -787,13 +791,13 @@ update msg model =
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
     let
-        offset = (model.horizon.offset + i)
-        newModel = { model | horizon =
-                         updateOffset offset model.horizon
-                   }
+        offset =
+            (model.horizon.offset + i)
+        newmodel =
+            { model | horizon = updateOffset offset model.horizon }
     in
-    ( newModel
-    , getplot newModel False
+    ( newmodel
+    , getplot newmodel False
     )
 
 
