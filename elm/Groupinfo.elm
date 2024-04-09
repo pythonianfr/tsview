@@ -577,7 +577,7 @@ view model =
               ]
         -- , viewseealso model
         , I.viewmeta model
-        , I.viewusermeta model metaevents
+        , I.viewusermeta model metaevents True
         , I.viewformula model SwitchLevel
         , viewbindings model
         , case Dict.get model.formula_depth model.formula of

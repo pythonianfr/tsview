@@ -37,6 +37,7 @@ import Info exposing (SeriesType(..))
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
+import List.Selection as LS
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -73,10 +74,18 @@ type PlotStatus
     | Failure
 
 
+type Tabs
+    = Plot
+    | Logs
+    | UserMetadata
+    | FormulaCache
+
+
 type alias Model =
     { baseurl : String
     , name : String
     , source : String
+    , activetab : Tabs
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -119,7 +128,11 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
+    -- tabs
+    | Tab Tabs
+    -- perms
     | GetPermissions (Result Http.Error String)
+    -- data
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
     -- dates
@@ -308,6 +321,9 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
+        Tab tab ->
+            U.nocmd { model | activetab = tab }
+
         GotSysMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
@@ -964,8 +980,7 @@ viewplot model =
         args = plotargs "plot" [plot]
     in
     H.div []
-        [ H.h2 [] [ H.text "Plot" ]
-        , viewdatespicker model idatepickerevents
+        [ viewdatespicker model idatepickerevents
         , viewdatesrange model
         , H.div [ HA.id "plot" ] []
         -- the "plot-figure" node is pre-built in the template side
@@ -1121,19 +1136,95 @@ viewtitle model =
         ]
 
 
+strtab tablelayout =
+    case tablelayout of
+        Plot -> "Plot"
+        UserMetadata -> "Metadata"
+        Logs -> "Logs"
+        FormulaCache -> "Cache"
+
+
+maketab model active tab =
+    let
+        tabname = strtab tab
+    in
+    H.li
+        [ HA.class "nav-item" ]
+        [ H.a
+              ([ HE.onClick (Tab tab)
+               , HA.class "nav-link"
+               , HA.attribute "data-toggle" "tab"
+               , HA.attribute "role" "tab"
+               , HA.attribute "aria-selected" (if active then "true" else "false")
+               , HA.id tabname
+               ] ++ if active then [ HA.class "active" ] else []
+              )
+            [ H.div
+                  []
+                  [ H.text <| tabname ++ " " ]
+            ]
+        ]
+
+
+header model tabs =
+    H.ul [ HA.id "tabs"
+         , HA.class "nav nav-tabs"
+         , HA.attribute "role" "tablist"
+         ]
+        <| LS.toList
+        <| LS.mapSelected
+            { selected = maketab model True
+            , rest = maketab model False
+            }
+            tabs
+
+
 view : Model -> H.Html Msg
 view model =
+    let
+        tablist =
+            case model.seriestype of
+                I.Primary ->
+                    [ Plot, UserMetadata, Logs ]
+                I.Formula ->
+                    [ Plot, UserMetadata, FormulaCache ]
+
+        tabs =
+            tablist
+                |> LS.fromList
+                |> LS.select model.activetab
+
+        head =
+            header model tabs
+
+    in
     H.div
         [ HA.style "margin" ".5em" ]
         [ H.span [ HA.class "action-container" ] <| viewactionwidgets model
         , viewtitle model
-        , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
-        , if strseries model then H.div [] [] else viewplot model
-        , I.viewusermeta model metaevents
-        , I.viewformula model SwitchLevel
-        , case model.seriestype of
-              I.Primary -> I.viewlog model True
-              I.Formula -> H.span [] []
+        , case model.activetab of
+              Plot ->
+                  if strseries model
+                  then H.div [] [ head ]
+                  else H.div []
+                      [ head
+                      , viewplot model
+                      , I.viewformula model SwitchLevel
+                      ]
+
+              UserMetadata ->
+                  H.div [] [ head, I.viewusermeta model metaevents False ]
+
+              Logs ->
+                  H.div []
+                      [ head
+                      , case model.seriestype of
+                            I.Primary -> I.viewlog model False
+                            I.Formula -> H.span [] []
+                      ]
+
+              FormulaCache ->
+                  H.div [] [ head, viewcache model ]
         , I.viewerrors model
         ]
 
@@ -1158,8 +1249,9 @@ main =
                        { baseurl = input.baseurl
                        , name = input.name
                        , source = ""
+                       , activetab = Plot
                        -- metadata edition
-                       , canwrite =False
+                       , canwrite = False
                        , editing = False
                        -- all errors
                        , errors = [ ]

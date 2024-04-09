@@ -232,7 +232,7 @@ viewmeta model =
     ]
 
 
-viewusermetaheader model events =
+viewusermetaheader model events showtitle =
     let
         editaction =
             if model.canwrite then
@@ -250,15 +250,18 @@ viewusermetaheader model events =
                     ] [ H.text "cancel" ]
             else H.span [ ] [ ]
     in
-        H.h2  [ ]
+        if showtitle
+        then H.h2  [ ]
             [ H.text "User Metadata"
             , H.span [ ] [ H.text " "]
             , editaction
             ]
+        else H.div [ ]
+            [ editaction ]
 
 
-viewusermeta model events =
-    if model.editing then editusermeta model events else
+viewusermeta model events showtitle =
+    if model.editing then editusermeta model events showtitle else
     let
         elt (k, v) =
             H.li [ ] [ H.text <| k
@@ -271,17 +274,17 @@ viewusermeta model events =
     in
     if not <| Dict.isEmpty model.usermeta then
         H.div [ ]
-            [ viewusermetaheader model events
+            [ viewusermetaheader model events showtitle
             , H.ul [ ] <| List.map elt (Dict.toList model.usermeta)
             ]
     else
         H.div [ ]
-            [ viewusermetaheader model events
+            [ viewusermetaheader model events showtitle
             , H.text "No user-defined metadata yet."
             ]
 
 
-editusermeta model events =
+editusermeta model events showtitle =
     let
         deletefields key val =
             H.div [ HA.class "form-row" ]
@@ -332,7 +335,7 @@ editusermeta model events =
         editfields ab = deletefields (U.first ab) (U.snd ab)
     in
     H.div [ ]
-        [ viewusermetaheader model events
+        [ viewusermetaheader model events showtitle
         , H.form
               [ HE.onSubmit events.savemeta ]
               <| (List.map editfields (Dict.toList model.editeditems)) ++
