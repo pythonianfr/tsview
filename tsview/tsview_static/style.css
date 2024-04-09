@@ -121,6 +121,10 @@ label.option {
     background: tomato;
 }
 
+.badges-spacing > * {
+    margin-right: .2rem;
+}
+
 /* tree */
 .tree{
   --spacing : 1.5rem;

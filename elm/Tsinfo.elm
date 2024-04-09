@@ -1073,6 +1073,18 @@ viewactionwidgets model =
 
 
 viewtitle model =
+    let
+        ( tzaware, tzbadge, tztitle ) =
+            if (M.dget "tzaware" model.meta) == "true"
+            then ( "tzaware", "badge-success", "This series is time zone aware." )
+            else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
+
+        valuetype =
+            M.dget "value_type" model.meta
+
+        supervision =
+            M.dget "supervision_status" model.meta
+    in
     H.p
         [ ]
         [ H.i
@@ -1080,11 +1092,32 @@ viewtitle model =
               , HE.onClick CopyNameToClipboard
               ] [ ]
         , H.span
-            [ HA.class "font-italic h4" ]
-            [ H.text <| " " ++ model.name ++ " " ]
-        , H.span
-            [ HA.class "badge badge-secondary h4" ]
-            [ H.text model.source ]
+            [ HA.class "badges-spacing" ]
+            [ H.span
+                  [ HA.class "font-italic h4" ]
+                  [ H.text <| " " ++ model.name ++ " " ]
+            , H.span
+                [ HA.class "badge h4"
+                , HA.class tzbadge
+                , HA.title tztitle
+                ]
+                [ H.text tzaware ]
+            , H.span
+                [ HA.class "badge badge-info h4"
+                , HA.title "Supervision status of the series."
+                ]
+                [ H.text supervision ]
+            , H.span
+                [ HA.class "badge badge-primary h4"
+                , HA.title "Type of the series values."
+                ]
+                [ H.text valuetype ]
+            , H.span
+                [ HA.class "badge badge-secondary h4"
+                , HA.title "Name of the series source."
+                ]
+                [ H.text model.source ]
+            ]
         ]
 
 
@@ -1096,7 +1129,6 @@ view model =
         , viewtitle model
         , if (Dict.isEmpty model.policy) then H.span [] [] else viewcache model
         , if strseries model then H.div [] [] else viewplot model
-        , I.viewmeta model
         , I.viewusermeta model metaevents
         , I.viewformula model SwitchLevel
         , case model.seriestype of
