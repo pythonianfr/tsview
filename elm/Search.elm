@@ -57,6 +57,9 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
+    --menu
+    , menucontent : Menu
+    , menuvisisble : Bool
     }
 
 
@@ -80,6 +83,8 @@ type Msg
     | DebounceFormulaFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
+    -- menu
+    | ToggleMenu
 
 
 getmeta baseurl dtype event =
@@ -439,6 +444,9 @@ update msg model =
              in
              U.nocmd { model | mode = mode }
 
+        --  Menu
+
+        ToggleMenu -> U.nocmd { model | menuvisisble = not model.menuvisisble }
 
 viewnamefilter =
     let input =
@@ -799,9 +807,18 @@ displayLinks links =
                                 [ H.text link.label ] ] )
             links )
 
-viewMenu : H.Html Msg
-viewMenu =
-    displayContent contentMenu
+viewMenu : Model -> H.Html Msg
+viewMenu model =
+    H.div
+        []
+        [ H.button
+            [ HE.onClick ToggleMenu
+            , A.title "show/hide nav"]
+            [ H.text "☰" ]
+        , H.div
+            [ A.hidden ( not model.menuvisisble ) ]
+            [ displayContent model.menucontent ]
+        ]
 
 
 view : Model -> H.Html Msg
@@ -824,7 +841,7 @@ view model =
 
     in
     H.div [ A.style "margin" ".5em" ]
-        [ viewMenu
+        [ viewMenu model
         ,   H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
@@ -909,6 +926,8 @@ main =
                    []
                    debouncerconfig
                    debouncerconfig
+                   contentMenu
+                   False
 
            init input =
                ( newmodel input
