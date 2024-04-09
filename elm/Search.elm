@@ -730,6 +730,80 @@ viewerrors model =
     else H.span [] []
 
 
+-- menu
+
+type alias Menu = List Section
+
+type alias Section =
+    { label: String
+    , links: List Link
+    }
+
+type alias Link =
+    { label: String
+    , target: String }
+
+contentMenu : Menu
+contentMenu =
+    [ { label = "Timeseries"
+      , links = [ { label = "Catalog"
+                  , target = "/tssearch" }
+                , { label = "Quick View"
+                  , target = "/tsview" }
+                , { label = "Delete"
+                  , target = "/tsdelete" }
+                ]
+      }
+    , { label = "Formula"
+      , links = [ { label = "Documentation"
+                  , target = "/tsformula/operators" }
+                , { label = "Catalog"
+                  , target = "/formulas" }
+                , { label = "Create"
+                  , target = "/tsformula" }
+                , { label = "Update batch"
+                  , target = "/addformulas" }
+                , { label = "Setup cache"
+                  , target = "/formulacache" }
+                ]
+      }
+    , { label = "Monitoring"
+      , links = [ { label = "Tasks"
+                  , target = "/tasks/" }
+                , { label = "Series import"
+                  , target = "/tswatch/" }
+                ]
+      }
+    ]
+
+displayContent : Menu -> H.Html Msg
+displayContent content =
+    H.ul
+        []
+        ( List.map
+            ( \ section -> H.li
+                            []
+                            [ H.text section.label
+                            , displayLinks section.links ] )
+            content )
+
+displayLinks : List Link -> H.Html Msg
+displayLinks links =
+        H.ul
+        []
+        ( List.map
+            (\ link -> H.li
+                            []
+                            [ H.a
+                                [ A.href link.target ]
+                                [ H.text link.label ] ] )
+            links )
+
+viewMenu : H.Html Msg
+viewMenu =
+    displayContent contentMenu
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -750,7 +824,8 @@ view model =
 
     in
     H.div [ A.style "margin" ".5em" ]
-        [ H.span
+        [ viewMenu
+        ,   H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
               ]
