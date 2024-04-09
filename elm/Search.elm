@@ -3,6 +3,7 @@ module Search exposing (main)
 import Browser
 import Catalog as Cat
 import Catalog exposing (Msg(..))
+import Menu as Men
 import Debouncer.Messages as Debouncer exposing
     (Debouncer
     , fromSeconds
@@ -57,9 +58,8 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
-    --menu
-    , menucontent : Menu
-    , menuvisisble : Bool
+    -- menu
+    , menu : Men.Model
     }
 
 
@@ -83,9 +83,8 @@ type Msg
     | DebounceFormulaFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
-    -- menu
-    | ToggleMenu
-
+    --menu
+    | Menu Men.Msg
 
 getmeta baseurl dtype event =
     Http.get
@@ -445,8 +444,9 @@ update msg model =
              U.nocmd { model | mode = mode }
 
         --  Menu
+        Menu menumsg ->
+            U.nocmd {model | menu = Men.updateModel menumsg model.menu}
 
-        ToggleMenu -> U.nocmd { model | menuvisisble = not model.menuvisisble }
 
 viewnamefilter =
     let input =
@@ -738,88 +738,6 @@ viewerrors model =
     else H.span [] []
 
 
--- menu
-
-type alias Menu = List Section
-
-type alias Section =
-    { label: String
-    , links: List Link
-    }
-
-type alias Link =
-    { label: String
-    , target: String }
-
-contentMenu : Menu
-contentMenu =
-    [ { label = "Timeseries"
-      , links = [ { label = "Catalog"
-                  , target = "/tssearch" }
-                , { label = "Quick View"
-                  , target = "/tsview" }
-                , { label = "Delete"
-                  , target = "/tsdelete" }
-                ]
-      }
-    , { label = "Formula"
-      , links = [ { label = "Documentation"
-                  , target = "/tsformula/operators" }
-                , { label = "Catalog"
-                  , target = "/formulas" }
-                , { label = "Create"
-                  , target = "/tsformula" }
-                , { label = "Update batch"
-                  , target = "/addformulas" }
-                , { label = "Setup cache"
-                  , target = "/formulacache" }
-                ]
-      }
-    , { label = "Monitoring"
-      , links = [ { label = "Tasks"
-                  , target = "/tasks/" }
-                , { label = "Series import"
-                  , target = "/tswatch/" }
-                ]
-      }
-    ]
-
-displayContent : Menu -> H.Html Msg
-displayContent content =
-    H.ul
-        []
-        ( List.map
-            ( \ section -> H.li
-                            []
-                            [ H.text section.label
-                            , displayLinks section.links ] )
-            content )
-
-displayLinks : List Link -> H.Html Msg
-displayLinks links =
-        H.ul
-        []
-        ( List.map
-            (\ link -> H.li
-                            []
-                            [ H.a
-                                [ A.href link.target ]
-                                [ H.text link.label ] ] )
-            links )
-
-viewMenu : Model -> H.Html Msg
-viewMenu model =
-    H.div
-        []
-        [ H.button
-            [ HE.onClick ToggleMenu
-            , A.title "show/hide nav"]
-            [ H.text "☰" ]
-        , H.div
-            [ A.hidden ( not model.menuvisisble ) ]
-            [ displayContent model.menucontent ]
-        ]
-
 
 view : Model -> H.Html Msg
 view model =
@@ -841,7 +759,7 @@ view model =
 
     in
     H.div [ A.style "margin" ".5em" ]
-        [ viewMenu model
+        [ Men.viewMenu model.menu Menu
         ,   H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
@@ -926,8 +844,8 @@ main =
                    []
                    debouncerconfig
                    debouncerconfig
-                   contentMenu
-                   False
+                   { menuContent = Men.contentMenu
+                   , menuVisisble = False}
 
            init input =
                ( newmodel input
