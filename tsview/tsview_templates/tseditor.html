@@ -69,7 +69,7 @@
                      const index = myinput.getAttribute('index')
                      const newEvent = new CustomEvent("pastewithdata", {
                          detail: {
-                             text: text,
+                             text: text.trim(),
                              index: index
                          }
                      });
