@@ -1,13 +1,3 @@
-.tseditor-content {
-    display: grid;
-    grid-template-areas: "horizon-widget"
-                         "status-plot"
-                         "graph"
-                         "tables";
-    row-gap: 20px;
-    text-align: center;
-}
-
 .horizon-widget {
     grid-area: horizon-widget;
 }
@@ -25,9 +15,9 @@
     grid-area: tables;
     display: grid;
     grid-template:
-    "button-save-data button-save-data"
-    "data-table save-data-table";
-    justify-content: center;
+        "button-save-data button-save-data"
+        "data-table save-data-table";
+    justify-content: left;
     column-gap: 50px;
     row-gap: 20px;
 }
@@ -38,7 +28,7 @@
 }
 
 .table-style td, .table-style th {
-    border: 1px solid #ddd;
+    border: 1px solid #DDD;
     padding: 5px;
 }
 
@@ -47,7 +37,7 @@
 }
 
 .table-style tr:hover {
-background-color: #ddd;
+    background-color: #DDD;
 }
 
 .table-style th {
@@ -72,13 +62,12 @@ background-color: #ddd;
 }
 
 .greenbutton {
-    padding: 0.65rem 0.75rem;
+    padding: 0.5rem 0.5rem;
     background: #35845F;
     border: 1px solid #35845F;
     box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
     border-radius: 8px;
     color: white !important;
-    font-family: "Ubuntu"
 }
 
 .row-green {
