@@ -45,7 +45,7 @@ type alias Model =
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
-    , horizonModel : HorizonModel Entry
+    , horizon : HorizonModel Entry
     , indexToInsert: Maybe String
     , insertion_dates : Array String
     , name : String
@@ -156,15 +156,15 @@ geteditor model atidate msg =
             , callback = msg
             , nocache = (U.bool2int model.view_nocache)
             , fromdate = Maybe.unwrap
-                "" (always model.horizonModel.mindate) model.horizonModel.horizon.key
+                "" (always model.horizon.mindate) model.horizon.horizon.key
             , todate = Maybe.unwrap
-                "" (always model.horizonModel.maxdate) model.horizonModel.horizon.key
-            , horizon = model.horizonModel.horizon.key
+                "" (always model.horizon.maxdate) model.horizon.horizon.key
+            , horizon = model.horizon.horizon.key
                 |> Maybe.andThen (\key-> OD.get key horizons)
                 |> Maybe.map
-                    (String.replace "{offset}" (String.fromInt model.horizonModel.offset))
-            , tzone = model.horizonModel.timeZone
-            , inferredFreq = model.horizonModel.inferredFreq
+                    (String.replace "{offset}" (String.fromInt model.horizon.offset))
+            , tzone = model.horizon.timeZone
+            , inferredFreq = model.horizon.inferredFreq
             , keepnans = True
            }
            "supervision"
@@ -197,9 +197,9 @@ update msg model =
                     U.nocmd { model
                                 | plotStatus = Success
                                 , initialTs = incrementedVal
-                                , horizonModel =
+                                , horizon =
                                   updateHorizonModel
-                                  model.horizonModel incrementedVal
+                                  model.horizon incrementedVal
                             }
                 Err _ ->
                   U.nocmd model
@@ -212,12 +212,12 @@ update msg model =
                 dataInCache =
                     DataInCache
                         horizon.key
-                        model.horizonModel.timeZone
-                        model.horizonModel.inferredFreq
+                        model.horizon.timeZone
+                        model.horizon.inferredFreq
 
                 newModel = { model
                                | plotStatus = Loading
-                               , horizonModel =  updateHorizon horizon model.horizonModel
+                               , horizon =  updateHorizon horizon model.horizon
                            }
             in
             ( newModel
@@ -238,12 +238,12 @@ update msg model =
             let
                 newtimeSeries =
                     Dict.update
-                        date (updateEntry (parseCopyPastedData value)) model.horizonModel.timeSeries
+                        date (updateEntry (parseCopyPastedData value)) model.horizon.timeSeries
                 newHorizonModel =
-                    model.horizonModel
+                    model.horizon
             in
             U.nocmd { model
-                        | horizonModel = { newHorizonModel | timeSeries = newtimeSeries }
+                        | horizon = { newHorizonModel | timeSeries = newtimeSeries }
                     }
 
         GetLastInsertionDates (Ok rawdates) ->
@@ -283,7 +283,7 @@ update msg model =
                             updateEditedValue model incrementedVal
                         newModel =
                             { model
-                                | horizonModel = updateHorizonModel model.horizonModel newDict
+                                | horizon = updateHorizonModel model.horizon newDict
                             }
                     in
                     ( newModel
@@ -325,9 +325,9 @@ update msg model =
         Paste payload ->
             let
                 newtimeSeries = getPastedDict model payload
-                newHorizonModel = model.horizonModel
+                newHorizonModel = model.horizon
             in
-            U.nocmd { model | horizonModel = { newHorizonModel | timeSeries = newtimeSeries } }
+            U.nocmd { model | horizon = { newHorizonModel | timeSeries = newtimeSeries } }
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -347,16 +347,16 @@ update msg model =
 
         TimeZoneSelected timeZone ->
             let
-                newHorizonModel = model.horizonModel
+                newHorizonModel = model.horizon
                 newModel = { model
                                | plotStatus = Loading
-                               , horizonModel = { newHorizonModel | timeZone = timeZone }
+                               , horizon = { newHorizonModel | timeZone = timeZone }
                            }
                 dataInCache =
                     DataInCache
-                        model.horizonModel.horizon.key
+                        model.horizon.horizon.key
                         timeZone
-                        model.horizonModel.inferredFreq
+                        model.horizon.inferredFreq
 
             in
             ( newModel
@@ -369,15 +369,15 @@ update msg model =
 
         InferredFreq isChecked ->
             let
-                newHorizonModel = model.horizonModel
+                newHorizonModel = model.horizon
                 newModel = { model
                                | plotStatus = Loading
-                               , horizonModel = { newHorizonModel | inferredFreq = isChecked }
+                               , horizon = { newHorizonModel | inferredFreq = isChecked }
                            }
                 dataInCache =
                     DataInCache
-                        model.horizonModel.horizon.key
-                        model.horizonModel.timeZone
+                        model.horizon.horizon.key
+                        model.horizon.timeZone
                         isChecked
             in
             ( newModel
@@ -394,8 +394,8 @@ update msg model =
                         newModel =
                             { model
                                 | plotStatus = Loading
-                                , horizonModel =
-                                  updateDataInCache newDataInCacheDict model.horizonModel
+                                , horizon =
+                                  updateDataInCache newDataInCacheDict model.horizon
                             }
                     in
                     ( newModel
@@ -411,24 +411,24 @@ update msg model =
         NewDates listDates ->
             let
                 newHorizonModel =
-                    model.horizonModel
+                    model.horizon
                 newinitalTs =
                     updateEditedValue model model.initialTs
                 newModel =
                     if List.isEmpty listDates then
                         { model
-                            | horizonModel = { newHorizonModel | timeSeries = newinitalTs }
+                            | horizon = { newHorizonModel | timeSeries = newinitalTs }
                         }
                     else
                         let
                             newTs =
                                 Dict.filter
                                     (\key _ -> List.member key listDates)
-                                    model.horizonModel.timeSeries
+                                    model.horizon.timeSeries
                         in
                         { model
                             | initialTs = newinitalTs
-                            , horizonModel = { newHorizonModel | timeSeries = newTs }
+                            , horizon = { newHorizonModel | timeSeries = newTs }
                         }
             in
             ( newModel
@@ -457,7 +457,7 @@ updateEditedValue model initialDict =
         )
         (\_ _ dict -> dict)
         initialDict
-        model.horizonModel.timeSeries
+        model.horizon.timeSeries
         initialDict
 
 
@@ -488,14 +488,14 @@ getPastedDict model payload =
             Maybe.unwrap
                 0
                 (\entry -> entry.index)
-                (Dict.get (payload.index) model.horizonModel.timeSeries)
+                (Dict.get (payload.index) model.horizon.timeSeries)
         listIndex =
             List.range firstIndex (firstIndex + (List.length newValues) - 1)
         listDates =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
-                     model.horizonModel.timeSeries
+                     model.horizon.timeSeries
                 )
         copyPastedDict =
             Dict.fromList <| List.map2 Tuple.pair listDates newValues
@@ -504,9 +504,9 @@ getPastedDict model payload =
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update key (updateEntry value) dict)
         (\_ _ dict -> dict)
-        model.horizonModel.timeSeries
+        model.horizon.timeSeries
         copyPastedDict
-        model.horizonModel.timeSeries
+        model.horizon.timeSeries
 
 
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
@@ -523,10 +523,10 @@ updateEntry value maybeEntry =
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
     let
-        offset = (model.horizonModel.offset + i)
+        offset = (model.horizon.offset + i)
         newModel =
             { model | plotStatus = Loading
-            , horizonModel = updateOffset offset model.horizonModel
+            , horizon = updateOffset offset model.horizon
             }
     in
     ( newModel
@@ -550,7 +550,7 @@ patchEditedData model =
                 _ -> True
 
         filteredDict =
-            model.horizonModel.timeSeries
+            model.horizon.timeSeries
                 |> Dict.filter (\_ value -> Maybe.isJust value.editedValue)
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.editedValue)
     in
@@ -562,7 +562,7 @@ patchEditedData model =
                  , ("tzaware", E.bool tzaware )
                  , ("series", encodeEditedData filteredDict )
                  , ("supervision", E.bool True )
-                 , ("tzone", E.string model.horizonModel.timeZone)
+                 , ("tzone", E.string model.horizon.timeZone)
                  ]
         , headers = []
         , timeout = Nothing
@@ -657,7 +657,7 @@ divTablesSection model =
     let
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.editedValue)
-            model.horizonModel.timeSeries
+            model.horizon.timeSeries
     in
     H.div
         [ HA.class "tables" ]
@@ -708,8 +708,8 @@ viewPlotData model =
     let
         plot =
             scatterplot model.name
-                (Dict.keys model.horizonModel.timeSeries)
-                (List.map (\x -> x.series) (Dict.values model.horizonModel.timeSeries))
+                (Dict.keys model.horizon.timeSeries)
+                (List.map (\x -> x.series) (Dict.values model.horizon.timeSeries))
                 "lines"
         args =
             plotargs "plot" [plot]
@@ -738,7 +738,7 @@ view model =
     H.div
         [ HA.class "tseditor-content" ]
         [ horizonwidget
-              model.horizonModel
+              model.horizon
               { inferredFreqMsg = InferredFreq
               , timeZoneMsg = TimeZoneSelected
               , offsetMsg = UpdateOffset
@@ -749,7 +749,7 @@ view model =
             [ HA.class "status-plot" ]
             [ if model.plotStatus == Init
               then H.text "The graph is loading, please wait"
-              else if (Dict.isEmpty model.horizonModel.timeSeries) && (model.plotStatus == Success)
+              else if (Dict.isEmpty model.horizon.timeSeries) && (model.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
                    else H.text (statusText model.plotStatus)
@@ -770,10 +770,10 @@ editTable model =
             [ ]
         class = HA.class "data-table"
     in
-    if Dict.isEmpty model.horizonModel.timeSeries
+    if Dict.isEmpty model.horizon.timeSeries
     then H.div [ class ][ ]
     else
-        if Dict.size model.horizonModel.timeSeries > 1000
+        if Dict.size model.horizon.timeSeries > 1000
         then H.div
             [ class ]
             [ H.text """ Too many points to display. Please select a smaller time
@@ -796,7 +796,7 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      (List.map viewRow (Dict.toList model.horizonModel.timeSeries))
+                      (List.map viewRow (Dict.toList model.horizon.timeSeries))
                   ]
             , node
             ]
@@ -818,7 +818,7 @@ main =
                     , errors = []
                     , meta = Dict.empty
                     , date_index = 0
-                    , horizonModel =
+                    , horizon =
                           { offset = 0
                           , horizon = {key = Just defaultHorizon}
                           , inferredFreq = False
