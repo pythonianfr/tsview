@@ -691,7 +691,7 @@ viewRow ( date, entry ) =
         , H.td
             [ ]
             [ H.input
-                  [ HA.class ("pasteble " ++ rowStyle)
+                  [ HA.class ("pastable " ++ rowStyle)
                   , HA.placeholder "enter your value"
                   , HA.value data
                   , HE.onInput (InputChanged date)
