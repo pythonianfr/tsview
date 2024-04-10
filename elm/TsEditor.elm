@@ -42,7 +42,6 @@ import Random
 
 type alias Model =
     { baseurl : String
-    , contentCell: String
     , errors : List String
     , meta : M.StdMetadata
     , date_index : Int
@@ -816,7 +815,6 @@ main =
             let
                 model =
                     { baseurl = input.baseurl
-                    , contentCell = "68"
                     , errors = []
                     , meta = Dict.empty
                     , date_index = 0
