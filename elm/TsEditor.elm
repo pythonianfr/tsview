@@ -43,6 +43,7 @@ import Task as T
 
 
 port copyToClipboard : String -> Cmd msg
+port dateInInterval : (List String -> msg) -> Sub msg
 
 
 type alias Model =
@@ -457,9 +458,6 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-port dateInInterval : (List String -> msg) -> Sub msg
-
-
 updateEditedValue : Model -> Dict String Entry -> Dict String Entry
 updateEditedValue model initialDict =
     let
@@ -673,6 +671,49 @@ divSaveDataTable filtredDict =
             ]
 
 
+editTable : Model -> H.Html Msg
+editTable model =
+    let
+        node = H.node "eval-js"
+            [ HA.attribute
+                  "myjs"
+                  ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
+            ]
+            [ ]
+        class = HA.class "data-table"
+    in
+    if Dict.isEmpty model.horizon.timeSeries
+    then H.div [ class ][ ]
+    else
+        if Dict.size model.horizon.timeSeries > 1000
+        then H.div
+            [ class ]
+            [ H.text """ Too many points to display. Please select a smaller time
+                      frame or an area on the graph."""
+            , node
+            ]
+    else
+        H.div
+            [ class ]
+            [ H.table
+                  [ HA.class "table-style" ]
+                  [ H.thead [ ]
+                        [ H.tr [ ]
+                              [ H.th
+                                    [ HA.scope "col" ]
+                                    [ H.text "Dates" ]
+                              , H.th
+                                  [ HA.scope "col" ]
+                                  [ H.text "Values" ]
+                              ]
+                        ]
+                  , H.tbody [ ]
+                      (List.map viewRow (Dict.toList model.horizon.timeSeries))
+                  ]
+            , node
+            ]
+
+
 divTablesSection : Model -> H.Html Msg
 divTablesSection model =
     let
@@ -781,49 +822,6 @@ view model =
         , viewPlotData model
         , divTablesSection model
         ]
-
-
-editTable : Model -> H.Html Msg
-editTable model =
-    let
-        node = H.node "eval-js"
-            [ HA.attribute
-                  "myjs"
-                  ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
-            ]
-            [ ]
-        class = HA.class "data-table"
-    in
-    if Dict.isEmpty model.horizon.timeSeries
-    then H.div [ class ][ ]
-    else
-        if Dict.size model.horizon.timeSeries > 1000
-        then H.div
-            [ class ]
-            [ H.text """ Too many points to display. Please select a smaller time
-                      frame or an area on the graph."""
-            , node
-            ]
-    else
-        H.div
-            [ class ]
-            [ H.table
-                  [ HA.class "table-style" ]
-                  [ H.thead [ ]
-                        [ H.tr [ ]
-                              [ H.th
-                                    [ HA.scope "col" ]
-                                    [ H.text "Dates" ]
-                              , H.th
-                                  [ HA.scope "col" ]
-                                  [ H.text "Values" ]
-                              ]
-                        ]
-                  , H.tbody [ ]
-                      (List.map viewRow (Dict.toList model.horizon.timeSeries))
-                  ]
-            , node
-            ]
 
 
 type alias Input =
