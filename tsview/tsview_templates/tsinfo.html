@@ -15,57 +15,51 @@
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
         <script src="https://unpkg.com/@webcomponents/custom-elements@1.2.1/custom-elements.min.js">
         </script>
+        <script src="./tsview_static/tsinfo_elm.js"></script>
         <script>
-            class PlotFigure extends HTMLElement {
-                static get observedAttributes() {
-                    return ['args'];
-                }
-                attributeChangedCallback(name, old_value, new_value) {
-                    if ( name == 'args' ) {
-                        let args = JSON.parse(new_value);
-                        Plotly.react(
-                            args.div,
-                            args.data,
-                            {},
-                            {
-                                displaylogo: false,
-                                displayModeBar: true,
-                                displaylogo: false,
-                                responsive: true,
-                                modeBarButtonsToRemove: ['sendDataToCloud']
-                            }
-                        );
-                    }
-                }
-            }
+         class PlotFigure extends HTMLElement {
+             static get observedAttributes() {
+                 return ['args'];
+             }
+             attributeChangedCallback(name, old_value, new_value) {
+                 if ( name == 'args' ) {
+                     let args = JSON.parse(new_value);
+                     Plotly.react(
+                         args.div,
+                         args.data,
+                         {},
+                         {
+                             displaylogo: false,
+                             displayModeBar: true,
+                             displaylogo: false,
+                             responsive: true,
+                             modeBarButtonsToRemove: ['sendDataToCloud']
+                         }
+                     );
+                 }
+             }
+         }
 
          window.customElements.define("plot-figure", PlotFigure);
         </script>
+
     </head>
     <body>
         <div id="app"></div>
-        <script src="./tsview_static/tsinfo_elm.js"></script>
         <script>
-            var clipboard = function (value) {
-                var el = document.createElement('textarea');
-                el.value = value;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-            };
-            var app = Elm.Tsinfo.init({
-                node: document.getElementById('app'),
-                flags: {
-                    baseurl : "{{ homeurl }}",
-                    name : "{{ name }}"
-                }
-            });
-            app.ports.copyToClipboard.subscribe(clipboard);
-            app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
-                localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
-            });
-            app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
+         var app = Elm.Tsinfo.init({
+             node: document.getElementById('app'),
+             flags: {
+                 baseurl : "{{ homeurl }}",
+                 name : "{{ name }}"
+             }
+         });
+
+         // this should probably be shared as a separate jinja template
+         app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+             localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
+         });
+         app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
         </script>
     </body>
 </html>
