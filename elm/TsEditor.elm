@@ -583,7 +583,7 @@ patchEditedData model =
                  , ("supervision", E.bool True )
                  , ("tzone", E.string model.horizon.timeZone)
                  ]
-        , headers = []
+        , headers = [ ]
         , timeout = Nothing
         , tracker = Nothing
         , url = UB.crossOrigin model.baseurl
@@ -774,12 +774,12 @@ viewPlotData model =
                 (List.map (\x -> x.series) (Dict.values model.horizon.timeSeries))
                 "lines"
         args =
-            plotargs "plot" [plot]
+            plotargs "plot" [ plot ]
     in
     H.div
         [ HA.class "graph"]
         [ H.div [ HA.id "plot" ] [ ]
-        , H.node "plot-figure" [ HA.attribute "args" args ] []
+        , H.node "plot-figure" [ HA.attribute "args" args ] [ ]
         ]
 
 
@@ -837,7 +837,7 @@ main =
             let
                 model =
                     { baseurl = input.baseurl
-                    , errors = []
+                    , errors = [ ]
                     , meta = Dict.empty
                     , source = "local"
                     , seriestype = I.Primary
@@ -854,7 +854,7 @@ main =
                     , indexToInsert = Nothing
                     , insertion_dates = Array.empty
                     , name = input.name
-                    , processedPasted = []
+                    , processedPasted = [ ]
                     , randomNumber = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
