@@ -22,8 +22,14 @@
                      Plotly.newPlot(
                          args.div,
                          args.data,
-                         {showlegend: false},
-                         {displaylogo: false, displayModeBar: false}
+                         {},
+                         {
+                             displaylogo: false,
+                             displayModeBar: true,
+                             displaylogo: false,
+                             responsive: true,
+                             modeBarButtonsToRemove: ['sendDataToCloud']
+                         }
                      );
                      document.getElementById(args.div).on('plotly_relayout', function(eventData) {
                          var intervalDates = args.data[0].x.filter(function(date) {
