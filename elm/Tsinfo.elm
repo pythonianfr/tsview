@@ -120,7 +120,7 @@ type alias Model =
     , newname : Maybe String
     , clipboardclass : String
     , horizon : HorizonModel (Maybe Float)
-    , plotStatus : PlotStatus
+    , plotstatus : PlotStatus
     }
 
 
@@ -353,7 +353,7 @@ update msg model =
                     { model
                         | errors = List.append model.errors
                           [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
-                        , plotStatus = Failure
+                        , plotstatus = Failure
                     }
             in
             U.nocmd newmodel
@@ -412,7 +412,7 @@ update msg model =
                         newmodel =
                             { model
                                 | horizon = updateHorizonModel model.horizon val
-                                , plotStatus = Success
+                                , plotstatus = Success
                             }
                     in
                     U.nocmd newmodel
@@ -478,9 +478,9 @@ update msg model =
         ViewNocache ->
             let
                 mod = { model
-                    | view_nocache = not model.view_nocache
-                    , plotStatus = Loading
-                    }
+                          | view_nocache = not model.view_nocache
+                          , plotstatus = Loading
+                      }
             in
             ( mod
             , Cmd.batch
@@ -848,7 +848,7 @@ viewtogglecached : Model -> H.Html Msg
 viewtogglecached model =
     let
         title =
-            if model.plotStatus == Loading then
+            if model.plotstatus == Loading then
                 "Loading ..."
             else if model.view_nocache then
                 "view cached"
@@ -866,7 +866,7 @@ viewtogglecached model =
               , HA.id "view-uncached"
               , HA.checked <| not model.view_nocache
               , HE.onClick ViewNocache
-              , HA.disabled (model.plotStatus == Loading)
+              , HA.disabled (model.plotstatus == Loading)
               ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -1219,7 +1219,7 @@ main =
                             , timeSeries = Dict.empty
                             , timeZone = "UTC"
                        }
-                       , plotStatus = Loading
+                       , plotstatus = Loading
                     }
                in
                ( model
