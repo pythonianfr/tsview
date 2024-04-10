@@ -1179,6 +1179,11 @@ header model tabs =
             tabs
 
 
+tabcontents items =
+    H.span [ HA.style "margin" ".1rem" ]
+        items
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -1208,23 +1213,27 @@ view model =
                   then H.div [] [ head ]
                   else H.div []
                       [ head
-                      , viewplot model
-                      , I.viewformula model SwitchLevel
+                      , tabcontents
+                            [ viewplot model
+                            , I.viewformula model SwitchLevel
+                            ]
                       ]
 
               UserMetadata ->
-                  H.div [] [ head, I.viewusermeta model metaevents False ]
+                  H.div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
 
               Logs ->
                   H.div []
                       [ head
-                      , case model.seriestype of
-                            I.Primary -> I.viewlog model False
-                            I.Formula -> H.span [] []
+                      , tabcontents
+                            [ case model.seriestype of
+                                  I.Primary -> I.viewlog model False
+                                  I.Formula -> H.span [] []
+                            ]
                       ]
 
               FormulaCache ->
-                  H.div [] [ head, viewcache model ]
+                  H.div [] [ head, tabcontents [ viewcache model ] ]
         , I.viewerrors model
         ]
 
