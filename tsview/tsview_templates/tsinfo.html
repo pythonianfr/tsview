@@ -57,9 +57,14 @@
 
          // this should probably be shared as a separate jinja template
          app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
-             localStorage.setItem("dataInCache", JSON.stringify(dataInCache))
+             localStorage.setItem("horizon", JSON.stringify(dataInCache))
          });
-         app.ports.savedDataInCache.send(localStorage.getItem("dataInCache"));
+
+         incache = localStorage.getItem("horizon")
+         if (incache === null) {
+             incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
+         }
+         app.ports.savedDataInCache.send(incache);
         </script>
     </body>
 </html>
