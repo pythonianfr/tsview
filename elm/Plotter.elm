@@ -1,5 +1,5 @@
 module Plotter exposing
-    ( getData
+    ( getdata
     , getgroupplotdata
     , Group
     , groupdecoder
@@ -17,6 +17,7 @@ import Json.Encode.Extra as E
 import Maybe.Extra as Maybe
 import Url.Builder as UB
 import Bool.Extra
+
 -- series
 
 type alias Trace =
@@ -86,8 +87,8 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getData : PlotData msg -> String -> Cmd msg
-getData data apiPoint =
+getdata : PlotData msg -> String -> Cmd msg
+getdata data apipoint =
     let
         stringToMaybe : String -> String -> Maybe UB.QueryParameter
         stringToMaybe name value =
@@ -109,7 +110,7 @@ getData data apiPoint =
             data.horizon
     in
     Http.get
-        { url = UB.crossOrigin data.baseurl ["api", "series", apiPoint] fullquery
+        { url = UB.crossOrigin data.baseurl [ "api", "series", apipoint ] fullquery
         , expect = Http.expectString data.callback
         }
 

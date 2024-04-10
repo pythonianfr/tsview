@@ -42,7 +42,7 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( getData
+    ( getdata
     , seriesdecoder
     , scatterplot
     , plotargs
