@@ -34,16 +34,23 @@ import Plotter exposing
     , scatterplot
     , plotargs
     )
+import Process as P
 import Url.Builder as UB
 import Util as U
 import Json.Encode as E
 import Random
+import Task as T
+
+
+port copyToClipboard : String -> Cmd msg
 
 
 type alias Model =
     { baseurl : String
     , errors : List String
     , meta : M.StdMetadata
+    , source : String
+    , seriestype : I.SeriesType
     , date_index : Int
     , horizon : HorizonModel Entry
     , indexToInsert: Maybe String
@@ -55,6 +62,7 @@ type alias Model =
     , view_nocache : Bool
     , randomNumber : Int
     , plotStatus : PlotStatus
+    , clipboardclass : String
     }
 
 
@@ -75,6 +83,8 @@ type Msg
     | InferredFreq Bool
     | SetDataInCache String
     | NewDates (List String)
+    | CopyNameToClipboard
+    | ResetClipboardClass
 
 
 type alias Entry =
@@ -435,6 +445,17 @@ update msg model =
             , Random.generate RandomNumber randomInt
             )
 
+        CopyNameToClipboard ->
+            ( { model | clipboardclass = "bi bi-check2" }
+            , Cmd.batch
+                [ copyToClipboard model.name
+                , T.perform (always (ResetClipboardClass)) (P.sleep 1000)
+                ]
+            )
+
+        ResetClipboardClass ->
+            U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+
 
 port dateInInterval : (List String -> msg) -> Sub msg
 
@@ -733,18 +754,21 @@ statusText plotStatus =
         "Failure"
 
 
+horizonevents =
+    { inferredFreqMsg = InferredFreq
+    , timeZoneMsg = TimeZoneSelected
+    , offsetMsg = UpdateOffset
+    , timeDeltaMsg = HorizonSelected
+    }
+
+
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ HA.class "tseditor-content" ]
-        [ horizonwidget
-              model.horizon
-              { inferredFreqMsg = InferredFreq
-              , timeZoneMsg = TimeZoneSelected
-              , offsetMsg = UpdateOffset
-              , timeDeltaMsg = HorizonSelected
-              }
-              "action-center"
+        [ HA.style "margin" ".5em" ]
+        [ H.span [ HA.class "action-container" ]
+              <| I.viewactionwidgets model horizonevents
+        , I.viewtitle model CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]
             [ if model.plotStatus == Init
@@ -817,6 +841,8 @@ main =
                     { baseurl = input.baseurl
                     , errors = []
                     , meta = Dict.empty
+                    , source = "local"
+                    , seriestype = I.Primary
                     , date_index = 0
                     , horizon =
                           { offset = 0
@@ -836,6 +862,7 @@ main =
                     , initialTs = Dict.empty
                     , view_nocache = False
                     , plotStatus = Init
+                    , clipboardclass = "bi bi-clipboard"
                     }
             in
             ( model

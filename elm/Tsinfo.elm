@@ -1001,6 +1001,14 @@ metaevents =
     }
 
 
+horizonevents =
+    { inferredFreqMsg = InferredFreq
+    , timeZoneMsg = TimeZoneSelected
+    , offsetMsg = UpdateOffset
+    , timeDeltaMsg = HorizonSelected
+    }
+
+
 deleteevents =
     { confirmdeletion = ConfirmDeletion
     , canceldeletion = CancelDeletion
@@ -1036,102 +1044,6 @@ viewdatespicker model events =
                         , HA.value currdate
                         , HE.onInput events.idatepickerchanged
                         ] [ ]
-            ]
-        ]
-
-
-viewactionwidgets model =
-    let
-        editorlabel =
-            case model.seriestype of
-                Primary ->  "edit values ⧉"
-                Formula ->  "show values ⧉"
-    in
-    [ H.div
-          [ HA.style "color" "grey", HA.class "title-like action-left" ]
-          [ H.text "Series " ]
-    , horizonwidget
-        model.horizon
-            { inferredFreqMsg = InferredFreq
-            , timeZoneMsg = TimeZoneSelected
-            , offsetMsg = UpdateOffset
-            , timeDeltaMsg = HorizonSelected
-            }
-        "action-center"
-    , H.div [ HA.class "action-right" ]
-        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
-              , HA.target "_blank"
-              ]
-              [ H.text "browse history ⧉" ]
-        , H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
-                    [ UB.string "name" model.name ]
-              , HA.target "_blank"
-              ]
-            [ H.text editorlabel ]
-        , case model.seriestype of
-              Formula ->
-                  H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
-                            [ UB.string "name" model.name ]
-                      , HA.target "_blank"
-                      ]
-                      [ H.text "edit formula" ]
-              Primary ->
-                  H.span [ ] [ ]
-        , if model.source == "local"
-          then I.viewdeletion model "series" deleteevents
-          else H.span [] []
-        , if model.source == "local"
-          then I.viewrenameaction model "series" renameevents
-          else H.span [] []
-        ]
-    ]
-
-
-viewtitle model =
-    let
-        ( tzaware, tzbadge, tztitle ) =
-            if (M.dget "tzaware" model.meta) == "true"
-            then ( "tzaware", "badge-success", "This series is time zone aware." )
-            else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
-
-        valuetype =
-            M.dget "value_type" model.meta
-
-        supervision =
-            M.dget "supervision_status" model.meta
-    in
-    H.p
-        [ ]
-        [ H.i
-              [ HA.class model.clipboardclass
-              , HE.onClick CopyNameToClipboard
-              ] [ ]
-        , H.span
-            [ HA.class "badges-spacing" ]
-            [ H.span
-                  [ HA.class "font-italic h4" ]
-                  [ H.text <| " " ++ model.name ++ " " ]
-            , H.span
-                [ HA.class "badge h4"
-                , HA.class tzbadge
-                , HA.title tztitle
-                ]
-                [ H.text tzaware ]
-            , H.span
-                [ HA.class "badge badge-info h4"
-                , HA.title "Supervision status of the series."
-                ]
-                [ H.text supervision ]
-            , H.span
-                [ HA.class "badge badge-primary h4"
-                , HA.title "Type of the series values."
-                ]
-                [ H.text valuetype ]
-            , H.span
-                [ HA.class "badge badge-secondary h4"
-                , HA.title "Name of the series source."
-                ]
-                [ H.text model.source ]
             ]
         ]
 
@@ -1205,8 +1117,12 @@ view model =
     in
     H.div
         [ HA.style "margin" ".5em" ]
-        [ H.span [ HA.class "action-container" ] <| viewactionwidgets model
-        , viewtitle model
+        [ H.span [ HA.class "action-container" ]
+              <| (I.viewactionwidgets model horizonevents) ++
+              [ I.viewdeletion model deleteevents
+              , I.viewrenameaction model renameevents
+              ]
+        , I.viewtitle model CopyNameToClipboard
         , case model.activetab of
               Plot ->
                   if strseries model

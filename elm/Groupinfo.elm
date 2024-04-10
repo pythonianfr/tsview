@@ -56,6 +56,7 @@ type alias Bindings =
 type alias Model =
     { baseurl : String
     , name : String
+    , source : String
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -568,7 +569,7 @@ deleteevents =
 
 view model =
     div [ A.style "margin" ".5em" ]
-        [ span [ A.style "float" "right" ] [ I.viewdeletion model "group" deleteevents ]
+        [ span [ A.style "float" "right" ] [ I.viewdeletion model deleteevents ]
          , h1 [ ]
               [ text "Group "
               , span
@@ -607,6 +608,7 @@ main =
                    model =
                        { baseurl = input.baseurl
                        , name = input.name
+                       , source = "local"
                        -- metadata edition
                        , canwrite = False
                        , editing = False

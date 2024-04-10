@@ -9,6 +9,7 @@ module Info exposing
     , rename
     , savemeta
     , SeriesType(..)
+    , viewactionwidgets
     , viewerrors
     , viewformula
     , viewdatespicker
@@ -17,12 +18,17 @@ module Info exposing
     , viewmeta
     , viewrenameaction
     , viewseealso
+    , viewtitle
     , viewusermeta
     )
 
 
 import Array exposing (Array)
 import Dict exposing (Dict)
+import Horizon exposing
+    ( Horizon
+    , horizonwidget
+    )
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -173,6 +179,89 @@ viewerrors model =
         , H.div [ ] <| List.map (\x -> H.p [ ] [ H.text x ]) model.errors
         ]
     else H.span [ ] [ ]
+
+
+viewactionwidgets model horizonevents =
+    let
+        editorlabel =
+            case model.seriestype of
+                Primary ->  "edit values ⧉"
+                Formula ->  "show values ⧉"
+    in
+    [ H.div
+          [ HA.style "color" "grey", HA.class "title-like action-left" ]
+          [ H.text "Series " ]
+    , horizonwidget model.horizon horizonevents "action-center"
+    , H.div [ HA.class "action-right" ]
+        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
+              , HA.target "_blank"
+              ]
+              [ H.text "browse history ⧉" ]
+        , H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
+                    [ UB.string "name" model.name ]
+              , HA.target "_blank"
+              ]
+            [ H.text editorlabel ]
+        , case model.seriestype of
+              Formula ->
+                  H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
+                            [ UB.string "name" model.name ]
+                      , HA.target "_blank"
+                      ]
+                      [ H.text "edit formula" ]
+              Primary ->
+                  H.span [ ] [ ]
+        ]
+    ]
+
+
+viewtitle model copyevent =
+    let
+        ( tzaware, tzbadge, tztitle ) =
+            if (M.dget "tzaware" model.meta) == "true"
+            then ( "tzaware", "badge-success", "This series is time zone aware." )
+            else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
+
+        valuetype =
+            M.dget "value_type" model.meta
+
+        supervision =
+            M.dget "supervision_status" model.meta
+    in
+    H.p
+        [ ]
+        [ H.i
+              [ HA.class model.clipboardclass
+              , HE.onClick copyevent
+              ] [ ]
+        , H.span
+            [ HA.class "badges-spacing" ]
+            [ H.span
+                  [ HA.class "font-italic h4" ]
+                  [ H.text <| " " ++ model.name ++ " " ]
+            , H.span
+                [ HA.class "badge h4"
+                , HA.class tzbadge
+                , HA.title tztitle
+                ]
+                [ H.text tzaware ]
+            , H.span
+                [ HA.class "badge badge-info h4"
+                , HA.title "Supervision status of the series."
+                ]
+                [ H.text supervision ]
+            , H.span
+                [ HA.class "badge badge-primary h4"
+                , HA.title "Type of the series values."
+                ]
+                [ H.text valuetype ]
+            , H.span
+                [ HA.class "badge badge-secondary h4"
+                , HA.title "Name of the series source."
+                ]
+                [ H.text model.source ]
+            ]
+        ]
 
 
 viewdatespicker model events =
@@ -535,7 +624,8 @@ viewlog model showtitle =
     else H.div [ ] [ ]
 
 
-viewdeletion model dtype events  =
+viewdeletion model events  =
+    if model.source /= "local" then H.span [] [] else
     if model.deleting then
         H.div [ ]
             [ H.button
@@ -561,7 +651,8 @@ viewdeletion model dtype events  =
             ]
 
 
-viewrenameaction model dtype events =
+viewrenameaction model events =
+    if model.source /= "local" then H.span [] [] else
     if model.renaming then
         let
             value =
