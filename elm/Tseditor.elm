@@ -1,4 +1,4 @@
-port module TsEditor exposing (main)
+port module Tseditor exposing (main)
 
 import Array exposing (Array)
 import Browser

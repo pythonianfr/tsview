@@ -28,7 +28,7 @@ qeditor:
 	elm make elm/Queryeditor.elm $(FLAGS) --output tsview/tsview_static/qeditor_elm.js
 
 tseditor:
-	elm make elm/TsEditor.elm $(FLAGS) --output tsview/tsview_static/tseditor_elm.js
+	elm make elm/Tseditor.elm $(FLAGS) --output tsview/tsview_static/tseditor_elm.js
 
 
 # now vendored in tsview_static
