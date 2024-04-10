@@ -26,6 +26,10 @@ import OrderedDict as OD
 import Util as U
 
 
+port saveToLocalStorage : DataInCache -> Cmd msg
+port savedDataInCache : (String -> msg) -> Sub msg
+
+
 type alias Offset =
     Either Int Int
 
@@ -58,12 +62,6 @@ type alias HorizonMsg msg =
     , offsetMsg : ( Offset -> msg )
     , timeDeltaMsg : ( Horizon -> msg )
     }
-
-
-port saveToLocalStorage : DataInCache -> Cmd msg
-
-
-port savedDataInCache : (String -> msg) -> Sub msg
 
 
 dataInCacheDecoder : D.Decoder DataInCache
