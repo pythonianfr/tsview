@@ -212,7 +212,7 @@ viewdatespicker model events =
 
 viewmeta model =
     let
-        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype" ]
+        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype", "supervision_status" ]
         fixval name val =
             if name == "supervision_status" && val == ""
             then "formula"

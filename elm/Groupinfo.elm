@@ -568,7 +568,7 @@ deleteevents =
 
 view model =
     div [ A.style "margin" ".5em" ]
-        [ I.viewdeletion model "group" deleteevents
+        [ span [ A.style "float" "right" ] [ I.viewdeletion model "group" deleteevents ]
          , h1 [ ]
               [ text "Group "
               , span
@@ -640,7 +640,7 @@ main =
                in
                ( model
                , Cmd.batch
-                   [ M.getmetadata input.baseurl input.name GotMeta "group"
+                   [ M.getsysmetadata input.baseurl input.name GotMeta "group"
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
                    , getbindings model
