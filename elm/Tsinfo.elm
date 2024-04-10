@@ -220,31 +220,31 @@ getsource model name =
         }
 
 
-getplot : Model -> Bool -> Cmd Msg
-getplot model atidate =
+getplot : Model -> Cmd Msg
+getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
     in
-        getData
-            { baseurl = model.baseurl
-            , name = model.name
-            , idate = (if atidate then idate else Nothing)
-            , callback = GotPlotData
-            , nocache = (U.bool2int model.view_nocache)
-            , fromdate = Maybe.unwrap
-                "" (always model.horizon.mindate) model.horizon.horizon.key
-            , todate = Maybe.unwrap
-                "" (always model.horizon.maxdate) model.horizon.horizon.key
-            , horizon = model.horizon.horizon.key
-                |> Maybe.andThen (\key-> OD.get key horizons)
-                |> Maybe.map
-                    (String.replace "{offset}" (String.fromInt model.horizon.offset))
-            , tzone = model.horizon.timeZone
-            , inferredFreq = model.horizon.inferredFreq
-            , keepnans = False
-           }
-           "state"
+    getdata
+    { baseurl = model.baseurl
+    , name = model.name
+    , idate = idate
+    , callback = GotPlotData
+    , nocache = (U.bool2int model.view_nocache)
+    , fromdate =
+        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon.key
+    , todate =
+        Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon.key
+    , horizon =
+        model.horizon.horizon.key |>
+          Maybe.andThen (\key-> OD.get key horizons) |>
+          Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
+    , tzone = model.horizon.timeZone
+    , inferredFreq = model.horizon.inferredFreq
+    , keepnans = False
+    , apipoint = "state"
+    }
 
 
 getlog : String -> String-> Cmd Msg
@@ -466,7 +466,7 @@ update msg model =
             let newmodel = { model | view_nocache = False } in
             ( newmodel
             , Cmd.batch [ gethascache newmodel
-                        , getplot newmodel False
+                        , getplot newmodel
                         , I.getidates newmodel "series" InsertionDates
                         , getlog model.baseurl model.name
                         ]
@@ -485,7 +485,7 @@ update msg model =
             ( mod
             , Cmd.batch
                 [ I.getidates mod "series" InsertionDates
-                , getplot mod False
+                , getplot mod
                 ]
             )
 
@@ -541,7 +541,7 @@ update msg model =
                 Nothing -> U.nocmd model
                 Just date ->
                     ( newmodel
-                    , getplot newmodel True
+                    , getplot newmodel
                     )
 
         IdatePickerChanged value ->
@@ -554,7 +554,7 @@ update msg model =
                 newmodel = { model | date_index = newindex }
             in
             ( newmodel
-            , getplot newmodel True
+            , getplot newmodel
             )
 
         FvdatePickerChanged value ->
@@ -566,7 +566,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , getplot newmodel True
+            , getplot newmodel
             )
 
         TvdatePickerChanged value ->
@@ -577,7 +577,7 @@ update msg model =
                            }
             in
             ( newmodel
-            , getplot newmodel True
+            , getplot newmodel
             )
 
         -- user metadata edition
@@ -730,7 +730,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getplot newmodel False
+                [ getplot newmodel
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -752,12 +752,14 @@ update msg model =
                     in
                     ( newmodel
                     , Cmd.batch
-                        [ getplot newmodel False
+                        [ getplot newmodel
                         , saveToLocalStorage newDataInCacheDict
                         ]
                     )
                 Err _ ->
-                    (model, getplot model False)
+                    ( model
+                    , getplot model
+                    )
 
         TimeZoneSelected timeZone ->
             let
@@ -775,7 +777,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getplot model False
+                [ getplot model
                 , I.getidates newmodel "series" InsertionDates
                 , saveToLocalStorage dataInCache
                 ]
@@ -796,7 +798,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getplot model False
+                [ getplot model
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -813,7 +815,7 @@ updateModelOffset model i =
             { model | horizon = updateOffset offset model.horizon }
     in
     ( newmodel
-    , getplot newmodel False
+    , getplot newmodel
     )
 
 

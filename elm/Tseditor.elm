@@ -30,7 +30,7 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( getData
+    ( getdata
     , scatterplot
     , plotargs
     )
@@ -154,31 +154,25 @@ pasteditems raw =
     else [ raw ]
 
 
-geteditor : Model -> Bool -> (Result Http.Error String -> Msg) -> Cmd Msg
-geteditor model atidate msg =
-    let
-        idate =
-            Array.get model.date_index model.insertion_dates
-    in
-        getData
-            { baseurl = model.baseurl
-            , name = model.name
-            , idate = (if atidate then idate else Nothing)
-            , callback = msg
-            , nocache = (U.bool2int model.view_nocache)
-            , fromdate = Maybe.unwrap
-                "" (always model.horizon.mindate) model.horizon.horizon.key
-            , todate = Maybe.unwrap
-                "" (always model.horizon.maxdate) model.horizon.horizon.key
-            , horizon = model.horizon.horizon.key
-                |> Maybe.andThen (\key-> OD.get key horizons)
-                |> Maybe.map
-                    (String.replace "{offset}" (String.fromInt model.horizon.offset))
-            , tzone = model.horizon.timeZone
-            , inferredFreq = model.horizon.inferredFreq
-            , keepnans = True
-           }
-           "supervision"
+geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
+geteditor model callback =
+    getdata
+    { baseurl = model.baseurl
+    , name = model.name
+    , idate = Nothing
+    , callback = callback
+    , nocache = (U.bool2int model.view_nocache)
+    , fromdate =
+        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon.key
+    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon.key
+    , horizon = model.horizon.horizon.key |> Maybe.andThen
+                (\key-> OD.get key horizons) |> Maybe.map
+          (String.replace "{offset}" (String.fromInt model.horizon.offset))
+    , tzone = model.horizon.timeZone
+    , inferredFreq = model.horizon.inferredFreq
+    , keepnans = True
+    , apipoint = "supervision"
+    }
 
 
 incrementIndex : Int -> (String, Entry) -> (String, Entry)
@@ -233,7 +227,7 @@ update msg model =
             in
             ( newModel
             , Cmd.batch
-                [ geteditor newModel False GotEditData
+                [ geteditor newModel GotEditData
                 , Random.generate RandomNumber randomInt
                 , saveToLocalStorage dataInCache
                 ]
@@ -271,7 +265,7 @@ update msg model =
                                 (Array.fromList dates)
                     in
                     if currentInsertionDate /= lastInsertionDate then
-                        ( model, ( geteditor model False GetLastEditedData) )
+                        ( model, ( geteditor model GetLastEditedData) )
                     else
                         ( model, patchEditedData model )
 
@@ -315,7 +309,7 @@ update msg model =
         GotEditedData (Ok _) ->
             ( model
             , Cmd.batch
-                  [ geteditor model False GotEditData
+                  [ geteditor model GotEditData
                   , Random.generate RandomNumber randomInt
                   ]
             )
@@ -372,7 +366,7 @@ update msg model =
             in
             ( newModel
             , Cmd.batch
-                [ geteditor newModel False GotEditData
+                [ geteditor newModel GotEditData
                 , I.getidates newModel "series" InsertionDates
                 , saveToLocalStorage dataInCache
                 ]
@@ -393,7 +387,7 @@ update msg model =
             in
             ( newModel
             , Cmd.batch
-                [ geteditor newModel False GotEditData
+                [ geteditor newModel GotEditData
                 , saveToLocalStorage dataInCache
                 ]
             )
@@ -411,13 +405,13 @@ update msg model =
                     in
                     ( newModel
                     , Cmd.batch
-                        [ geteditor newModel False GotEditData
+                        [ geteditor newModel GotEditData
                         , Random.generate RandomNumber randomInt
                         , saveToLocalStorage newDataInCacheDict
                         ]
                     )
                 Err _ ->
-                    (model, (geteditor model False GotEditData))
+                    (model, (geteditor model GotEditData))
 
         NewDates listDates ->
             let
@@ -550,7 +544,7 @@ updateModelOffset model i =
     in
     ( newModel
     , Cmd.batch
-        [ geteditor newModel False GotEditData
+        [ geteditor newModel GotEditData
         , Random.generate RandomNumber randomInt
         ]
     )

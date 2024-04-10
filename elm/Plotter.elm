@@ -33,8 +33,9 @@ type alias CallBack msg =
     (Result Http.Error String -> msg)
 
 
-type alias PlotData msg =
+type alias PlotQuery msg =
     { baseurl : String
+    , apipoint : String
     , name : String
     , idate : Maybe String
     , callback : CallBack msg
@@ -87,31 +88,31 @@ plotargs div data =
     encodeplotargs div data |> E.encode 0
 
 
-getdata : PlotData msg -> String -> Cmd msg
-getdata data apipoint =
+-- getdata : PlotQuery query -> Cmd msg
+getdata query =
     let
         stringToMaybe : String -> String -> Maybe UB.QueryParameter
         stringToMaybe name value =
             if value == "" then Nothing else Just (UB.string name value)
         fullquery : List UB.QueryParameter
         fullquery = Maybe.values <|
-            [ stringToMaybe "name" data.name
-            , Maybe.andThen (stringToMaybe "insertion_date") data.idate
-            , Just <| UB.int "nocache" data.nocache
-            , stringToMaybe "_keep_nans" (if data.keepnans then "true" else "false")
-            , stringToMaybe "inferred_freq" (if data.inferredFreq then "true" else "false")
-            , stringToMaybe "tzone" data.tzone
+            [ stringToMaybe "name" query.name
+            , Maybe.andThen (stringToMaybe "insertion_date") query.idate
+            , Just <| UB.int "nocache" query.nocache
+            , stringToMaybe "_keep_nans" (if query.keepnans then "true" else "false")
+            , stringToMaybe "inferred_freq" (if query.inferredFreq then "true" else "false")
+            , stringToMaybe "tzone" query.tzone
             ]
             ++ Maybe.unwrap
-            [ stringToMaybe "from_value_date" data.fromdate
-            , stringToMaybe "to_value_date" data.todate
+            [ stringToMaybe "from_value_date" query.fromdate
+            , stringToMaybe "to_value_date" query.todate
             ]
             (\horizonstr -> [ stringToMaybe "horizon" (String.trim horizonstr) ])
-            data.horizon
+            query.horizon
     in
     Http.get
-        { url = UB.crossOrigin data.baseurl [ "api", "series", apipoint ] fullquery
-        , expect = Http.expectString data.callback
+        { url = UB.crossOrigin query.baseurl [ "api", "series", query.apipoint ] fullquery
+        , expect = Http.expectString query.callback
         }
 
 -- groups

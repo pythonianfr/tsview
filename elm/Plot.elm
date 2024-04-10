@@ -11,7 +11,13 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import KeywordSelector
-import Plotter exposing (getData, scatterplot, seriesdecoder, plotargs, Series)
+import Plotter exposing
+    ( Series
+    , getdata
+    , plotargs
+    , scatterplot
+    , seriesdecoder
+    )
 import SeriesSelector
 import Task exposing (Task)
 import Time exposing (Month(..))
@@ -106,7 +112,7 @@ fetchseries model restrict =
         missing = List.filter ismissing selected
     in
     List.map
-        (\name -> getData
+        (\name -> getdata
              { baseurl = model.prefix
              , name = name
              , idate = Nothing
@@ -118,8 +124,8 @@ fetchseries model restrict =
              , tzone = "UTC"
              , inferredFreq = True
              , keepnans = False
+             , apipoint = "state"
              }
-             "state"
         )
         missing
 
