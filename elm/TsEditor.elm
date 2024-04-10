@@ -749,7 +749,7 @@ viewRow ( date, entry ) =
     H.tr [ ]
         [ H.td
               [ HA.class rowStyle]
-              [ H.text date ]
+              [ H.text <| String.replace "T" " " date ]
         , H.td
             [ ]
             [ H.input
