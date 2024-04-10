@@ -143,15 +143,15 @@ onPaste msg =
   HE.on "pastewithdata" (D.map msg pasteWithDataDecoder)
 
 
-process : String -> List String
-process raw =
+pasteditems : String -> List String
+pasteditems raw =
     if String.contains "\n" raw
     then String.split "\n" raw
     else if String.contains "\r" raw
     then String.split "\r" raw
     else if String.contains " " raw
     then String.split " " raw
-    else [raw]
+    else [ raw ]
 
 
 geteditor : Model -> Bool -> (Result Http.Error String -> Msg) -> Cmd Msg
@@ -502,7 +502,7 @@ getPastedDict : Model -> PasteType -> Dict String Entry
 getPastedDict model payload =
     let
         newValues =
-            List.map parseCopyPastedData (process payload.text)
+            List.map parseCopyPastedData (pasteditems payload.text)
         firstIndex =
             Maybe.unwrap
                 0
