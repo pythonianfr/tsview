@@ -17,10 +17,7 @@ import Svg.Attributes exposing
     , d
     , width
     , height
-    , x
-    , y
-    , rx
-    , ry
+    , fill
     )
 import Html as H
 import Html.Attributes as A
@@ -161,8 +158,11 @@ displayIconeContent icones content =
         []
         ( List.map
             ( \ section -> H.li
-                            [ A.class "section-icon" ]
-                            [ buildSvg icones section
+                            [ A.class "section-icon"]
+                            [ H.div
+                                [ A.class "section-svg"
+                                , A.attribute "tag" section.label]
+                                [buildSvg icones section]
                             , displayIconeLinks icones section.links
                             ]
                            )
@@ -173,10 +173,10 @@ displayIconeLinks icones links =
         []
         ( List.map
             ( \ link -> H.li
-                            [ A.class "link-icon"
-                            , A.title link.label]
+                            [ A.class "link-icon" ]
                             [ H.a
-                                [ A.href link.target ]
+                                [ A.href link.target
+                                , A.attribute "tag" link.label ]
                                 [ buildSvg icones link] ] )
             links )
 
@@ -186,14 +186,13 @@ buildSvg icones content =
                     ( Dict.get content.icone icones )
     in
     svg
-    [ width "30"
-    , height "30"
-    , viewBox "0 0 16 16"
-    ]
-    ( List.map
-        ( \ ipath ->  buildSvgPath ipath )
-        icone
-    )
+        [ viewBox "0 0 16 16"
+        , fill "currentColor"
+        ]
+        ( List.map
+            ( \ ipath ->  buildSvgPath ipath )
+            icone
+        )
 
 buildSvgPath ipath =
     case ipath.fillRule of
@@ -202,7 +201,11 @@ buildSvgPath ipath =
 
 viewMenu model msgBuilder =
     H.div
-        [ A.class "menu-refinery"]
+        [ A.class "menu-refinery"
+        , if model.menuVisisble
+            then A.class "menu-with-text"
+            else A.class "menu-with-icon"
+        ]
         [ H.button
             [ HE.onClick (msgBuilder ToggleMenu)
             , A.title "show/hide nav"]
