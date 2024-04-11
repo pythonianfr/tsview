@@ -252,18 +252,8 @@ update msg model =
         GetLastInsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
-                    let
-                        currentInsertionDate =
-                            Array.get
-                                model.date_index
-                                model.insertion_dates
-                        lastInsertionDate =
-                            Array.get
-                                (List.length dates - 1)
-                                (Array.fromList dates)
-                    in
-                    if currentInsertionDate /= lastInsertionDate then
-                        ( model, ( geteditor model GetLastEditedData) )
+                    if (Array.length model.insertion_dates) /= (List.length dates) then
+                        ( model, geteditor model GetLastEditedData )
                     else
                         ( model, patchEditedData model )
 
