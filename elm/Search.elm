@@ -845,7 +845,8 @@ main =
                    debouncerconfig
                    debouncerconfig
                    { menuContent = Men.contentMenu
-                   , menuVisisble = False}
+                   , menuVisisble = False
+                   , icones = Men.iconesDefinition}
 
            init input =
                ( newmodel input
