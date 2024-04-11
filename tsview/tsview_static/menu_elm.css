@@ -1,0 +1,12 @@
+.menu-refinery ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu-refinery .section-icon {padding-top: 10px;}
+.menu-refinery .link-icon {
+    padding-top: 10px;
+    padding-left: 10px;
+    color: blue;
+}

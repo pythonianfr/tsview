@@ -161,7 +161,7 @@ displayIconeContent icones content =
         []
         ( List.map
             ( \ section -> H.li
-                            []
+                            [ A.class "section-icon" ]
                             [ buildSvg icones section
                             , displayIconeLinks icones section.links
                             ]
@@ -173,7 +173,8 @@ displayIconeLinks icones links =
         []
         ( List.map
             ( \ link -> H.li
-                            []
+                            [ A.class "link-icon"
+                            , A.title link.label]
                             [ H.a
                                 [ A.href link.target ]
                                 [ buildSvg icones link] ] )
