@@ -402,30 +402,24 @@ update msg model =
                 Err _ ->
                     (model, (geteditor model GotEditData))
 
-        NewDates listDates ->
+        NewDates dates ->
             let
-                newHorizonModel =
+                horizonmodel =
                     model.horizon
-                newinitalTs =
-                    updateEditedValue model model.initialTs
-                newModel =
-                    if List.isEmpty listDates then
-                        { model
-                            | horizon = { newHorizonModel | timeSeries = newinitalTs }
-                        }
+                newmodel =
+                    if List.isEmpty dates then
+                        { model | horizon = { horizonmodel | timeSeries = model.initialTs } }
                     else
-                        let
-                            newTs =
-                                Dict.filter
-                                    (\key _ -> List.member key listDates)
-                                    model.horizon.timeSeries
-                        in
                         { model
-                            | initialTs = newinitalTs
-                            , horizon = { newHorizonModel | timeSeries = newTs }
+                            | horizon =
+                              { horizonmodel |
+                                    timeSeries = Dict.filter
+                                                 (\key _ -> List.member key dates)
+                                                 horizonmodel.timeSeries
+                              }
                         }
             in
-            ( newModel
+            ( newmodel
             , Random.generate RandomNumber randomInt
             )
 
