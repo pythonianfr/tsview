@@ -6,7 +6,6 @@ import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
     ( DataInCache
-    , Horizon
     , HorizonModel
     , Offset
     , dataInCacheDecoder
@@ -70,7 +69,7 @@ type alias Model =
 type Msg
     = GotEditData (Result Http.Error String)
     | GotMetadata (Result Http.Error String)
-    | HorizonSelected Horizon
+    | HorizonSelected (Maybe String)
     | UpdateOffset Offset
     | InputChanged String String
     | SaveEditedData
@@ -163,9 +162,9 @@ geteditor model callback =
     , callback = callback
     , nocache = (U.bool2int model.view_nocache)
     , fromdate =
-        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon.key
-    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon.key
-    , horizon = model.horizon.horizon.key |> Maybe.andThen
+        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
+    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+    , horizon = model.horizon.horizon |> Maybe.andThen
                 (\key-> OD.get key horizons) |> Maybe.map
           (String.replace "{offset}" (String.fromInt model.horizon.offset))
     , tzone = model.horizon.timeZone
@@ -216,7 +215,7 @@ update msg model =
             let
                 dataInCache =
                     DataInCache
-                        horizon.key
+                        horizon
                         model.horizon.timeZone
                         model.horizon.inferredFreq
 
@@ -359,7 +358,7 @@ update msg model =
                            }
                 dataInCache =
                     DataInCache
-                        model.horizon.horizon.key
+                        model.horizon.horizon
                         timeZone
                         model.horizon.inferredFreq
 
@@ -381,7 +380,7 @@ update msg model =
                            }
                 dataInCache =
                     DataInCache
-                        model.horizon.horizon.key
+                        model.horizon.horizon
                         model.horizon.timeZone
                         isChecked
             in
@@ -838,7 +837,7 @@ main =
                     , date_index = 0
                     , horizon =
                           { offset = 0
-                          , horizon = {key = Just defaultHorizon}
+                          , horizon = Just defaultHorizon
                           , inferredFreq = False
                           , mindate = ""
                           , maxdate = ""

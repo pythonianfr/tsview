@@ -25,10 +25,7 @@ module Info exposing
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Horizon exposing
-    ( Horizon
-    , horizonwidget
-    )
+import Horizon exposing (horizonwidget)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE

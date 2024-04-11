@@ -14,7 +14,6 @@ import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
     ( DataInCache
-    , Horizon
     , HorizonModel
     , Offset
     , dataInCacheDecoder
@@ -179,7 +178,7 @@ type Msg
     | CopyNameToClipboard
     | ResetClipboardClass
     -- horizon
-    | HorizonSelected Horizon
+    | HorizonSelected (Maybe String)
     | UpdateOffset Offset
     | SetDataInCache String
     | TimeZoneSelected String
@@ -233,11 +232,11 @@ getplot model =
     , callback = GotPlotData
     , nocache = (U.bool2int model.view_nocache)
     , fromdate =
-        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon.key
+        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
     , todate =
-        Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon.key
+        Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
     , horizon =
-        model.horizon.horizon.key |>
+        model.horizon.horizon |>
           Maybe.andThen (\key-> OD.get key horizons) |>
           Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
     , tzone = model.horizon.timeZone
@@ -722,7 +721,7 @@ update msg model =
             let
                 dataInCache =
                     DataInCache
-                        horizon.key
+                        horizon
                         model.horizon.timeZone
                         model.horizon.inferredFreq
 
@@ -770,7 +769,7 @@ update msg model =
                     }
                 dataInCache =
                     DataInCache
-                        model.horizon.horizon.key
+                        model.horizon.horizon
                         timeZone
                         model.horizon.inferredFreq
 
@@ -792,7 +791,7 @@ update msg model =
 
                 dataInCache =
                     DataInCache
-                        model.horizon.horizon.key
+                        model.horizon.horizon
                         model.horizon.timeZone
                         isChecked
             in
@@ -1212,7 +1211,7 @@ main =
                        , clipboardclass = "bi bi-clipboard"
                        , horizon =
                             { offset = 0
-                            , horizon = {key = Just defaultHorizon}
+                            , horizon = Just defaultHorizon
                             , inferredFreq = False
                             , mindate = ""
                             , maxdate = ""

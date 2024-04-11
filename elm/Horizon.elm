@@ -1,6 +1,5 @@
 port module Horizon exposing
     ( DataInCache
-    , Horizon
     , HorizonModel
     , Offset
     , dataInCacheDecoder
@@ -36,7 +35,7 @@ type alias Offset =
 
 type alias HorizonModel v =
     { offset : Int
-    , horizon : Horizon
+    , horizon : Maybe String
     , inferredFreq : Bool
     , mindate : String
     , maxdate : String
@@ -45,8 +44,8 @@ type alias HorizonModel v =
     }
 
 
-type alias Horizon =
-    { key : Maybe String }
+-- type alias Horizon =
+--     { key : Maybe String }
 
 
 type alias DataInCache =
@@ -60,7 +59,7 @@ type alias HorizonMsg msg =
     { inferredFreqMsg : ( Bool -> msg )
     , timeZoneMsg : ( String -> msg )
     , offsetMsg : ( Offset -> msg )
-    , timeDeltaMsg : ( Horizon -> msg )
+    , timeDeltaMsg : ( Maybe String -> msg )
     }
 
 
@@ -127,7 +126,7 @@ updateOffset newOffset model =
     { model | offset = newOffset }
 
 
-updateHorizon : Horizon -> HorizonModel v -> HorizonModel v
+updateHorizon : Maybe String -> HorizonModel v -> HorizonModel v
 updateHorizon horizon model =
     { model
         | horizon = horizon
@@ -138,7 +137,7 @@ updateHorizon horizon model =
 updateDataInCache : DataInCache -> HorizonModel v -> HorizonModel v
 updateDataInCache dataInCache model =
     { model
-        | horizon = { key = dataInCache.horizon }
+        | horizon = dataInCache.horizon
         , inferredFreq = dataInCache.inferredFreq
         , timeZone = dataInCache.timeZone
     }
@@ -193,7 +192,7 @@ selectHorizon model horizonMsg =
             |> D.map horizonMsg.timeDeltaMsg
             |> HE.on "change"
         ]
-        (List.map (renderhorizon model.horizon.key)
+        (List.map (renderhorizon model.horizon)
             <| "All" :: (OD.keys horizons)
         )
 
@@ -207,12 +206,13 @@ renderhorizon selectedhorizon horizon =
         [ H.text horizon ]
 
 
-readHorizon : String -> D.Decoder Horizon
-readHorizon key = D.succeed <| Horizon <|
-    if List.member key (OD.keys horizons) then
-        Just key
-    else
-        Nothing
+readHorizon : String -> D.Decoder (Maybe String)
+readHorizon key =
+    D.succeed <|
+        if List.member key (OD.keys horizons) then
+            Just key
+        else
+            Nothing
 
 
 renderTimeZone : String -> String -> H.Html msg
