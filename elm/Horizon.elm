@@ -148,11 +148,12 @@ updateHorizonModel : HorizonModel v -> Dict String v -> HorizonModel v
 updateHorizonModel model val =
     let
         tsBounds = formatBoundDates val
-    in { model
-           | mindate = Tuple.first tsBounds
-           , maxdate = Tuple.second tsBounds
-           , timeSeries = val
-       }
+    in
+    { model
+        | mindate = Tuple.first tsBounds
+        , maxdate = Tuple.second tsBounds
+        , timeSeries = val
+    }
 
 
 formatBoundDates : Dict String v -> (String, String)
@@ -166,7 +167,8 @@ formatBoundDates val =
         maxappdate = U.cleanupdate
                      <| Maybe.withDefault ""
                      <| List.maximum dates
-    in ( U.dateof minappdate, U.dateof maxappdate )
+    in
+    ( U.dateof minappdate, U.dateof maxappdate )
 
 
 buttonArrow : String  -> HorizonMsg msg -> String -> H.Html msg
