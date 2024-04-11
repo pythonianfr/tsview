@@ -178,9 +178,9 @@ type Msg
     | CopyNameToClipboard
     | ResetClipboardClass
     -- horizon
+    | FromLocalStorage String
     | HorizonSelected (Maybe String)
     | UpdateOffset Offset
-    | SetDataInCache String
     | TimeZoneSelected String
     | InferredFreq Bool
 
@@ -740,20 +740,17 @@ update msg model =
         UpdateOffset (Right i) ->
             updateModelOffset model -i
 
-        SetDataInCache newDataInCache ->
-            case D.decodeString dataInCacheDecoder newDataInCache of
-                Ok newDataInCacheDict ->
+        FromLocalStorage rawdata ->
+            case D.decodeString dataInCacheDecoder rawdata of
+                Ok datadict ->
                     let
                         newmodel =
                             { model | horizon =
-                                  updateDataInCache newDataInCacheDict model.horizon
+                                  updateDataInCache datadict model.horizon
                             }
                     in
                     ( newmodel
-                    , Cmd.batch
-                        [ getplot newmodel
-                        , saveToLocalStorage newDataInCacheDict
-                        ]
+                    , getplot newmodel
                     )
                 Err _ ->
                     ( model
@@ -1235,5 +1232,5 @@ main =
                { init = init
                , view = view
                , update = update
-               , subscriptions = \_ -> savedDataInCache SetDataInCache
+               , subscriptions = \_ -> savedDataInCache FromLocalStorage
                }

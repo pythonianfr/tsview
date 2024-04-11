@@ -81,7 +81,7 @@ type Msg
     | RandomNumber Int
     | TimeZoneSelected String
     | InferredFreq Bool
-    | SetDataInCache String
+    | FromLocalStorage String
     | NewDates (List String)
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -381,22 +381,20 @@ update msg model =
                 ]
             )
 
-        SetDataInCache newDataInCache ->
-            case D.decodeString dataInCacheDecoder newDataInCache of
-                Ok newDataInCacheDict ->
+        FromLocalStorage rawdata ->
+            case D.decodeString dataInCacheDecoder rawdata of
+                Ok datadict ->
                     let
-                        newModel =
+                        newmodel =
                             { model
                                 | plotStatus = Loading
-                                , horizon =
-                                  updateDataInCache newDataInCacheDict model.horizon
+                                , horizon = updateDataInCache datadict model.horizon
                             }
                     in
-                    ( newModel
+                    ( newmodel
                     , Cmd.batch
-                        [ geteditor newModel GotEditData
+                        [ geteditor newmodel GotEditData
                         , Random.generate RandomNumber randomInt
-                        , saveToLocalStorage newDataInCacheDict
                         ]
                     )
                 Err _ ->
@@ -849,7 +847,7 @@ main =
         , update = update
         , subscriptions =
               \_ -> Sub.batch
-                    [ savedDataInCache SetDataInCache
+                    [ savedDataInCache FromLocalStorage
                     , dateInInterval NewDates
                     ]
     }
