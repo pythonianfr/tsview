@@ -274,6 +274,7 @@ update msg model =
                                     (Dict.toList val)
                         newDict =
                             updateEditedValue model incrementedVal
+
                         newModel =
                             { model
                                 | horizon = updateHorizonModel model.horizon newDict
@@ -541,14 +542,10 @@ updateModelOffset model i =
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
     let
-        mtzaware =
-            Maybe.withDefault (M.MBool True) <|
-                Dict.get "tzaware" model.meta
-
         tzaware =
-            case mtzaware of
-                M.MBool b -> b
-                _ -> True
+            case Dict.get "tzaware" model.meta of
+                Just (M.MBool val) -> val
+                _ -> False
 
         filteredDict =
             model.horizon.timeSeries
