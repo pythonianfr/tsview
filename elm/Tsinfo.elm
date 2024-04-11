@@ -797,7 +797,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getplot model
+                [ getplot newmodel
                 , saveToLocalStorage dataInCache
                 ]
             )
