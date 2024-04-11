@@ -108,6 +108,8 @@ type PlotStatus
     | Failure
 
 
+-- pasting data
+
 textDecoder: D.Decoder String
 textDecoder =
      D.at [ "detail", "text" ] D.string
@@ -118,28 +120,9 @@ indexDecoder =
      D.at [ "detail", "index" ] D.string
 
 
-entryDecoder : D.Decoder Entry
-entryDecoder =
-    D.map4 Entry
-        (D.field "series" (D.maybe D.float))
-        (D.field "markers" D.bool)
-        (D.succeed Nothing)
-        (D.succeed 0)
-
-
 pasteWithDataDecoder : D.Decoder PasteType
 pasteWithDataDecoder =
         D.map2 PasteType textDecoder indexDecoder
-
-
-dataDecoder : D.Decoder (Dict String Entry)
-dataDecoder =
-    D.dict entryDecoder
-
-
-onPaste : (PasteType -> msg) -> H.Attribute msg
-onPaste msg =
-  HE.on "pastewithdata" (D.map msg pasteWithDataDecoder)
 
 
 pasteditems : String -> List String
@@ -151,6 +134,22 @@ pasteditems raw =
     else if String.contains " " raw
     then String.split " " raw
     else [ raw ]
+
+
+-- series decoder
+
+entryDecoder : D.Decoder Entry
+entryDecoder =
+    D.map4 Entry
+        (D.field "series" (D.maybe D.float))
+        (D.field "markers" D.bool)
+        (D.succeed Nothing)
+        (D.succeed 0)
+
+
+dataDecoder : D.Decoder (Dict String Entry)
+dataDecoder =
+    D.dict entryDecoder
 
 
 geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
@@ -751,7 +750,7 @@ viewRow ( date, entry ) =
                   , HA.value data
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
-                  , onPaste Paste
+                  , HE.on "pastewithdata" (D.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
             ]
