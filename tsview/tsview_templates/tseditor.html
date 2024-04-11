@@ -104,7 +104,7 @@
          if (incache === null) {
              incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
          }
-         app.ports.savedDataInCache.send(incache);
+         app.ports.loadFromLocalStorage.send(incache);
         </script>
     </body>
 </html>

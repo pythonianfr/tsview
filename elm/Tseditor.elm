@@ -5,15 +5,15 @@ import Browser
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
-    ( DataInCache
-    , HorizonModel
+    ( HorizonModel
+    , LocalStorageData
     , Offset
-    , dataInCacheDecoder
     , defaultHorizon
     , horizons
+    , loadFromLocalStorage
+    , localstoragedecoder
     , saveToLocalStorage
-    , savedDataInCache
-    , updateDataInCache
+    , updatefromlocalstorage
     , updateHorizon
     , updateHorizonModel
     , updateOffset
@@ -212,22 +212,23 @@ update msg model =
 
         HorizonSelected horizon ->
             let
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         horizon
                         model.horizon.timeZone
                         model.horizon.inferredFreq
 
-                newModel = { model
-                               | plotStatus = Loading
-                               , horizon =  updateHorizon horizon model.horizon
-                           }
+                newmodel =
+                    { model
+                        | plotStatus = Loading
+                        , horizon = updateHorizon horizon model.horizon
+                    }
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
-                [ geteditor newModel GotEditData
+                [ geteditor newmodel GotEditData
                 , Random.generate RandomNumber randomInt
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
@@ -346,8 +347,8 @@ update msg model =
                                | plotStatus = Loading
                                , horizon = { newHorizonModel | timeZone = timeZone }
                            }
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         model.horizon.horizon
                         timeZone
                         model.horizon.inferredFreq
@@ -357,7 +358,7 @@ update msg model =
             , Cmd.batch
                 [ geteditor newModel GotEditData
                 , I.getidates newModel "series" InsertionDates
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
@@ -368,8 +369,8 @@ update msg model =
                                | plotStatus = Loading
                                , horizon = { newHorizonModel | inferredFreq = isChecked }
                            }
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         model.horizon.horizon
                         model.horizon.timeZone
                         isChecked
@@ -377,18 +378,18 @@ update msg model =
             ( newModel
             , Cmd.batch
                 [ geteditor newModel GotEditData
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
         FromLocalStorage rawdata ->
-            case D.decodeString dataInCacheDecoder rawdata of
+            case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
                     let
                         newmodel =
                             { model
                                 | plotStatus = Loading
-                                , horizon = updateDataInCache datadict model.horizon
+                                , horizon = updatefromlocalstorage datadict model.horizon
                             }
                     in
                     ( newmodel
@@ -398,7 +399,9 @@ update msg model =
                         ]
                     )
                 Err _ ->
-                    (model, (geteditor model GotEditData))
+                    ( model
+                    , geteditor model GotEditData
+                    )
 
         NewDates dates ->
             let
@@ -847,7 +850,7 @@ main =
         , update = update
         , subscriptions =
               \_ -> Sub.batch
-                    [ savedDataInCache FromLocalStorage
+                    [ loadFromLocalStorage FromLocalStorage
                     , dateInInterval NewDates
                     ]
     }

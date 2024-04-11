@@ -1,14 +1,14 @@
 port module Horizon exposing
-    ( DataInCache
-    , HorizonModel
+    ( HorizonModel
+    , LocalStorageData
     , Offset
-    , dataInCacheDecoder
     , defaultHorizon
     , horizons
     , horizonwidget
     , saveToLocalStorage
-    , savedDataInCache
-    , updateDataInCache
+    , loadFromLocalStorage
+    , localstoragedecoder
+    , updatefromlocalstorage
     , updateHorizon
     , updateHorizonModel
     , updateOffset
@@ -25,8 +25,8 @@ import OrderedDict as OD
 import Util as U
 
 
-port saveToLocalStorage : DataInCache -> Cmd msg
-port savedDataInCache : (String -> msg) -> Sub msg
+port saveToLocalStorage : LocalStorageData -> Cmd msg
+port loadFromLocalStorage : (String -> msg) -> Sub msg
 
 
 type alias Offset =
@@ -44,11 +44,7 @@ type alias HorizonModel v =
     }
 
 
--- type alias Horizon =
---     { key : Maybe String }
-
-
-type alias DataInCache =
+type alias LocalStorageData =
     { horizon : Maybe String
     , timeZone : String
     , inferredFreq : Bool
@@ -63,9 +59,9 @@ type alias HorizonMsg msg =
     }
 
 
-dataInCacheDecoder : D.Decoder DataInCache
-dataInCacheDecoder =
-    D.map3 DataInCache
+localstoragedecoder : D.Decoder LocalStorageData
+localstoragedecoder =
+    D.map3 LocalStorageData
         (D.field "horizon" (D.nullable D.string))
         (D.field "timeZone" D.string)
         (D.field "inferredFreq" D.bool)
@@ -134,12 +130,12 @@ updateHorizon horizon model =
     }
 
 
-updateDataInCache : DataInCache -> HorizonModel v -> HorizonModel v
-updateDataInCache dataInCache model =
+updatefromlocalstorage : LocalStorageData -> HorizonModel v -> HorizonModel v
+updatefromlocalstorage data model =
     { model
-        | horizon = dataInCache.horizon
-        , inferredFreq = dataInCache.inferredFreq
-        , timeZone = dataInCache.timeZone
+        | horizon = data.horizon
+        , inferredFreq = data.inferredFreq
+        , timeZone = data.timeZone
     }
 
 

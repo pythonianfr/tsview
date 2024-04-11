@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Browser
 import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
-    (Debouncer
+    ( Debouncer
     , fromSeconds
     , provideInput
     , settleWhenQuietFor
@@ -13,16 +13,16 @@ import Debouncer.Messages as Debouncer exposing
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Horizon exposing
-    ( DataInCache
-    , HorizonModel
+    ( HorizonModel
+    , LocalStorageData
     , Offset
-    , dataInCacheDecoder
     , defaultHorizon
     , horizons
     , horizonwidget
+    , localstoragedecoder
+    , loadFromLocalStorage
     , saveToLocalStorage
-    , savedDataInCache
-    , updateDataInCache
+    , updatefromlocalstorage
     , updateHorizon
     , updateHorizonModel
     , updateOffset
@@ -719,8 +719,8 @@ update msg model =
 
         HorizonSelected horizon ->
             let
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         horizon
                         model.horizon.timeZone
                         model.horizon.inferredFreq
@@ -730,7 +730,7 @@ update msg model =
             ( newmodel
             , Cmd.batch
                 [ getplot newmodel
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
@@ -741,12 +741,12 @@ update msg model =
             updateModelOffset model -i
 
         FromLocalStorage rawdata ->
-            case D.decodeString dataInCacheDecoder rawdata of
+            case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
                     let
                         newmodel =
-                            { model | horizon =
-                                  updateDataInCache datadict model.horizon
+                            { model
+                                | horizon = updatefromlocalstorage datadict model.horizon
                             }
                     in
                     ( newmodel
@@ -764,8 +764,8 @@ update msg model =
                     { model |
                           horizon = { horizon | timeZone = timeZone }
                     }
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         model.horizon.horizon
                         timeZone
                         model.horizon.inferredFreq
@@ -775,7 +775,7 @@ update msg model =
             , Cmd.batch
                 [ getplot model
                 , I.getidates newmodel "series" InsertionDates
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
@@ -786,8 +786,8 @@ update msg model =
                 newmodel =
                     { model | horizon = { horizon | inferredFreq = isChecked } }
 
-                dataInCache =
-                    DataInCache
+                userprefs =
+                    LocalStorageData
                         model.horizon.horizon
                         model.horizon.timeZone
                         isChecked
@@ -795,7 +795,7 @@ update msg model =
             ( newmodel
             , Cmd.batch
                 [ getplot newmodel
-                , saveToLocalStorage dataInCache
+                , saveToLocalStorage userprefs
                 ]
             )
 
@@ -1232,5 +1232,5 @@ main =
                { init = init
                , view = view
                , update = update
-               , subscriptions = \_ -> savedDataInCache FromLocalStorage
+               , subscriptions = \_ -> loadFromLocalStorage FromLocalStorage
                }
