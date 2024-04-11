@@ -1,15 +1,17 @@
-module Metadata exposing (MetaVal(..)
-                         , decodemeta
-                         , decodemetaval
-                         , dget
-                         , encodemeta
-                         , getmetadata
-                         , getsysmetadata
-                         , getusermetadata
-                         , metanames
-                         , metavaltostring
-                         , UserMetadata
-                         , StdMetadata)
+module Metadata exposing
+    ( MetaVal(..)
+    , UserMetadata
+    , StdMetadata
+    , decodemeta
+    , decodemetaval
+    , dget
+    , encodemeta
+    , getmetadata
+    , getsysmetadata
+    , getusermetadata
+    , metanames
+    , metavaltostring
+    )
 
 import Dict exposing (Dict)
 import Http
