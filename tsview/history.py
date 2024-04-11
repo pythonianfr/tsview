@@ -121,7 +121,7 @@ def historic(app,
         }
 
     def tzaware(id_serie):
-        return tsa.metadata(id_serie, True)['tzaware']
+        return tsa.internal_metadata(id_serie)['tzaware']
 
     def history(id_serie, fromdate=None, todate=None):
         return _history(id_serie, fromdate, todate)
