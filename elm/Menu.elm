@@ -138,7 +138,9 @@ displaySection content =
         ( List.map
             ( \ section -> H.li
                             []
-                            [ H.text section.label
+                            [ H.p
+                                [ A.class "section-text" ]
+                                [ H.text section.label ]
                             , displayLinks section.links ] )
             content )
 
@@ -147,7 +149,7 @@ displayLinks links =
         []
         ( List.map
             (\ link -> H.li
-                            []
+                            [A.class "link-text"]
                             [ H.a
                                 [ A.href link.target ]
                                 [ H.text link.label ] ] )

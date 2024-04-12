@@ -30,14 +30,26 @@
     color: black;
 }
 
-
-.section-icon {
+.section-text {
+    color: white;
+    background-color: black;
+    border-radius: 5px;
+    padding-left: 5px;
+    margin-bottom: 0px;
+}
+.menu-with-text ul li ul {
+    background-color: #e0e0e0;
+    border-radius: 5px;
 }
 
-.section-icon ul:hover {
-
+.link-text {
+    color: black;
+    padding-left: 10px;
 }
 
+.link-text a {
+    color: black;
+}
 
 .section-icon>div>svg {
     border-radius: 10px;
