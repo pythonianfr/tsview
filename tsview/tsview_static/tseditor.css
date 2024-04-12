@@ -7,10 +7,6 @@
     min-height: 20px;
 }
 
-.graph {
-    grid-area: graph;
-}
-
 .tables {
     grid-area: tables;
     display: grid;

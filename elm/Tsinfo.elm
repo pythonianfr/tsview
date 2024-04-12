@@ -43,8 +43,6 @@ import OrderedDict as OD
 import Plotter exposing
     ( getdata
     , seriesdecoder
-    , scatterplot
-    , plotargs
     )
 import Process as P
 import Task as T
@@ -971,19 +969,12 @@ idatepickerevents =
 viewplot : Model -> H.Html Msg
 viewplot model =
     let
-        plot = scatterplot model.name
-               (Dict.keys model.horizon.timeSeries)
-               (Dict.values model.horizon.timeSeries)
-               "lines"
-        args = plotargs "plot" [plot]
+        ts = model.horizon.timeSeries
     in
     H.div []
         [ viewdatespicker model idatepickerevents
         , viewdatesrange model
-        , H.div [ HA.id "plot" ] []
-        -- the "plot-figure" node is pre-built in the template side
-        -- (html component)
-        , H.node "plot-figure" [ HA.attribute "args" args ] []
+        , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
         ]
 
 

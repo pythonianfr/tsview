@@ -10,10 +10,11 @@ module Info exposing
     , savemeta
     , SeriesType(..)
     , viewactionwidgets
-    , viewerrors
-    , viewformula
     , viewdatespicker
     , viewdeletion
+    , viewerrors
+    , viewformula
+    , viewgraph
     , viewlog
     , viewmeta
     , viewrenameaction
@@ -34,6 +35,10 @@ import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Lisp
+import Plotter exposing
+    ( plotargs
+    , scatterplot
+    )
 import Metadata as M
 import Url.Builder as UB
 import Util as U
@@ -597,6 +602,20 @@ viewlogentry entry =
         , H.td [ ] [ H.text entry.author ]
         , H.td [ ] [ H.text entry.date ]
         , H.td [ ] [ H.text <| metadicttostring entry.meta ]
+        ]
+
+
+viewgraph name tskeys tsvalues =
+    let
+        plot =
+            scatterplot name tskeys tsvalues "lines"
+        args =
+            plotargs "plot" [ plot ]
+    in
+    H.div
+        [ ]
+        [ H.div [ HA.id "plot" ] [ ]
+        , H.node "plot-figure" [ HA.attribute "args" args ] [ ]
         ]
 
 

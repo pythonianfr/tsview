@@ -751,24 +751,6 @@ viewRow model ( date, entry ) =
         ]
 
 
-viewPlotData : Model -> H.Html Msg
-viewPlotData model =
-    let
-        plot =
-            scatterplot model.name
-                (Dict.keys model.horizon.timeSeries)
-                (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
-                "lines"
-        args =
-            plotargs "plot" [ plot ]
-    in
-    H.div
-        [ HA.class "graph"]
-        [ H.div [ HA.id "plot" ] [ ]
-        , H.node "plot-figure" [ HA.attribute "args" args ] [ ]
-        ]
-
-
 statusText : PlotStatus -> String
 statusText plotStatus =
     if plotStatus == Init then
@@ -805,7 +787,10 @@ view model =
                                 interval, select another one."""
                    else H.text (statusText model.plotStatus)
             ]
-        , viewPlotData model
+        , I.viewgraph
+            model.name
+            (Dict.keys model.horizon.timeSeries)
+            (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
         , divTablesSection model
         ]
 
