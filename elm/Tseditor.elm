@@ -188,6 +188,22 @@ update msg model =
     let
         doerr tag error =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
+
+        updateoffset i =
+            let
+                offset =
+                    model.horizon.offset + i
+                newmodel =
+                    { model | plotStatus = Loading
+                    , horizon = updateOffset offset model.horizon
+                    }
+            in
+            ( newmodel
+            , Cmd.batch
+                [ geteditor newmodel GotEditData
+                , Random.generate RandomNumber randomInt
+                ]
+            )
     in
     case msg of
         GotEditData (Ok rawdata) ->
@@ -232,10 +248,10 @@ update msg model =
             )
 
         UpdateOffset (Left i) ->
-            updateModelOffset model i
+            updateoffset i
 
         UpdateOffset (Right i) ->
-            updateModelOffset model -i
+            updateoffset -i
 
         InputChanged date value ->
             let
@@ -491,23 +507,6 @@ updateEntry value maybeEntry =
                 then Just { entry | edited = value }
                 else Just { entry | edited = Nothing }
            )
-
-
-updateModelOffset : Model -> Int -> (Model, Cmd Msg)
-updateModelOffset model i =
-    let
-        offset = (model.horizon.offset + i)
-        newmodel =
-            { model | plotStatus = Loading
-            , horizon = updateOffset offset model.horizon
-            }
-    in
-    ( newmodel
-    , Cmd.batch
-        [ geteditor newmodel GotEditData
-        , Random.generate RandomNumber randomInt
-        ]
-    )
 
 
 patchEditedData : Model -> Cmd Msg
