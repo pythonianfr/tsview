@@ -267,10 +267,18 @@ update msg model =
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
-                    if (Array.length model.insertion_dates) /= (List.length dates) then
-                        ( model, geteditor model GetLastEditedData )
+                    let
+                        adates = Array.fromList dates
+                        newmodel = { model | insertion_dates = adates }
+                    in
+                    if (Array.length model.insertion_dates) /= (Array.length adates) then
+                        ( newmodel
+                        , geteditor model GetLastEditedData
+                        )
                     else
-                        ( model, patchEditedData model )
+                        ( newmodel
+                        , patchEditedData model
+                        )
 
                 Err err ->
                     doerr "idates decode" <| JD.errorToString err
