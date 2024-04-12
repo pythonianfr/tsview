@@ -173,12 +173,14 @@ geteditor model callback =
     }
 
 
-incrementIndex : Int -> (String, Entry) -> (String, Entry)
-incrementIndex increment tupleDateData =
+reindex : Int -> ( String, Entry ) -> ( String, Entry )
+reindex increment keyvalue =
     let
-        data = Tuple.second tupleDateData
+        data = Tuple.second keyvalue
     in
-    ( Tuple.first tupleDateData, { data | index = increment } )
+    ( Tuple.first keyvalue
+    , { data | index = increment }
+    )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -192,20 +194,17 @@ update msg model =
             case JD.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
-                        incrementedVal =
-                            Dict.fromList <| List.indexedMap
-                                incrementIndex
-                                (Dict.toList val)
+                        indexedval =
+                            Dict.fromList
+                                <| List.indexedMap reindex (Dict.toList val)
                     in
                     U.nocmd { model
                                 | plotStatus = Success
-                                , initialTs = incrementedVal
-                                , horizon =
-                                  updateHorizonModel
-                                  model.horizon incrementedVal
+                                , initialTs = indexedval
+                                , horizon = updateHorizonModel model.horizon indexedval
                             }
-                Err _ ->
-                  U.nocmd model
+                Err err ->
+                  doerr "series decode" <| JD.errorToString err
 
         GotEditData (Err _) ->
             U.nocmd { model | plotStatus = Failure }
@@ -268,21 +267,19 @@ update msg model =
             case JD.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
-                        incrementedVal =
-                            Dict.fromList <|
-                                List.indexedMap
-                                    incrementIndex
-                                    (Dict.toList val)
-                        newDict =
-                            updateEditedValue model incrementedVal
+                        indexedval =
+                            Dict.fromList
+                                <| List.indexedMap reindex (Dict.toList val)
+                        patched =
+                            Dict.union model.horizon.timeSeries indexedval
 
-                        newModel =
+                        newmodel =
                             { model
-                                | horizon = updateHorizonModel model.horizon newDict
+                                | horizon = updateHorizonModel model.horizon patched
                             }
                     in
-                    ( newModel
-                    , patchEditedData newModel
+                    ( newmodel
+                    , patchEditedData newmodel
                     )
 
                 Err _ ->
@@ -436,27 +433,6 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-updateEditedValue : Model -> Dict String Entry -> Dict String Entry
-updateEditedValue model initialDict =
-    let
-        editEntry : Entry -> Maybe Entry -> Maybe Entry
-        editEntry value maybeEntry =
-            Maybe.andThen
-                (\entry ->
-                    Just { entry | edited = value.edited }
-                )
-                maybeEntry
-    in
-    Dict.merge
-        (\_ _ dict -> dict)
-        (\key _ value dict ->
-             Dict.update key (editEntry value) dict
-        )
-        (\_ _ dict -> dict)
-        initialDict
-        model.horizon.timeSeries
-        initialDict
-
 
 randomInt : Random.Generator Int
 randomInt =
@@ -542,7 +518,7 @@ patchEditedData model =
                 Just (M.MBool val) -> val
                 _ -> False
 
-        filteredDict =
+        patch =
             model.horizon.timeSeries
                 |> Dict.filter (\_ value -> Maybe.isJust value.edited)
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
@@ -553,7 +529,7 @@ patchEditedData model =
                  [ ("name", JE.string model.name )
                  , ("author" , JE.string "webui" )
                  , ("tzaware", JE.bool tzaware )
-                 , ("series", encodeEditedData filteredDict )
+                 , ("series", encodeEditedData patch )
                  , ("supervision", JE.bool True )
                  , ("tzone", JE.string model.horizon.timeZone)
                  ]
