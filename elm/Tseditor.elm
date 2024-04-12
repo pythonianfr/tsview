@@ -55,6 +55,7 @@ type alias Model =
     , date_index : Int
     , horizon : HorizonModel Entry
     , insertion_dates : Array String
+    , editing : Dict String String
     , processedPasted: List String
     , rawPasted: String
     , initialTs : Dict String Entry
@@ -252,17 +253,38 @@ update msg model =
         UpdateOffset (Right i) ->
             updateoffset -i
 
-        InputChanged date value ->
+        InputChanged date rawvalue ->
             let
-                newtimeSeries =
-                    Dict.update
-                        date (updateEntry (parseCopyPastedData value)) model.horizon.timeSeries
-                newHorizonModel =
-                    model.horizon
+                value =
+                    String.replace "," "." rawvalue
+
+                floatvalue =
+                    String.toFloat value
+
+                patchwithvalue validval =
+                    let
+                        horizonmodel =
+                            model.horizon
+                        newentry =
+                            updateEntry (parseCopyPastedData validval)
+                        patched =
+                            Dict.update date newentry model.horizon.timeSeries
+                    in
+                    U.nocmd { model
+                                | horizon = { horizonmodel | timeSeries = patched }
+                                , editing = Dict.remove date model.editing
+                            }
             in
-            U.nocmd { model
-                        | horizon = { newHorizonModel | timeSeries = newtimeSeries }
-                    }
+            case floatvalue of
+                Just _ ->
+                    patchwithvalue value
+
+                Nothing ->
+                    if value == "" -- we read this as a NaN
+                    then patchwithvalue ""
+                    else U.nocmd { model
+                                     | editing = Dict.update date (\_ -> Just value) model.editing
+                                 }
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -664,7 +686,7 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      (List.map viewRow (Dict.toList model.horizon.timeSeries))
+                      (List.map (viewRow model) (Dict.toList model.horizon.timeSeries))
                   ]
             , node
             ]
@@ -685,31 +707,39 @@ divTablesSection model =
         ]
 
 
-viewRow : (String, Entry) -> H.Html Msg
-viewRow ( date, entry ) =
+viewRow : Model -> ( String, Entry ) -> H.Html Msg
+viewRow model ( date, entry ) =
     let
+        editing =
+            Dict.get date model.editing
         data =
-            if Maybe.isJust entry.edited
-            then Maybe.withDefault "" entry.edited
-            else Maybe.unwrap "" String.fromFloat entry.value
+            case editing of
+                Just edited -> edited
+                Nothing ->
+                    if Maybe.isJust entry.edited
+                    then Maybe.withDefault "" entry.edited
+                    else Maybe.unwrap "" String.fromFloat entry.value
 
-        rowStyle =
-            if Maybe.isJust entry.edited
-            then "row-green"
-            else if entry.override
-                 then "row-blue"
-                 else if Maybe.isNothing entry.value
-                      then "row-red"
-                      else ""
+        rowstyle =
+            case editing of
+                Just _ -> "row-invalid"
+                Nothing ->
+                    if Maybe.isJust entry.edited
+                    then "row-green"
+                    else if entry.override
+                         then "row-blue"
+                         else if Maybe.isNothing entry.value
+                              then "row-red"
+                              else ""
     in
     H.tr [ ]
         [ H.td
-              [ HA.class rowStyle]
+              [ HA.class rowstyle]
               [ H.text <| String.replace "T" " " date ]
         , H.td
             [ ]
             [ H.input
-                  [ HA.class ("pastable " ++ rowStyle)
+                  [ HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
                   , HA.value data
                   , HE.onInput (InputChanged date)
@@ -808,6 +838,7 @@ main =
                           , timeSeries = Dict.empty
                           , timeZone = "UTC"
                           }
+                    , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
                     , randomNumber = 0

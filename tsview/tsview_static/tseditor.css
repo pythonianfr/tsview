@@ -81,3 +81,7 @@
 .row-blue {
     color: blue;
 }
+
+.row-invalid {
+    color: red;
+}
