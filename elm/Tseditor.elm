@@ -88,7 +88,7 @@ type Msg
 
 
 type alias Entry =
-    { series : Maybe Float
+    { value : Maybe Float
     , markers : Bool
     , editedValue : Maybe String
     , index : Int
@@ -511,7 +511,7 @@ updateEntry value maybeEntry =
     maybeEntry
         |> Maybe.andThen
            (\entry ->
-                if (parseCopyPastedData (Maybe.unwrap "" String.fromFloat entry.series)) /= value
+                if (parseCopyPastedData (Maybe.unwrap "" String.fromFloat entry.value)) /= value
                 then Just { entry | editedValue = value }
                 else Just { entry | editedValue = Nothing }
            )
@@ -709,14 +709,14 @@ viewRow ( date, entry ) =
         data =
             if Maybe.isJust entry.editedValue
             then Maybe.withDefault "" entry.editedValue
-            else Maybe.unwrap "" String.fromFloat entry.series
+            else Maybe.unwrap "" String.fromFloat entry.value
 
         rowStyle =
             if Maybe.isJust entry.editedValue
             then "row-green"
             else if entry.markers == True
                  then "row-blue"
-                 else if Maybe.isNothing entry.series
+                 else if Maybe.isNothing entry.value
                       then "row-red"
                       else ""
     in
@@ -745,7 +745,7 @@ viewPlotData model =
         plot =
             scatterplot model.name
                 (Dict.keys model.horizon.timeSeries)
-                (List.map (\x -> x.series) (Dict.values model.horizon.timeSeries))
+                (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
                 "lines"
         args =
             plotargs "plot" [ plot ]
