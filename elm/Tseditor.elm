@@ -582,32 +582,28 @@ encodeEditedData editedData =
         editedData
 
 
-divButtonSaveData : PlotStatus -> Dict String Entry -> H.Html Msg
-divButtonSaveData plotStatus filtredDict =
+viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
+viewsavebutton plotstatus patch =
     let
-        className = [ HA.class "button-save-data" ]
-        textButton =
-            if plotStatus == Loading
-            then "Saving ... please wait"
-            else if plotStatus == Success
-                 then "Save"
-                 else "Fail, please try again"
+        status =
+            case plotstatus of
+                Loading ->
+                    "Saving ... please wait"
+                Success ->
+                    "Save"
+                _ ->
+                    "Saving failed. Are you editing a forecast ?"
     in
-    if Dict.isEmpty filtredDict then
-        H.div
-            className
-            [ ]
-    else
-        H.div
-            className
-            [ H.button
-                  [ HA.class "greenbutton"
-                  , HA.attribute "type" "button"
-                  , HE.onClick SaveEditedData
-                  , HA.disabled (plotStatus == Loading)
-                  ]
-                  [ H.text textButton ]
-            ]
+    H.div
+        [ HA.class "button-save-data" ]
+        [ H.button
+              [ HA.class (if Dict.isEmpty patch then "invisible" else "greenbutton")
+              , HA.attribute "type" "button"
+              , HE.onClick SaveEditedData
+              , HA.disabled (plotstatus == Loading)
+              ]
+              [ H.text status ]
+        ]
 
 
 divSaveDataTable : Dict String Entry -> H.Html Msg
@@ -701,7 +697,7 @@ viewedittable model =
     in
     H.div
         [ HA.class "tables" ]
-        [ divButtonSaveData model.plotStatus filtredDict
+        [ viewsavebutton model.plotStatus filtredDict
         , editTable model
         , divSaveDataTable filtredDict
         ]

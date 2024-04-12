@@ -64,6 +64,13 @@
     color: white;
 }
 
+.invisible {
+    padding: 0.5rem 0.5rem;
+    background: white;
+    color: white;
+}
+
+
 .row-editing {
     color: purple;
 }
