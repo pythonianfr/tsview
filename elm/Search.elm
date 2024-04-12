@@ -758,9 +758,13 @@ view model =
                 Groups -> model.filteredgroups
 
     in
-    H.div [ A.style "margin" ".5em" ]
+    H.div
+        [ A.style "margin" ".5em"
+        , A.class "grid-container"]
         [ Men.viewMenu model.menu Menu
-        ,   H.span
+        , H.div
+            [A.class "main"]
+            [ H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
               ]
@@ -808,6 +812,7 @@ view model =
             model.baseurl model.mode filtered model.catalog (nbsources > 1) (selectedsources model)
         , viewerrors model
         ]
+    ]
 
 
 type alias Input =

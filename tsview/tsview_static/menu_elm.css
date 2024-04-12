@@ -6,6 +6,7 @@
     list-style-type: none;
     margin: 0;
     padding: 0;
+    z-index: 100;
 }
 
 .menu-refinery .section-icon
@@ -67,16 +68,53 @@
 
 .link-icon a:hover::after {
     content: attr(tag);
-    padding-left:10px;
+    font-size: 15px;
+    padding:10px;
     padding-top:5px;
+    padding-left:0px;
     position: absolute;
+    transform: translateX(10px);
+    background-color: white;
 }
 
 .section-svg:hover::after {
     content:  attr(tag);
+    font-size: 15px;
+    padding:10px;
     padding-top:5px;
-    padding-left:10px;
+    padding-right:0px;
     position: absolute;
     text-decoration: underline;
+    transform: translateX(10%);
+    background-color: white;
 }
 
+/* grid & layout */
+
+
+.grid-container {
+  display: grid;
+  grid-template-areas:
+    'menu main';
+  grid-template-columns: 150px auto ;
+}
+
+.main {
+    grid-area: main;
+    z-index:0;
+}
+
+.menu-refinery {
+    grid-area: menu;
+    align-self: start;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.menu-with-icon {
+}
+
+.menu-with-text {
+    margin-right: 20px;
+}

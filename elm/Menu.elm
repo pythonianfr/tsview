@@ -112,7 +112,7 @@ contentMenu =
       , links = [ { label = "Tasks"
                   , icone = "bi bi-clock-history"
                   , target = "/tasks/" }
-                , { label = "Series import"
+                , { label = "Warnings"
                   , icone = "bi bi-exclamation-triangle"
                   , target = "/tswatch/" }
                 ]
