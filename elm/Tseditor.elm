@@ -53,7 +53,6 @@ type alias Model =
     , seriestype : I.SeriesType
     , date_index : Int
     , horizon : HorizonModel Entry
-    , indexToInsert: Maybe String
     , insertion_dates : Array String
     , name : String
     , processedPasted: List String
@@ -800,7 +799,6 @@ main =
                           , timeSeries = Dict.empty
                           , timeZone = "UTC"
                           }
-                    , indexToInsert = Nothing
                     , insertion_dates = Array.empty
                     , name = input.name
                     , processedPasted = [ ]
