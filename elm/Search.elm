@@ -759,11 +759,11 @@ view model =
 
     in
     H.div
-        [ A.style "margin" ".5em"
-        , A.class "grid-container"]
+        [ A.class "grid-container"]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [A.class "main"]
+            [ A.class "main"
+            , A.style "margin" ".5em"]
             [ H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"

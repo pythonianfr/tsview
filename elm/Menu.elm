@@ -203,18 +203,22 @@ buildSvgPath ipath =
 
 viewMenu model msgBuilder =
     H.div
-        [ A.class "menu-refinery"
-        , if model.menuVisisble
-            then A.class "menu-with-text"
-            else A.class "menu-with-icon"
-        ]
-        [ H.button
-            [ HE.onClick (msgBuilder ToggleMenu)
-            , A.title "show/hide nav"]
-            [ H.text "☰" ]
-        , H.div
-            []
-            [ if model.menuVisisble
-                then displaySection model.menuContent
-                else displayIconeContent model.icones model.menuContent ]
+        [A.class "menu-container"]
+        [
+        H.div
+            [ A.class "menu-refinery"
+            , if model.menuVisisble
+                then A.class "menu-with-text"
+                else A.class "menu-with-icon"
+            ]
+            [ H.button
+                [ HE.onClick (msgBuilder ToggleMenu)
+                , A.title "show/hide nav"]
+                [ H.text "☰" ]
+            , H.div
+                []
+                [ if model.menuVisisble
+                    then displaySection model.menuContent
+                    else displayIconeContent model.icones model.menuContent ]
+            ]
         ]
