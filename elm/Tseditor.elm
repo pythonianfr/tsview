@@ -339,10 +339,10 @@ update msg model =
 
         TimeZoneSelected timeZone ->
             let
-                newHorizonModel = model.horizon
-                newModel = { model
+                horizonmodel = model.horizon
+                newmodel = { model
                                | plotStatus = Loading
-                               , horizon = { newHorizonModel | timeZone = timeZone }
+                               , horizon = { horizonmodel | timeZone = timeZone }
                            }
                 userprefs =
                     LocalStorageData
@@ -351,20 +351,20 @@ update msg model =
                         model.horizon.inferredFreq
 
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
-                [ geteditor newModel GotEditData
-                , I.getidates newModel "series" InsertionDates
+                [ geteditor newmodel GotEditData
+                , I.getidates newmodel "series" InsertionDates
                 , saveToLocalStorage userprefs
                 ]
             )
 
         InferredFreq isChecked ->
             let
-                newHorizonModel = model.horizon
-                newModel = { model
+                horizonmodel = model.horizon
+                newmodel = { model
                                | plotStatus = Loading
-                               , horizon = { newHorizonModel | inferredFreq = isChecked }
+                               , horizon = { horizonmodel | inferredFreq = isChecked }
                            }
                 userprefs =
                     LocalStorageData
@@ -372,9 +372,9 @@ update msg model =
                         model.horizon.timeZone
                         isChecked
             in
-            ( newModel
+            ( newmodel
             , Cmd.batch
-                [ geteditor newModel GotEditData
+                [ geteditor newmodel GotEditData
                 , saveToLocalStorage userprefs
                 ]
             )
@@ -497,14 +497,14 @@ updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
     let
         offset = (model.horizon.offset + i)
-        newModel =
+        newmodel =
             { model | plotStatus = Loading
             , horizon = updateOffset offset model.horizon
             }
     in
-    ( newModel
+    ( newmodel
     , Cmd.batch
-        [ geteditor newModel GotEditData
+        [ geteditor newmodel GotEditData
         , Random.generate RandomNumber randomInt
         ]
     )
