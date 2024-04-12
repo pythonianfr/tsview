@@ -48,13 +48,13 @@ port dateInInterval : (List String -> msg) -> Sub msg
 type alias Model =
     { baseurl : String
     , errors : List String
+    , name : String
     , meta : M.StdMetadata
     , source : String
     , seriestype : I.SeriesType
     , date_index : Int
     , horizon : HorizonModel Entry
     , insertion_dates : Array String
-    , name : String
     , processedPasted: List String
     , rawPasted: String
     , initialTs : Dict String Entry
@@ -794,6 +794,7 @@ main =
                 model =
                     { baseurl = input.baseurl
                     , errors = [ ]
+                    , name = input.name
                     , meta = Dict.empty
                     , source = "local"
                     , seriestype = I.Primary
@@ -808,7 +809,6 @@ main =
                           , timeZone = "UTC"
                           }
                     , insertion_dates = Array.empty
-                    , name = input.name
                     , processedPasted = [ ]
                     , randomNumber = 0
                     , rawPasted = ""
