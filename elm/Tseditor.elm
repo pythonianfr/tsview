@@ -24,7 +24,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
-import Json.Decode as D
+import Json.Decode as JD
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -36,7 +36,7 @@ import Plotter exposing
 import Process as P
 import Url.Builder as UB
 import Util as U
-import Json.Encode as E
+import Json.Encode as JE
 import Random
 import Task as T
 
@@ -110,19 +110,19 @@ type PlotStatus
 
 -- pasting data
 
-textDecoder: D.Decoder String
+textDecoder: JD.Decoder String
 textDecoder =
-     D.at [ "detail", "text" ] D.string
+     JD.at [ "detail", "text" ] JD.string
 
 
-indexDecoder: D.Decoder String
+indexDecoder: JD.Decoder String
 indexDecoder =
-     D.at [ "detail", "index" ] D.string
+     JD.at [ "detail", "index" ] JD.string
 
 
-pasteWithDataDecoder : D.Decoder PasteType
+pasteWithDataDecoder : JD.Decoder PasteType
 pasteWithDataDecoder =
-        D.map2 PasteType textDecoder indexDecoder
+        JD.map2 PasteType textDecoder indexDecoder
 
 
 pasteditems : String -> List String
@@ -138,18 +138,18 @@ pasteditems raw =
 
 -- series decoder
 
-entryDecoder : D.Decoder Entry
+entryDecoder : JD.Decoder Entry
 entryDecoder =
-    D.map4 Entry
-        (D.field "series" (D.maybe D.float))
-        (D.field "markers" D.bool)
-        (D.succeed Nothing)
-        (D.succeed 0)
+    JD.map4 Entry
+        (JD.field "series" (JD.maybe JD.float))
+        (JD.field "markers" JD.bool)
+        (JD.succeed Nothing)
+        (JD.succeed 0)
 
 
-dataDecoder : D.Decoder (Dict String Entry)
+dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
-    D.dict entryDecoder
+    JD.dict entryDecoder
 
 
 geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
@@ -189,7 +189,7 @@ update msg model =
     in
     case msg of
         GotEditData (Ok rawdata) ->
-            case D.decodeString dataDecoder rawdata of
+            case JD.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
                         incrementedVal =
@@ -251,7 +251,7 @@ update msg model =
                     }
 
         GetLastInsertionDates (Ok rawdates) ->
-            case D.decodeString I.idatesdecoder rawdates of
+            case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     if (Array.length model.insertion_dates) /= (List.length dates) then
                         ( model, geteditor model GetLastEditedData )
@@ -259,13 +259,13 @@ update msg model =
                         ( model, patchEditedData model )
 
                 Err err ->
-                    doerr "idates decode" <| D.errorToString err
+                    doerr "idates decode" <| JD.errorToString err
 
         GetLastInsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
         GetLastEditedData (Ok rawdata) ->
-            case D.decodeString dataDecoder rawdata of
+            case JD.decodeString dataDecoder rawdata of
                 Ok val ->
                     let
                         incrementedVal =
@@ -308,11 +308,11 @@ update msg model =
             U.nocmd { model | plotStatus = Failure }
 
         GotMetadata (Ok result) ->
-            case D.decodeString M.decodemeta result of
+            case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
                     U.nocmd { model | meta = allmeta }
                 Err err ->
-                    doerr "gotmeta decode" <| D.errorToString err
+                    doerr "gotmeta decode" <| JD.errorToString err
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
@@ -325,14 +325,14 @@ update msg model =
             U.nocmd { model | horizon = { newHorizonModel | timeSeries = newtimeSeries } }
 
         InsertionDates (Ok rawdates) ->
-            case D.decodeString I.idatesdecoder rawdates of
+            case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     U.nocmd { model
                                 | insertion_dates = Array.fromList dates
                                 , date_index = List.length dates - 1
                             }
                 Err err ->
-                    doerr "idates decode" <| D.errorToString err
+                    doerr "idates decode" <| JD.errorToString err
 
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
@@ -383,7 +383,7 @@ update msg model =
             )
 
         FromLocalStorage rawdata ->
-            case D.decodeString localstoragedecoder rawdata of
+            case JD.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
                     let
                         newmodel =
@@ -549,13 +549,13 @@ patchEditedData model =
     in
     Http.request
         { method = "PATCH"
-        , body = Http.jsonBody <| E.object
-                 [ ("name", E.string model.name )
-                 , ("author" , E.string "webui" )
-                 , ("tzaware", E.bool tzaware )
+        , body = Http.jsonBody <| JE.object
+                 [ ("name", JE.string model.name )
+                 , ("author" , JE.string "webui" )
+                 , ("tzaware", JE.bool tzaware )
                  , ("series", encodeEditedData filteredDict )
-                 , ("supervision", E.bool True )
-                 , ("tzone", E.string model.horizon.timeZone)
+                 , ("supervision", JE.bool True )
+                 , ("tzone", JE.string model.horizon.timeZone)
                  ]
         , headers = [ ]
         , timeout = Nothing
@@ -566,14 +566,14 @@ patchEditedData model =
         }
 
 
-encodeEditedData : Dict String String -> E.Value
+encodeEditedData : Dict String String -> JE.Value
 encodeEditedData editedData =
-    E.dict
+    JE.dict
         identity
         (\value ->
             if value == ""
-            then E.null
-            else E.float (Maybe.withDefault 0.0 (String.toFloat value))
+            then JE.null
+            else JE.float (Maybe.withDefault 0.0 (String.toFloat value))
         )
         editedData
 
@@ -732,7 +732,7 @@ viewRow ( date, entry ) =
                   , HA.value data
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
-                  , HE.on "pastewithdata" (D.map Paste pasteWithDataDecoder)
+                  , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
             ]
