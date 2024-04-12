@@ -725,11 +725,11 @@ viewRow model ( date, entry ) =
                 Just _ -> "row-invalid"
                 Nothing ->
                     if Maybe.isJust entry.edited
-                    then "row-green"
+                    then "row-editing"
                     else if entry.override
-                         then "row-blue"
+                         then "row-override"
                          else if Maybe.isNothing entry.value
-                              then "row-red"
+                              then "row-nan"
                               else ""
     in
     H.tr [ ]

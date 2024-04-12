@@ -54,7 +54,6 @@
     grid-area: button-save-data;
     display: flex;
     justify-content: flex-end;
-    padding-right: 20%;
 }
 
 .greenbutton {
@@ -66,15 +65,15 @@
     color: white !important;
 }
 
-.row-green {
-    color: #35845F
+.row-editing {
+    color: purple;
 }
 
-.row-red {
-    color: #AB2D25
+.row-nan {
+    color: maroon;
 }
 
-.row-blue {
+.row-override {
     color: blue;
 }
 
