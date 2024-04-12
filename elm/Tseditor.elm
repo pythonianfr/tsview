@@ -686,14 +686,14 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      (List.map (viewRow model) (Dict.toList model.horizon.timeSeries))
+                      <| List.map (viewrow model) (Dict.toList model.horizon.timeSeries)
                   ]
             , node
             ]
 
 
-divTablesSection : Model -> H.Html Msg
-divTablesSection model =
+viewedittable : Model -> H.Html Msg
+viewedittable model =
     let
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.edited)
@@ -707,8 +707,8 @@ divTablesSection model =
         ]
 
 
-viewRow : Model -> ( String, Entry ) -> H.Html Msg
-viewRow model ( date, entry ) =
+viewrow : Model -> ( String, Entry ) -> H.Html Msg
+viewrow model ( date, entry ) =
     let
         editing =
             Dict.get date model.editing
@@ -791,7 +791,7 @@ view model =
             model.name
             (Dict.keys model.horizon.timeSeries)
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
-        , divTablesSection model
+        , viewedittable model
         ]
 
 
