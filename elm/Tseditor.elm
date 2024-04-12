@@ -90,7 +90,7 @@ type Msg
 type alias Entry =
     { value : Maybe Float
     , override : Bool
-    , editedValue : Maybe String
+    , edited : Maybe String
     , index : Int
     }
 
@@ -443,7 +443,7 @@ updateEditedValue model initialDict =
         editEntry value maybeEntry =
             Maybe.andThen
                 (\entry ->
-                    Just { entry | editedValue = value.editedValue }
+                    Just { entry | edited = value.edited }
                 )
                 maybeEntry
     in
@@ -512,8 +512,8 @@ updateEntry value maybeEntry =
         |> Maybe.andThen
            (\entry ->
                 if (parseCopyPastedData (Maybe.unwrap "" String.fromFloat entry.value)) /= value
-                then Just { entry | editedValue = value }
-                else Just { entry | editedValue = Nothing }
+                then Just { entry | edited = value }
+                else Just { entry | edited = Nothing }
            )
 
 
@@ -544,8 +544,8 @@ patchEditedData model =
 
         filteredDict =
             model.horizon.timeSeries
-                |> Dict.filter (\_ value -> Maybe.isJust value.editedValue)
-                |> Dict.map (\_ value -> Maybe.withDefault "" value.editedValue)
+                |> Dict.filter (\_ value -> Maybe.isJust value.edited)
+                |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
     in
     Http.request
         { method = "PATCH"
@@ -614,7 +614,7 @@ divSaveDataTable filtredDict =
             H.tr
                 [ ]
                 [ H.td [ ] [ H.text date ]
-                , H.td [ ] [ H.text (Maybe.withDefault "" entry.editedValue)]
+                , H.td [ ] [ H.text (Maybe.withDefault "" entry.edited)]
                 ]
         classlist =
             [ HA.class "save-data-table" ]
@@ -692,7 +692,7 @@ divTablesSection : Model -> H.Html Msg
 divTablesSection model =
     let
         filtredDict = Dict.filter
-            (\_ entry -> Maybe.isJust entry.editedValue)
+            (\_ entry -> Maybe.isJust entry.edited)
             model.horizon.timeSeries
     in
     H.div
@@ -707,12 +707,12 @@ viewRow : (String, Entry) -> H.Html Msg
 viewRow ( date, entry ) =
     let
         data =
-            if Maybe.isJust entry.editedValue
-            then Maybe.withDefault "" entry.editedValue
+            if Maybe.isJust entry.edited
+            then Maybe.withDefault "" entry.edited
             else Maybe.unwrap "" String.fromFloat entry.value
 
         rowStyle =
-            if Maybe.isJust entry.editedValue
+            if Maybe.isJust entry.edited
             then "row-green"
             else if entry.override
                  then "row-blue"
