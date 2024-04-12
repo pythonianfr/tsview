@@ -89,7 +89,7 @@ type Msg
 
 type alias Entry =
     { value : Maybe Float
-    , markers : Bool
+    , override : Bool
     , editedValue : Maybe String
     , index : Int
     }
@@ -714,7 +714,7 @@ viewRow ( date, entry ) =
         rowStyle =
             if Maybe.isJust entry.editedValue
             then "row-green"
-            else if entry.markers == True
+            else if entry.override
                  then "row-blue"
                  else if Maybe.isNothing entry.value
                       then "row-red"
