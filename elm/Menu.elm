@@ -137,35 +137,40 @@ updateModel msg model =
 -- Note: the view function must NOT be Typed
 --       in this module for modularity purpose
 
-displayTextSection content =
-    H.ul
+displayTextSection icones content =
+     H.ul
         []
         ( List.map
             ( \ section -> H.li
-                            []
-                            [ H.p
-                                [ A.class "section-text" ]
-                                [ H.text section.label ]
-                            , displayTextLinks section.links ] )
+                            [ A.class "section"]
+                            [ H.div
+                                [ A.class "section-svg"
+                                , A.attribute "tag" section.label]
+                                [buildSvg icones section]
+                            , displayTextLinks icones section.links
+                            ]
+                           )
             content )
 
-displayTextLinks links =
+displayTextLinks icones links =
     H.ul
         []
         ( List.map
-            (\ link -> H.li
-                            [A.class "link-text"]
+            ( \ link -> H.li
+                            [ A.class "link" ]
                             [ H.a
-                                [ A.href link.target ]
-                                [ H.text link.label ] ] )
+                                [ A.href link.target
+                                , A.attribute "tag" link.label ]
+                                [ buildSvg icones link] ] )
             links )
+
 
 displayIconeContent icones content =
     H.ul
         []
         ( List.map
             ( \ section -> H.li
-                            [ A.class "section-icon"]
+                            [ A.class "section"]
                             [ H.div
                                 [ A.class "section-svg"
                                 , A.attribute "tag" section.label]
@@ -180,7 +185,7 @@ displayIconeLinks icones links =
         []
         ( List.map
             ( \ link -> H.li
-                            [ A.class "link-icon" ]
+                            [ A.class "link" ]
                             [ H.a
                                 [ A.href link.target
                                 , A.attribute "tag" link.label ]
@@ -221,6 +226,6 @@ viewMenu model msgBuilder =
         , H.div
             []
             [ if model.menuVisisble
-                then displayTextSection model.menuContent
+                then displayTextSection model.icones model.menuContent
                 else displayIconeContent model.icones model.menuContent ]
         ]
