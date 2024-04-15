@@ -142,8 +142,7 @@ displayTextSection icones content =
             ( \ section -> H.li
                             [ A.class "section"]
                             [ H.div
-                                [ A.class "section-svg"
-                                , A.attribute "tag" section.label]
+                                [ A.class "section-svg" ]
                                 [ buildSvg icones section
                                 , H.p
                                     [A.class "label"]
@@ -161,7 +160,7 @@ displayTextLinks icones links =
                             [ A.class "link" ]
                             [ H.a
                                 [ A.href link.target
-                                , A.attribute "tag" link.label ]
+                                , A.class "full-link"]
                                 [ buildSvg icones link
                                 , H.p
                                     [A.class "label"]
@@ -177,7 +176,7 @@ displayIconeContent icones content =
                             [ A.class "section"]
                             [ H.div
                                 [ A.class "section-svg"
-                                , A.attribute "tag" section.label]
+                                , A.title section.label]
                                 [buildSvg icones section]
                             , displayIconeLinks icones section.links
                             ]
@@ -192,7 +191,7 @@ displayIconeLinks icones links =
                             [ A.class "link" ]
                             [ H.a
                                 [ A.href link.target
-                                , A.attribute "tag" link.label ]
+                                , A.title link.label ]
                                 [ buildSvg icones link] ] )
             links )
 
@@ -225,6 +224,7 @@ viewMenu model msgBuilder =
         ]
         [ H.button
             [ HE.onClick (msgBuilder ToggleMenu)
+            , A.class "switch-display"
             , A.title "show/hide nav"]
             [ H.text "☰" ]
         , H.div
