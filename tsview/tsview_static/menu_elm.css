@@ -104,30 +104,40 @@
 
 /* grid & layout */
 
-
-.grid-container {
+.grid-container-icon {
   display: grid;
-  grid-template-areas:
-    'menu main';
+  grid-template-areas:'menu-icon main-icon';
+  grid-template-columns: 80px auto ;
+}
+
+.grid-container-text {
+  display: grid;
+  grid-template-areas:'menu-text main-text';
   grid-template-columns: 150px auto ;
 }
 
-.main {
-    grid-area: main;
+.main-icon {
+    grid-area: main-icon;
     z-index:0;
 }
 
-.menu-refinery {
-    grid-area: menu;
+.main-text {
+    grid-area: main-text;
+    z-index:0;
+}
+
+.menu-with-icon {
+    grid-area: menu-icon;
     align-self: start;
     position: fixed;
     top: 50%;
     transform: translateY(-50%);
 }
 
-.menu-with-icon {
-}
-
 .menu-with-text {
-    margin-right: 20px;
+    grid-area: menu-text;
+    align-self: start;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
 }

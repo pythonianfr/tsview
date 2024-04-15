@@ -759,10 +759,14 @@ view model =
 
     in
     H.div
-        [ A.class "grid-container"]
+        [ A.class ( if model.menu.menuVisisble
+                        then "grid-container-text"
+                        else "grid-container-icon") ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ A.class "main"
+            [ A.class  ( if model.menu.menuVisisble
+                            then "main-text"
+                            else "main-icon" )
             , A.style "margin" ".5em"]
             [ H.span
               [ HE.onClick ToggleMode
@@ -850,7 +854,7 @@ main =
                    debouncerconfig
                    debouncerconfig
                    { menuContent = Men.contentMenu
-                   , menuVisisble = False
+                   , menuVisisble = True
                    , icones = Men.iconesDefinition}
 
            init input =

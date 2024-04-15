@@ -137,7 +137,7 @@ updateModel msg model =
 -- Note: the view function must NOT be Typed
 --       in this module for modularity purpose
 
-displaySection content =
+displayTextSection content =
     H.ul
         []
         ( List.map
@@ -146,10 +146,10 @@ displaySection content =
                             [ H.p
                                 [ A.class "section-text" ]
                                 [ H.text section.label ]
-                            , displayLinks section.links ] )
+                            , displayTextLinks section.links ] )
             content )
 
-displayLinks links =
+displayTextLinks links =
     H.ul
         []
         ( List.map
@@ -207,23 +207,20 @@ buildSvgPath ipath =
         Just rule -> path [ fillRule rule, d ipath.d ] []
 
 viewMenu model msgBuilder =
+
     H.div
-        [A.class "menu-container"]
-        [
-        H.div
-            [ A.class "menu-refinery"
-            , if model.menuVisisble
-                then A.class "menu-with-text"
-                else A.class "menu-with-icon"
-            ]
-            [ H.button
-                [ HE.onClick (msgBuilder ToggleMenu)
-                , A.title "show/hide nav"]
-                [ H.text "☰" ]
-            , H.div
-                []
-                [ if model.menuVisisble
-                    then displaySection model.menuContent
-                    else displayIconeContent model.icones model.menuContent ]
-            ]
+        [ A.class "menu-refinery"
+        , if model.menuVisisble
+            then A.class "menu-with-text"
+            else A.class "menu-with-icon"
+        ]
+        [ H.button
+            [ HE.onClick (msgBuilder ToggleMenu)
+            , A.title "show/hide nav"]
+            [ H.text "☰" ]
+        , H.div
+            []
+            [ if model.menuVisisble
+                then displayTextSection model.menuContent
+                else displayIconeContent model.icones model.menuContent ]
         ]
