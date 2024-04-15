@@ -22,19 +22,22 @@
              }
              attributeChangedCallback(name, old_value, new_value) {
                  if ( name == 'args' ) {
-                     let args = JSON.parse(new_value);
-                     Plotly.react(
-                         args.div,
-                         args.data,
-                         {},
-                         {
-                             displaylogo: false,
-                             displayModeBar: true,
-                             displaylogo: false,
-                             responsive: true,
-                             modeBarButtonsToRemove: ['sendDataToCloud']
-                         }
-                     );
+                     function doit () {
+                         let args = JSON.parse(new_value);
+                         Plotly.react(
+                             args.div,
+                             args.data,
+                             {},
+                             {
+                                 displaylogo: false,
+                                 displayModeBar: true,
+                                 displaylogo: false,
+                                 responsive: true,
+                                 modeBarButtonsToRemove: ['sendDataToCloud']
+                             }
+                         );
+                     }
+                     setTimeout(doit, 10)
                  }
              }
          }
