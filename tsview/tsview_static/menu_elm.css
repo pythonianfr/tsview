@@ -58,6 +58,17 @@
     margin-right: 3px;
 }
 
+.label {
+    display: inline;
+    font-size: 15px;
+    padding:10px;
+    padding-top:5px;
+    padding-right:0px;
+    position: absolute;
+    transform: translateX(10%);
+    background-color: white;
+}
+
 .link a:hover::after {
     content: attr(tag);
     font-size: 15px;
@@ -92,7 +103,7 @@
 .grid-container-text {
   display: grid;
   grid-template-areas:'menu-text main-text';
-  grid-template-columns: 150px auto ;
+  grid-template-columns: 180px auto ;
 }
 
 .main-icon {

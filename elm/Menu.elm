@@ -15,8 +15,6 @@ import Svg.Attributes exposing
     ( viewBox
     , fillRule
     , d
-    , width
-    , height
     , fill
     )
 import Html as H
@@ -146,7 +144,10 @@ displayTextSection icones content =
                             [ H.div
                                 [ A.class "section-svg"
                                 , A.attribute "tag" section.label]
-                                [buildSvg icones section]
+                                [ buildSvg icones section
+                                , H.p
+                                    [A.class "label"]
+                                    [H.text section.label ] ]
                             , displayTextLinks icones section.links
                             ]
                            )
@@ -161,7 +162,10 @@ displayTextLinks icones links =
                             [ H.a
                                 [ A.href link.target
                                 , A.attribute "tag" link.label ]
-                                [ buildSvg icones link] ] )
+                                [ buildSvg icones link
+                                , H.p
+                                    [A.class "label"]
+                                    [H.text link.label ]] ] )
             links )
 
 
