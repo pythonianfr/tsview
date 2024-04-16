@@ -50,6 +50,8 @@ iconesDefinition =
         , ("bi bi-speedometer", [Path "M8 2a.5.5 0 0 1 .5.5V4a.5.5 0 0 1-1 0V2.5A.5.5 0 0 1 8 2M3.732 3.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707M2 8a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 8m9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5m.754-4.246a.39.39 0 0 0-.527-.02L7.547 7.31A.91.91 0 1 0 8.85 8.569l3.434-4.297a.39.39 0 0 0-.029-.518z" Nothing
                                 ,Path "M6.664 15.889A8 8 0 1 1 9.336.11a8 8 0 0 1-2.672 15.78zm-4.665-4.283A11.95 11.95 0 0 1 8 10c2.186 0 4.236.585 6.001 1.606a7 7 0 1 0-12.002 0" Nothing])
         , ("bi bi-tools", [Path "M1 0 0 1l2.2 3.081a1 1 0 0 0 .815.419h.07a1 1 0 0 1 .708.293l2.675 2.675-2.617 2.654A3.003 3.003 0 0 0 0 13a3 3 0 1 0 5.878-.851l2.654-2.617.968.968-.305.914a1 1 0 0 0 .242 1.023l3.27 3.27a.997.997 0 0 0 1.414 0l1.586-1.586a.997.997 0 0 0 0-1.414l-3.27-3.27a1 1 0 0 0-1.023-.242L10.5 9.5l-.96-.96 2.68-2.643A3.005 3.005 0 0 0 16 3q0-.405-.102-.777l-2.14 2.141L12 4l-.364-1.757L13.777.102a3 3 0 0 0-3.675 3.68L7.462 6.46 4.793 3.793a1 1 0 0 1-.293-.707v-.071a1 1 0 0 0-.419-.814zm9.646 10.646a.5.5 0 0 1 .708 0l2.914 2.915a.5.5 0 0 1-.707.707l-2.915-2.914a.5.5 0 0 1 0-.708M3 11l.471.242.529.026.287.445.445.287.026.529L5 13l-.242.471-.026.529-.445.287-.287.445-.529.026L3 15l-.471-.242L2 14.732l-.287-.445L1.268 14l-.026-.529L1 13l.242-.471.026-.529.445-.287.287-.445.529-.026z" Nothing ])
+        , ("bi bi-arrows-collapse-vertical", [Path "M8 15a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5M0 8a.5.5 0 0 1 .5-.5h3.793L3.146 6.354a.5.5 0 1 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L4.293 8.5H.5A.5.5 0 0 1 0 8m11.707.5 1.147 1.146a.5.5 0 0 1-.708.708l-2-2a.5.5 0 0 1 0-.708l2-2a.5.5 0 0 1 .708.708L11.707 7.5H15.5a.5.5 0 0 1 0 1z" Nothing ] )
+        , ("bi bi-arrows-expand-vertical", [Path "M8 15a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5M.146 8.354a.5.5 0 0 1 0-.708l2-2a.5.5 0 1 1 .708.708L1.707 7.5H5.5a.5.5 0 0 1 0 1H1.707l1.147 1.146a.5.5 0 0 1-.708.708zM10 8a.5.5 0 0 1 .5-.5h3.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L14.293 8.5H10.5A.5.5 0 0 1 10 8" Nothing ] )
         ]
 
 type alias Model =
@@ -143,7 +145,7 @@ displayTextSection icones content =
                             [ A.class "section"]
                             [ H.div
                                 [ A.class "section-svg" ]
-                                [ buildSvg icones section
+                                [ buildSvg icones section.icone
                                 , H.p
                                     [A.class "label"]
                                     [H.text section.label ] ]
@@ -161,7 +163,7 @@ displayTextLinks icones links =
                             [ H.a
                                 [ A.href link.target
                                 , A.class "full-link"]
-                                [ buildSvg icones link
+                                [ buildSvg icones link.icone
                                 , H.p
                                     [A.class "label"]
                                     [H.text link.label ]] ] )
@@ -177,7 +179,7 @@ displayIconeContent icones content =
                             [ H.div
                                 [ A.class "section-svg"
                                 , A.title section.label]
-                                [buildSvg icones section]
+                                [buildSvg icones section.icone]
                             , displayIconeLinks icones section.links
                             ]
                            )
@@ -192,13 +194,13 @@ displayIconeLinks icones links =
                             [ H.a
                                 [ A.href link.target
                                 , A.title link.label ]
-                                [ buildSvg icones link] ] )
+                                [ buildSvg icones link.icone] ] )
             links )
 
-buildSvg icones content =
+buildSvg icones iconeName =
     let icone = Maybe.withDefault
                     []
-                    ( Dict.get content.icone icones )
+                    ( Dict.get iconeName icones )
     in
     svg
         [ viewBox "0 0 16 16"
@@ -214,6 +216,11 @@ buildSvgPath ipath =
         Nothing -> path [ d ipath.d ] []
         Just rule -> path [ fillRule rule, d ipath.d ] []
 
+displaSwitchButton icones toCollpase =
+     if toCollpase
+        then buildSvg icones "bi bi-arrows-collapse-vertical"
+        else buildSvg icones "bi bi-arrows-expand-vertical"
+
 viewMenu model msgBuilder =
 
     H.div
@@ -222,14 +229,15 @@ viewMenu model msgBuilder =
             then A.class "menu-with-text"
             else A.class "menu-with-icon"
         ]
-        [ H.button
-            [ HE.onClick (msgBuilder ToggleMenu)
-            , A.class "switch-display"
-            , A.title "show/hide nav"]
-            [ H.text "☰" ]
-        , H.div
+        [
+         H.div
             []
-            [ if model.menuVisisble
+            [ H.div
+                [ HE.onClick (msgBuilder ToggleMenu)
+                , A.class "switch-display"
+                , A.title "show/hide nav"]
+                [ displaSwitchButton model.icones model.menuVisisble ]
+            , if model.menuVisisble
                 then displayTextSection model.icones model.menuContent
                 else displayIconeContent model.icones model.menuContent ]
         ]
