@@ -109,19 +109,21 @@ strvalue val =
 
 viewsingleton: String -> H.Html Msg
 viewsingleton name =
-    H.ul [] [ H.li [] [ H.text name ] ]
+    H.ul [ HA.class "tree" ] [ H.li [] [ H.text name ] ]
 
 
 viewstrparam: String -> String -> H.Html Msg
 viewstrparam name param =
-    H.ul [] [ H.li [] [ H.text <| name ++ " " ++ param ] ]
+    H.ul [ HA.class "tree" ] [ H.li [] [ H.text <| name ++ " " ++ param ] ]
 
 
 viewtwoparams: String -> String -> Value -> H.Html Msg
 viewtwoparams name param1 param2 =
-    H.ul [] [ H.li []
-                  [ H.text <| name ++ " " ++ param1 ++ " " ++ (strvalue param2) ]
-            ]
+    H.ul [ HA.class "tree" ]
+        [ H.li
+              []
+              [ H.text <| name ++ " " ++ param1 ++ " " ++ (strvalue param2) ]
+        ]
 
 
 viewterm: FilterNode -> H.Html Msg
@@ -176,18 +178,18 @@ viewterm term  =
             viewtwoparams ">=" key val
 
         Not thing ->
-            H.ul []
+            H.ul [ HA.class "tree" ]
                 [ H.li [] [ H.summary [] [ H.text "not", viewterm thing ] ] ]
 
         And things ->
-            H.ul []
+            H.ul [ HA.class "tree" ]
                 [ H.li []
                       ([ H.summary [] [ H.text "and" ] ]
                            ++ (List.map viewterm things))
                 ]
 
         Or things ->
-            H.ul []
+            H.ul [ HA.class "tree" ]
                 [ H.li []
                       ([ H.summary [] [ H.text "or" ] ]
                            ++ (List.map viewterm things))
@@ -198,17 +200,7 @@ vieweditor model =
     case model.edited of
         Nothing -> H.span [] []
         Just edited ->
-            H.ul
-                [ HA.class "tree"]
-                [ H.li
-                      []
-                      [ H.details
-                            [ HA.attribute "open" "" ]
-                            [ H.summary [] []
-                            , viewterm edited
-                            ]
-                      ]
-                ]
+            viewterm edited
 
 
 view model =
@@ -230,20 +222,10 @@ view model =
                   <| List.map basketoption model.baskets
             ]
 
-        currentbasket =
-            case model.basket of
-                Just basket ->
-                    case Lisp.parse basket of
-                        Just tree -> H.div [] (Lisp.view tree Dict.empty )
-                        Nothing -> H.span [] []
-
-                Nothing ->
-                    H.span [] []
     in
     H.div []
         [ H.h1 [] [ H.text "Baskets" ]
         , H.div [] basketslist
-        , H.div [] [ currentbasket ]
         , vieweditor model
         ]
 
