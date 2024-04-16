@@ -52,12 +52,10 @@ testSerialize =
             \_ -> Expect.equal
                   (serialize <| Or [ TzAware , ByName "foo" ])
                   (Expression [ Atom <| Symbol "by.or"
-                              , Expression
-                                    [ Expression [ Atom <| Symbol "by.tzaware" ]
-                                    , Expression [ Atom <| Symbol "by.name"
-                                                 , Atom <| String "foo"
-                                                 ]
-                                    ]
+                              , Expression [ Atom <| Symbol "by.tzaware" ]
+                              , Expression [ Atom <| Symbol "by.name"
+                                           , Atom <| String "foo"
+                                           ]
                               ])
 
         run4 =
@@ -66,19 +64,15 @@ testSerialize =
                   (Expression
                        [ Atom (Symbol "by.and")
                        , Expression
-                             [ Expression
-                                   [ Atom (Symbol "by.or")
-                                   , Expression
-                                         [ Expression
-                                               [ Atom (Symbol "by.tzaware") ]
-                                         , Expression
-                                               [ Atom (Symbol "by.formula") ]
-                                         ]
-                                   ]
+                             [ Atom (Symbol "by.or")
                              , Expression
-                                   [ Atom (Symbol "by.name")
-                                   , Atom (String "foo")
-                                   ]
+                                   [ Atom (Symbol "by.tzaware") ]
+                             , Expression
+                                   [ Atom (Symbol "by.formula") ]
+                             ]
+                       , Expression
+                             [ Atom (Symbol "by.name")
+                             , Atom (String "foo")
                              ]
                        ])
 

@@ -1,5 +1,6 @@
 module Queryeditor exposing ( main )
 
+import TsView.AceEditor as AceEditor
 import Browser
 import Dict
 import Filter exposing
@@ -7,12 +8,14 @@ import Filter exposing
     , Value(..)
     , fromlisp
     , parse
+    , serialize
     )
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import Json.Decode as JD
+import Json.Encode as JE
 import Lisp
 import Url.Builder as UB
 import Util as U
@@ -28,6 +31,7 @@ type alias Model =
     , name : Maybe String
     , basket : Maybe String
     , edited : Maybe FilterNode
+    , editing : Maybe FilterNode
     }
 
 
@@ -35,7 +39,10 @@ type Msg
     = GotBasketNames (Result Http.Error String)
     | SelectedBasket String
     | GotBasketDefinition (Result Http.Error String)
-    | DeleteNode FilterNode
+    | AceEditorMsg AceEditor.Msg
+    | SaveBasket
+    | SavedBasket (Result Http.Error ())
+
 
 getbaskets model =
     Http.get
@@ -54,6 +61,29 @@ getbasket model name =
         }
 
 
+savebasket model =
+    let
+        x=Debug.log "NAME" model
+    in
+    case model.editing of
+        Nothing ->
+            Cmd.none
+        Just editing ->
+            Http.request
+                { method = "PUT"
+                , body = Http.jsonBody <| JE.object
+                         [ ("name", JE.string <| Maybe.withDefault "" model.name )
+                         , ("query" , JE.string <| Lisp.serialize <| serialize editing )
+                         ]
+                , headers = [ ]
+                , timeout = Nothing
+                , tracker = Nothing
+                , url = UB.crossOrigin model.baseurl
+                        [ "api",  "series", "basket" ] [ ]
+                , expect = Http.expectWhatever SavedBasket
+                }
+
+
 update msg model =
     let
         doerr tag error =
@@ -63,8 +93,15 @@ update msg model =
         GotBasketNames (Ok rawbaskets) ->
             case JD.decodeString (JD.list JD.string) rawbaskets of
                 Ok baskets ->
-                    ( { model | baskets = baskets }
-                    , case List.head baskets of
+                    let
+                        first =
+                            List.head baskets
+                    in
+                    ( { model
+                          | baskets = baskets
+                          , name = first
+                      }
+                    , case first of
                           Nothing -> Cmd.none
                           Just head -> getbasket model head
                     )
@@ -88,6 +125,7 @@ update msg model =
                             U.nocmd { model
                                         | basket = Just def
                                         , edited = Just parsed
+                                        , editing = Just parsed
                                     }
                         Err err -> doerr "parse basket" err
                 Err err ->
@@ -96,8 +134,28 @@ update msg model =
         GotBasketDefinition (Err err) ->
             doerr "getbasketdefinition http" <| U.unwraperror err
 
-        DeleteNode node ->
-            U.nocmd model
+        AceEditorMsg (AceEditor.Edited code) ->
+            case fromlisp code of
+                Ok root ->
+                    U.nocmd { model | editing = Just root }
+                Err _ ->
+                    U.nocmd model
+
+        SaveBasket ->
+            ( model
+            , savebasket model
+            )
+
+        SavedBasket (Ok _) ->
+            ( { model
+                  | edited = Nothing
+                  , editing = Nothing
+              }
+            , getbasket model <| Maybe.withDefault "" model.name
+            )
+
+        SavedBasket (Err err) ->
+            doerr "savebasket http" <| U.unwraperror err
 
 
 strvalue: Value -> String
@@ -196,11 +254,34 @@ viewterm term  =
                 ]
 
 
-vieweditor model =
-    case model.edited of
+viewtree tree =
+    case tree of
         Nothing -> H.span [] []
         Just edited ->
             viewterm edited
+
+
+editorHeight =
+    HA.attribute "style" "--min-height-editor: 36vh"
+
+
+vieweditor model =
+    case model.basket of
+        Nothing -> H.span [] []
+        Just code ->
+            H.div
+                [ HA.class "code_left"
+                ,  editorHeight
+                ]
+                [ AceEditor.edit AceEditor.default code True |> H.map AceEditorMsg ]
+
+
+viewerrors model =
+    let
+        viewitem item =
+            H.text item
+    in
+    H.div [] <| List.map viewitem model.errors
 
 
 view model =
@@ -226,7 +307,23 @@ view model =
     H.div []
         [ H.h1 [] [ H.text "Baskets" ]
         , H.div [] basketslist
+        , viewtree model.edited
         , vieweditor model
+        , case model.editing of
+              Nothing -> H.span [] []
+              Just lastvalidedit ->
+                  H.div
+                      []
+                      [ H.text "Last valid state:"
+                      , viewtree model.editing
+                      , H.button
+                            [ HA.class "btn btn-primary"
+                            , HA.disabled <| model.editing == model.edited
+                            , HE.onClick SaveBasket
+                            ]
+                            [ H.text "Save" ]
+                      ]
+        , viewerrors model
         ]
 
 
@@ -246,6 +343,7 @@ main =
                        , name = Nothing
                        , basket = Nothing
                        , edited = Nothing
+                       , editing = Nothing
                        }
                in
                ( model, getbaskets model )

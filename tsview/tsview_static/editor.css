@@ -1,0 +1,17 @@
+.code_editor {
+    margin: 1em;
+}
+
+.code_left {
+    grid-column: left;
+    grid-row: span 1;
+}
+
+.code_right {
+    grid-column: right;
+    grid-row: span 1;
+}
+
+.code_left pre {
+    min-height: var(--min-height-editor, 36vh);
+}

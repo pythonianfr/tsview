@@ -319,11 +319,7 @@ serialize node =
                        ]
 
         And expr ->
-            Expression [ Atom <| Symbol "by.and"
-                       , Expression <| List.map serialize expr
-                       ]
+            Expression <| [ Atom <| Symbol "by.and" ] ++ List.map serialize expr
 
         Or expr ->
-            Expression [ Atom <| Symbol "by.or"
-                       , Expression <| List.map serialize expr
-                       ]
+            Expression <| [ Atom <| Symbol "by.or" ] ++ List.map serialize expr
