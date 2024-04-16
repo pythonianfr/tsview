@@ -125,6 +125,13 @@ contentMenu =
                   , target = "/tswatch/" }
                 ]
       }
+    , { label = "Navigation"
+      , icone = "bi bi-globe"
+      , links = [ { label = "Home"
+                  , icone = "bi bi-house-fill"
+                  , target = "/" }
+                ]
+      }
     ]
 
 type Msg =
