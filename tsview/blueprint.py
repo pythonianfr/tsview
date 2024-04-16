@@ -17,6 +17,7 @@ from tsview.util import (
     argsdict as _argsdict,
     format_formula
 )
+from tsview.menu import definition as menu_spec
 
 
 # monkeypatch dash utility
@@ -375,5 +376,13 @@ def tsview(tsa):
             homeurl=homeurl(),
             name=request.args.get('name')
         )
+
+    # menu
+
+    @bp.route('/menu')
+    def serve_menu():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        return json.dumps(menu_spec)
 
     return bp
