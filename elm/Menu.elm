@@ -59,7 +59,7 @@ iconesDefinition =
 
 type alias Model =
     { menuContent : Menu
-    , menuVisisble : Bool
+    , menuModeText : Bool
     , icones: Dict String Icone}
 
 type alias Menu = List Section
@@ -141,7 +141,7 @@ type Msg =
 
 updateModel msg model =
     case msg of
-        ToggleMenu ->{ model | menuVisisble = not model.menuVisisble}
+        ToggleMenu ->{ model | menuModeText = not model.menuModeText}
 
 -- view
 -- Note: the view function must NOT be Typed
@@ -235,7 +235,7 @@ viewMenu model msgBuilder =
 
     H.div
         [ A.class "menu-refinery"
-        , if model.menuVisisble
+        , if model.menuModeText
             then A.class "menu-with-text"
             else A.class "menu-with-icon"
         ]
@@ -245,9 +245,9 @@ viewMenu model msgBuilder =
             [ H.div
                 [ HE.onClick (msgBuilder ToggleMenu)
                 , A.class "switch-display"
-                , A.title "show/hide nav"]
-                [ displaSwitchButton model.icones model.menuVisisble ]
-            , if model.menuVisisble
+                , A.title "show/hide text"]
+                [ displaSwitchButton model.icones model.menuModeText ]
+            , if model.menuModeText
                 then displayTextSection model.icones model.menuContent
                 else displayIconeContent model.icones model.menuContent ]
         ]

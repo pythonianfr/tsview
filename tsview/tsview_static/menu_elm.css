@@ -18,16 +18,9 @@
     cursor: pointer;
 }
 
-
 .switch-display svg {
     width: 30px;
     height: 30px;
-}
-
-.menu-refinery .section
-    {}
-
-.menu-refinery .link {
 }
 
 .menu-refinery ul svg {
@@ -63,20 +56,12 @@
     background-color: #e0e0e0;
 }
 
-.menu-with-icon .link svg:hover {
-    padding:2px;
-}
-
-.menu-with-text .link:hover svg{
+.menu-refinery .link svg:hover {
     padding:2px;
 }
 
 .menu-with-text .link:hover .label {
     text-decoration: underline;
-}
-
-
-.link a {
 }
 
 .menu-refinery .selected::before {
@@ -104,28 +89,23 @@
 
 .grid-container-icon {
   display: grid;
-  grid-template-areas:'menu-icon main-icon';
+  grid-template-areas:'menu main';
   grid-template-columns: 50px auto ;
 }
 
 .grid-container-text {
   display: grid;
-  grid-template-areas:'menu-text main-text';
+  grid-template-areas:'menu main';
   grid-template-columns: 160px auto ;
 }
 
-.main-icon {
-    grid-area: main-icon;
-    z-index:0;
-}
-
-.main-text {
-    grid-area: main-text;
+.main-content {
+    grid-area: main;
     z-index:0;
 }
 
 .menu-with-icon {
-    grid-area: menu-icon;
+    grid-area: menu;
     align-self: start;
     position: fixed;
     top: 50%;
@@ -133,7 +113,7 @@
 }
 
 .menu-with-text {
-    grid-area: menu-text;
+    grid-area: menu;
     border-radius: 5px;
     align-self: start;
     position: fixed;
