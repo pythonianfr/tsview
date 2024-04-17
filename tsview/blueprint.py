@@ -18,6 +18,7 @@ from tsview.util import (
     format_formula
 )
 from tsview.menu import definition as menu_spec
+from tsview.icons import definition as icons_definition
 
 
 # monkeypatch dash utility
@@ -384,5 +385,11 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         return json.dumps(menu_spec)
+
+    @bp.route('/icons')
+    def serve_icons():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        return json.dumps(icons_definition)
 
     return bp
