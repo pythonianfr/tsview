@@ -66,6 +66,7 @@ iconesDefinition =
 type alias Model =
     { menuContent : Menu
     , menuModeText : Bool
+    , selected: Maybe String
     , icones: Dict String Icone}
 
 type alias Menu = List Section
@@ -79,7 +80,8 @@ type alias Section =
 type alias Link =
     { label: String
     , icone: String
-    , target: String }
+    , target: String
+    , id: String }
 
 type alias Icone = List Path
 
@@ -106,10 +108,12 @@ decodeSection =
 
 decodeLink: Decoder Link
 decodeLink =
-    JD.map3 Link
+    JD.map4 Link
         ( JD.field "label" JD.string )
         ( JD.field "icone" JD.string )
         ( JD.field "target" JD.string )
+        ( JD.field "id" JD.string )
+
 
 getMenu baseUrl msgBuilder =
     Http.get
@@ -147,7 +151,7 @@ updateModel msg model =
 -- Note: the view function must NOT be Typed
 --       in this module for modularity purpose
 
-displayTextSection icones content =
+displayTextSection icones content selected =
      H.ul
         []
         ( List.map
@@ -159,17 +163,18 @@ displayTextSection icones content =
                                 , H.p
                                     [A.class "label"]
                                     [H.text section.label ] ]
-                            , displayTextLinks icones section.links
+                            , displayTextLinks icones section.links selected
                             ]
                            )
             content )
 
-displayTextLinks icones links =
+displayTextLinks icones links selected =
     H.ul
         []
         ( List.map
             ( \ link -> H.li
-                            [ A.class "link" ]
+                            [ A.class "link"
+                            , classSelect link.id selected ]
                             [ H.a
                                 [ A.href link.target
                                 , A.class "full-link"]
@@ -180,7 +185,7 @@ displayTextLinks icones links =
             links )
 
 
-displayIconeContent icones content =
+displayIconeContent icones content selected =
     H.ul
         []
         ( List.map
@@ -188,24 +193,33 @@ displayIconeContent icones content =
                             [ A.class "section"]
                             [ H.div
                                 [ A.class "section-svg"
-                                , A.title section.label]
+                                , A.title section.label ]
                                 [buildSvg icones section.icone]
-                            , displayIconeLinks icones section.links
+                            , displayIconeLinks icones section.links selected
                             ]
                            )
             content )
 
-displayIconeLinks icones links =
+displayIconeLinks icones links selected =
     H.ul
         []
         ( List.map
             ( \ link -> H.li
-                            [ A.class "link" ]
+                            [ A.class "link"
+                            , classSelect link.id selected ]
                             [ H.a
                                 [ A.href link.target
                                 , A.title link.label ]
                                 [ buildSvg icones link.icone] ] )
             links )
+
+classSelect label selected =
+    case selected of
+        Nothing -> A.class ""
+        Just select ->
+            if select == label
+                then A.class "selected"
+                else A.class ""
 
 buildSvg icones iconeName =
     let icone = Maybe.withDefault
@@ -248,6 +262,6 @@ viewMenu model msgBuilder =
                 , A.title "show/hide text"]
                 [ displaSwitchButton model.icones model.menuModeText ]
             , if model.menuModeText
-                then displayTextSection model.icones model.menuContent
-                else displayIconeContent model.icones model.menuContent ]
+                then displayTextSection model.icones model.menuContent model.selected
+                else displayIconeContent model.icones model.menuContent model.selected]
         ]

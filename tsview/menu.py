@@ -7,17 +7,20 @@ definition = [
                 {
                     'label': 'Catalog',
                     'icone': 'bi bi-database',
-                    'target': '/tssearch'
+                    'target': '/tssearch',
+                    'id': 'timeseries-catalog'
                 },
                 {
                     'label': 'Quick View',
                     'icone': 'bi bi-lightning-charge',
-                    'target': '/tsview'
+                    'target': '/tsview',
+                    'id': 'timeseries-quickview'
                 },
                 {
                     'label': 'Delete',
                     'icone': 'bi bi-trash',
-                    'target': '/tsdelete'
+                    'target': '/tsdelete',
+                    'id': 'timeseries-delete'
                 },
             ]
         },
@@ -28,27 +31,32 @@ definition = [
                 {
                     'label': 'Documentation',
                     'icone': 'bi bi-info-circle',
-                    'target': '/tsformula/operators'
+                    'target': '/tsformula/operators',
+                    'id': 'formula-documentation'
                 },
                 {
-                    'label': 'Catalog',
+                    'label': 'List',
                     'icone': 'bi bi-list-columns',
-                    'target': '/formulas'
+                    'target': '/formulas',
+                    'id': 'formula-catalog'
                 },
                 {
                     'label': 'Create',
                     'icone': 'bi bi-pencil',
-                    'target': '/tsformula'
+                    'target': '/tsformula',
+                    'id': 'formula-create'
                 },
                 {
                     'label': 'Update batch',
                     'icone': 'bi bi-file-earmark-arrow-up',
-                    'target': '/addformulas'
+                    'target': '/addformulas',
+                    'id' : 'formula-batch'
                 },
                 {
                     'label': 'Setup cache',
                     'icone': 'bi bi-wrench',
-                    'target': '/formulacache'
+                    'target': '/formulacache',
+                    'id': 'formula-cache'
                 },
                  ]
         },
@@ -59,12 +67,14 @@ definition = [
                     {
                         'label': 'Tasks',
                         'icone': 'bi bi-clock-history',
-                        'target': '/tasks/'
+                        'target': '/tasks/',
+                        'id' : 'monitor-tasks'
                     },
                     {
                         'label': 'Warnings',
                         'icone': 'bi bi-exclamation-triangle',
-                        'target': '/tswatch/'
+                        'target': '/tswatch/',
+                        'id': 'monitor-tswatch'
                     },
                  ]
         },
@@ -75,7 +85,8 @@ definition = [
                     {
                         'label': 'Home',
                         'icone': 'bi bi-house-fill',
-                        'target': '/'
+                        'target': '/',
+                        'id': 'navigation-home'
                     },
                     ]
                 },

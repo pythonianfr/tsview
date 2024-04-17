@@ -855,6 +855,7 @@ main =
                    { menuContent = []
                    , menuModeText = False
                    , icones = Dict.empty
+                   , selected = Just "timeseries-catalog"
                    }
                }
 

@@ -325,6 +325,7 @@ initModel baseurl instance version =
         { menuContent = []
         , menuModeText = False
         , icones = Men.iconesDefinition
+        , selected = Just "homepage"
         }
     }
 
