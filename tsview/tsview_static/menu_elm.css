@@ -1,4 +1,11 @@
 .menu-refinery {
+    --col-link: black;
+    --col-link-back: #e0e0e0;
+    --col-section: white;
+    --col-section-back: black;
+}
+
+.menu-refinery {
     width: fit-content;
 }
 
@@ -12,7 +19,7 @@
 .switch-display {
     width: 100%;
     height: 32px;
-    background-color: whi;
+    background-color: white;
     text-align: center;
     padding: 3px;
     cursor: pointer;
@@ -29,31 +36,31 @@
 }
 
 .menu-refinery a {
-    color: black;
+    color: var(--col-link);
 }
 
 .menu-refinery a:visited {
-    color: black;
+    color: var(--col-link);
 }
 
 .menu-with-text ul ul  {
-    background-color: #e0e0e0;
+    background-color: var(--col-link-back);
 }
 
 .section-svg {
-    color:white;
-    background-color:black;
+    color:var(--col-section);
+    background-color:var(--col-section-back);
 }
 
 .section>div>svg {
     padding: 7px;
-    color: white;
-    background-color: black;
+    color: var(--col-section);
+    background-color: var(--col-section-back);
 }
 
 .link svg {
     padding: 7px;
-    background-color: #e0e0e0;
+    background-color: var(--col-link-back);
 }
 
 .menu-refinery .link svg:hover {
@@ -62,6 +69,10 @@
 
 .menu-with-text .link:hover .label {
     text-decoration: underline;
+}
+
+.menu-with-text .link:hover svg {
+    padding:2px;
 }
 
 .menu-refinery .selected::before {
