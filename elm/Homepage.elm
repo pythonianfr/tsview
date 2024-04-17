@@ -322,7 +322,7 @@ initModel baseurl instance version =
     , status = { catalog = Processing }
     , catalog = Cat.empty
     , menu =
-        { menuContent = Men.contentMenu
+        { menuContent = []
         , menuModeText = False
         , icones = Men.iconesDefinition
         }

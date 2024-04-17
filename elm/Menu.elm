@@ -3,12 +3,12 @@ module Menu exposing
     , Msg(..)
     , Menu
     , Link
-    , contentMenu
     , viewMenu
+    , getMenu
     , updateModel
     , iconesDefinition
     )
-
+import Http
 import Dict exposing (Dict)
 import Svg exposing (svg, path)
 import Svg.Attributes exposing
@@ -20,6 +20,7 @@ import Svg.Attributes exposing
 import Html as H
 import Html.Attributes as A
 import Html.Events as HE
+import Json.Decode as JD
 
 iconesDefinition =
     Dict.fromList
@@ -81,67 +82,39 @@ type alias Path =
     { d: String
     , fillRule: Maybe String}
 
-contentMenu : Menu
-contentMenu =
-    [ { label = "Timeseries"
-      , icone = "bi bi-graph-up-arrow"
-      , links = [ { label = "Catalog"
-                  , icone = "bi bi-database"
-                  , target = "/tssearch" }
-                , { label = "Quick View"
-                  , icone = "bi bi-lightning-charge"
-                  , target = "/tsview" }
-                , { label = "Delete"
-                  , icone = "bi bi-trash"
-                  , target = "/tsdelete" }
-                ]
-      }
-    , { label = "Formula"
-      , icone = "bi bi-diagram-3"
-      , links = [ { label = "Documentation"
-                  , icone = "bi bi-info-circle"
-                  , target = "/tsformula/operators" }
-                , { label = "Catalog"
-                  , icone = "bi bi-list-columns"
-                  , target = "/formulas" }
-                , { label = "Create"
-                  , icone = "bi bi-pencil"
-                  , target = "/tsformula" }
-                , { label = "Update batch"
-                  , icone = "bi bi-file-earmark-arrow-up"
-                  , target = "/addformulas" }
-                , { label = "Setup cache"
-                  , icone = "bi bi-wrench"
-                  , target = "/formulacache" }
-                ]
-      }
-    , { label = "Monitoring"
-      , icone = "bi bi-heart-pulse"
-      , links = [ { label = "Tasks"
-                  , icone = "bi bi-clock-history"
-                  , target = "/tasks/" }
-                , { label = "Warnings"
-                  , icone = "bi bi-exclamation-triangle"
-                  , target = "/tswatch/" }
-                ]
-      }
-    , { label = "Navigation"
-      , icone = "bi bi-globe"
-      , links = [ { label = "Home"
-                  , icone = "bi bi-house-fill"
-                  , target = "/" }
-                ]
-      }
-    ]
-
 type Msg =
     ToggleMenu
+    | GotMenu (Result Http.Error Menu)
+
+menuDecoder: JD.Decoder Menu
+menuDecoder = JD.list decodeSection
+
+decodeSection: JD.Decoder Section
+decodeSection =
+    JD.map3 Section
+       ( JD.field "label" JD.string )
+       ( JD.field "icone" JD.string )
+       ( JD.field "links" ( JD.list decodeLink ) )
+
+decodeLink: JD.Decoder Link
+decodeLink =
+    JD.map3 Link
+        ( JD.field "label" JD.string )
+        ( JD.field "icone" JD.string )
+        ( JD.field "target" JD.string )
+
+getMenu baseUrl msgBuilder =
+    Http.get
+        { url = baseUrl ++ "menu"
+        , expect = Http.expectJson msgBuilder menuDecoder}
 
 -- update
 
 updateModel msg model =
     case msg of
-        ToggleMenu ->{ model | menuModeText = not model.menuModeText}
+        ToggleMenu -> { model | menuModeText = not model.menuModeText}
+        GotMenu (Ok content) -> { model | menuContent = content}
+        GotMenu (Err error) ->  model
 
 -- view
 -- Note: the view function must NOT be Typed

@@ -851,7 +851,7 @@ main =
                , namefilterdeb = debouncerconfig
                , formulafilterdeb = debouncerconfig
                , menu =
-                   { menuContent = Men.contentMenu
+                   { menuContent = []
                    , menuModeText = False
                    , icones = Men.iconesDefinition
                    }
@@ -862,6 +862,7 @@ main =
                , Cmd.batch
                    [ Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
                    , Cmd.map GotCatalog <| Cat.get input.baseurl "group" 1 Cat.ReceivedGroups
+                   , Men.getMenu input.baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
                    ]
                )
 
