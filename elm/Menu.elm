@@ -2,9 +2,11 @@ module Menu exposing
     (Model
     , Msg(..)
     , Menu
+    , Icone
     , Link
     , viewMenu
     , getMenu
+    , getIcones
     , updateModel
     , iconesDefinition
     )
@@ -21,6 +23,9 @@ import Html as H
 import Html.Attributes as A
 import Html.Events as HE
 import Json.Decode as JD
+import Json.Decode exposing (
+    Decoder
+    )
 
 iconesDefinition =
     Dict.fromList
@@ -85,18 +90,21 @@ type alias Path =
 type Msg =
     ToggleMenu
     | GotMenu (Result Http.Error Menu)
+    | GotIcones (Result Http.Error (Dict String Icone))
 
-menuDecoder: JD.Decoder Menu
+-- decoders
+
+menuDecoder: Decoder Menu
 menuDecoder = JD.list decodeSection
 
-decodeSection: JD.Decoder Section
+decodeSection: Decoder Section
 decodeSection =
     JD.map3 Section
        ( JD.field "label" JD.string )
        ( JD.field "icone" JD.string )
        ( JD.field "links" ( JD.list decodeLink ) )
 
-decodeLink: JD.Decoder Link
+decodeLink: Decoder Link
 decodeLink =
     JD.map3 Link
         ( JD.field "label" JD.string )
@@ -108,6 +116,23 @@ getMenu baseUrl msgBuilder =
         { url = baseUrl ++ "menu"
         , expect = Http.expectJson msgBuilder menuDecoder}
 
+getIcones baseUrl msgBuilder =
+    Http.get
+        { url = baseUrl ++ "icons"
+        , expect = Http.expectJson msgBuilder iconesDecoder}
+
+iconesDecoder: Decoder (Dict String Icone)
+iconesDecoder = JD.dict decodeIcone
+
+decodeIcone: Decoder Icone
+decodeIcone = JD.list decodePath
+
+decodePath: Decoder Path
+decodePath =
+    JD.map2 Path
+        ( JD.field "d" JD.string )
+        ( JD.maybe (JD.field "fillRule" JD.string))
+
 -- update
 
 updateModel msg model =
@@ -115,6 +140,8 @@ updateModel msg model =
         ToggleMenu -> { model | menuModeText = not model.menuModeText}
         GotMenu (Ok content) -> { model | menuContent = content}
         GotMenu (Err error) ->  model
+        GotIcones (Ok content) -> { model | icones = content}
+        GotIcones (Err error) ->  model
 
 -- view
 -- Note: the view function must NOT be Typed

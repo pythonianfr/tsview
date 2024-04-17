@@ -86,6 +86,7 @@ type Msg
     --menu
     | Menu Men.Msg
 
+
 getmeta baseurl dtype event =
     Http.get
         { expect =
@@ -853,7 +854,7 @@ main =
                , menu =
                    { menuContent = []
                    , menuModeText = False
-                   , icones = Men.iconesDefinition
+                   , icones = Dict.empty
                    }
                }
 
@@ -863,6 +864,7 @@ main =
                    [ Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
                    , Cmd.map GotCatalog <| Cat.get input.baseurl "group" 1 Cat.ReceivedGroups
                    , Men.getMenu input.baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
+                   , Men.getIcones input.baseurl ( \ returnHttp ->  Menu (Men.GotIcones returnHttp ) )
                    ]
                )
 
