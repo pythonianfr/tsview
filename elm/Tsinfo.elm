@@ -36,6 +36,7 @@ import Info exposing (SeriesType(..))
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
+import List.Extra as List
 import List.Selection as LS
 import Maybe.Extra as Maybe
 import Metadata as M
@@ -121,6 +122,7 @@ type alias Model =
     , clipboardclass : String
     , horizon : HorizonModel (Maybe Float)
     , plotstatus : PlotStatus
+    , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
     }
 
@@ -187,6 +189,7 @@ type Msg
     | InferredFreq Bool
     | HistoryMode Bool
     | NewDates (List String)
+    | HistoryIdates (String, String) (Result Http.Error String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -811,9 +814,49 @@ update msg model =
             ( newmodel, Cmd.none )
 
         NewDates range ->
+            if model.historyMode then
+                    let
+                        newModel = { model | historyPlots = Dict.empty }
+                        minDate = Maybe.withDefault "" (List.head range)
+                        maxDate = Maybe.withDefault "" (List.last range)
+                        cmdSent =
+                            if (minDate == "") && (maxDate == "") then
+                                    Cmd.none
+                            else
+                                getHistoryIdates model minDate maxDate
+                    in ( newModel, cmdSent)
+            else
                 (model, Cmd.none)
 
+        HistoryIdates (minDate, maxDate) (Ok rawdates) ->
+            case D.decodeString I.idatesdecoder rawdates of
+                Ok dates ->
+                    (model, Cmd.none)
+                Err err ->
+                    doerr "idates decode" <| D.errorToString err
+
+        HistoryIdates _ (Err error) ->
+            doerr "idates http" <| U.unwraperror error
+
+
 -- views
+
+getHistoryIdates : Model -> String -> String -> Cmd Msg
+getHistoryIdates model minDate maxDate =
+
+    Http.get
+        { url =
+            UB.crossOrigin
+            model.baseurl
+            [ "api", "series", "insertion_dates" ]
+            [ UB.string "name" model.name
+            , UB.int "nocache" <| U.bool2int model.view_nocache
+            , UB.string "from_value_date" minDate
+            , UB.string "to_value_date" maxDate
+            ]
+        , expect = Http.expectString (HistoryIdates (minDate, maxDate))
+        }
+
 
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
 updateModelOffset model i =
@@ -1243,6 +1286,7 @@ main =
                             , timeZone = "UTC"
                     }
                     , plotstatus = Loading
+                    , historyPlots = Dict.empty
                     , historyMode = False
                     }
             in
