@@ -118,6 +118,7 @@ type alias Model =
     , clipboardclass : String
     , horizon : HorizonModel (Maybe Float)
     , plotstatus : PlotStatus
+    , historyMode : Bool
     }
 
 
@@ -181,6 +182,7 @@ type Msg
     | UpdateOffset Offset
     | TimeZoneSelected String
     | InferredFreq Bool
+    | HistoryMode Bool
 
 
 logentrydecoder : D.Decoder Logentry
@@ -796,7 +798,12 @@ update msg model =
                 , saveToLocalStorage userprefs
                 ]
             )
-
+        HistoryMode isChecked ->
+            let
+                newmodel =
+                    { model | historyMode = isChecked }
+            in
+            ( newmodel, Cmd.none )
 
 -- views
 
@@ -973,6 +980,7 @@ viewplot model =
     in
     H.div []
         [ viewdatespicker model idatepickerevents
+        , historyModeSwitch model
         , viewdatesrange model
         , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
         ]
@@ -1035,6 +1043,26 @@ viewdatespicker model events =
                         ] [ ]
             ]
         ]
+
+
+historyModeSwitch : Model -> H.Html Msg
+historyModeSwitch model =
+    H.div
+        [ HA.class "custom-control custom-switch"]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "historyModeCheckDefault"
+            , HA.checked model.historyMode
+            , HE.onCheck HistoryMode
+            ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "historyModeCheckDefault"
+            ]
+            [ H.text "History mode" ]
+        ]
+
 
 
 strtab tablelayout =
@@ -1207,6 +1235,7 @@ main =
                             , timeZone = "UTC"
                     }
                     , plotstatus = Loading
+                    , historyMode = False
                     }
             in
             ( model
