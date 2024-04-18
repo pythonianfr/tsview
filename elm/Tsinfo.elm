@@ -190,6 +190,7 @@ type Msg
     | HistoryMode Bool
     | NewDates (List String)
     | HistoryIdates (String, String) (Result Http.Error String)
+    | GotVersion String (Result Http.Error String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -831,13 +832,36 @@ update msg model =
         HistoryIdates (minDate, maxDate) (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
-                    (model, Cmd.none)
+                    let
+                        firstSeventy  =
+                            if (List.length dates) > 70 then
+                                List.take 70 dates
+                            else
+                                dates
+                    in
+                    ( model
+                    , getPlotsRequests model minDate maxDate firstSeventy
+                    )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
 
         HistoryIdates _ (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
+        GotVersion idate (Ok rawdata) ->
+            case D.decodeString seriesdecoder rawdata of
+                Ok val ->
+                    let
+                        newHistoryPlots = Dict.insert idate val model.historyPlots
+                    in
+                    U.nocmd {model | historyPlots = newHistoryPlots}
+                Err err ->
+                    if strseries model
+                    then U.nocmd model
+                    else doerr "gotplotdata decode" <| D.errorToString err
+
+        GotVersion _ (Err err) ->
+            doerr "gotplotdata error" <| U.unwraperror err
 
 -- views
 
@@ -856,6 +880,35 @@ getHistoryIdates model minDate maxDate =
             ]
         , expect = Http.expectString (HistoryIdates (minDate, maxDate))
         }
+
+
+getPlotsRequests : Model -> String -> String -> List String -> Cmd Msg
+getPlotsRequests model minDate maxDate idates =
+    let
+        stringToMaybe : String -> String -> Maybe UB.QueryParameter
+        stringToMaybe name value =
+            if value == "" then Nothing else Just (UB.string name value)
+
+        fullquery : String -> List UB.QueryParameter
+        fullquery idate = Maybe.values <|
+            [ stringToMaybe "name" model.name
+            , stringToMaybe "insertion_date" idate
+            , stringToMaybe "inferred_freq" (if model.horizon.inferredFreq then "true" else "false")
+            , stringToMaybe "tzone" model.horizon.timeZone
+            , stringToMaybe "from_value_date" minDate
+            , stringToMaybe "to_value_date" maxDate
+            ]
+
+        getPlot : String -> Cmd Msg
+        getPlot idate =
+            Http.get
+                { url = UB.crossOrigin
+                    model.baseurl [ "api", "series", "state" ] (fullquery idate)
+                , expect = Http.expectString (GotVersion idate)
+            }
+    in
+    Cmd.batch
+        (List.map getPlot idates)
 
 
 updateModelOffset : Model -> Int -> (Model, Cmd Msg)
