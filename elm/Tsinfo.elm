@@ -1151,53 +1151,53 @@ type alias Input =
 
 main : Program Input  Model Msg
 main =
-       let
-           debouncerconfig =
-               Debouncer.manual
-                   |> settleWhenQuietFor (Just <| fromSeconds 0.015)
-                   |> toDebouncer
+    let
+        debouncerconfig =
+            Debouncer.manual
+                |> settleWhenQuietFor (Just <| fromSeconds 0.015)
+                |> toDebouncer
 
-           init input =
-               let
-                   model =
-                       { baseurl = input.baseurl
-                       , name = input.name
-                       , source = ""
-                       , activetab = Plot
-                       -- metadata edition
-                       , canwrite = False
-                       , editing = False
-                       -- all errors
-                       , errors = [ ]
-                       -- metadata
-                       , meta = Dict.empty
-                       , usermeta = Dict.empty
-                       , seriestype = I.Primary
-                       -- formula
-                       , formula_depth = 0
-                       , formula_maxdepth = 0
-                       , formula = Dict.empty
-                       -- cache
-                       , has_cache = False
-                       , view_nocache = False
-                       , policy = Dict.empty
-                       , deleting_cache = False
-                       -- log
-                       , log = [ ]
-                       -- plot
-                       , insertion_dates = Array.empty
-                       , date_index = 0
-                       , date_index_deb = debouncerconfig
-                       -- user meta edittion
-                       , metaitem = ("", "")
-                       , editeditems = Dict.empty
-                       -- deletion
-                       , deleting = False
-                       -- renaming
-                       , renaming = False
-                       , newname = Nothing
-                       , clipboardclass = "bi bi-clipboard"
-                       , horizon =
+        init input =
+            let
+                model =
+                    { baseurl = input.baseurl
+                    , name = input.name
+                    , source = ""
+                    , activetab = Plot
+                    -- metadata edition
+                    , canwrite = False
+                    , editing = False
+                    -- all errors
+                    , errors = [ ]
+                    -- metadata
+                    , meta = Dict.empty
+                    , usermeta = Dict.empty
+                    , seriestype = I.Primary
+                    -- formula
+                    , formula_depth = 0
+                    , formula_maxdepth = 0
+                    , formula = Dict.empty
+                    -- cache
+                    , has_cache = False
+                    , view_nocache = False
+                    , policy = Dict.empty
+                    , deleting_cache = False
+                    -- log
+                    , log = [ ]
+                    -- plot
+                    , insertion_dates = Array.empty
+                    , date_index = 0
+                    , date_index_deb = debouncerconfig
+                    -- user meta edittion
+                    , metaitem = ("", "")
+                    , editeditems = Dict.empty
+                    -- deletion
+                    , deleting = False
+                    -- renaming
+                    , renaming = False
+                    , newname = Nothing
+                    , clipboardclass = "bi bi-clipboard"
+                    , horizon =
                             { offset = 0
                             , horizon = Just defaultHorizon
                             , inferredFreq = False
@@ -1205,23 +1205,22 @@ main =
                             , maxdate = ""
                             , timeSeries = Dict.empty
                             , timeZone = "UTC"
-                       }
-                       , plotstatus = Loading
                     }
-               in
-               ( model
-               , Cmd.batch
-                   [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
-                   , M.getusermetadata input.baseurl input.name GotUserMeta "series"
-                   , getsource model model.name
-                   , I.getwriteperms input.baseurl GetPermissions
-                   , getcachepolicy model
-                   ]
-               )
-       in
-           Browser.element
-               { init = init
-               , view = view
-               , update = update
-               , subscriptions = \_ -> loadFromLocalStorage FromLocalStorage
-               }
+                    , plotstatus = Loading
+                    }
+            in
+            ( model
+            , Cmd.batch
+                [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
+                , M.getusermetadata input.baseurl input.name GotUserMeta "series"
+                , getsource model model.name
+                , I.getwriteperms input.baseurl GetPermissions
+                , getcachepolicy model
+                ]
+            )
+    in Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = \_ -> loadFromLocalStorage FromLocalStorage
+        }
