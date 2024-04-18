@@ -50,6 +50,9 @@ import Url.Builder as UB
 import Util as U
 
 
+port dateInInterval : (List String -> msg) -> Sub msg
+
+
 type alias Logentry =
     { rev : Int
     , author : String
@@ -183,6 +186,7 @@ type Msg
     | TimeZoneSelected String
     | InferredFreq Bool
     | HistoryMode Bool
+    | NewDates (List String)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -798,12 +802,16 @@ update msg model =
                 , saveToLocalStorage userprefs
                 ]
             )
+
         HistoryMode isChecked ->
             let
                 newmodel =
                     { model | historyMode = isChecked }
             in
             ( newmodel, Cmd.none )
+
+        NewDates range ->
+                (model, Cmd.none)
 
 -- views
 
@@ -1251,5 +1259,9 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> loadFromLocalStorage FromLocalStorage
+        , subscriptions =
+            \_ -> Sub.batch [
+                loadFromLocalStorage FromLocalStorage
+                , dateInInterval NewDates ]
         }
+

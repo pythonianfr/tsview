@@ -16,35 +16,48 @@
         </script>
         <script src="./tsview_static/tsinfo_elm.js"></script>
         <script>
-         class PlotFigure extends HTMLElement {
-             static get observedAttributes() {
-                 return ['args'];
-             }
-             attributeChangedCallback(name, old_value, new_value) {
-                 if ( name == 'args' ) {
-                     function doit () {
-                         let args = JSON.parse(new_value);
-                         Plotly.react(
-                             args.div,
-                             args.data,
-                             {},
-                             {
-                                 displaylogo: false,
-                                 displayModeBar: true,
-                                 displaylogo: false,
-                                 responsive: true,
-                                 modeBarButtonsToRemove: ['sendDataToCloud']
-                             }
-                         );
-                     }
-                     setTimeout(doit, 10)
-                 }
-             }
-         }
-
-         window.customElements.define("plot-figure", PlotFigure);
+            class PlotFigure extends HTMLElement {
+                static get observedAttributes() {
+                    return ['args'];
+                }
+                attributeChangedCallback(name, old_value, new_value) {
+                    if ( name == 'args' ) {
+                        function doit () {
+                            let args = JSON.parse(new_value);
+                            Plotly.react(
+                                args.div,
+                                args.data,
+                                {},
+                                {
+                                    displaylogo: false,
+                                    displayModeBar: true,
+                                    displaylogo: false,
+                                    responsive: true,
+                                    modeBarButtonsToRemove: ['sendDataToCloud']
+                                }
+                            );
+                            document.getElementById(args.div).on(
+                                'plotly_relayout', function(eventData) {
+                                    var range;
+                                    if (eventData['xaxis.range[0]'] !== undefined
+                                        && eventData['xaxis.range[1]'] !== undefined) {
+                                        range = [
+                                            eventData['xaxis.range[0]'],
+                                            eventData['xaxis.range[1]']
+                                        ];
+                                    } else {
+                                        range = ["", ""];
+                                    }
+                                    app.ports.dateInInterval.send(range);
+                                }
+                            );
+                        }
+                    setTimeout(doit, 10)
+                    }
+                }
+            }
+            window.customElements.define("plot-figure", PlotFigure);
         </script>
-
     </head>
     <body>
         <div id="app"></div>
