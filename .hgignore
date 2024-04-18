@@ -7,3 +7,5 @@ dist
 data/pgdb
 elm-stuff
 node
+# Default ignored files
+.idea/workspace.xml

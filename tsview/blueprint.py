@@ -11,6 +11,8 @@ from tshistory import search
 from tshistory_formula.registry import FUNCS
 from tshistory_formula.interpreter import jsontypes
 
+import tshistory_refinery
+
 from tsview.util import (
     argsdict as _argsdict,
     format_formula
@@ -55,6 +57,18 @@ def tsview(tsa):
         template_folder='tsview_templates',
         static_folder='tsview_static',
     )
+
+    @bp.route('/')
+    def homepage():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        baseurl = homeurl()
+        instance = "Local" if len(baseurl)==0 else baseurl.split("refinery.")[1].split(".pythonian")[0]
+        version = tshistory_refinery.__version__
+        return render_template(
+            'homepage.html',
+            flags=json.dumps([baseurl, instance, version]),
+        )
 
     @bp.route('/tsview')
     def home():
