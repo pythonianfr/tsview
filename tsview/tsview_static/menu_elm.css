@@ -3,6 +3,7 @@
     --col-link-back: #e0e0e0;
     --col-section: white;
     --col-section-back: black;
+    --col-selected: #a9a9a9;
 }
 
 .menu-refinery {
@@ -47,6 +48,12 @@
     background-color: var(--col-link-back);
 }
 
+.section {
+    color: var(--col-section)
+    color: var(--col-section);
+    background-color: var(--col-section-back);
+}
+
 .section-svg {
     color:var(--col-section);
     background-color:var(--col-section-back);
@@ -54,8 +61,6 @@
 
 .section>div>svg {
     padding: 7px;
-    color: var(--col-section);
-    background-color: var(--col-section-back);
 }
 
 .link svg {
@@ -75,19 +80,17 @@
     padding:2px;
 }
 
-.menu-refinery .selected::before {
-    content: ".";
-    font-size: 30px;
-    margin-right: 3px;
+.menu-refinery .selected {
+    background-color: var(--col-selected)
+}
+
+.menu-refinery .selected svg {
+    background-color: var(--col-selected)
 }
 
 .full-link {
     width: 100%;
     display: block;
-}
-
-.selected .full-link {
-    display: inline;
 }
 
 .label {
