@@ -810,7 +810,10 @@ update msg model =
         HistoryMode isChecked ->
             let
                 newmodel =
-                    { model | historyMode = isChecked }
+                    { model
+                        | historyMode = isChecked
+                        , historyPlots = Dict.empty
+                    }
             in
             ( newmodel, Cmd.none )
 
@@ -1087,6 +1090,10 @@ viewplot model =
         , historyModeSwitch model
         , viewdatesrange model
         , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
+        , if model.historyMode then
+            I.viewHistoryGraph model.historyPlots
+        else
+            H.div [][]
         ]
 
 

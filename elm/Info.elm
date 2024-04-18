@@ -15,6 +15,7 @@ module Info exposing
     , viewerrors
     , viewformula
     , viewgraph
+    , viewHistoryGraph
     , viewlog
     , viewmeta
     , viewrenameaction
@@ -616,6 +617,24 @@ viewgraph name tskeys tsvalues =
         [ ]
         [ H.div [ HA.id "plot" ] [ ]
         , H.node "plot-figure" [ HA.attribute "args" args ] [ ]
+        ]
+
+
+viewHistoryGraph historyPlots =
+    let
+        formatLine tuple =
+            { type_ = "scatter"
+            , name = Tuple.first tuple
+            , x = Dict.keys (Tuple.second tuple)
+            , y = Dict.values (Tuple.second tuple)
+            , mode = "lines"}
+        historyArgs = plotargs
+            "plot-history" (List.map formatLine (Dict.toList historyPlots))
+    in
+    H.div
+        [ ]
+        [ H.div [ HA.id "plot-history" ] [ ]
+        , H.node "plot-figure" [ HA.attribute "history-args" historyArgs ] [ ]
         ]
 
 
