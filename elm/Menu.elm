@@ -22,6 +22,10 @@ import Svg.Attributes exposing
     , fill
     )
 import Html as H
+import Html exposing
+    ( Html
+    , Attribute
+    )
 import Html.Attributes as A
 import Html.Events as HE
 import Json.Decode as JD
@@ -87,11 +91,13 @@ decodeLink =
         ( JD.field "id" JD.string )
 
 
+getMenu: String -> ((Result Http.Error Menu) -> msg) -> Cmd msg
 getMenu baseUrl msgBuilder =
     Http.get
         { url = baseUrl ++ "menu"
         , expect = Http.expectJson msgBuilder menuDecoder}
 
+getIcones: String -> ((Result Http.Error (Dict String Icone)) -> msg) -> Cmd msg
 getIcones baseUrl msgBuilder =
     Http.get
         { url = baseUrl ++ "icons"
@@ -116,6 +122,7 @@ menuDataDecoder =
 
 -- update
 
+updateModel: Msg -> Model -> Model
 updateModel msg model =
     case msg of
         ToggleMenu -> { model | menuModeText = not model.menuModeText}
@@ -128,6 +135,7 @@ updateModel msg model =
         GotIcones (Ok content) -> { model | icones = content}
         GotIcones (Err error) ->  model
 
+buildCmd: Msg -> Model -> Cmd msg
 buildCmd msg model =
     case msg of
         ToggleMenu -> saveMenuData (MenuData (not model.menuModeText))
@@ -138,9 +146,8 @@ buildCmd msg model =
         GotIcones (Err error) ->  Cmd.none
 
 -- view
--- Note: the view function must NOT be Typed
---       in this module for modularity purpose
 
+displayTextSection: (Dict String Icone) -> Menu -> Maybe String -> Html msg
 displayTextSection icones content selected =
      H.ul
         []
@@ -158,6 +165,7 @@ displayTextSection icones content selected =
                            )
             content )
 
+displayTextLinks: (Dict String Icone) -> List Link -> Maybe String -> Html msg
 displayTextLinks icones links selected =
     H.ul
         []
@@ -174,7 +182,7 @@ displayTextLinks icones links selected =
                                     [H.text link.label ]] ] )
             links )
 
-
+displayIconeContent: (Dict String Icone) -> Menu -> Maybe String -> Html msg
 displayIconeContent icones content selected =
     H.ul
         []
@@ -190,6 +198,7 @@ displayIconeContent icones content selected =
                            )
             content )
 
+displayIconeLinks: (Dict String Icone) -> List Link -> Maybe String -> Html msg
 displayIconeLinks icones links selected =
     H.ul
         []
@@ -203,6 +212,7 @@ displayIconeLinks icones links selected =
                                 [ buildSvg icones link.icone] ] )
             links )
 
+classSelect: String -> Maybe String -> Attribute msg
 classSelect label selected =
     case selected of
         Nothing -> A.class ""
@@ -211,6 +221,7 @@ classSelect label selected =
                 then A.class "selected"
                 else A.class ""
 
+buildSvg: Dict String Icone -> String -> Html msg
 buildSvg icones iconeName =
     let icone = Maybe.withDefault
                     []
@@ -225,18 +236,21 @@ buildSvg icones iconeName =
             icone
         )
 
+buildSvgPath: Path -> Html msg
 buildSvgPath ipath =
     case ipath.fillRule of
         Nothing -> path [ d ipath.d ] []
         Just rule -> path [ fillRule rule, d ipath.d ] []
 
+displaSwitchButton: Dict String Icone -> Bool -> Html msg
 displaSwitchButton icones toCollpase =
      if toCollpase
         then buildSvg icones "bi bi-arrows-collapse-vertical"
         else buildSvg icones "bi bi-arrows-expand-vertical"
 
-viewMenu model msgBuilder =
 
+viewMenu: Model -> (Msg -> msg) -> Html msg
+viewMenu model msgBuilder =
     H.div
         [ A.class "menu-refinery"
         , if model.menuModeText
