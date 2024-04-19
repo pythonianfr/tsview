@@ -1,4 +1,4 @@
-module Menu exposing
+port module Menu exposing
     (Model
     , Msg(..)
     , Menu
@@ -8,6 +8,9 @@ module Menu exposing
     , getMenu
     , getIcones
     , updateModel
+    , buildCmd
+    , saveMenuData
+    , loadMenuData
     , iconesDefinition
     )
 import Http
@@ -63,6 +66,12 @@ iconesDefinition =
                                , Path "m8 3.293 6 6V13.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5V9.293z" Nothing])
         ]
 
+port saveMenuData : MenuData -> Cmd msg
+port loadMenuData : (String -> msg) -> Sub msg
+
+type alias MenuData =
+    { menuIsOpen: Bool}
+
 type alias Model =
     { menuContent : Menu
     , menuModeText : Bool
@@ -91,6 +100,7 @@ type alias Path =
 
 type Msg =
     ToggleMenu
+    | LoadMenuData String
     | GotMenu (Result Http.Error Menu)
     | GotIcones (Result Http.Error (Dict String Icone))
 
@@ -137,15 +147,33 @@ decodePath =
         ( JD.field "d" JD.string )
         ( JD.maybe (JD.field "fillRule" JD.string))
 
+menuDataDecoder: Decoder MenuData
+menuDataDecoder =
+    JD.map MenuData
+        ( JD.field "menuIsOpen" JD.bool )
+
 -- update
 
 updateModel msg model =
     case msg of
         ToggleMenu -> { model | menuModeText = not model.menuModeText}
+        LoadMenuData content ->
+            case JD.decodeString menuDataDecoder content of
+                Ok data -> { model | menuModeText = data.menuIsOpen }
+                Err _ -> { model | menuModeText = False }
         GotMenu (Ok content) -> { model | menuContent = content}
         GotMenu (Err error) ->  model
         GotIcones (Ok content) -> { model | icones = content}
         GotIcones (Err error) ->  model
+
+buildCmd msg model =
+    case msg of
+        ToggleMenu -> saveMenuData (MenuData (not model.menuModeText))
+        LoadMenuData _ -> Cmd.none
+        GotMenu (Ok content) -> Cmd.none
+        GotMenu (Err error) ->  Cmd.none
+        GotIcones (Ok content) -> Cmd.none
+        GotIcones (Err error) ->  Cmd.none
 
 -- view
 -- Note: the view function must NOT be Typed

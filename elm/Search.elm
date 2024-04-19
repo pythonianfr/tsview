@@ -446,7 +446,8 @@ update msg model =
 
         --  Menu
         Menu menumsg ->
-            U.nocmd {model | menu = Men.updateModel menumsg model.menu}
+            ( { model | menu = Men.updateModel menumsg model.menu }
+            , Men.buildCmd menumsg model.menu)
 
 
 viewnamefilter =
@@ -875,5 +876,5 @@ main =
                { init = init
                , view = view
                , update = update
-               , subscriptions = sub
+               , subscriptions = \_ -> Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
                }
