@@ -830,30 +830,32 @@ main =
                toDebouncer
 
            newmodel input =
-               Model
-                   input.baseurl
-                   Series
-                   Cat.empty
-                   Dict.empty
-                   Dict.empty
-                   Dict.empty
-                   Dict.empty
-                   []
-                   []
-                   []
-                   []
-                   []
-                   []
-                   Nothing
-                   Nothing
-                   ("", "")
-                   []
-                   []
-                   debouncerconfig
-                   debouncerconfig
+               { baseurl = input.baseurl
+               , mode = Series
+               , catalog = Cat.empty
+               , seriesmetadata = Dict.empty
+               , seriesformula = Dict.empty
+               , groupsmetadata = Dict.empty
+               , groupsformula = Dict.empty
+               , filteredseries = []
+               , filteredgroups = []
+               , selectedserieskinds = []
+               , selectedseriessources = []
+               , selectedgroupskinds = []
+               , selectedgroupssources = []
+               , filterbyname = Nothing
+               , filterbyformula = Nothing
+               , metaitem = ("", "")
+               , filterbymeta = []
+               , errors = []
+               , namefilterdeb = debouncerconfig
+               , formulafilterdeb = debouncerconfig
+               , menu =
                    { menuContent = Men.contentMenu
                    , menuModeText = False
-                   , icones = Men.iconesDefinition}
+                   , icones = Men.iconesDefinition
+                   }
+               }
 
            init input =
                ( newmodel input
