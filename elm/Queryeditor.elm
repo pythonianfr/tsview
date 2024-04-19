@@ -17,8 +17,19 @@ import Http
 import Json.Decode as JD
 import Json.Encode as JE
 import Lisp
+import Metadata as M
 import Url.Builder as UB
 import Util as U
+
+
+
+type alias Series =
+    { name : String
+    , imeta : Maybe M.StdMetadata
+    , meta : Maybe M.StdMetadata
+    , source : String
+    , kind : String
+    }
 
 
 type alias Model =
@@ -35,6 +46,8 @@ type alias Model =
     -- creation
     , creating : Bool
     , newname : String
+    -- results
+    , series : List Series
     }
 
 
@@ -48,6 +61,7 @@ type Msg
     | Create
     | NewName String
     | CancelCreation
+    | GotSeries (Result Http.Error String)
 
 
 getbaskets model =
@@ -87,6 +101,33 @@ savebasket model name editing creation =
                 }
 
 
+tryfilter model editing =
+    case editing of
+        Nothing ->
+            Cmd.none
+        Just code ->
+            Http.get
+                { expect = Http.expectString GotSeries
+                , url = UB.crossOrigin model.baseurl
+                        [ "api",  "series", "find" ]
+                      [ UB.string "query" <| Lisp.serialize <| serialize code ]
+                }
+
+
+
+seriesdecoder =
+    JD.map5 Series
+        (JD.field "name" JD.string)
+        (JD.field "imeta" (JD.succeed Nothing))
+        (JD.field "meta" (JD.succeed Nothing))
+        (JD.field "source" JD.string)
+        (JD.field "kind" JD.string)
+
+
+serieslistdecoder =
+    JD.list seriesdecoder
+
+
 update msg model =
     let
         doerr tag error =
@@ -117,7 +158,10 @@ update msg model =
 
         SelectedBasket name ->
             ( { model | name = Just name }
-            , getbasket model name
+            , Cmd.batch
+                [ getbasket model name
+                , tryfilter model model.editing
+                ]
             )
 
         GotBasketDefinition (Ok rawbasket) ->
@@ -125,11 +169,13 @@ update msg model =
                 Ok def ->
                     case fromlisp def of
                         Ok parsed ->
-                            U.nocmd { model
-                                        | basket = Just def
-                                        , edited = Just parsed
-                                        , editing = Just parsed
-                                    }
+                            ( { model
+                                  | basket = Just def
+                                  , edited = Just parsed
+                                  , editing = Just parsed
+                              }
+                            , tryfilter model <| Just parsed
+                            )
                         Err err -> doerr "parse basket" err
                 Err err ->
                     doerr "getbasketdefinition decode" <| JD.errorToString err
@@ -199,6 +245,17 @@ update msg model =
               }
             , getbasket model <| Maybe.withDefault "" model.name
             )
+
+        GotSeries (Ok things) ->
+            case JD.decodeString serieslistdecoder things of
+                Ok series ->
+                    U.nocmd { model | series = series }
+
+                Err err ->
+                    doerr "getseries decode" <| JD.errorToString err
+
+        GotSeries (Err err) ->
+            doerr "getseries http" <| U.unwraperror err
 
 
 strvalue: Value -> String
@@ -343,6 +400,61 @@ vieweditor model =
         ]
 
 
+viewseries model =
+    let
+        item elt =
+            let
+                kind =
+                    elt.kind
+                sources =
+                    elt.source
+            in
+            H.li
+                [ HA.class "list-group-item p-1" ]
+                [ H.span
+                      [ HA.class <|
+                            case kind of
+                                "formula" -> "badge badge-success"
+                                _ -> "badge badge-secondary"
+                      ]
+                      [ H.text kind ]
+                , H.span [ ] [ H.text " " ]
+                , H.a
+                    [ HA.href <| UB.crossOrigin model.baseurl [ "tsinfo" ]
+                          [ UB.string "name" elt.name ]
+                    ]
+                    [ H.text elt.name ]
+                , H.span
+                      -- alas, Chrome does not know `inline-end`
+                    [ HA.style "float" "right" ]
+                    [ H.span [] [ H.text " " ]
+                    , H.span
+                        [ HA.class "badge badge-info" ]
+                        [ H.text elt.source ]
+                    ]
+                ]
+
+        filteredslice =
+            List.take 1000 model.series
+
+        items =
+            List.map item filteredslice
+
+        nbseries =
+            List.length model.series
+
+        shown =
+            List.length items
+
+    in
+    H.div []
+        [ H.text <| "This basket yields " ++ (String.fromInt nbseries) ++ " series."
+        , H.ul
+            [ HA.class "list-group list-group-flush" ]
+            items
+        ]
+
+
 viewerrors model =
     let
         viewitem item =
@@ -380,6 +492,7 @@ viewedition model =
         , HE.onClick Create
         ]
         [ H.text "Create" ]
+    , viewseries model
     , viewerrors model
     ]
 
@@ -429,6 +542,7 @@ main =
                        , editing = Nothing
                        , creating = False
                        , newname = ""
+                       , series = []
                        }
                in
                ( model, getbaskets model )
