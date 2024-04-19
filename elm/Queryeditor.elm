@@ -32,6 +32,9 @@ type alias Model =
     , basket : Maybe String
     , edited : Maybe FilterNode
     , editing : Maybe FilterNode
+    -- creation
+    , creating : Bool
+    , newname : String
     }
 
 
@@ -40,8 +43,11 @@ type Msg
     | SelectedBasket String
     | GotBasketDefinition (Result Http.Error String)
     | AceEditorMsg AceEditor.Msg
-    | SaveBasket
-    | SavedBasket (Result Http.Error ())
+    | SaveBasket Bool
+    | SavedBasket Bool (Result Http.Error ())
+    | Create
+    | NewName String
+    | CancelCreation
 
 
 getbaskets model =
@@ -61,26 +67,23 @@ getbasket model name =
         }
 
 
-savebasket model =
-    let
-        x=Debug.log "NAME" model
-    in
-    case model.editing of
+savebasket model name editing creation =
+    case editing of
         Nothing ->
             Cmd.none
-        Just editing ->
+        Just code ->
             Http.request
                 { method = "PUT"
                 , body = Http.jsonBody <| JE.object
-                         [ ("name", JE.string <| Maybe.withDefault "" model.name )
-                         , ("query" , JE.string <| Lisp.serialize <| serialize editing )
+                         [ ("name", JE.string name )
+                         , ("query" , JE.string <| Lisp.serialize <| serialize code )
                          ]
                 , headers = [ ]
                 , timeout = Nothing
                 , tracker = Nothing
                 , url = UB.crossOrigin model.baseurl
                         [ "api",  "series", "basket" ] [ ]
-                , expect = Http.expectWhatever SavedBasket
+                , expect = Http.expectWhatever <| SavedBasket creation
                 }
 
 
@@ -141,21 +144,61 @@ update msg model =
                 Err _ ->
                     U.nocmd model
 
-        SaveBasket ->
+        SaveBasket creating ->
+            let
+                name =
+                    case creating of
+                        True -> model.newname
+                        _ ->  (Maybe.withDefault "" model.name)
+            in
             ( model
-            , savebasket model
+            , savebasket model name model.editing creating
             )
 
-        SavedBasket (Ok _) ->
+        SavedBasket creating (Ok _) ->
+            let
+                cmd =
+                    case creating of
+                        True ->
+                            getbaskets model
+                        _ ->
+                            Cmd.none
+                newmodel =
+                    case creating of
+                        True ->
+                            { model
+                                | basket = Just model.newname
+                                , creating = False
+                            }
+                        _ ->
+                            model
+            in
+            ( { newmodel | edited = model.editing }
+            , cmd
+            )
+
+        SavedBasket _ (Err err) ->
+            doerr "savebasket http" <| U.unwraperror err
+
+        Create ->
+            U.nocmd { model
+                        | creating = True
+                        , basket = Nothing
+                        , editing = Nothing
+                        , edited = Nothing
+                    }
+
+        NewName name ->
+            U.nocmd { model | newname = name }
+
+        CancelCreation ->
             ( { model
-                  | edited = Nothing
+                  | creating = False
                   , editing = Nothing
+                  , edited = Nothing
               }
             , getbasket model <| Maybe.withDefault "" model.name
             )
-
-        SavedBasket (Err err) ->
-            doerr "savebasket http" <| U.unwraperror err
 
 
 strvalue: Value -> String
@@ -266,14 +309,38 @@ editorHeight =
 
 
 vieweditor model =
-    case model.basket of
-        Nothing -> H.span [] []
-        Just code ->
-            H.div
-                [ HA.class "code_left"
-                ,  editorHeight
-                ]
-                [ AceEditor.edit AceEditor.default code True |> H.map AceEditorMsg ]
+    let
+        code =
+            case model.basket of
+                Nothing -> ""
+                Just thing -> thing
+        goodname =
+            case model.creating of
+                True ->
+                    (model.newname /= "") && (not <| List.member model.newname model.baskets)
+                _ ->
+                    True
+    in
+    H.div
+        [ HA.class "code_left"
+        ,  editorHeight
+        ]
+        [ AceEditor.edit AceEditor.default code True |> H.map AceEditorMsg
+        , case model.editing of
+              Nothing -> H.span [] []
+              Just lastvalidedit ->
+                  H.div
+                      []
+                      [ H.text "Last valid state:"
+                      , viewtree model.editing
+                      , H.button
+                          [ HA.class "btn btn-primary"
+                          , HA.disabled <| (not goodname) || (model.editing == model.edited)
+                          , HE.onClick <| SaveBasket model.creating
+                          ]
+                          [ H.text "Save" ]
+                      ]
+        ]
 
 
 viewerrors model =
@@ -284,7 +351,7 @@ viewerrors model =
     H.div [] <| List.map viewitem model.errors
 
 
-view model =
+viewedition model =
     let
         unpacksbasket basketname =
             JD.succeed <| SelectedBasket basketname
@@ -304,27 +371,43 @@ view model =
             ]
 
     in
-    H.div []
-        [ H.h1 [] [ H.text "Baskets" ]
-        , H.div [] basketslist
-        , viewtree model.edited
-        , vieweditor model
-        , case model.editing of
-              Nothing -> H.span [] []
-              Just lastvalidedit ->
-                  H.div
-                      []
-                      [ H.text "Last valid state:"
-                      , viewtree model.editing
-                      , H.button
-                            [ HA.class "btn btn-primary"
-                            , HA.disabled <| model.editing == model.edited
-                            , HE.onClick SaveBasket
-                            ]
-                            [ H.text "Save" ]
-                      ]
-        , viewerrors model
+    [ H.h1 [] [ H.text "Baskets" ]
+    , H.div [] basketslist
+    , viewtree model.edited
+    , vieweditor model
+    , H.button
+        [ HA.class "btn btn-info"
+        , HE.onClick Create
         ]
+        [ H.text "Create" ]
+    , viewerrors model
+    ]
+
+
+viewcreation model =
+    [ H.h1 [] [ H.text "Baskets" ]
+    , viewtree model.edited
+    , vieweditor model
+    , H.button
+        [ HA.class "btn btn-info"
+        , HE.onClick CancelCreation
+        ]
+        [ H.text "Cancel" ]
+    ,  H.input [ HA.attribute "type" "text"
+               , HA.class "form-control"
+               , HA.placeholder "new basket name"
+               , HA.value model.newname
+               , HE.onInput NewName
+               ] [ ]
+    , viewerrors model
+    ]
+
+
+view model =
+    H.div [] <|
+        if model.creating
+        then viewcreation model
+        else viewedition model
 
 
 type alias Input =
@@ -344,6 +427,8 @@ main =
                        , basket = Nothing
                        , edited = Nothing
                        , editing = Nothing
+                       , creating = False
+                       , newname = ""
                        }
                in
                ( model, getbaskets model )
