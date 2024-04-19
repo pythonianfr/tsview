@@ -4,11 +4,11 @@ html {
     scroll-behavior: smooth;
 }
 
-body {
+.homepage-content {
     font-size: 14px;
 }
 
-p {
+.homepage-content p {
     font-family: 'Open Sans';
     font-style: normal;
     font-weight: 400;
@@ -18,7 +18,7 @@ p {
     color: #515350;
 }
 
-h1 {
+.homepage-content h1 {
     font-family: 'Ubuntu';
     font-style: normal;
     font-weight: 500;
@@ -28,7 +28,7 @@ h1 {
     color: #1A1C1A;
 }
 
-h2 {
+.homepage-content h2 {
     font-family: 'Ubuntu';
     font-style: normal;
     font-weight: 400;
@@ -37,13 +37,14 @@ h2 {
     text-align: center;
     letter-spacing: -0.02em;
     color: #1A1C1A;
-    margin-bottom: 48px;
+    margin-bottom: 32px;
 }
 
-#home {
-    padding: 0px 0px 60px 0px;
+#homepage-home {
+    padding: 0px 0px 32px 0px;
     padding-left: calc((100% - 1280px)/2);
     padding-right: calc((100% - 1280px)/2);
+    min-height: 400px;
 }
 
 .flex-container {
@@ -52,7 +53,7 @@ h2 {
 }
   
 .home-container {
-    margin-top: 32px;
+    margin-top: 21px;
     display: inline-block;
 }
 
@@ -60,24 +61,24 @@ h2 {
     padding-left: 48px;
 }
 
-.details {
+.homepage-details {
     width: 670px;
 }
 
-.details p {
+.homepage-details p {
     text-align: left;
     margin-bottom: 0px !important;
 } 
 
-.details u {
+.homepage-details u {
     text-decoration-color: #35845F;
 }
 
-.details u:hover {
+.homepage-details u:hover {
     color: #35845F !important;
 }
 
-.details ul {
+.homepage-details ul {
     padding-inline-start: 12px;
 }
 
@@ -86,13 +87,18 @@ h2 {
     position: absolute;
 }
 
+.home-plot {
+    height: 100px;
+    position: relative;
+}
+
 #links {
     position: absolute;
-    margin-top: 32px;
+    margin-top: 21px;
     display: inline-flex;
 }
 
-a.button {
+a.homepage-button {
     display: inline-block;
     padding: 0.65rem 0.75rem;
     margin: 6px;
@@ -109,7 +115,7 @@ a.button {
     line-height: 28px;
 }
 
-a.button:hover {
+a.homepage-button:hover {
     text-decoration: none;
 }
 
@@ -154,14 +160,14 @@ a.redbutton:hover {
     border: 1px solid #3b0605;
 }
 
-#getstarted {
+#homepage-getstarted {
     background-color: #F8F8F8;
-    padding: 32px 0px ;
+    padding: 21px 0px ;
     padding-left: calc((100% - 1280px)/2);
     padding-right: calc((100% - 1280px)/2);
 }
 
-.greentext {
+p.greentext {
     font-family: 'Ubuntu';
     font-style: normal;
     font-weight: 400;
@@ -179,23 +185,24 @@ a.redbutton:hover {
     justify-content: center;
 }
 
-.card {
+.homepage-card {
     width: 400px !important;
     background: #ffffff;
     border: 1px solid #C5C7C3;
-    padding: 32px;
+    padding: 21px;
     margin: 4px;
     display: flex;
     flex-wrap: wrap;
     text-align: center;
     align-items: center;
+    justify-content: center;
 }
   
-.card-body{
+.homepage-card-body {
     padding: 0px !important;
 }
   
-.card-img-top{
+.homepage-card-img-top {
     width: 56px;
     height: 56px;
 }
@@ -204,7 +211,7 @@ a.redbutton:hover {
     width: 150px;
 }
 
-#footer {
+#homepage-footer {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -221,8 +228,16 @@ a.redbutton:hover {
         display: none;
     }
 
+    .home-plot {
+        display: none;
+    }
+
     #links {
         display: none;
+    }
+
+    #homepage-home {
+        min-height: 0px;
     }
 }
 
@@ -237,7 +252,7 @@ a.redbutton:hover {
     }
 
     .home-container {
-        margin-top:32px;
+        margin-top:21px;
     }
 
     #home {
@@ -245,6 +260,6 @@ a.redbutton:hover {
     }
 
     #getstarted {
-        padding: 32px 0px;
+        padding: 21px 0px;
     }
 }
