@@ -162,9 +162,7 @@ a.redbutton:hover {
 
 #homepage-getstarted {
     background-color: #F8F8F8;
-    padding: 21px 0px ;
-    padding-left: calc((100% - 1280px)/2);
-    padding-right: calc((100% - 1280px)/2);
+    padding-top:21px;
 }
 
 p.greentext {
@@ -179,20 +177,31 @@ p.greentext {
     margin-bottom: 8px;
 }
 
-.flex-container-center {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+ /* grid stuff */
+
+.card1 { grid-area: card1; }
+.card2 { grid-area: card2; }
+.card3 { grid-area: card3; }
+.card4 { grid-area: card4; }
+
+.cards-grid-container {
+    display: grid;
+    grid-template-areas: 'card1 card2 card3 card4';
+    gap: 10px;
+    padding:20px;
+}
+
+.homepage-card svg {
+    display: block;
 }
 
 .homepage-card {
-    width: 400px !important;
+    max-width: 400px;
+    min-width: 200px;
     background: #ffffff;
     border: 1px solid #C5C7C3;
     padding: 21px;
-    margin: 4px;
-    display: flex;
-    flex-wrap: wrap;
+    margin: 0px;
     text-align: center;
     align-items: center;
     justify-content: center;
@@ -205,6 +214,9 @@ p.greentext {
 .homepage-card-img-top {
     width: 56px;
     height: 56px;
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
 }
 
 .pythonian-logo {
@@ -217,49 +229,30 @@ p.greentext {
     justify-content: center;
 }
 
-@media (max-width: 1294px) and (min-width: 991px) {
-    #links {
-        display: inline;
+
+@media (max-width: 1400px) {
+    .cards-grid-container {
+        display: grid;
+        grid-template-areas: 'card1 card2 card3' 'card4 empty empty';
+        gap: 20px;
+        padding:20px;
     }
 }
 
-@media (max-width: 991px) {
-    .home-image {
-        display: none;
-    }
-
-    .home-plot {
-        display: none;
-    }
-
-    #links {
-        display: none;
-    }
-
-    #homepage-home {
-        min-height: 0px;
+@media (max-width: 900px) {
+    .cards-grid-container {
+        display: grid;
+        grid-template-areas: 'card1 card2' 'card3 card4';
+        gap: 20px;
+        padding:20px;
     }
 }
 
 @media (max-width: 720px) {
-    .details {
-        max-width: 100%;
-    }
-
-    .flex-container {
-        max-width: -moz-available;
-        max-width: -webkit-fill-available;
-    }
-
-    .home-container {
-        margin-top:21px;
-    }
-
-    #home {
-        padding: 0px 0px 40px 0px;
-    }
-
-    #getstarted {
-        padding: 21px 0px;
+    .cards-grid-container {
+        display: grid;
+        grid-template-areas: 'card1' 'card2' 'card3' 'card4';
+        gap: 20px;
+        padding:20px;
     }
 }

@@ -155,8 +155,8 @@ buildGetStartedDiv model =
             [ H.text "The power of the Timeseries Refinery" ]
         , H.h2 [] [ H.text "Get Started" ]
         , H.div
-            [ HA.class "flex-container-center" ]
-            [ H.div [ HA.class "homepage-card" ]
+            [ HA.class "cards-grid-container" ]
+            [ H.div [ HA.class "homepage-card card1" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
                     [ buildSvg iconesDefinition "bi bi-download" ]
@@ -187,7 +187,7 @@ buildGetStartedDiv model =
                         ]
                     ]
                 ]
-            , H.div [ HA.class "homepage-card" ]
+            , H.div [ HA.class "homepage-card card2" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
                     [ buildSvg iconesDefinition "bi bi-speedometer" ]
@@ -212,7 +212,7 @@ buildGetStartedDiv model =
                         ]
                     ]
                 ]
-            , H.div [ HA.class "homepage-card" ]
+            , H.div [ HA.class "homepage-card card3" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
                     [ buildSvg iconesDefinition "bi bi-tools" ]
@@ -243,7 +243,7 @@ buildGetStartedDiv model =
                         ]
                     ]
                 ]
-            , H.div [ HA.class "homepage-card" ]
+            , H.div [ HA.class "homepage-card card4" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
                     [ buildSvg iconesDefinition "bi bi-heart-pulse" ]
