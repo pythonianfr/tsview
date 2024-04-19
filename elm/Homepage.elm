@@ -5,7 +5,7 @@ import Catalog as Cat exposing (Msg(..))
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
-import Menu as Men exposing (iconesDefinition)
+import Menu as Men
 import Set exposing (Set)
 import Svg exposing (path, svg)
 import Svg.Attributes
@@ -148,6 +148,10 @@ buildLinksDiv model =
 
 buildGetStartedDiv : Model -> H.Html Msg
 buildGetStartedDiv model =
+    let
+        icons =
+            model.menu.icones
+    in
     H.div
         [ HA.id "homepage-getstarted" ]
         [ H.p
@@ -159,7 +163,7 @@ buildGetStartedDiv model =
             [ H.div [ HA.class "homepage-card card1" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg iconesDefinition "bi bi-download" ]
+                    [ buildSvg icons "bi bi-download" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -190,7 +194,7 @@ buildGetStartedDiv model =
             , H.div [ HA.class "homepage-card card2" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg iconesDefinition "bi bi-speedometer" ]
+                    [ buildSvg icons "bi bi-speedometer" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -215,7 +219,7 @@ buildGetStartedDiv model =
             , H.div [ HA.class "homepage-card card3" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg iconesDefinition "bi bi-tools" ]
+                    [ buildSvg icons "bi bi-tools" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -246,7 +250,7 @@ buildGetStartedDiv model =
             , H.div [ HA.class "homepage-card card4" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg iconesDefinition "bi bi-heart-pulse" ]
+                    [ buildSvg icons "bi bi-heart-pulse" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -324,7 +328,7 @@ initModel baseurl instance version =
     , menu =
         { menuContent = []
         , menuModeText = False
-        , icones = Men.iconesDefinition
+        , icones = Dict.empty
         , selected = Just "homepage"
         }
     }
