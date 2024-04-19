@@ -61,6 +61,18 @@ definition = [
                  ]
         },
         {
+        'label': 'Basket',
+        'icone': "bi bi-basket3",
+        'links': [
+                    {
+                        'label': 'Edit',
+                        'icone': 'bi bi-pencil',
+                        'target': '/queryeditor',
+                        'id': 'basket-edit'
+                    }
+        ]
+        },
+        {
         'label': 'Monitoring',
         'icone': 'bi bi-heart-pulse',
         'links': [
