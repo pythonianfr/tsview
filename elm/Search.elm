@@ -869,8 +869,6 @@ main =
                    , Men.getIcones input.baseurl ( \ returnHttp ->  Menu (Men.GotIcones returnHttp ) )
                    ]
                )
-
-           sub model = Sub.none
        in
            Browser.element
                { init = init
