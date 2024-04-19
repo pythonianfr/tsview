@@ -404,7 +404,7 @@ viewcreation model =
 
 
 view model =
-    H.div [] <|
+    H.div [ HA.style "margin" ".5em" ] <|
         if model.creating
         then viewcreation model
         else viewedition model
