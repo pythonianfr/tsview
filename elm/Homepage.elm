@@ -105,7 +105,9 @@ buildDetailsDiv model =
         , H.ul []
             [ H.p
                 []
-                [ H.text (String.fromInt (List.length model.catalog.series) ++ " Series") ]
+                [ H.a
+                    [ HA.href "/tssearch" ]
+                    [ H.text (String.fromInt (List.length model.catalog.series) ++ " Series") ]]
             , H.p
                 []
                 [ H.text (" ↳ " ++ (getSeriesNumberOf model "primary") ++ " Primaries") ]
