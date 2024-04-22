@@ -237,6 +237,9 @@ p.greentext {
         gap: 20px;
         padding:20px;
     }
+    #links {
+        display: inline;
+    }
 }
 
 @media (max-width: 900px) {
@@ -246,6 +249,20 @@ p.greentext {
         gap: 20px;
         padding:20px;
     }
+    .home-image {
+        display: none;
+    }
+    .home-plot {
+        display: none;
+    }
+
+    #links {
+        display: none;
+    }
+
+    #homepage-home {
+        min-height: 0px;
+    }
 }
 
 @media (max-width: 720px) {
@@ -254,5 +271,14 @@ p.greentext {
         grid-template-areas: 'card1' 'card2' 'card3' 'card4';
         gap: 20px;
         padding:20px;
+    }
+    #home {
+        padding: 0px 0px 40px 0px;
+    }
+    #getstarted {
+        padding: 21px 0px;
+    }
+    .details {
+        max-width: 100%;
     }
 }
