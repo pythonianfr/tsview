@@ -51,7 +51,8 @@ update msg model =
             nocmd { model | catalog = Cat.update catmsg model.catalog }
 
         Menu menumsg ->
-            nocmd { model | menu = Men.updateModel menumsg model.menu }
+            ( { model | menu = Men.updateModel menumsg model.menu }
+            , Men.buildCmd menumsg model.menu )
 
 
 buildSvg icones iconeName =
@@ -316,7 +317,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
 
 
 initModel baseurl instance version =
@@ -329,7 +330,7 @@ initModel baseurl instance version =
         { menuContent = []
         , menuModeText = False
         , icones = Dict.empty
-        , selected = Just "homepage"
+        , selected = Just "navigation-home"
         }
     }
 
@@ -337,7 +338,11 @@ initModel baseurl instance version =
 init : ( String, String, String ) -> ( Model, Cmd Msg )
 init ( baseurl, instance, version ) =
     ( initModel baseurl instance version
-    , Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
+    , Cmd.batch
+        [ Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
+        , Men.getMenu baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
+        , Men.getIcones baseurl ( \ returnHttp ->  Menu (Men.GotIcones returnHttp ))
+        ]
     )
 
 
