@@ -341,7 +341,7 @@ init ( baseurl, instance, version ) =
     , Cmd.batch
         [ Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
         , Men.getMenu baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-        , Men.getIcones baseurl ( \ returnHttp ->  Menu (Men.GotIcones returnHttp ))
+        , Men.getIcons baseurl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ))
         ]
     )
 

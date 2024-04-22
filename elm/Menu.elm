@@ -1,12 +1,11 @@
 port module Menu exposing
-    ( Icone
-    , Link
+    ( Link
     , Model
     , Msg(..)
     , Menu
     , buildCmd
     , getMenu
-    , getIcones
+    , getIcons
     , loadMenuData
     , viewMenu
     , updateModel
@@ -44,7 +43,7 @@ type alias Model =
     { menuContent : Menu
     , menuModeText : Bool
     , selected: Maybe String
-    , icones: Dict String Icone
+    , icones: Dict String Icon
     }
 
 
@@ -66,7 +65,7 @@ type alias Link =
     }
 
 
-type alias Icone = List Path
+type alias Icon = List Path
 
 type alias Path =
     { d: String
@@ -78,7 +77,7 @@ type Msg =
     ToggleMenu
     | LoadMenuData String
     | GotMenu (Result Http.Error Menu)
-    | GotIcones (Result Http.Error (Dict String Icone))
+    | GotIcons (Result Http.Error (Dict String Icon))
 
 -- decoders
 
@@ -111,19 +110,19 @@ getMenu baseUrl msgBuilder =
         }
 
 
-getIcones: String -> ((Result Http.Error (Dict String Icone)) -> msg) -> Cmd msg
-getIcones baseUrl msgBuilder =
+getIcons: String -> ((Result Http.Error (Dict String Icon)) -> msg) -> Cmd msg
+getIcons baseUrl msgBuilder =
     Http.get
         { url = baseUrl ++ "icons"
         , expect = Http.expectJson msgBuilder iconesDecoder
         }
 
 
-iconesDecoder: Decoder (Dict String Icone)
+iconesDecoder: Decoder (Dict String Icon)
 iconesDecoder = JD.dict decodeIcone
 
 
-decodeIcone: Decoder Icone
+decodeIcone: Decoder Icon
 decodeIcone = JD.list decodePath
 
 
@@ -151,8 +150,8 @@ updateModel msg model =
                 Err _ -> { model | menuModeText = False }
         GotMenu (Ok content) -> { model | menuContent = content }
         GotMenu (Err error) ->  model
-        GotIcones (Ok content) -> { model | icones = content }
-        GotIcones (Err error) ->  model
+        GotIcons (Ok content) -> { model | icones = content }
+        GotIcons (Err error) ->  model
 
 
 buildCmd: Msg -> Model -> Cmd msg
@@ -162,12 +161,12 @@ buildCmd msg model =
         LoadMenuData _ -> Cmd.none
         GotMenu (Ok content) -> Cmd.none
         GotMenu (Err error) ->  Cmd.none
-        GotIcones (Ok content) -> Cmd.none
-        GotIcones (Err error) ->  Cmd.none
+        GotIcons (Ok content) -> Cmd.none
+        GotIcons (Err error) ->  Cmd.none
 
 -- view
 
-displayTextSection: (Dict String Icone) -> Menu -> Maybe String -> Html msg
+displayTextSection: (Dict String Icon) -> Menu -> Maybe String -> Html msg
 displayTextSection icones content selected =
     let
         format section =
@@ -186,7 +185,7 @@ displayTextSection icones content selected =
     H.ul [] <| List.map format content
 
 
-displayTextLinks: (Dict String Icone) -> List Link -> Maybe String -> Html msg
+displayTextLinks: (Dict String Icon) -> List Link -> Maybe String -> Html msg
 displayTextLinks icones links selected =
     let
         format link =
@@ -208,7 +207,7 @@ displayTextLinks icones links selected =
     H.ul [] <| List.map format links
 
 
-displayIconeContent: (Dict String Icone) -> Menu -> Maybe String -> Html msg
+displayIconeContent: (Dict String Icon) -> Menu -> Maybe String -> Html msg
 displayIconeContent icones content selected =
     let
         format section =
@@ -225,7 +224,7 @@ displayIconeContent icones content selected =
     H.ul [] <| List.map format content
 
 
-displayIconeLinks: (Dict String Icone) -> List Link -> Maybe String -> Html msg
+displayIconeLinks: (Dict String Icon) -> List Link -> Maybe String -> Html msg
 displayIconeLinks icones links selected =
     let
         format link =
@@ -253,7 +252,7 @@ classSelect label selected =
                 else A.class ""
 
 
-buildSvg: Dict String Icone -> String -> Html msg
+buildSvg: Dict String Icon -> String -> Html msg
 buildSvg icones iconeName =
     let
         icone =
@@ -273,7 +272,7 @@ buildSvgPath ipath =
         Just rule -> path [ fillRule rule, d ipath.d ] []
 
 
-displaSwitchButton: Dict String Icone -> Bool -> Html msg
+displaSwitchButton: Dict String Icon -> Bool -> Html msg
 displaSwitchButton icones toCollpase =
      if toCollpase
         then buildSvg icones "bi bi-arrows-collapse-vertical"

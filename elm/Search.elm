@@ -866,7 +866,7 @@ main =
                    [ Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
                    , Cmd.map GotCatalog <| Cat.get input.baseurl "group" 1 Cat.ReceivedGroups
                    , Men.getMenu input.baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-                   , Men.getIcones input.baseurl ( \ returnHttp ->  Menu (Men.GotIcones returnHttp ) )
+                   , Men.getIcons input.baseurl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
                    ]
                )
        in
