@@ -852,12 +852,7 @@ main =
                , errors = []
                , namefilterdeb = debouncerconfig
                , formulafilterdeb = debouncerconfig
-               , menu =
-                   { menuContent = []
-                   , menuModeText = False
-                   , icones = Dict.empty
-                   , selected = Just "timeseries-catalog"
-                   }
+               , menu = Men.initmenu "timeseries-catalog"
                }
 
            init input =

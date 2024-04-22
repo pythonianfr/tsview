@@ -6,6 +6,7 @@ port module Menu exposing
     , buildCmd
     , getMenu
     , getIcons
+    , initmenu
     , loadMenuData
     , viewMenu
     , updateModel
@@ -78,6 +79,15 @@ type Msg =
     | LoadMenuData String
     | GotMenu (Result Http.Error Menu)
     | GotIcons (Result Http.Error (Dict String Icon))
+
+
+initmenu self =
+    { menuContent = []
+    , menuModeText = False
+    , icones = Dict.empty
+    , selected = Just self
+    }
+
 
 -- decoders
 

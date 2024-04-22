@@ -326,12 +326,7 @@ initModel baseurl instance version =
     , version = version
     , status = { catalog = Processing }
     , catalog = Cat.empty
-    , menu =
-        { menuContent = []
-        , menuModeText = False
-        , icones = Dict.empty
-        , selected = Just "navigation-home"
-        }
+    , menu = Men.initmenu "navigation-home"
     }
 
 
