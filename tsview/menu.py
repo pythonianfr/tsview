@@ -1,21 +1,27 @@
-
-definition = [
-    {
+def definition(**extra_urls):
+    return [
+        {
             'label': 'Navigation',
             'icone': 'bi bi-globe',
             'links': [
-                    {
-                        'label': 'Home',
-                        'icone': 'bi bi-house-fill',
-                        'target': '/',
-                        'id': 'navigation-home'
-                    },
-                    ]
+                {
+                    'label': 'Home',
+                    'icone': 'bi bi-house-fill',
+                    'target': '/',
+                    'id': 'navigation-home'
                 },
-    {
-        'label': 'Timeseries',
-        'icone': 'bi bi-graph-up-arrow',
-        'links': [
+                {
+                    'label': 'Dashboard',
+                    'icone': 'bi bi-clipboard2-data',
+                    'target': extra_urls['dashboard_url'],
+                    'id': 'navigation-dashboard'
+                },
+            ]
+        },
+        {
+            'label': 'Timeseries',
+            'icone': 'bi bi-graph-up-arrow',
+            'links': [
                 {
                     'label': 'Catalog',
                     'icone': 'bi bi-database',
@@ -37,9 +43,9 @@ definition = [
             ]
         },
         {
-        'label': 'Formula',
-        'icone': 'bi bi-diagram-3',
-        'links': [
+            'label': 'Formula',
+            'icone': 'bi bi-diagram-3',
+            'links': [
                 {
                     'label': 'Documentation',
                     'icone': 'bi bi-info-circle',
@@ -62,7 +68,7 @@ definition = [
                     'label': 'Update batch',
                     'icone': 'bi bi-file-earmark-arrow-up',
                     'target': '/addformulas',
-                    'id' : 'formula-batch'
+                    'id': 'formula-batch'
                 },
                 {
                     'label': 'Setup cache',
@@ -70,36 +76,36 @@ definition = [
                     'target': '/formulacache',
                     'id': 'formula-cache'
                 },
-                 ]
+            ]
         },
         {
-        'label': 'Basket',
-        'icone': "bi bi-basket3",
-        'links': [
-                    {
-                        'label': 'Edit',
-                        'icone': 'bi bi-pencil',
-                        'target': '/queryeditor',
-                        'id': 'basket-edit'
-                    }
-        ]
+            'label': 'Basket',
+            'icone': "bi bi-basket3",
+            'links': [
+                {
+                    'label': 'Edit',
+                    'icone': 'bi bi-pencil',
+                    'target': '/queryeditor',
+                    'id': 'basket-edit'
+                }
+            ]
         },
         {
-        'label': 'Monitoring',
-        'icone': 'bi bi-heart-pulse',
-        'links': [
-                    {
-                        'label': 'Tasks',
-                        'icone': 'bi bi-clock-history',
-                        'target': '/tasks/',
-                        'id' : 'monitor-tasks'
-                    },
-                    {
-                        'label': 'Warnings',
-                        'icone': 'bi bi-exclamation-triangle',
-                        'target': '/tswatch/',
-                        'id': 'monitor-tswatch'
-                    },
-                 ]
+            'label': 'Monitoring',
+            'icone': 'bi bi-heart-pulse',
+            'links': [
+                {
+                    'label': 'Tasks',
+                    'icone': 'bi bi-clock-history',
+                    'target': '/tasks/',
+                    'id': 'monitor-tasks'
+                },
+                {
+                    'label': 'Warnings',
+                    'icone': 'bi bi-exclamation-triangle',
+                    'target': '/tswatch/',
+                    'id': 'monitor-tswatch'
+                },
+            ]
         },
-]
+    ]
