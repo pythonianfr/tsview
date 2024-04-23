@@ -174,19 +174,34 @@ def tsview(tsa):
             )
         )
 
+    @bp.route('/tsformula/spec-operators')
+    def serve_operators():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        funcs = {
+            name: (FUNCS[name].__doc__,
+                   FUNCS[name].__module__)
+            for name in sorted(FUNCS)
+            if FUNCS[name].__doc__ is not None
+        }
+        to_send = []
+        for (name, (doc, source)) in funcs.items():
+            to_send.append(
+                {
+                    'name': name,
+                    'doc': doc,
+                    'source': source
+                }
+            )
+        return json.dumps(to_send)
+
     @bp.route('/tsformula/operators')
     def formula_operators():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-
         return render_template(
             'operators.html',
-            funcs={
-                name: (FUNCS[name].__doc__,
-                       FUNCS[name].__module__)
-                for name in sorted(FUNCS)
-                if FUNCS[name].__doc__ is not None
-            }
+            baseurl=homeurl(),
         )
 
     @bp.route('/tsformula/try')

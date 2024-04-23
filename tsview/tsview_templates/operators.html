@@ -2,13 +2,14 @@
 
 {% block body %}
 
-<section>
-  {% for name, (doc, module) in funcs.items() %}
-  <section>
-    <h3>{{name}} (provided by {{module}})</h3>
-    <pre>{{doc}}</pre>
-  </section>
-  {% endfor %}
-</section>
+  <div id="tsformula-operators"></div>
+        <script src="{{url_for('tsview.static', filename='operators_elm.js')}}"></script>
+        <script>
+          var app = Elm.Operators.init({
+              node: document.getElementById('tsformula-operators'),
+              flags: "{{baseurl}}"
+          });
+        </script>
+<!--        {% include "menu.html" %}-->
 
 {% endblock %}
