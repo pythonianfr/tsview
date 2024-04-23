@@ -17,7 +17,6 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonModel
     , updateOffset
-    , horizonwidget
     )
 import Http
 import Html as H

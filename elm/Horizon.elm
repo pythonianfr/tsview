@@ -4,7 +4,7 @@ port module Horizon exposing
     , Offset
     , defaultHorizon
     , horizons
-    , horizonwidget
+    , horizonview
     , saveToLocalStorage
     , loadFromLocalStorage
     , localstoragedecoder
@@ -236,34 +236,6 @@ divSelectTimeZone model horizonMsg =
         ]
 
 
-horizonwidget : HorizonModel v -> HorizonMsg msg -> String -> H.Html msg
-horizonwidget model horizonMsg klass =
-    H.div
-        [ HA.class klass ]
-        [ H.div
-            []
-            [ tzonedropdown model horizonMsg ]
-        , H.div
-            []
-            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
-        , H.div
-            []
-            [ H.text model.mindate ]
-        , H.div
-            []
-            [ selectHorizon model horizonMsg ]
-        , H.div
-            []
-            [ H.text model.maxdate ]
-        , H.div
-            []
-            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
-        , H.div
-            []
-            [ inferredfreqswitch model horizonMsg ]
-        ]
-
-
 inferredfreqswitch : HorizonModel v -> HorizonMsg msg -> H.Html msg
 inferredfreqswitch model horizonMsg =
     H.div
@@ -294,3 +266,32 @@ tzonedropdown model horizonMsg =
     H.select
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
+
+
+
+horizonview : HorizonModel v -> HorizonMsg msg -> String -> H.Html msg
+horizonview model horizonMsg klass =
+    H.div
+        [ HA.class klass ]
+        [ H.div
+            []
+            [ tzonedropdown model horizonMsg ]
+        , H.div
+            []
+            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
+        , H.div
+            []
+            [ H.text model.mindate ]
+        , H.div
+            []
+            [ selectHorizon model horizonMsg ]
+        , H.div
+            []
+            [ H.text model.maxdate ]
+        , H.div
+            []
+            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
+        , H.div
+            []
+            [ inferredfreqswitch model horizonMsg ]
+        ]

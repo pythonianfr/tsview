@@ -18,7 +18,6 @@ import Horizon exposing
     , Offset
     , defaultHorizon
     , horizons
-    , horizonwidget
     , localstoragedecoder
     , loadFromLocalStorage
     , saveToLocalStorage

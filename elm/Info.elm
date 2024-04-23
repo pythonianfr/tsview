@@ -27,7 +27,7 @@ module Info exposing
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Horizon exposing (horizonwidget)
+import Horizon exposing (horizonview)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -194,7 +194,7 @@ viewactionwidgets model horizonevents =
     [ H.div
           [ HA.style "color" "grey", HA.class "title-like action-left" ]
           [ H.text "Series " ]
-    , horizonwidget model.horizon horizonevents "action-center"
+    , horizonview model.horizon horizonevents "action-center"
     , H.div [ HA.class "action-right" ]
         [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
               , HA.target "_blank"
