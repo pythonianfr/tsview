@@ -1,8 +1,6 @@
 port module Menu exposing
-    ( Link
-    , Model
+    ( Model
     , Msg(..)
-    , Menu
     , buildCmd
     , getMenu
     , getIcons
@@ -10,7 +8,6 @@ port module Menu exposing
     , loadMenuData
     , viewMenu
     , updateModel
-    , saveMenuData
     )
 import Http
 import Dict exposing (Dict)
