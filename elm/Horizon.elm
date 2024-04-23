@@ -269,13 +269,13 @@ tzonedropdown model horizonMsg =
 
 
 
-horizonview : HorizonModel v -> HorizonMsg msg -> String -> H.Html msg
-horizonview model horizonMsg klass =
+horizonview : HorizonModel v -> HorizonMsg msg -> String -> Bool -> H.Html msg
+horizonview model horizonMsg klass tzaware =
     H.div
         [ HA.class klass ]
-        [ H.div
-            []
-            [ tzonedropdown model horizonMsg ]
+        [ if tzaware
+          then H.div [] [ tzonedropdown model horizonMsg ]
+          else H.span [] []
         , H.div
             []
             [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]

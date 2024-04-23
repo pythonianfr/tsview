@@ -184,6 +184,10 @@ viewerrors model =
     else H.span [ ] [ ]
 
 
+tzawareseries model =
+    (M.dget "tzaware" model.meta) == "true"
+
+
 viewactionwidgets model horizonevents =
     let
         editorlabel =
@@ -194,7 +198,7 @@ viewactionwidgets model horizonevents =
     [ H.div
           [ HA.style "color" "grey", HA.class "title-like action-left" ]
           [ H.text "Series " ]
-    , horizonview model.horizon horizonevents "action-center"
+    , horizonview model.horizon horizonevents "action-center" <| tzawareseries model
     , H.div [ HA.class "action-right" ]
         [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
               , HA.target "_blank"
@@ -221,7 +225,7 @@ viewactionwidgets model horizonevents =
 viewtitle model copyevent =
     let
         ( tzaware, tzbadge, tztitle ) =
-            if (M.dget "tzaware" model.meta) == "true"
+            if tzawareseries model
             then ( "tzaware", "badge-success", "This series is time zone aware." )
             else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
 
