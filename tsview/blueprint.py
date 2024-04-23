@@ -201,7 +201,7 @@ def tsview(tsa):
             return 'Nothing to see there.'
         return render_template(
             'operators.html',
-            baseurl=homeurl(),
+            baseurl=homeurl() or "/",
         )
 
     @bp.route('/tsformula/try')
