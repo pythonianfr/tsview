@@ -268,6 +268,11 @@ tzonedropdown model horizonMsg =
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
 
+viewdate strdate =
+    if String.length strdate == 0
+    then "yyyy-mm-dd"
+    else strdate
+
 
 horizonview : HorizonModel v -> HorizonMsg msg -> String -> Bool -> H.Html msg
 horizonview model horizonMsg klass tzaware =
@@ -281,13 +286,13 @@ horizonview model horizonMsg klass tzaware =
             [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
         , H.div
             []
-            [ H.text model.mindate ]
+            [ H.text <| viewdate model.mindate ]
         , H.div
             []
             [ selectHorizon model horizonMsg ]
         , H.div
             []
-            [ H.text model.maxdate ]
+            [ H.text <| viewdate model.maxdate ]
         , H.div
             []
             [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
