@@ -36,6 +36,7 @@ import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Lisp
+import List.Extra as List
 import Plotter exposing
     ( plotargs
     , scatterplot
@@ -610,12 +611,19 @@ viewlogentry entry =
         ]
 
 
-viewgraph name tskeys tsvalues =
+viewgraph name tskeys tsvalues title =
     let
         plot =
-            scatterplot name tskeys tsvalues "lines"
+            scatterplot
+                name
+                tskeys
+                tsvalues
+                "lines"
+                False
+                { color = "rgb(0, 0, 250)" }
+                1
         args =
-            plotargs "plot" [ plot ]
+            plotargs "plot" [ plot ] title
     in
     H.div
         [ ]
@@ -624,16 +632,56 @@ viewgraph name tskeys tsvalues =
         ]
 
 
-viewHistoryGraph historyPlots =
+viewHistoryGraph model =
     let
+        currentIdate = Maybe.withDefault
+            "" (Array.get model.historyDateIndex model.firstSeventyIdates)
+        lastIdate = Maybe.withDefault
+            ""
+            (List.last (Array.toList model.firstSeventyIdates))
         formatLine tuple =
+            let
+                idate = Tuple.first tuple
+            in
             { type_ = "scatter"
-            , name = Tuple.first tuple
+            , name =
+                if (idate == lastIdate) then
+                    "Last"
+                else
+                   idate
             , x = Dict.keys (Tuple.second tuple)
             , y = Dict.values (Tuple.second tuple)
-            , mode = "lines"}
+            , mode = "lines"
+            , line = {color =
+                if idate == lastIdate then
+                    "rgb(0, 0, 0)"
+                else if idate < currentIdate then
+                    "rgb(20, 200, 20)"
+                else if idate == currentIdate then
+                    "rgb(0, 0, 250)"
+                else
+                    "rgb(204, 12, 20)"
+                }
+            , showlegend =
+                if (idate == lastIdate) || (idate == currentIdate)then
+                    True
+                else
+                    False
+            , opacity =
+                if (idate == lastIdate) || (idate == currentIdate)then
+                    1
+                else
+                    0.2
+            }
+        title =
+            if currentIdate /= "" then
+                (String.replace "{title}" currentIdate "Insertion date : {title}")
+            else
+               currentIdate
         historyArgs = plotargs
-            "plot-history" (List.map formatLine (Dict.toList historyPlots))
+            "plot-history"
+            (List.map formatLine (Dict.toList model.historyPlots))
+            title
     in
     H.div
         [ ]

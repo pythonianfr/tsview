@@ -374,10 +374,13 @@ view model =
                             (Dict.keys series)
                             (Dict.values series)
                             "lines"
+                            True
+                            { color = "rgb(0, 0, 250)" }
+                            1
                         )
                         model.search.selected
             in
-                plotargs plotDiv data
+                plotargs plotDiv data ""
 
         selector =
             let

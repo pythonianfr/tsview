@@ -26,6 +26,9 @@ type alias Trace =
     , x : List String
     , y : List (Maybe Float)
     , mode : String
+    , showlegend : Bool
+    , line : {color : String}
+    , opacity : Float
     }
 
 
@@ -57,6 +60,9 @@ encodetrace t =
         , ( "x", E.list E.string t.x )
         , ( "y", E.list (E.maybe E.float) t.y )
         , ( "mode", E.string t.mode )
+        , ( "showlegend",  E.bool t.showlegend )
+        , ( "line", (E.object [("color", E.string t.line.color)]))
+        , ( "opacity", E.float t.opacity )
         ]
 
 
@@ -69,7 +75,7 @@ seriesdecoder =
 
 
 type alias TraceArgs =
-    String -> List String -> List (Maybe Float) -> String -> Trace
+    String -> List String -> List (Maybe Float) -> String -> Bool -> {color : String} -> Float -> Trace
 
 
 scatterplot : TraceArgs
@@ -77,15 +83,16 @@ scatterplot =
     Trace "scatter"
 
 
-encodeplotargs div data =
+encodeplotargs div data title =
     E.object
         [ ( "div", E.string div )
         , ( "data", E.list encodetrace data )
+        , ( "layout", (E.object [("title", E.string title)]) )
         ]
 
 
-plotargs div data =
-    encodeplotargs div data |> E.encode 0
+plotargs div data title =
+    encodeplotargs div data title |> E.encode 0
 
 
 -- getdata : PlotQuery query -> Cmd msg

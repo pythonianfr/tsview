@@ -109,7 +109,10 @@ viewplot cemodel =
             (Dict.keys cemodel.plotdata)
             (Dict.values cemodel.plotdata)
             "lines"
-        args = plotargs "plot" [plot]
+            True
+            { color = "rgb(0, 0, 250)" }
+            1
+        args = plotargs "plot" [plot] ""
     in
     -- the "plot-figure" node is pre-built in the template side
     -- (html component)

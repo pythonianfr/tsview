@@ -492,11 +492,14 @@ viewplot model =
                 (Dict.keys plotdata)
                 (Dict.values plotdata)
                 "lines"
+                True
+                { color = "rgb(0, 0, 250)" }
+                1
 
         plots = List.map plot <| Dict.toList groupdata
 
         args =
-            plotargs "plot" plots
+            plotargs "plot" plots ""
     in
     div [ ]
         [ h2 [ ] [ text "Plot" ]

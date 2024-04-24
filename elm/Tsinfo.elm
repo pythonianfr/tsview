@@ -1135,9 +1135,9 @@ viewplot model =
             model.date_index
             DebounceChangedIdate
             ChangedIdate
-        , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
+        , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) ""
         , if model.historyMode then
-            I.viewHistoryGraph model.historyPlots
+            I.viewHistoryGraph model
         else
             H.div [][]
         ]

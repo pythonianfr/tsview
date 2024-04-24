@@ -794,6 +794,7 @@ view model =
             model.name
             (Dict.keys model.horizon.timeSeries)
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
+            ""
         , viewedittable model
         ]
 
