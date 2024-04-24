@@ -200,6 +200,7 @@ type Msg
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
+    | ViewAllHistory
 
 
 logentrydecoder : D.Decoder Logentry
@@ -907,6 +908,20 @@ update msg model =
                     else
                         { model | historyDateIndex = index }
             in U.nocmd newmodel
+
+        ViewAllHistory ->
+            let
+                newmodel =
+                    { model
+                        | historyPlots = Dict.empty
+                        , firstSeventyIdates = Array.empty
+                    }
+
+            in
+            ( newmodel
+            , getHistoryIdates model model.horizon.mindate model.horizon.maxdate
+            )
+
 
 -- views
 
