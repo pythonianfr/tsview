@@ -1142,20 +1142,41 @@ viewplot model =
     let
         ts = model.horizon.timeSeries
     in
-    H.div []
-        [ viewdatespicker model idatepickerevents
-        , historyModeSwitch model
-        , viewDatesRange
-            model.insertion_dates
-            model.date_index
-            DebounceChangedIdate
-            ChangedIdate
-        , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) ""
-        , if model.historyMode then
-            I.viewHistoryGraph model
-        else
-            H.div [][]
-        ]
+    if model.historyMode then
+        H.div []
+            [ historyModeSwitch model
+            , H.div
+                [ ]
+                [ H.text "Zoom to select a range"]
+            , H.button
+                [ HA.class "btn btn-warning"
+                , HA.attribute "type" "button"
+                , HE.onClick ViewAllHistory
+                ]
+                [ H.text "View all history" ]
+            , I.viewgraph
+                model.name
+                (Dict.keys ts)
+                (Dict.values ts)
+                ""
+            , viewDatesRange
+                model.firstSeventyIdates
+                model.historyDateIndex
+                DebounceChangedHistoryIdate
+                ChangedHistoryIdate
+            , I.viewHistoryGraph model
+            ]
+    else
+        H.div []
+            [ viewdatespicker model idatepickerevents
+            , historyModeSwitch model
+            , viewDatesRange
+                model.insertion_dates
+                model.date_index
+                DebounceChangedIdate
+                ChangedIdate
+            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) ""
+            ]
 
 
 metaevents =
