@@ -126,6 +126,8 @@ type alias Model =
     , plotstatus : PlotStatus
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
+    , firstSeventyIdates : Array String
+    , historyDateIndex : Int
     , historyDateIndexDeb : Debouncer Msg
     }
 
@@ -197,6 +199,7 @@ type Msg
     | HistoryIdates (String, String) (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
+    | ChangedHistoryIdate String
 
 
 logentrydecoder : D.Decoder Logentry
@@ -830,6 +833,7 @@ update msg model =
                     { model
                         | historyMode = isChecked
                         , historyPlots = Dict.empty
+                        , firstSeventyIdates = Array.empty
                     }
             in
             ( newmodel, Cmd.none )
@@ -837,7 +841,10 @@ update msg model =
         NewDates range ->
             if model.historyMode then
                     let
-                        newModel = { model | historyPlots = Dict.empty }
+                        newModel = { model
+                            | historyPlots = Dict.empty
+                            , firstSeventyIdates = Array.empty
+                            }
                         minDate = Maybe.withDefault "" (List.head range)
                         maxDate = Maybe.withDefault "" (List.last range)
                         cmdSent =
@@ -858,8 +865,11 @@ update msg model =
                                 List.take 70 dates
                             else
                                 dates
+                        newModel = { model
+                            | firstSeventyIdates = Array.fromList firstSeventy
+                            , historyDateIndex = List.length firstSeventy - 1}
                     in
-                    ( model
+                    ( newModel
                     , getPlotsRequests model minDate maxDate firstSeventy
                     )
                 Err err ->
@@ -885,6 +895,18 @@ update msg model =
 
         DebounceChangedHistoryIdate val ->
             Debouncer.update update updatedChangedHistoryIdateDebouncer val model
+
+        ChangedHistoryIdate strindex ->
+            let
+                index = Maybe.withDefault
+                       model.historyDateIndex -- keep current
+                       (String.toInt strindex)
+                newmodel =
+                    if Array.get index model.firstSeventyIdates == Nothing then
+                        model
+                    else
+                        { model | historyDateIndex = index }
+            in U.nocmd newmodel
 
 -- views
 
@@ -1387,6 +1409,8 @@ main =
                     , plotstatus = Loading
                     , historyPlots = Dict.empty
                     , historyMode = False
+                    , firstSeventyIdates = Array.empty
+                    , historyDateIndex = 0
                     , historyDateIndexDeb = debouncerconfig
                     }
             in
