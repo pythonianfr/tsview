@@ -1055,28 +1055,28 @@ viewcache model =
             H.div [] []
 
 
-viewdatesrange : Model -> H.Html Msg
-viewdatesrange model =
+viewDatesRange : Array String -> Int -> ((Debouncer.Msg Msg) -> Msg) -> (String -> Msg ) -> H.Html Msg
+viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
     let
-        numidates = Array.length model.insertion_dates
+        numidates = Array.length insertionDates
         currdate =
-            case Array.get model.date_index model.insertion_dates of
+            case Array.get dateIndex insertionDates of
                 Nothing -> ""
                 Just date -> date
     in
     if numidates < 2
     then H.div [] []
     else
-        H.map (provideInput >> DebounceChangedIdate) <|
+        H.map (provideInput >> debouncerMsg) <|
             H.div []
             [ H.input
                   [ HA.attribute "type" "range"
                   , HA.min "0"
                   , HA.max (String.fromInt (numidates - 1))
-                  , HA.value (String.fromInt model.date_index)
+                  , HA.value (String.fromInt dateIndex)
                   , HA.class "form-control-range"
                   , HA.title currdate
-                  , HE.onInput ChangedIdate
+                  , HE.onInput dateMsg
                   ] [ ]
             ]
 
@@ -1097,7 +1097,11 @@ viewplot model =
     H.div []
         [ viewdatespicker model idatepickerevents
         , historyModeSwitch model
-        , viewdatesrange model
+        , viewDatesRange
+            model.insertion_dates
+            model.date_index
+            DebounceChangedIdate
+            ChangedIdate
         , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
         , if model.historyMode then
             I.viewHistoryGraph model.historyPlots
