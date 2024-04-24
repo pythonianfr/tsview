@@ -93,11 +93,19 @@
     display: block;
 }
 
-.label {
+.menu-refinery .label {
     display: inline;
     font-size: 13px;
     padding:10px;
 }
+
+.menu-refinery .link .label{
+    display: inline;
+    font-size: 13px;
+    padding:10px;
+    color:black;
+}
+
 
 /* grid & layout */
 

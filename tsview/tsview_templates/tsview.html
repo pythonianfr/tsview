@@ -1,6 +1,38 @@
-{% extends "tsbase.html" %}
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet"
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
+          integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
+          crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
+    <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
+    <link rel="stylesheet" href="{{ url_for('tsview.static', filename='operators.css') }}"/>
+    <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
 
-{% block body %}
+    <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
+    <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
+</head>
+
+  <script>
+  class PlotFigure extends HTMLElement {
+      static get observedAttributes() {
+          return ['args'];
+      }
+      attributeChangedCallback(name, old_value, new_value) {
+          if ( name == 'args' ) {
+              let args = JSON.parse(new_value);
+              Plotly.newPlot(
+                  args.div,
+                  args.data,
+                  {showlegend: true, height: 700},
+                  {displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]}
+              );
+          }
+      }
+  }
+  window.customElements.define("plot-figure", PlotFigure);
+  </script>
 
 <div id="app"></div>
 <script src="./tsview_static/plot_elm.js"></script>
@@ -17,4 +49,5 @@
     });
 </script>
 
-{% endblock %}
+{% include "menu.html" %}
+

@@ -124,3 +124,23 @@ label.option {
 .badges-spacing > * {
     margin-right: .2rem;
 }
+
+.quickview .list-series {
+    z-index: 10;
+    position: absolute;
+}
+
+.quickview .selected {
+    background-color: #FFECC3;
+}
+
+.quickview .list-group-item {
+    font-size: 14px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    max-width: 1000px;
+}
+
+.quickview #plotly_div {
+    padding-top:20px;
+}

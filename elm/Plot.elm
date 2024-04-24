@@ -24,6 +24,8 @@ import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
 
+import Menu as Men
+
 
 type alias Model =
     { prefix : String
@@ -36,6 +38,7 @@ type alias Model =
     , mindate : Maybe Date
     , maxdate : Maybe Date
     , errors : List String
+    , menu : Men.Model
     }
 
 
@@ -52,6 +55,9 @@ type Msg
     | GotToday Date
     | FvdatePickerChanged String
     | TvdatePickerChanged String
+    -- menu
+    | Menu Men.Msg
+
 
 
 zerotime = "00:00:00.000Z"
@@ -277,6 +283,9 @@ update msg model =
                     ( newmodel
                     , Cmd.batch <| fetchseries newmodel True
                     )
+            Menu menumsg ->
+                ( { model | menu = Men.updateModel menumsg model.menu }
+                , Men.buildCmd menumsg model.menu)
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
@@ -422,12 +431,19 @@ view model =
                          (permalink :: links)
                     )
     in
-        H.div []
-            [ H.header [ ] [ selector ]
-            , H.div [ HA.id plotDiv ] []
-            , viewdatepicker model
-            , plotFigure [ HA.attribute "args" args ] []
-            , H.footer [] [ urls ]
+        H.div
+            [ HA.class ( if model.menu.menuModeText
+                            then "grid-container-text"
+                            else "grid-container-icon" )]
+            [ Men.viewMenu model.menu Menu
+            , H.div
+                [ HA.class "main-content quickview" ]
+                [ H.header [ ] [ selector ]
+                , H.div [ HA.id plotDiv ] []
+                , viewdatepicker model
+                , plotFigure [ HA.attribute "args" args ] []
+                , H.footer [] [ urls ]
+                ]
             ]
 
 
@@ -441,23 +457,26 @@ main =
         init flags =
             let
                 selected = flags.selected
-                model = Model
-                        flags.prefix
-                        Catalog.empty
-                        flags.haseditor
-                        (SeriesSelector.new [] "" [] selected [] [])
-                        (List.isEmpty selected)
-                        Dict.empty
-                        (Date.fromCalendarDate 1900 Jan 1)
-                        Nothing
-                        Nothing
-                        []
+                model = { prefix = flags.prefix
+                        , catalog= Catalog.empty
+                        , haseditor = flags.haseditor
+                        , search = (SeriesSelector.new [] "" [] selected [] [])
+                        , selecting = (List.isEmpty selected)
+                        , loadedseries = Dict.empty
+                        , now =  (Date.fromCalendarDate 1900 Jan 1)
+                        , mindate = Nothing
+                        , maxdate = Nothing
+                        , errors = []
+                        , menu =  Men.initmenu "timeseries-quickview" }
+
             in ( model
                , Cmd.batch <| [
                       Cmd.map
                           GotCatalog
                           (Catalog.get model.prefix "series" 1 Catalog.ReceivedSeries)
                      , Date.today |> Task.perform GotToday
+                     , Men.getMenu flags.prefix ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
+                     , Men.getIcons flags.prefix ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
                      ] ++ fetchseries model False
                )
 
@@ -467,7 +486,7 @@ main =
                 Time.every 1000 (always MakeSearch)
 
             else
-                Sub.none
+                Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
     in
         Browser.element
             { init = init

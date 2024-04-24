@@ -144,7 +144,7 @@ viewitemselector cfg items selected =
                         HA.classList <|
                             List.map
                                 (\x -> ( x, isSelected ))
-                                [ "white", "blue" ]
+                                [ "selected" ]
             in
                 [ liSelected, HE.onMouseDown <| cfg.toggleMsg item ]
 
@@ -229,7 +229,7 @@ view model catalog cfg =
                 renderselector (selectorCfg, items) =
                     viewitemselector selectorCfg items model.selected
             in
-                H.div [ ]
+                H.div [ HA.class "list-series" ]
                     (List.map
                          (\x -> H.div [ ] [ renderselector x ])
                          [ ( cfg.searchSelector, model.found )
@@ -239,9 +239,7 @@ view model catalog cfg =
 
     in
         H.div (cfg.divAttrs ++
-                   [ HA.style "z-index" "10"
-                   , HA.style "position" "absolute"
-                   ]
+            [ ]
               )
             [ searchInput
             , selectorwidget
