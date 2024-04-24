@@ -1,17 +1,34 @@
+import io
 import json
+import traceback
+from contextlib import redirect_stdout
 import pandas as pd
-from flask import Blueprint, jsonify, request, render_template, url_for
+from flask import (
+    Blueprint,
+    jsonify,
+    make_response,
+    request,
+    render_template,
+    url_for
+)
+from pml import HTML
 
 from dash import _utils
+
+from psyl.lisp import (
+    parse as fparse,
+    serialize,
+)
+
+from rework_ui.helper import argsdict as _args
 
 from sqlhelp import select
 
 from tshistory import search
 
+from tshistory_formula.helper import validate_formula
 from tshistory_formula.registry import FUNCS
 from tshistory_formula.interpreter import jsontypes
-
-import tshistory_refinery
 
 from tsview.util import (
     argsdict as _argsdict,
@@ -66,6 +83,7 @@ def tsview(tsa):
             return 'Nothing to see there.'
         baseurl = homeurl()
         instance = "Local" if len(baseurl)==0 else baseurl.split("refinery.")[1].split(".pythonian")[0]
+        import tshistory_refinery
         version = tshistory_refinery.__version__
         return render_template(
             'homepage.html',
@@ -221,6 +239,105 @@ def tsview(tsa):
             orient='index',
             date_format='iso'
         )
+
+    @bp.route('/addformulas')
+    def addformulas():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        baseurl = homeurl()
+        return render_template(
+            'addformulas.html',
+            baseurl=baseurl,
+        )
+
+    @bp.route('/updateformulas', methods=['PUT'])
+    def updateformulas():
+        if not request.files:
+            return jsonify({'errors': ['Missing CSV file']})
+        args = _args(request.form)
+        stdout = io.StringIO()
+        try:
+            content = request.files.to_dict()['new_formula.csv'].stream.read().decode("utf-8")
+            stdout.write(content)
+            stdout.seek(0)
+            df_formula = pd.read_csv(stdout, dtype={'name': str, 'text': str}, sep=',')
+
+            if ('name' not in df_formula.columns) or ('text' not in df_formula.columns):
+                return jsonify({
+                    'status' : 'invalid',
+                    'errors': {'syntax' : ["Invalid file. Requested columns are ['name', 'text']"]},
+                    'warnings': {},
+                    'crash' : '',
+                    'output' : {}
+                })
+            errors, warnings = validate_formula(tsa, df_formula)
+            if errors or not args.reallydoit:
+                status = 'invalid' if errors else 'valid'
+                print(jsonify({
+                    'status': status,
+                    'errors': errors,
+                    'warnings': warnings,
+                    'crash' : '',
+                    'output' : {}
+                }))
+                return jsonify({
+                    'status': status,
+                    'errors': errors,
+                    'warnings': warnings,
+                    'crash' : '',
+                    'output' : {}
+                })
+
+            output = []
+            with redirect_stdout(stdout):
+                for row in df_formula.itertuples():
+                    tsa.register_formula(
+                        row.name,
+                        row.text,
+                        reject_unknown=False
+                    )
+                    output.append(row.name + ' : ' + row.text)
+
+        except Exception:
+            traceback.print_exc()
+            h = HTML()
+            return json.dumps({
+                'status': 'fail',
+                'crash': str(h(traceback.format_exc())),
+                'output': {'Registered' : output},
+                'errors' : {},
+                'warnings' : {}
+            })
+        return jsonify({
+            'status': 'saved',
+            'output': {'Registered' : output},
+            'crash': '',
+            'errors' : {},
+            'warnings' : {}
+        })
+
+    @bp.route('/downloadformulas')
+    def downloadformulas():
+        formulas = pd.read_sql(
+            'select name, internal_metadata->\'formula\' as text '
+            'from tsh.registry '
+            'where internal_metadata->\'formula\' is not null',
+            tsa.engine
+        )
+        df = formulas.sort_values(
+            by=['name', 'text'],
+            kind='mergesort'
+        )
+        df['text'] = df['text'].apply(lambda x: serialize(fparse(x)))
+        response = make_response(
+            df.to_csv(
+                index=False,
+                quotechar="'"
+            ), 200
+        )
+        response.headers['Content-Type'] = 'text/json'
+
+        return response
 
     # query editor
 

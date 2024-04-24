@@ -1,0 +1,242 @@
+/* @import url("https://fonts.googleapis.com/css?family=Inter:400,500|Ubuntu:400,500|Open+Sans:400,700"); */
+
+html {
+    scroll-behavior: smooth;
+}
+
+.addformulas-content {
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.addformulas-content p {
+    /* font-family: 'Open Sans'; */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 24px;
+    text-align: left;
+    color: #515350;
+    margin-bottom: 10px;
+}
+
+.addformulas-content h1 {
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 72px;
+    letter-spacing: -0.02em;
+    color: #1A1C1A;
+}
+
+.addformulas-content h2 {
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 60px;
+    text-align: center;
+    letter-spacing: -0.02em;
+    color: #1A1C1A;
+    margin-bottom: 32px;
+}
+
+#addformulas-home {
+    padding: 0px 0px 32px 0px;
+    padding-left: calc((100% - 1280px)/2);
+    padding-right: calc((100% - 1280px)/2);
+    min-height: 400px;
+}
+
+ /* grid stuff */
+
+ .card1 { grid-area: card1; }
+ .card2 { grid-area: card2; }
+ .card3 { grid-area: card3; }
+ .card4 { grid-area: card4; }
+ 
+ .cards-grid-container {
+     display: grid;
+     grid-template-areas: 'card1 card2 card3 card4';
+     gap: 10px;
+     padding:20px;
+ }
+
+ .addformulas-card {
+     max-width: 700px;
+     min-width: 200px;
+     background: #F8F8F8;
+     border: 1px solid #C5C7C3;
+     padding: 21px;
+     margin: 0px;
+     text-align: left;
+     align-items: center;
+     justify-content: left;
+ }
+
+ .addformulas-card-body {
+     padding: 0px !important;
+ }
+
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.addformulas-container {
+    margin-top: 21px;
+    display: inline-block;
+}
+
+button.addformulas-button {
+    display: inline-block;
+    padding: 0.65rem 0.75rem;
+    margin: 6px;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    height: 56px;
+    box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+    border-radius: 8px;
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 300;
+    font-size: 18px;
+    line-height: 28px;
+}
+
+button.addformulas-button:hover {
+    text-decoration: none;
+}
+
+button.greenbutton {
+    width: auto;
+    background: #35845F;
+    border: 1px solid #35845F;
+    color: white !important;
+}
+
+button.greenbutton:hover {
+    background-color: #275D44 !important;
+    border: 1px solid #275D44;
+}
+
+button.apibutton {
+    width: auto;
+    background: #FFFFFF;
+    border: 1px solid #D0D5DD;
+    color: #344054 !important;
+}
+
+button.apibutton:hover {
+    background-color: #F0F0F0 !important;
+    border: 1px solid #D0D5DD;
+}
+
+button.redbutton {
+    width: auto;
+    background: #ab2d25;
+    border: 1px solid #ab2d25;
+    color: white !important;
+}
+
+button.redbutton:hover {
+    background-color: #3b0605 !important;
+    border: 1px solid #3b0605;
+}
+
+button.orangebutton {
+    width: auto;
+    background: #ab7325;
+    border: 1px solid #ab7325;
+    color: white !important;
+}
+
+button.orangebutton:hover {
+    background-color: #3b2205 !important;
+    border: 1px solid #3b2205;
+}
+
+p.greentext {
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 23px;
+    letter-spacing: -0.02em;
+    color: #35845F;
+    align-self: center;
+    margin-bottom: 0px;
+}
+
+p.redtext {
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 23px;
+    letter-spacing: -0.02em;
+    color: #ab2d25;
+    align-self: center;
+    margin-bottom: 0px;
+}
+
+.warnings {
+    background-color: #e1e1df;
+    color: #3b0605;
+}
+
+.errors {
+    background-color: #f9dbd7;
+    color: #3b0605;
+}
+
+.allgreen {
+    background-color: #dff7e3;
+    color: #053b17;
+}
+
+.warnings p, .errors p, .allgreen p {
+    color: #180302;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px;
+    margin-bottom: 0px;
+}
+
+.warnings u, .errors u, .allgreen u {
+    color: #180302;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 8px;
+}
+
+.warnings ul {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    list-style-type: none;
+    padding: 0;
+    margin: 0px 20px;
+}
+
+.errors ul, .allgreen ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0px 20px;
+}
+
+.warnings li, .errors li, .allgreen li {
+    /* font-family: 'Ubuntu'; */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 23px;
+    letter-spacing: -0.02em;
+    margin-right: 20px;
+}
+
+.img-loading {
+    height: 40px;
+    align-self: center;
+}
