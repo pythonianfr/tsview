@@ -78,15 +78,21 @@ buildSection: Item -> Html Msg
 buildSection item =
     H.div
         []
-        [ H.div
-            []
-            [ H.text item.name ]
-        ,  H.div
-            []
-            [ H.text item.source ]
-        , H.div
-            []
-            (processDoc item.doc )]
+        [ H.h3
+            [A.class "first"]
+            [ H.p
+                [ A.class "name" ]
+                [ H.text item.name ]
+            , H.p
+                [ A.class "from" ]
+                [ H.text  " from : " ]
+            , H.p
+                [ A.class "source" ]
+                [ H.text  item.source  ]
+            ]
+        , H.pre
+            [ A.class "doc"]
+            ( processDoc item.doc )]
 
 processDoc: String -> List (Html Msg)
 processDoc doc =
@@ -102,7 +108,7 @@ view model =
                         else "grid-container-icon") ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ A.class "main-content" ]
+            [ A.class "main-content operators"]
             (List.map buildSection model.operators)
         ]
 
