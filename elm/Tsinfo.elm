@@ -126,6 +126,7 @@ type alias Model =
     , plotstatus : PlotStatus
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
+    , historyDateIndexDeb : Debouncer Msg
     }
 
 
@@ -195,6 +196,7 @@ type Msg
     | NewDates (List String)
     | HistoryIdates (String, String) (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
+    | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
 
 
 logentrydecoder : D.Decoder Logentry
@@ -315,6 +317,12 @@ updatedchangedidatebouncer =
     { mapMsg = DebounceChangedIdate
     , getDebouncer = .date_index_deb
     , setDebouncer = \deb model -> { model | date_index_deb = deb }
+    }
+
+updatedChangedHistoryIdateDebouncer =
+    { mapMsg = DebounceChangedHistoryIdate
+    , getDebouncer = .historyDateIndexDeb
+    , setDebouncer = \deb model -> { model | historyDateIndexDeb = deb }
     }
 
 
@@ -875,6 +883,9 @@ update msg model =
         GotVersion _ (Err err) ->
             doerr "gotplotdata error" <| U.unwraperror err
 
+        DebounceChangedHistoryIdate val ->
+            Debouncer.update update updatedChangedHistoryIdateDebouncer val model
+
 -- views
 
 getHistoryIdates : Model -> String -> String -> Cmd Msg
@@ -1376,6 +1387,7 @@ main =
                     , plotstatus = Loading
                     , historyPlots = Dict.empty
                     , historyMode = False
+                    , historyDateIndexDeb = debouncerconfig
                     }
             in
             ( model
