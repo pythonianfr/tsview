@@ -304,7 +304,8 @@ view model =
                         [ HA.class "flex-container timeseriesrefinery home-container" ]
                         [ buildDetailsDiv model
                         , H.br [] []
-                        , H.img [ HA.class "home-plot", HA.src "./tsview_static/plot.png" ] [] ]
+                        --, H.img [ HA.class "home-plot", HA.src "./tsview_static/plot.png" ] []
+                        ]
                     , H.img [ HA.class "home-image", HA.src "./tsview_static/grid.png" ] []
                     , buildLinksDiv model
                     ]

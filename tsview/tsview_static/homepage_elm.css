@@ -237,6 +237,9 @@ p.greentext {
         gap: 20px;
         padding:20px;
     }
+}
+
+@media (max-width: 1330px) {
     #links {
         display: inline;
     }

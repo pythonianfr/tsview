@@ -1,3 +1,4 @@
+import os
 import io
 import json
 import traceback
@@ -82,7 +83,8 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         baseurl = homeurl()
-        instance = "Local" if len(baseurl)==0 else baseurl.split("refinery.")[1].split(".pythonian")[0]
+        user = os.environ.get('USER')
+        instance = "Local" if len(user)==0 else user.capitalize()
         import tshistory_refinery
         version = tshistory_refinery.__version__
         return render_template(
