@@ -8,6 +8,7 @@ import Html.Attributes as A
 import Html.Events as E
 import Json.Decode exposing (Value)
 import List.Nonempty as NE exposing (Nonempty)
+import Menu as Men
 import Plotter exposing
     ( scatterplot
     , plotargs
@@ -20,7 +21,8 @@ import Util as U
 
 
 type Msg
-    = CodeEditorMsg CodeEditor.Msg
+    = Menu Men.Msg
+    | CodeEditorMsg CodeEditor.Msg
     | EditionTreeMsg EditionTree.Msg
     | SwitchTab Tab
 
@@ -32,6 +34,7 @@ type Tab
 
 type alias Model =
     { urlPrefix : String
+    , menu : Men.Model
     , errors : List String
     , tab : Tab
     , codeEditor : CodeEditor.Model
@@ -47,6 +50,11 @@ update msg model =
             U.nocmd <| U.adderror model error
     in
     case msg of
+        Menu menumsg ->
+            ( { model | menu = Men.updateModel menumsg model.menu }
+            , Men.buildCmd menumsg model.menu
+            )
+
         CodeEditorMsg (CodeEditor.ParsedFormula tree) ->
             update (ET.Edit tree |> EditionTreeMsg) model
 
@@ -110,31 +118,47 @@ viewplot cemodel =
 
 view : Model -> Html Msg
 view model =
-    H.div [ A.style "margin" ".5em" ]
-        [ viewtabs model
-        -- the plot div hates being set too dynamically so
-        -- we put it on the toplevel and show/hide it depending
-        -- on the tab
-        , case model.specerrors of
-              Nothing -> H.span [] []
-              Just errlist ->
-                  H.div [] <| List.map (\x -> H.span [] [ H.text x ]) <| NE.toList errlist
-        , case model.tab of
-              Editor -> H.div [ A.id "plot", A.style "display" "none" ] []
-              Plot -> H.div [ A.id "plot" ] []
-        , case model.tab of
-              Editor ->
-                  H.article [ A.class "main" ]
-                      [ H.div
-                            [ A.class "code_left" ]
-                            [ H.map CodeEditorMsg (CodeEditor.view model.codeEditor) ]
-                      , H.div
-                          [ A.class "code_right" ]
-                          [ H.map EditionTreeMsg (EditionTree.view model.editionTree) ]
-                      ]
+    H.div
+        [ A.class
+            (if model.menu.menuModeText then
+                "grid-container-text"
 
-              Plot ->
-                  viewplot model.codeEditor
+             else
+                "grid-container-icon"
+            )
+        ]
+        [ Men.viewMenu model.menu Menu
+        , H.div
+            [ A.class "main-content"
+            , A.style "margin" ".5em"
+            ]
+            [ H.div [ A.style "margin" ".5em" ]
+                [ viewtabs model
+                -- the plot div hates being set too dynamically so
+                -- we put it on the toplevel and show/hide it depending
+                -- on the tab
+                , case model.specerrors of
+                      Nothing -> H.span [] []
+                      Just errlist ->
+                          H.div [] <| List.map (\x -> H.span [] [ H.text x ]) <| NE.toList errlist
+                , case model.tab of
+                      Editor -> H.div [ A.id "plot", A.style "display" "none" ] []
+                      Plot -> H.div [ A.id "plot" ] []
+                , case model.tab of
+                      Editor ->
+                          H.article [ A.class "main" ]
+                              [ H.div
+                                    [ A.class "code_left" ]
+                                    [ H.map CodeEditorMsg (CodeEditor.view model.codeEditor) ]
+                              , H.div
+                                  [ A.class "code_right" ]
+                                  [ H.map EditionTreeMsg (EditionTree.view model.editionTree) ]
+                              ]
+
+                      Plot ->
+                          viewplot model.codeEditor
+                ]
+            ]
         ]
 
 
@@ -155,12 +179,16 @@ init { urlPrefix, jsonSpec, formula } =
             in
             ( Model
                 urlPrefix
+                (Men.initmenu "formula-create")
                 []
                 Editor
                 codeModel
                 (EditionTree.init spec)
                 errors
-            , Cmd.map CodeEditorMsg codeCmd
+            , Cmd.batch
+                    [ Men.getMenu urlPrefix (\returnHttp -> Menu (Men.GotMenu returnHttp))
+                    , Men.getIcons urlPrefix (\returnHttp -> Menu (Men.GotIcons returnHttp))
+                    , Cmd.map CodeEditorMsg codeCmd ]
             )
     in
     parseSpecValue jsonSpec
@@ -174,7 +202,7 @@ main : Program Flags Model Msg
 main =
     let
         sub model =
-            Sub.none
+            Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
     in
     Browser.element
         { init = init
