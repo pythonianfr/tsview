@@ -558,12 +558,7 @@ main =
                let
                    model =
                        { baseurl = input.baseurl
-                       , menu =
-                            { menuContent = []
-                            , menuModeText = False
-                            , icones = Dict.empty
-                            , selected = Just "basket-edit"
-                            }
+                       , menu = Men.initmenu "basket-edit"
                        , errors = []
                        , baskets = []
                        , name = Nothing

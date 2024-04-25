@@ -437,12 +437,7 @@ initModel baseurl =
         , newcsv = Unactivated
         , feedback = Unactivated
         }
-    , menu =
-        { menuContent = []
-        , menuModeText = False
-        , icones = Dict.empty
-        , selected = Just "formula-batch"
-        }
+    , menu = Men.initmenu "formula-batch"
     , csv = Nothing
     , newfile = Nothing
     , filename = ""

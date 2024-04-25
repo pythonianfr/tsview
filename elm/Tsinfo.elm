@@ -1326,12 +1326,7 @@ main =
                     , name = input.name
                     , source = ""
                     , activetab = Plot
-                    , menu =
-                        { menuContent = []
-                        , menuModeText = False
-                        , icones = Dict.empty
-                        , selected = Just "timeseries-catalog"
-                        }
+                    , menu = Men.initmenu "timeseries-catalog"
                     -- metadata edition
                     , canwrite = False
                     , editing = False
