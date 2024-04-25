@@ -447,6 +447,16 @@ view model =
             ]
 
 
+sub: Model -> Sub Msg
+sub model =
+    -- this is a cheap (cadenced) debouncer for the search ui
+    if model.selecting then
+        Sub.batch [ Time.every 1000 (always MakeSearch)
+                  , Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+                  ]
+    else
+        Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+
 main : Program
        { prefix : String
        , selected : List String
@@ -480,13 +490,6 @@ main =
                      ] ++ fetchseries model False
                )
 
-        sub model =
-            -- this is a cheap (cadenced) debouncer for the search ui
-            if model.selecting then
-                Time.every 1000 (always MakeSearch)
-
-            else
-                Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
     in
         Browser.element
             { init = init
