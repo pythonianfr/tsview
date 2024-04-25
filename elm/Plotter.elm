@@ -1,5 +1,6 @@
 module Plotter exposing
-    ( getdata
+    ( defaultoptions
+    , getdata
     , getgroupplotdata
     , Group
     , groupdecoder
@@ -20,15 +21,27 @@ import Bool.Extra
 
 -- series
 
+type alias TraceOptions =
+    { showlegend: Bool
+    , line: Maybe { color: String }
+    , opacity: Float
+    }
+
+
+defaultoptions =
+    { showlegend = True
+    , line = Nothing
+    , opacity = 1
+    }
+
+
 type alias Trace =
     { type_ : String
     , name : String
     , x : List String
     , y : List (Maybe Float)
     , mode : String
-    , showlegend : Bool
-    , line : {color : String}
-    , opacity : Float
+    , options : TraceOptions
     }
 
 
@@ -54,16 +67,28 @@ type alias PlotQuery msg =
 
 encodetrace : Trace -> E.Value
 encodetrace t =
-    E.object
-        [ ( "type", E.string t.type_ )
-        , ( "name", E.string t.name )
-        , ( "x", E.list E.string t.x )
-        , ( "y", E.list (E.maybe E.float) t.y )
-        , ( "mode", E.string t.mode )
-        , ( "showlegend",  E.bool t.showlegend )
-        , ( "line", (E.object [("color", E.string t.line.color)]))
-        , ( "opacity", E.float t.opacity )
-        ]
+    case t.options.line of
+        Nothing ->
+            E.object
+                [ ( "type", E.string t.type_ )
+                , ( "name", E.string t.name )
+                , ( "x", E.list E.string t.x )
+                , ( "y", E.list (E.maybe E.float) t.y )
+                , ( "mode", E.string t.mode )
+                , ( "showlegend",  E.bool t.options.showlegend )
+                , ( "opacity", E.float t.options.opacity )
+                ]
+        Just line ->
+            E.object
+                [ ( "type", E.string t.type_ )
+                , ( "name", E.string t.name )
+                , ( "x", E.list E.string t.x )
+                , ( "y", E.list (E.maybe E.float) t.y )
+                , ( "mode", E.string t.mode )
+                , ( "showlegend",  E.bool t.options.showlegend )
+                , ( "line", (E.object [("color", E.string line.color)]))
+                , ( "opacity", E.float t.options.opacity )
+                ]
 
 
 type alias Series =
@@ -75,7 +100,7 @@ seriesdecoder =
 
 
 type alias TraceArgs =
-    String -> List String -> List (Maybe Float) -> String -> Bool -> {color : String} -> Float -> Trace
+    String -> List String -> List (Maybe Float) -> String -> TraceOptions -> Trace
 
 
 scatterplot : TraceArgs

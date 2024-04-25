@@ -13,6 +13,7 @@ import Json.Decode as Decode
 import KeywordSelector
 import Plotter exposing
     ( Series
+    , defaultoptions
     , getdata
     , plotargs
     , scatterplot
@@ -374,9 +375,7 @@ view model =
                             (Dict.keys series)
                             (Dict.values series)
                             "lines"
-                            True
-                            { color = "rgb(0, 0, 250)" }
-                            1
+                            defaultoptions
                         )
                         model.search.selected
             in

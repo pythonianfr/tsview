@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Browser
 import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
-    (Debouncer
+    ( Debouncer
     , fromSeconds
     , provideInput
     , settleWhenQuietFor
@@ -22,7 +22,8 @@ import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
 import Metadata as M
 import Plotter exposing
-    ( getgroupplotdata
+    ( defaultoptions
+    , getgroupplotdata
     , groupdecoder
     , scatterplot
     , plotargs
@@ -492,9 +493,7 @@ viewplot model =
                 (Dict.keys plotdata)
                 (Dict.values plotdata)
                 "lines"
-                True
-                { color = "rgb(0, 0, 250)" }
-                1
+                defaultoptions
 
         plots = List.map plot <| Dict.toList groupdata
 

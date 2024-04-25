@@ -28,7 +28,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( getdata
+    ( defaultoptions
+    , getdata
     , scatterplot
     , plotargs
     )
@@ -795,6 +796,7 @@ view model =
             (Dict.keys model.horizon.timeSeries)
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
             ""
+            defaultoptions
         , viewedittable model
         ]
 

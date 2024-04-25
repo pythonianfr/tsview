@@ -447,7 +447,8 @@ update msg model =
         --  Menu
         Menu menumsg ->
             ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu)
+            , Men.buildCmd menumsg model.menu
+            )
 
 
 viewnamefilter =

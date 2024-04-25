@@ -42,7 +42,8 @@ import Menu as Men
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( getdata
+    ( defaultoptions
+    , getdata
     , seriesdecoder
     )
 import Process as P
@@ -1159,6 +1160,7 @@ viewplot model =
                 (Dict.keys ts)
                 (Dict.values ts)
                 ""
+                defaultoptions
             , viewDatesRange
                 model.firstSeventyIdates
                 model.historyDateIndex
@@ -1175,7 +1177,7 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) ""
+            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) "" defaultoptions
             ]
 
 

@@ -10,8 +10,9 @@ import Json.Decode exposing (Value)
 import List.Nonempty as NE exposing (Nonempty)
 import Menu as Men
 import Plotter exposing
-    ( scatterplot
+    ( defaultoptions
     , plotargs
+    , scatterplot
     )
 import TsView.Formula.CodeEditor as CodeEditor
 import TsView.Formula.EditionTree.Main as EditionTree
@@ -109,9 +110,7 @@ viewplot cemodel =
             (Dict.keys cemodel.plotdata)
             (Dict.values cemodel.plotdata)
             "lines"
-            True
-            { color = "rgb(0, 0, 250)" }
-            1
+            defaultoptions
         args = plotargs "plot" [plot] ""
     in
     -- the "plot-figure" node is pre-built in the template side
