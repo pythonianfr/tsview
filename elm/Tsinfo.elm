@@ -38,6 +38,7 @@ import JsonTree as JT exposing (TaggedValue(..))
 import List.Extra as List
 import List.Selection as LS
 import Maybe.Extra as Maybe
+import Menu as Men
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
@@ -86,6 +87,8 @@ type alias Model =
     , name : String
     , source : String
     , activetab : Tabs
+    -- menu
+    , menu : Men.Model
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -130,6 +133,8 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
+    --menu
+    | Menu Men.Msg
     -- tabs
     | Tab Tabs
     -- perms
@@ -327,6 +332,11 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
+        Menu menumsg ->
+            ( { model | menu = Men.updateModel menumsg model.menu }
+            , Men.buildCmd menumsg model.menu
+            )
+
         Tab tab ->
             U.nocmd { model | activetab = tab }
 
@@ -1243,42 +1253,56 @@ view model =
 
     in
     H.div
-        [ HA.style "margin" ".5em" ]
-        [ H.span [ HA.class "action-container" ]
-              <| (I.viewactionwidgets model horizonevents) ++
-              [ I.viewdeletion model deleteevents
-              , I.viewrenameaction model renameevents
-              ]
-        , I.viewtitle model CopyNameToClipboard
-        , case model.activetab of
-              Plot ->
-                  if strseries model
-                  then H.div [] [ head ]
-                  else H.div []
-                      [ head
-                      , tabcontents
-                            [ viewplot model
-                            , I.viewformula model SwitchLevel
-                            ]
-                      ]
+        [ HA.class
+            (if model.menu.menuModeText then
+                "grid-container-text"
 
-              UserMetadata ->
-                  H.div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
-
-              Logs ->
-                  H.div []
-                      [ head
-                      , tabcontents
-                            [ case model.seriestype of
-                                  I.Primary -> I.viewlog model False
-                                  I.Formula -> H.span [] []
-                            ]
-                      ]
-
-              FormulaCache ->
-                  H.div [] [ head, tabcontents [ viewcache model ] ]
-        , I.viewerrors model
+             else
+                "grid-container-icon"
+            )
         ]
+        [ Men.viewMenu model.menu Menu
+        , H.div
+            [ HA.class "main-content"
+            , HA.style "margin" ".5em"
+            ]
+            [ H.div
+                [ HA.style "margin" ".5em" ]
+                [ H.span [ HA.class "action-container" ]
+                      <| (I.viewactionwidgets model horizonevents) ++
+                      [ I.viewdeletion model deleteevents
+                      , I.viewrenameaction model renameevents
+                      ]
+                , I.viewtitle model CopyNameToClipboard
+                , case model.activetab of
+                      Plot ->
+                          if strseries model
+                          then H.div [] [ head ]
+                          else H.div []
+                              [ head
+                              , tabcontents
+                                    [ viewplot model
+                                    , I.viewformula model SwitchLevel
+                                    ]
+                              ]
+
+                      UserMetadata ->
+                          H.div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
+
+                      Logs ->
+                          H.div []
+                              [ head
+                              , tabcontents
+                                    [ case model.seriestype of
+                                          I.Primary -> I.viewlog model False
+                                          I.Formula -> H.span [] []
+                                    ]
+                              ]
+
+                      FormulaCache ->
+                          H.div [] [ head, tabcontents [ viewcache model ] ]
+                , I.viewerrors model
+                ]]]
 
 
 type alias Input =
@@ -1302,6 +1326,12 @@ main =
                     , name = input.name
                     , source = ""
                     , activetab = Plot
+                    , menu =
+                        { menuContent = []
+                        , menuModeText = False
+                        , icones = Dict.empty
+                        , selected = Just "timeseries-catalog"
+                        }
                     -- metadata edition
                     , canwrite = False
                     , editing = False
@@ -1351,7 +1381,9 @@ main =
             in
             ( model
             , Cmd.batch
-                [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
+                [ Men.getMenu input.baseurl (\returnHttp -> Menu (Men.GotMenu returnHttp))
+                , Men.getIcons input.baseurl (\returnHttp -> Menu (Men.GotIcons returnHttp))
+                , M.getsysmetadata input.baseurl input.name GotSysMeta "series"
                 , M.getusermetadata input.baseurl input.name GotUserMeta "series"
                 , getsource model model.name
                 , I.getwriteperms input.baseurl GetPermissions
@@ -1364,7 +1396,8 @@ main =
         , update = update
         , subscriptions =
             \_ -> Sub.batch [
-                loadFromLocalStorage FromLocalStorage
+                Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
+                , loadFromLocalStorage FromLocalStorage
                 , dateInInterval NewDates ]
         }
 
