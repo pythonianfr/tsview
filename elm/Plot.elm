@@ -1,7 +1,12 @@
 module Plot exposing (main)
 
 import Browser
-import Date exposing (add, Date, fromIsoString, toIsoString)
+import Date exposing
+    ( Date
+    , add
+    , fromIsoString
+    , toIsoString
+    )
 import Dict exposing (Dict)
 import Html
 import Html as H
@@ -11,6 +16,7 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import KeywordSelector
+import Menu as Men
 import Plotter exposing
     ( Series
     , defaultoptions
@@ -25,11 +31,9 @@ import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
 
-import Menu as Men
-
 
 type alias Model =
-    { prefix : String
+    { baseurl : String
     , catalog: Catalog.Model
     , haseditor : Bool
     , search : SeriesSelector.Model
@@ -113,14 +117,16 @@ selectmaybedate model op date1 date2 =
 
 fetchseries model restrict =
     let
-        selected = model.search.selected
+        selected =
+            model.search.selected
         ismissing series =
             not <| Dict.member series model.loadedseries
-        missing = List.filter ismissing selected
+        missing =
+            List.filter ismissing selected
     in
     List.map
         (\name -> getdata
-             { baseurl = model.prefix
+             { baseurl = model.baseurl
              , name = name
              , idate = Nothing
              , callback = GotPlotData name
@@ -147,7 +153,8 @@ update msg model =
     let
         doerr tag error =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
-        removeItem x xs = List.filter ((/=) x) xs
+        removeItem x xs =
+            List.filter ((/=) x) xs
         toggleItem x xs =
             if
                 List.member x xs
@@ -163,130 +170,145 @@ update msg model =
             else
                 KeywordSelector.select xm xs |> List.take 20
     in
-        case msg of
-            GotCatalog catmsg ->
-                let
-                    newcat = Catalog.update catmsg model.catalog
-                    newsearch = SeriesSelector.fromcatalog model.search newcat
-                in
-                    U.nocmd { model
-                                | catalog = newcat
-                                , search = newsearch
+    case msg of
+        GotCatalog catmsg ->
+            let
+                newcat =
+                    Catalog.update catmsg model.catalog
+                newsearch =
+                    SeriesSelector.fromcatalog model.search newcat
+            in
+            U.nocmd { model
+                        | catalog = newcat
+                        , search = newsearch
+                    }
+
+        KindChange kind checked ->
+            let
+                newsearch =
+                    SeriesSelector.updatekinds
+                        model.search
+                        model.catalog
+                        kind
+                        checked
+            in
+            U.nocmd { model | search = newsearch }
+
+        SourceChange source checked ->
+            let
+                newsearch =
+                    SeriesSelector.updatesources
+                        model.search
+                        model.catalog
+                        source
+                        checked
+            in
+            U.nocmd { model | search = newsearch }
+
+        ToggleSelection ->
+            U.nocmd { model | selecting = not model.selecting }
+
+        ToggleItem x ->
+            let
+                newmodel =
+                    { model
+                        | search = SeriesSelector.updateselected
+                          model.search
+                          (toggleItem x model.search.selected)
+                    }
+            in
+            ( newmodel
+            , Cmd.batch <| fetchseries newmodel False
+            )
+
+        SearchSeries x ->
+            let
+                search =
+                    SeriesSelector.updatesearch model.search x
+            in
+            U.nocmd { model | search = search }
+
+        MakeSearch ->
+            let
+                search =
+                    SeriesSelector.updatefound model.search
+                        (keywordMatch
+                             model.search.search
+                             model.search.filteredseries
+                        )
+            in
+            U.nocmd { model | search = search }
+
+        -- plot
+
+        GotPlotData name (Ok rawdata) ->
+            case Decode.decodeString seriesdecoder rawdata of
+                Ok val ->
+                    let
+                        dates =
+                            Dict.keys val
+                        mindate =
+                            asmaybedate False <|
+                                case dates of
+                                    head::_ -> head
+                                    []  -> "1900-1-1"
+                        maxdate =
+                            asmaybedate True
+                                <| Maybe.withDefault "2100-1-1" <| List.maximum dates
+
+                        loaded =
+                            Dict.insert name val model.loadedseries
+
+                        newmodel =
+                            { model
+                                | loadedseries = loaded
+                                , mindate =
+                                  Just <| selectmaybedate model Date.min model.mindate mindate
+                                , maxdate =
+                                  Just <| selectmaybedate model Date.max model.maxdate maxdate
                             }
+                    in
+                    U.nocmd newmodel
 
-            KindChange kind checked ->
-                let
-                    newsearch = SeriesSelector.updatekinds
-                                model.search
-                                model.catalog
-                                kind
-                                checked
-                in
-                    U.nocmd { model | search = newsearch }
+                Err err ->
+                    doerr "gotplotdata decode" <| Decode.errorToString err
 
-            SourceChange source checked ->
-                let
-                    newsearch = SeriesSelector.updatesources
-                                model.search
-                                model.catalog
-                                source
-                                checked
-                in
-                    U.nocmd { model | search = newsearch }
+        GotPlotData name (Err err) ->
+            doerr "gotplotdata error" <| U.unwraperror err
 
-            ToggleSelection ->
-                U.nocmd { model | selecting = not model.selecting }
+        -- dates
 
-            ToggleItem x ->
-                let
-                    newmodel = { model
-                                   | search = SeriesSelector.updateselected
-                                     model.search
-                                     (toggleItem x model.search.selected)
-                               }
-                in
-                    ( newmodel
-                    , Cmd.batch <| fetchseries newmodel False
-                    )
+        GotToday now ->
+            U.nocmd { model | now = now }
 
-            SearchSeries x ->
-                let
-                    search = SeriesSelector.updatesearch model.search x
-                in
-                    U.nocmd { model | search = search }
+        FvdatePickerChanged value ->
+            let
+                newmodel =
+                    { model
+                        | mindate = maybedate <| fromIsoString value
+                        , loadedseries = Dict.empty
+                    }
+            in
+            ( newmodel
+            , Cmd.batch <| fetchseries newmodel True
+            )
 
-            MakeSearch ->
-                let
-                    search = SeriesSelector.updatefound model.search
-                             (keywordMatch
-                                  model.search.search
-                                  model.search.filteredseries)
-                in
-                    U.nocmd { model | search = search }
+        TvdatePickerChanged value ->
+            let
+                newmodel =
+                    { model
+                        | maxdate = maybedate <| fromIsoString value
+                        , loadedseries = Dict.empty
+                    }
+            in
+            ( newmodel
+            , Cmd.batch <| fetchseries newmodel True
+            )
 
-            -- plot
-
-            GotPlotData name (Ok rawdata) ->
-                case Decode.decodeString seriesdecoder rawdata of
-                    Ok val ->
-                        let
-                            dates = Dict.keys val
-                            mindate =
-                                asmaybedate False <|
-                                    case dates of
-                                        head::_ -> head
-                                        []  -> "1900-1-1"
-                            maxdate =
-                                asmaybedate True
-                                    <| Maybe.withDefault "2100-1-1" <| List.maximum dates
-
-                            loaded = Dict.insert name val model.loadedseries
-
-                            newmodel =
-                                { model
-                                    | loadedseries = loaded
-                                    , mindate = Just <| selectmaybedate
-                                                model Date.min model.mindate mindate
-                                    , maxdate = Just <| selectmaybedate
-                                                model Date.max model.maxdate maxdate
-                                }
-                        in U.nocmd newmodel
-
-                    Err err ->
-                        doerr "gotplotdata decode" <| Decode.errorToString err
-
-            GotPlotData name (Err err) ->
-                doerr "gotplotdata error" <| U.unwraperror err
-
-            -- dates
-
-            GotToday now ->
-                U.nocmd { model | now = now }
-
-            FvdatePickerChanged value ->
-                let
-                    newmodel = { model
-                                   | mindate = maybedate <| fromIsoString value
-                                   , loadedseries = Dict.empty
-                               }
-                in
-                    ( newmodel
-                    , Cmd.batch <| fetchseries newmodel True
-                    )
-
-            TvdatePickerChanged value ->
-                let
-                    newmodel = { model
-                                   | maxdate = maybedate <| fromIsoString value
-                                   , loadedseries = Dict.empty
-                               }
-                in
-                    ( newmodel
-                    , Cmd.batch <| fetchseries newmodel True
-                    )
-            Menu menumsg ->
-                ( { model | menu = Men.updateModel menumsg model.menu }
-                , Men.buildCmd menumsg model.menu)
+        Menu menumsg ->
+            ( { model | menu = Men.updateModel menumsg model.menu }
+            , Men.buildCmd menumsg model.menu
+            )
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
@@ -313,21 +335,23 @@ selectorConfig =
 viewlinks haseditor seriesName =
     H.div [ ]
         [ H.text (seriesName ++ " ")
-        , H.a [HA.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
-              , HA.target "_blank"
-              ]
-              [ H.text <| "info" ]
+        , H.a
+            [ HA.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
+            , HA.target "_blank"
+            ]
+            [ H.text <| "info" ]
         , H.text " "
-        , H.a [ HA.href <| UB.relative [ "tshistory", seriesName ] []
-              , HA.target "_blank"
-              ]
-              [ H.text <| "history" ]
+        , H.a
+            [ HA.href <| UB.relative [ "tshistory", seriesName ] []
+            , HA.target "_blank"
+            ]
+            [ H.text <| "history" ]
         , H.text " "
         , if haseditor then
               H.a [ HA.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
                   , HA.target "_blank"
                   ]
-              [ H.text <| "editor" ]
+                  [ H.text <| "editor" ]
           else
               H.text ""
         ]
@@ -335,26 +359,42 @@ viewlinks haseditor seriesName =
 
 viewdatepicker model =
     H.div
-    [ ]
-    [ H.span [ ] [ H.text " " ]
-    , H.label [ HA.for "fvd-picker" ] [ H.text "from value date" ]
-    , H.span [ ] [ H.text " " ]
-    , H.input [ HA.type_ "date"
-              , HA.id "fvd-picker"
-              , HA.name "fvd-picker"
-              , HA.value (serializedate model.mindate)
-              , HE.onInput FvdatePickerChanged
-              ] [ ]
-    , H.span [ ] [ H.text " " ]
-    , H.label [ HA.for "tvd-picker" ] [ H.text "to value date" ]
-    , H.span [ ] [ H.text " " ]
-    , H.input [ HA.type_ "date"
+        [ ]
+        [ H.span
+              [ ]
+              [ H.text " " ]
+        , H.label
+            [ HA.for "fvd-picker" ]
+            [ H.text "from value date" ]
+        , H.span
+            [ ]
+            [ H.text " " ]
+        , H.input
+            [ HA.type_ "date"
+            , HA.id "fvd-picker"
+            , HA.name "fvd-picker"
+            , HA.value (serializedate model.mindate)
+            , HE.onInput FvdatePickerChanged
+            ]
+            [ ]
+        , H.span
+            [ ]
+            [ H.text " " ]
+        , H.label
+            [ HA.for "tvd-picker" ]
+            [ H.text "to value date" ]
+        , H.span
+            [ ]
+            [ H.text " " ]
+        , H.input
+            [ HA.type_ "date"
             , HA.id "tvd-picker"
             , HA.name "tvd-picker"
             , HA.value (serializedate model.maxdate)
             , HE.onInput TvdatePickerChanged
-            ] [ ]
-    ]
+            ]
+            [ ]
+        ]
 
 
 view : Model -> H.Html Msg
@@ -366,20 +406,20 @@ view model =
                 data =
                     List.map
                         (\name ->
-                            let series =
-                                    Maybe.withDefault
-                                        Dict.empty <|Dict.get name model.loadedseries
-                            in
-                            scatterplot
-                            name
-                            (Dict.keys series)
-                            (Dict.values series)
-                            "lines"
-                            defaultoptions
+                             let series =
+                                     Maybe.withDefault
+                                     Dict.empty <|Dict.get name model.loadedseries
+                             in
+                             scatterplot
+                             name
+                             (Dict.keys series)
+                             (Dict.values series)
+                             "lines"
+                             defaultoptions
                         )
                         model.search.selected
             in
-                plotargs plotDiv data ""
+            plotargs plotDiv data ""
 
         selector =
             let
@@ -414,12 +454,13 @@ view model =
                         url =
                             UB.relative
                                 [ "tsview" ]
-                                (List.map
-                                     (\x -> UB.string "series" x)
-                                     model.search.selected
-                                )
+                                <| List.map
+                                    (\x -> UB.string "series" x)
+                                    model.search.selected
                     in
-                        H.a [ HA.href url ] [ H.text "Permalink" ]
+                    H.a
+                        [ HA.href url ]
+                        [ H.text "Permalink" ]
 
                 links =
                     List.map
@@ -427,26 +468,27 @@ view model =
                         model.search.selected
 
             in
-                H.ul [ ]
-                    (List.map
-                         (\x -> H.li [ ] [ x ])
-                         (permalink :: links)
-                    )
+                H.ul
+                    [ ]
+                    <| List.map
+                        (\x -> H.li [ ] [ x ])
+                        (permalink :: links)
     in
-        H.div
-            [ HA.class ( if model.menu.menuModeText
-                            then "grid-container-text"
-                            else "grid-container-icon" )]
-            [ Men.viewMenu model.menu Menu
-            , H.div
-                [ HA.class "main-content quickview" ]
-                [ H.header [ ] [ selector ]
-                , H.div [ HA.id plotDiv ] []
-                , viewdatepicker model
-                , plotFigure [ HA.attribute "args" args ] []
-                , H.footer [] [ urls ]
-                ]
+    H.div
+        [ HA.class ( if model.menu.menuModeText
+                     then "grid-container-text"
+                     else "grid-container-icon" )
+        ]
+        [ Men.viewMenu model.menu Menu
+        , H.div
+            [ HA.class "main-content quickview" ]
+            [ H.header [ ] [ selector ]
+            , H.div [ HA.id plotDiv ] []
+            , viewdatepicker model
+            , plotFigure [ HA.attribute "args" args ] []
+            , H.footer [] [ urls ]
             ]
+        ]
 
 
 sub: Model -> Sub Msg
@@ -460,7 +502,7 @@ sub model =
         Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
 
 main : Program
-       { prefix : String
+       { baseurl : String
        , selected : List String
        , haseditor : Bool
        } Model Msg
@@ -468,27 +510,30 @@ main =
     let
         init flags =
             let
-                selected = flags.selected
-                model = { prefix = flags.prefix
-                        , catalog= Catalog.empty
-                        , haseditor = flags.haseditor
-                        , search = (SeriesSelector.new [] "" [] selected [] [])
-                        , selecting = (List.isEmpty selected)
-                        , loadedseries = Dict.empty
-                        , now =  (Date.fromCalendarDate 1900 Jan 1)
-                        , mindate = Nothing
-                        , maxdate = Nothing
-                        , errors = []
-                        , menu =  Men.initmenu "timeseries-quickview" }
+                selected =
+                    flags.selected
+                model =
+                    { baseurl = flags.baseurl
+                    , catalog= Catalog.empty
+                    , haseditor = flags.haseditor
+                    , search = (SeriesSelector.new [] "" [] selected [] [])
+                    , selecting = (List.isEmpty selected)
+                    , loadedseries = Dict.empty
+                    , now =  (Date.fromCalendarDate 1900 Jan 1)
+                    , mindate = Nothing
+                    , maxdate = Nothing
+                    , errors = []
+                    , menu =  Men.initmenu "timeseries-quickview"
+                    }
 
             in ( model
                , Cmd.batch <| [
                       Cmd.map
                           GotCatalog
-                          (Catalog.get model.prefix "series" 1 Catalog.ReceivedSeries)
+                          (Catalog.get model.baseurl "series" 1 Catalog.ReceivedSeries)
                      , Date.today |> Task.perform GotToday
-                     , Men.getMenu flags.prefix ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-                     , Men.getIcons flags.prefix ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
+                     , Men.getMenu flags.baseurl (\returnHttp ->  Menu (Men.GotMenu returnHttp ))
+                     , Men.getIcons flags.baseurl (\returnHttp ->  Menu (Men.GotIcons returnHttp ))
                      ] ++ fetchseries model False
                )
 
