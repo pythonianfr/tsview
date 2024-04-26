@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stand Alone Menu</title>
+   <link rel="stylesheet"
+              href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
+              integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
+              crossorigin="anonymous">
+  <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
+  <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+  <script src="./tsview_static/stand_alone_menu_elm.js"></script>
+
+</head>
+<body>
+
+</body>
+</html>
+
+<div class="grid-container">
+    <div id="menu-elm">
+    </div>
+  <div class="main-content">
+    {% for i in range(30)  %}
+    <p>
+      content
+    </p>
+    <br>
+    {% endfor %}
+    <br>
+  </div>
+</div>
+
+<script>
+      var app = Elm.StandAloneMenu.init({
+        node: document.getElementById('menu-elm'),
+        flags: {{flags | safe}}
+      })
+</script>
+
+{% include "menu.html" %}

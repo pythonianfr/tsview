@@ -289,20 +289,26 @@ displaSwitchButton icones toCollpase =
 viewMenu: Model -> (Msg -> msg) -> Html msg
 viewMenu model msgBuilder =
     H.div
-        [ A.class "menu-refinery"
-        , if model.menuModeText
-          then A.class "menu-with-text"
-          else A.class "menu-with-icon"
-        ]
+        [ A.class "container-menu"
+            , if model.menuModeText
+              then A.class "container-with-text"
+              else A.class "container-with-icon"]
         [ H.div
-              []
-              [ H.div
-                    [ HE.onClick (msgBuilder ToggleMenu)
-                    , A.class "switch-display"
-                    , A.title "show/hide text"]
-                    [ displaSwitchButton model.icones model.menuModeText ]
-              , if model.menuModeText
-                then displayTextSection model.icones model.menuContent model.selected
-                else displayIconeContent model.icones model.menuContent model.selected
-              ]
+            [ A.class "menu-refinery"
+            , if model.menuModeText
+              then A.class "menu-with-text"
+              else A.class "menu-with-icon"
+            ]
+            [ H.div
+                  []
+                  [ H.div
+                        [ HE.onClick (msgBuilder ToggleMenu)
+                        , A.class "switch-display"
+                        , A.title "show/hide text"]
+                        [ displaSwitchButton model.icones model.menuModeText ]
+                  , if model.menuModeText
+                    then displayTextSection model.icones model.menuContent model.selected
+                    else displayIconeContent model.icones model.menuContent model.selected
+                  ]
+            ]
         ]

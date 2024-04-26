@@ -533,4 +533,12 @@ def tsview(tsa):
             return 'Nothing to see there.'
         return json.dumps(icons_definition)
 
+    @bp.route ('/standalonemenu')
+    def stand_alone_menu():
+        baseurl = homeurl()
+        flags = json.dumps([baseurl, 'timeseries-catalog'])
+        return render_template(
+            'stand_alone_menu.html',
+            flags = flags,
+        )
     return bp
