@@ -1,5 +1,5 @@
 module SeriesSelector exposing
-    (Model
+    ( Model
     , new
     , null
     , fromcatalog
@@ -33,7 +33,13 @@ type alias Model =
 
 
 new series search found selected kinds sources =
-    Model series search found selected kinds sources
+    { filteredseries = series
+    , search =search
+    , found = found
+    , selected = selected
+    , kinds = kinds
+    , sources = sources
+    }
 
 
 null =
@@ -61,11 +67,11 @@ fromcatalog model catalog =
         newkinds = List.sort (Dict.keys catalog.seriesbykind)
         newsources = List.sort (Dict.keys catalog.seriesbysource)
     in
-        { model
-            | kinds = newkinds
-            , sources = newsources
-            , filteredseries = List.sort catalog.series
-        }
+    { model
+        | kinds = newkinds
+        , sources = newsources
+        , filteredseries = List.sort catalog.series
+    }
 
 
 filterseries : Model -> Catalog.Model -> List String
@@ -81,7 +87,7 @@ filterseries model catalog =
             in
                 List.filter (\x -> Set.member x series) filteredseries
     in
-        List.sort (List.concat (List.map filterbysource model.sources))
+    List.sort (List.concat (List.map filterbysource model.sources))
 
 
 updatekinds : Model -> Catalog.Model -> String -> Bool -> Model
@@ -94,9 +100,10 @@ updatekinds model catalog kind checked =
                 List.sort (kind :: model.kinds)
             else
                 List.filter (\x -> x /= kind) model.kinds
-        newmodel = { model | kinds = newkinds }
+        newmodel =
+            { model | kinds = newkinds }
     in
-        { newmodel | filteredseries = filterseries newmodel catalog }
+    { newmodel | filteredseries = filterseries newmodel catalog }
 
 
 updatesources : Model -> Catalog.Model -> String -> Bool -> Model
@@ -109,9 +116,10 @@ updatesources model catalog source checked =
                 List.sort (source :: model.sources)
             else
                 List.filter (\x -> x /= source) model.sources
-        newmodel = { model | sources = newsources }
+        newmodel =
+            { model | sources = newsources }
     in
-        { newmodel | filteredseries = filterseries newmodel catalog }
+    { newmodel | filteredseries = filterseries newmodel catalog }
 
 
 -- view
@@ -183,45 +191,52 @@ type alias SelectorConfig msg =
 
 filterdiv : String -> List String -> (String -> Bool -> msg) -> H.Html msg
 filterdiv filtername activenames event =
-    H.div [ ]
-        [ H.input [ HA.type_ "checkbox"
-                  , HA.id filtername
-                  , HA.name filtername
-                  , HA.checked (List.member filtername activenames)
-                  , HE.onCheck (event filtername)
-                  ] []
-        , H.label [ HA.for filtername ] [ H.text filtername ]
+    H.div
+        [ ]
+        [ H.input
+            [ HA.type_ "checkbox"
+            , HA.id filtername
+            , HA.name filtername
+            , HA.checked (List.member filtername activenames)
+            , HE.onCheck (event filtername)
+            ]
+            [ ]
+        , H.label
+            [ HA.for filtername ]
+            [ H.text filtername ]
         ]
 
 
 makefilter : String -> List String -> List String -> (String -> Bool -> msg) -> H.Html msg
 makefilter section sectionitems activeitems event =
-    H.div [ ]
-        [ H.p [ ]
-          (
-           [ H.text ("Series " ++ section) ] ++
-              List.map
-              (\x -> filterdiv x activeitems event)
-              sectionitems
-          ) ]
+    H.div
+        [ ]
+        [ H.p
+              [ ]
+              <| [ H.text ("Series " ++ section) ] ++
+                   List.map
+                   (\x -> filterdiv x activeitems event)
+                   sectionitems
+        ]
 
 
 view : Model -> Catalog.Model -> SelectorConfig msg -> H.Html msg
 view model catalog cfg =
     let
         searchInput =
-            H.div [ ] [
-                 H.input
-                     [ HA.value model.search
-                     , HE.onInput cfg.onInputMsg
-                     , HA.autofocus True
-                     , HA.size 100
-                     , HA.placeholder
-                         ("start typing here to pick from " ++
-                              (String.fromInt (List.length model.filteredseries)) ++
-                              " items"
-                           )
-                     ] []
+            H.div
+                [ ]
+                [ H.input
+                    [ HA.value model.search
+                    , HE.onInput cfg.onInputMsg
+                    , HA.autofocus True
+                    , HA.size 100
+                    , HA.placeholder
+                        ("start typing here to pick from " ++
+                             (String.fromInt (List.length model.filteredseries)) ++
+                             " items"
+                        )
+                    ] []
                 ]
 
         selectorwidget =
@@ -229,18 +244,17 @@ view model catalog cfg =
                 renderselector (selectorCfg, items) =
                     viewitemselector selectorCfg items model.selected
             in
-                H.div [ HA.class "list-series" ]
-                    (List.map
-                         (\x -> H.div [ ] [ renderselector x ])
-                         [ ( cfg.searchSelector, model.found )
-                         , ( cfg.actionSelector, model.selected )
-                         ]
-                    )
+            H.div
+                [ HA.class "list-series" ]
+                <| List.map
+                    (\x -> H.div [ ] [ renderselector x ])
+                    [ ( cfg.searchSelector, model.found )
+                    , ( cfg.actionSelector, model.selected )
+                    ]
 
     in
-        H.div (cfg.divAttrs ++
-            [ ]
-              )
-            [ searchInput
-            , selectorwidget
-            ]
+    H.div
+        cfg.divAttrs
+        [ searchInput
+        , selectorwidget
+        ]
