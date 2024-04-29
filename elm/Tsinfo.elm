@@ -1199,6 +1199,20 @@ viewplot model =
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
             , I.viewHistoryGraph model
+            , if Array.isEmpty model.firstSeventyIdates then
+                H.div [ ][ ]
+              else
+                H.div
+                    [ ]
+                    [ H.text """Place the mouse on the graph above to see
+                             the versions of one application date: """
+                    ]
+            , case model.dataFromHover of
+                Just data ->
+                    I.viewHoverGraph
+                        data
+                Nothing ->
+                    H.div [][]
             ]
     else
         H.div []

@@ -15,6 +15,7 @@ module Info exposing
     , viewerrors
     , viewformula
     , viewgraph
+    , viewHoverGraph
     , viewHistoryGraph
     , viewlog
     , viewmeta
@@ -686,6 +687,33 @@ viewHistoryGraph model =
         [ ]
         [ H.div [ HA.id "plot-history" ] [ ]
         , H.node "plot-figure" [ HA.attribute "history-args" historyArgs ] [ ]
+        ]
+
+
+viewHoverGraph data =
+    let
+        dates = data.dates
+        values = List.map (\value -> Just value) data.values
+        title = "Application date : " ++ data.name
+        options = {
+            showlegend = False
+            , line = Nothing
+            , opacity = 1
+            }
+        plot =
+            scatterplot
+                data.name
+                dates
+                values
+                "lines"
+                options
+        hoverArgs =
+            plotargs "plot-hover" [ plot ] title
+    in
+    H.div
+        [ ]
+        [ H.div [ HA.id "plot-hover" ] [ ]
+        , H.node "plot-figure" [ HA.attribute "hover-args" hoverArgs ] [ ]
         ]
 
 

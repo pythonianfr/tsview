@@ -19,7 +19,7 @@
         <script>
             class PlotFigure extends HTMLElement {
                 static get observedAttributes() {
-                    return ['args', 'history-args'];
+                    return ['args', 'history-args', 'hover-args'];
                 }
                     attributeChangedCallback(name, old_value, new_value) {
                         if ( name == 'args' ) {
@@ -86,6 +86,24 @@
 
                                     app.ports.dataFromHover.send(JSON.stringify(data));
                                 });
+                            }
+                            setTimeout(doit, 10)
+                        }
+                        if ( name == 'hover-args' ) {
+                            function doit () {
+                                let hover_args = JSON.parse(new_value);
+                                Plotly.newPlot(
+                                    hover_args.div,
+                                    hover_args.data,
+                                    hover_args.layout,
+                                    {
+                                        displaylogo: false,
+                                        displayModeBar: true,
+                                        displaylogo: false,
+                                        responsive: true,
+                                        modeBarButtonsToRemove: ['sendDataToCloud']
+                                    }
+                                );
                             }
                             setTimeout(doit, 10)
                         }
