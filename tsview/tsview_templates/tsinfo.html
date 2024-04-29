@@ -123,6 +123,17 @@
              }
          });
 
+         // port to copy something to the clipboard
+         var clipboard = function (value) {
+             var el = document.createElement('textarea');
+             el.value = value;
+             document.body.appendChild(el);
+             el.select();
+             document.execCommand('copy');
+             document.body.removeChild(el);
+         };
+         app.ports.copyToClipboard.subscribe(clipboard);
+
          // this should probably be shared as a separate jinja template
          app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
              localStorage.setItem("horizon", JSON.stringify(dataInCache))
