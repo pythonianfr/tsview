@@ -124,15 +124,23 @@ pasteWithDataDecoder =
         JD.map2 PasteType textDecoder indexDecoder
 
 
+separator raw =
+    if String.contains "\r\n" raw then Just "\r\n" -- windows
+    else if String.contains "\n" raw then Just "\n" -- unix
+    else Nothing
+
+
 pasteditems : String -> List String
 pasteditems raw =
-    if String.contains "\n" raw
-    then String.split "\n" raw
-    else if String.contains "\r" raw
-    then String.split "\r" raw
-    else if String.contains " " raw
-    then String.split " " raw
-    else [ raw ]
+    let
+        sep =
+            separator raw
+    in
+    case sep of
+        Nothing ->
+            [ raw ]
+        Just s ->
+            String.split s raw
 
 
 -- series decoder
