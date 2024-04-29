@@ -133,6 +133,7 @@ type alias Model =
     , firstSeventyIdates : Array String
     , historyDateIndex : Int
     , historyDateIndexDeb : Debouncer Msg
+    , dataFromHover : Maybe DataFromHover
     }
 
 
@@ -206,6 +207,21 @@ type Msg
     | ChangedHistoryIdate String
     | ViewAllHistory
     | NewDataFromHover String
+
+
+type alias DataFromHover =
+    { name : String
+    , dates : List String
+    , values : List Float
+    }
+
+
+dataFromHoverDecoder : D.Decoder DataFromHover
+dataFromHoverDecoder =
+    D.map3 DataFromHover
+        (D.field "name" D.string)
+        (D.field "dates" (D.list D.string))
+        (D.field "values" (D.list D.float))
 
 
 logentrydecoder : D.Decoder Logentry
@@ -840,6 +856,7 @@ update msg model =
                         | historyMode = isChecked
                         , historyPlots = Dict.empty
                         , firstSeventyIdates = Array.empty
+                        , dataFromHover = Nothing
                     }
             in
             ( newmodel, Cmd.none )
@@ -850,6 +867,7 @@ update msg model =
                         newModel = { model
                             | historyPlots = Dict.empty
                             , firstSeventyIdates = Array.empty
+                            , dataFromHover = Nothing
                             }
                         minDate = Maybe.withDefault "" (List.head range)
                         maxDate = Maybe.withDefault "" (List.last range)
@@ -911,7 +929,9 @@ update msg model =
                     if Array.get index model.firstSeventyIdates == Nothing then
                         model
                     else
-                        { model | historyDateIndex = index }
+                        { model
+                            | historyDateIndex = index
+                            , dataFromHover = Nothing}
             in U.nocmd newmodel
 
         ViewAllHistory ->
@@ -928,7 +948,13 @@ update msg model =
             )
 
         NewDataFromHover data ->
-            U.nocmd model
+            case D.decodeString dataFromHoverDecoder data of
+                Ok datadict ->
+                    let
+                        newModel = { model | dataFromHover = Just datadict}
+                    in U.nocmd newModel
+                Err _ ->
+                    U.nocmd model
 
 -- views
 
@@ -1456,6 +1482,7 @@ main =
                     , firstSeventyIdates = Array.empty
                     , historyDateIndex = 0
                     , historyDateIndexDeb = debouncerconfig
+                    , dataFromHover = Nothing
                     }
             in
             ( model
