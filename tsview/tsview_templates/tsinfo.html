@@ -70,6 +70,22 @@
                                         modeBarButtonsToRemove: ['sendDataToCloud']
                                     }
                                 );
+                                document.getElementById(history_args.div).on('plotly_hover', function(data){
+                                    var points = data.points;
+                                    var dates = [];
+                                    var values = [];
+                                    points.forEach(function(point){
+                                        dates.push(point.data.name);
+                                        values.push(point.y);
+                                    });
+                                    var data = {
+                                            "name" : new Date(points[0].x),
+                                            "dates" : dates,
+                                            "values": values
+                                        };
+
+                                    app.ports.dataFromHover.send(JSON.stringify(data));
+                                });
                             }
                             setTimeout(doit, 10)
                         }

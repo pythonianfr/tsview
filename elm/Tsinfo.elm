@@ -52,7 +52,10 @@ import Url.Builder as UB
 import Util as U
 
 
-port dateInInterval : (List String -> msg) -> Sub msg
+port dateInInterval : ( List String -> msg ) -> Sub msg
+
+
+port dataFromHover : ( String -> msg ) -> Sub msg
 
 
 type alias Logentry =
@@ -202,6 +205,7 @@ type Msg
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
     | ViewAllHistory
+    | NewDataFromHover String
 
 
 logentrydecoder : D.Decoder Logentry
@@ -923,6 +927,8 @@ update msg model =
             , getHistoryIdates model model.horizon.mindate model.horizon.maxdate
             )
 
+        NewDataFromHover data ->
+            U.nocmd model
 
 -- views
 
@@ -1471,6 +1477,7 @@ main =
             \_ -> Sub.batch [
                 Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
                 , loadFromLocalStorage FromLocalStorage
-                , dateInInterval NewDates ]
+                , dateInInterval NewDates
+                , dataFromHover NewDataFromHover]
         }
 
