@@ -202,15 +202,11 @@ viewactionwidgets model horizonevents =
           [ H.text "Series " ]
     , horizonview model.horizon horizonevents "action-center" <| tzawareseries model
     , H.div [ HA.class "action-right" ]
-        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tshistory", model.name ] [ ]
-              , HA.target "_blank"
-              ]
-              [ H.text "browse history ⧉" ]
-        , H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
+        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
                     [ UB.string "name" model.name ]
               , HA.target "_blank"
               ]
-            [ H.text editorlabel ]
+              [ H.text editorlabel ]
         , case model.seriestype of
               Formula ->
                   H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]

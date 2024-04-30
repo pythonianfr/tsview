@@ -3,7 +3,6 @@ from flask import Flask
 from tshistory.http.server import httpapi
 
 from tsview.blueprint import tsview
-from tsview.history import historic
 
 
 def make_app(tsa):
@@ -15,7 +14,6 @@ def make_app(tsa):
     app.register_blueprint(
         tsview(tsa)
     )
-    historic(app, tsa)
     return app
 
 
