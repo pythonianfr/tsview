@@ -190,11 +190,11 @@ tzawareseries model =
     (M.dget "tzaware" model.meta) == "true"
 
 
-viewactionwidgets model horizonevents =
+viewactionwidgets model horizonevents editor =
     let
         editorlabel =
             case model.seriestype of
-                Primary ->  "edit values ⧉"
+                Primary ->  if editor then "edit values ⧉" else "view values ⧉"
                 Formula ->  "show values ⧉"
     in
     [ H.div
@@ -202,9 +202,9 @@ viewactionwidgets model horizonevents =
           [ H.text "Series " ]
     , horizonview model.horizon horizonevents "action-center" <| tzawareseries model
     , H.div [ HA.class "action-right" ]
-        [ H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tseditor" ]
+        [ H.a [ HA.href <| UB.crossOrigin model.baseurl
+                    [ if editor then "tseditor" else "tsinfo" ]
                     [ UB.string "name" model.name ]
-              , HA.target "_blank"
               ]
               [ H.text editorlabel ]
         , case model.seriestype of

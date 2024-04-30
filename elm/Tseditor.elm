@@ -788,7 +788,7 @@ view model =
         [ HA.class "main-content" ]
         [ H.h1 [ HA.class "header-refinery"] [ H.text "Edit series" ]
         , H.span [ HA.class "action-container" ]
-              <| I.viewactionwidgets model horizonevents
+              <| I.viewactionwidgets model horizonevents False
         , I.viewtitle model CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]
