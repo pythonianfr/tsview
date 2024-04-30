@@ -1409,12 +1409,11 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ HA.class "main-content"
-            , HA.style "margin" ".5em"
-            ]
+            [ HA.class "main-content" ]
             [ H.div
                 [ HA.style "margin" ".5em" ]
-                [ H.span [ HA.class "action-container" ]
+                [ H.h1 [ HA.class "header-refinery"] [ H.text "Series informations" ]
+                , H.span [ HA.class "tsinfo action-container" ]
                       <| (I.viewactionwidgets model horizonevents) ++
                       [ I.viewdeletion model deleteevents
                       , I.viewrenameaction model renameevents

@@ -265,12 +265,10 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ HA.class "main-content"
-            , HA.style "margin" ".5em"
-            ]
-            [ H.div [ HA.class "addformulas-content" ]
-                [ H.h2 [] [ H.text "Load a formula batch" ]
-                , H.div
+            [ HA.class "main-content" ]
+            [ H.h1 [ HA.class "header-refinery"] [ H.text "Load a formula batch" ]
+            , H.div [ HA.class "addformulas-content" ]
+                [ H.div
                     [ HA.class "addformulas-card" ]
                     [ H.h4 [ HA.class "addformulas-card-title" ] [ H.text "How to ?" ]
                     , H.br [] []

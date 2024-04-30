@@ -481,14 +481,17 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ HA.class "main-content quickview" ]
-            [ H.header [ ] [ selector ]
-            , H.div [ HA.id plotDiv ] []
-            , viewdatepicker model
-            , plotFigure [ HA.attribute "args" args ] []
-            , H.footer [] [ urls ]
-            ]
-        ]
+                [ HA.class "main-content" ]
+                [ H.h1 [ HA.class "header-refinery"] [ H.text "Quick view" ]
+                , H.div
+                    [ HA.class "quickview" ]
+                    [ H.header [ ] [ selector ]
+                    , H.div [ HA.id plotDiv ] []
+                    , viewdatepicker model
+                    , plotFigure [ HA.attribute "args" args ] []
+                    , H.footer [] [ urls ]
+                    ]
+                ]]
 
 
 sub: Model -> Sub Msg

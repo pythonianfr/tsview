@@ -131,10 +131,9 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ A.class "main-content"
-            , A.style "margin" ".5em"
-            ]
-            [ H.div [ A.style "margin" ".5em" ]
+            [ A.class "main-content" ]
+            [ H.h1 [ A.class "header-refinery"]  [ H.text "Formula editor" ]
+            , H.div [ A.style "margin" ".5em" ]
                 [ viewtabs model
                 -- the plot div hates being set too dynamically so
                 -- we put it on the toplevel and show/hide it depending

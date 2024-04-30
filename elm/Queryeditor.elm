@@ -492,7 +492,7 @@ viewedition model =
             ]
 
     in
-    [ H.h1 [] [ H.text "Baskets" ]
+    [ H.h1 [ HA.class "header-refinery"] [ H.text "Baskets" ]
     , H.div [] basketslist
     , viewtree model.edited
     , vieweditor model
@@ -537,10 +537,8 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ HA.class "main-content"
-            , HA.style "margin" ".5em"
-            ]
-            [ H.div [ HA.style "margin" ".5em" ] <|
+            [ HA.class "main-content" ]
+            [ H.div [ HA.class "baskets", HA.style "margin" ".5em" ] <|
                 if model.creating
                 then viewcreation model
                 else viewedition model

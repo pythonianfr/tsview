@@ -1042,11 +1042,9 @@ view model =
         ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ HA.class "main-content"
-            , HA.style "margin" ".5em"
-            ]
+            [ HA.class "main-content" ]
             [ H.div []
-                [ H.h1 [] [ H.text "Policies" ]
+                [ H.h1 [ HA.class "header-refinery"] [ H.text "Policies" ]
                 , viewpolicies model
                 , case model.linking of
                       Nothing -> viewdoc

@@ -8,6 +8,7 @@
               integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
               crossorigin="anonymous">
         <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
         <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
         <script src="./tsview_static/{{ edit_kind.lower() }}_elm.js"></script>
     </head>

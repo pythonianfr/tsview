@@ -2,6 +2,18 @@
     font-size: 1.5em;
 }
 
+h1.header-refinery {
+    font-size: 2em;
+    color: rgb(92, 91, 91);
+    justify-content: left;
+    margin-bottom: 3px;
+    font-weight: 400;
+}
+
+div.main-content {
+    margin: 0.5em;
+ }
+
 .action-container {
     display: flex;
 }

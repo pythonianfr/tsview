@@ -778,8 +778,9 @@ horizonevents =
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ HA.style "margin" ".5em" ]
-        [ H.span [ HA.class "action-container" ]
+        [ HA.class "main-content" ]
+        [ H.h1 [ HA.class "header-refinery"] [ H.text "Edit series" ]
+        , H.span [ HA.class "action-container" ]
               <| I.viewactionwidgets model horizonevents
         , I.viewtitle model CopyNameToClipboard
         , H.div

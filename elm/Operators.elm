@@ -108,9 +108,12 @@ view model =
                         else "grid-container-icon") ]
         [ Men.viewMenu model.menu Menu
         , H.div
-            [ A.class "main-content operators"]
-            (List.map buildSection model.operators)
-        ]
+                [ A.class "main-content" ]
+                [ H.h1 [ A.class "header-refinery"] [ H.text "Operators documentation" ]
+                , H.div
+                    [ A.class "operators"]
+                    (List.map buildSection model.operators)
+        ]]
 
 sub model =  Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
 
