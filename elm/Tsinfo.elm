@@ -53,9 +53,8 @@ import Util as U
 
 
 port dateInInterval : ( List String -> msg ) -> Sub msg
-
-
 port dataFromHover : ( String -> msg ) -> Sub msg
+port copyToClipboard : String -> Cmd msg
 
 
 type alias Logentry =
@@ -125,9 +124,12 @@ type alias Model =
     -- renaming
     , renaming : Bool
     , newname : Maybe String
+    -- clipboard
     , clipboardclass : String
+    -- horizon
     , horizon : HorizonModel (Maybe Float)
     , plotstatus : PlotStatus
+    -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
     , firstSeventyIdates : Array String
@@ -199,6 +201,7 @@ type Msg
     | UpdateOffset Offset
     | TimeZoneSelected String
     | InferredFreq Bool
+    -- history mode
     | HistoryMode Bool
     | NewDates (List String)
     | HistoryIdates (String, String) (Result Http.Error String)
@@ -292,7 +295,8 @@ getlog urlprefix name  =
         , url = UB.crossOrigin urlprefix
               [ "api", "series", "log" ]
               [ UB.string "name" name
-              , UB.int "limit" 10 ]
+              , UB.int "limit" 10
+              ]
         }
 
 
@@ -338,11 +342,59 @@ getcachepolicy model =
         }
 
 
+getsomeidates : Model -> String -> String -> Cmd Msg
+getsomeidates model minDate maxDate =
+    -- merge with Info.getidates ?
+    Http.get
+        { url =
+            UB.crossOrigin
+            model.baseurl
+            [ "api", "series", "insertion_dates" ]
+            [ UB.string "name" model.name
+            , UB.int "nocache" <| U.bool2int model.view_nocache
+            , UB.string "from_value_date" minDate
+            , UB.string "to_value_date" maxDate
+            ]
+        , expect = Http.expectString (HistoryIdates (minDate, maxDate))
+        }
+
+
+getsomedata : Model -> String -> String -> List String -> Cmd Msg
+getsomedata model minDate maxDate idates =
+    -- merge with getplot ?
+    let
+        stringToMaybe : String -> String -> Maybe UB.QueryParameter
+        stringToMaybe name value =
+            if value == "" then Nothing else Just (UB.string name value)
+
+        fullquery : String -> List UB.QueryParameter
+        fullquery idate = Maybe.values <|
+            [ stringToMaybe "name" model.name
+            , stringToMaybe "insertion_date" idate
+            , stringToMaybe "inferred_freq" (if model.horizon.inferredFreq then "true" else "false")
+            , stringToMaybe "tzone" model.horizon.timeZone
+            , stringToMaybe "from_value_date" minDate
+            , stringToMaybe "to_value_date" maxDate
+            ]
+
+        getPlot : String -> Cmd Msg
+        getPlot idate =
+            Http.get
+                { url = UB.crossOrigin
+                    model.baseurl [ "api", "series", "state" ] (fullquery idate)
+                , expect = Http.expectString (GotVersion idate)
+            }
+    in
+    Cmd.batch
+        (List.map getPlot idates)
+
+
 updatedchangedidatebouncer =
     { mapMsg = DebounceChangedIdate
     , getDebouncer = .date_index_deb
     , setDebouncer = \deb model -> { model | date_index_deb = deb }
     }
+
 
 updatedChangedHistoryIdateDebouncer =
     { mapMsg = DebounceChangedHistoryIdate
@@ -363,6 +415,17 @@ update msg model =
     let
         doerr tag error =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
+
+        updateModelOffset i =
+            let
+                offset =
+                    model.horizon.offset + i
+                newmodel =
+                    { model | horizon = updateOffset offset model.horizon }
+            in
+            ( newmodel
+            , getplot newmodel
+            )
     in
     case msg of
         Menu menumsg ->
@@ -608,10 +671,11 @@ update msg model =
 
         FvdatePickerChanged value ->
             let
-                newHorizonModel = model.horizon
+                horizon =
+                    model.horizon
                 newmodel =
-                    { model | horizon =
-                          { newHorizonModel | mindate = value }
+                    { model
+                        | horizon = { horizon | mindate = value }
                     }
             in
             ( newmodel
@@ -620,10 +684,12 @@ update msg model =
 
         TvdatePickerChanged value ->
             let
-                newHorizonModel = model.horizon
-                newmodel = { model | horizon =
-                                 { newHorizonModel | maxdate = value }
-                           }
+                horizon =
+                    model.horizon
+                newmodel =
+                    { model
+                        | horizon = { horizon | maxdate = value }
+                    }
             in
             ( newmodel
             , getplot newmodel
@@ -785,10 +851,10 @@ update msg model =
             )
 
         UpdateOffset (Left i) ->
-            updateModelOffset model i
+            updateModelOffset i
 
         UpdateOffset (Right i) ->
-            updateModelOffset model -i
+            updateModelOffset -i
 
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
@@ -831,10 +897,13 @@ update msg model =
 
         InferredFreq isChecked ->
             let
-                horizon = model.horizon
+                horizon =
+                    model.horizon
 
                 newmodel =
-                    { model | horizon = { horizon | inferredFreq = isChecked } }
+                    { model
+                        | horizon = { horizon | inferredFreq = isChecked }
+                    }
 
                 userprefs =
                     LocalStorageData
@@ -859,26 +928,28 @@ update msg model =
                         , dataFromHover = Nothing
                     }
             in
-            ( newmodel, Cmd.none )
+            U.nocmd newmodel
 
         NewDates range ->
             if model.historyMode then
                     let
-                        newModel = { model
-                            | historyPlots = Dict.empty
-                            , firstSeventyIdates = Array.empty
-                            , dataFromHover = Nothing
+                        newmodel =
+                            { model
+                                | historyPlots = Dict.empty
+                                , firstSeventyIdates = Array.empty
+                                , dataFromHover = Nothing
                             }
                         minDate = Maybe.withDefault "" (List.head range)
                         maxDate = Maybe.withDefault "" (List.last range)
-                        cmdSent =
-                            if (minDate == "") && (maxDate == "") then
-                                    Cmd.none
-                            else
-                                getHistoryIdates model minDate maxDate
-                    in ( newModel, cmdSent)
+                        cmd =
+                            if (minDate == "") && (maxDate == "") then Cmd.none
+                            else getsomeidates model minDate maxDate
+                    in
+                    ( newmodel
+                    , cmd
+                    )
             else
-                (model, Cmd.none)
+                U.nocmd model
 
         HistoryIdates (minDate, maxDate) (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -889,12 +960,14 @@ update msg model =
                                 List.take 70 dates
                             else
                                 dates
-                        newModel = { model
-                            | firstSeventyIdates = Array.fromList firstSeventy
-                            , historyDateIndex = List.length firstSeventy - 1}
+                        newmodel =
+                            { model
+                                | firstSeventyIdates = Array.fromList firstSeventy
+                                , historyDateIndex = List.length firstSeventy - 1
+                            }
                     in
-                    ( newModel
-                    , getPlotsRequests model minDate maxDate firstSeventy
+                    ( newmodel
+                    , getsomedata model minDate maxDate firstSeventy
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -922,16 +995,17 @@ update msg model =
 
         ChangedHistoryIdate strindex ->
             let
-                index = Maybe.withDefault
-                       model.historyDateIndex -- keep current
-                       (String.toInt strindex)
+                index =
+                    Maybe.withDefault model.historyDateIndex -- keep current
+                    (String.toInt strindex)
                 newmodel =
                     if Array.get index model.firstSeventyIdates == Nothing then
                         model
                     else
                         { model
                             | historyDateIndex = index
-                            , dataFromHover = Nothing}
+                            , dataFromHover = Nothing
+                        }
             in U.nocmd newmodel
 
         ViewAllHistory ->
@@ -944,81 +1018,20 @@ update msg model =
 
             in
             ( newmodel
-            , getHistoryIdates model model.horizon.mindate model.horizon.maxdate
+            , getsomeidates model model.horizon.mindate model.horizon.maxdate
             )
 
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
                     let
-                        newModel = { model | dataFromHover = Just datadict}
-                    in U.nocmd newModel
+                        newmodel = { model | dataFromHover = Just datadict }
+                    in U.nocmd newmodel
                 Err _ ->
                     U.nocmd model
 
+
 -- views
-
-getHistoryIdates : Model -> String -> String -> Cmd Msg
-getHistoryIdates model minDate maxDate =
-
-    Http.get
-        { url =
-            UB.crossOrigin
-            model.baseurl
-            [ "api", "series", "insertion_dates" ]
-            [ UB.string "name" model.name
-            , UB.int "nocache" <| U.bool2int model.view_nocache
-            , UB.string "from_value_date" minDate
-            , UB.string "to_value_date" maxDate
-            ]
-        , expect = Http.expectString (HistoryIdates (minDate, maxDate))
-        }
-
-
-getPlotsRequests : Model -> String -> String -> List String -> Cmd Msg
-getPlotsRequests model minDate maxDate idates =
-    let
-        stringToMaybe : String -> String -> Maybe UB.QueryParameter
-        stringToMaybe name value =
-            if value == "" then Nothing else Just (UB.string name value)
-
-        fullquery : String -> List UB.QueryParameter
-        fullquery idate = Maybe.values <|
-            [ stringToMaybe "name" model.name
-            , stringToMaybe "insertion_date" idate
-            , stringToMaybe "inferred_freq" (if model.horizon.inferredFreq then "true" else "false")
-            , stringToMaybe "tzone" model.horizon.timeZone
-            , stringToMaybe "from_value_date" minDate
-            , stringToMaybe "to_value_date" maxDate
-            ]
-
-        getPlot : String -> Cmd Msg
-        getPlot idate =
-            Http.get
-                { url = UB.crossOrigin
-                    model.baseurl [ "api", "series", "state" ] (fullquery idate)
-                , expect = Http.expectString (GotVersion idate)
-            }
-    in
-    Cmd.batch
-        (List.map getPlot idates)
-
-
-updateModelOffset : Model -> Int -> (Model, Cmd Msg)
-updateModelOffset model i =
-    let
-        offset =
-            (model.horizon.offset + i)
-        newmodel =
-            { model | horizon = updateOffset offset model.horizon }
-    in
-    ( newmodel
-    , getplot newmodel
-    )
-
-
-port copyToClipboard : String -> Cmd msg
-
 
 viewcachepolicy : Model -> H.Html Msg
 viewcachepolicy model =
@@ -1423,7 +1436,9 @@ view model =
                       FormulaCache ->
                           H.div [] [ head, tabcontents [ viewcache model ] ]
                 , I.viewerrors model
-                ]]]
+                ]
+            ]
+        ]
 
 
 type alias Input =
@@ -1515,10 +1530,11 @@ main =
         , view = view
         , update = update
         , subscriptions =
-            \_ -> Sub.batch [
-                Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
-                , loadFromLocalStorage FromLocalStorage
-                , dateInInterval NewDates
-                , dataFromHover NewDataFromHover]
+            \_ -> Sub.batch
+                  [ Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
+                  , loadFromLocalStorage FromLocalStorage
+                  , dateInInterval NewDates
+                  , dataFromHover NewDataFromHover
+                  ]
         }
 
