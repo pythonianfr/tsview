@@ -1,4 +1,3 @@
-import os
 import io
 import json
 import traceback
@@ -26,6 +25,7 @@ from rework_ui.helper import argsdict as _args
 from sqlhelp import select
 
 from tshistory import search
+from tshistory.util import find_first_uriname
 
 from tshistory_formula.helper import validate_formula
 from tshistory_formula.registry import FUNCS
@@ -83,8 +83,8 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         baseurl = homeurl()
-        user = os.environ.get('USER')
-        instance = "Local" if len(user)==0 else user.capitalize()
+        appname = find_first_uriname()
+        instance = "Local" if len(appname)==0 else appname.capitalize()
         import tshistory_refinery
         version = tshistory_refinery.__version__
         return render_template(
