@@ -1193,13 +1193,14 @@ viewplot model =
             [ historyModeSwitch model
             , H.div
                 [ ]
-                [ H.text "Zoom to select a range"]
-            , H.button
-                [ HA.class "btn btn-warning"
-                , HA.attribute "type" "button"
-                , HE.onClick ViewAllHistory
+                [ H.text "Zoom to select a range or "
+                , H.button
+                    [ HA.class "btn btn-warning btn-sm"
+                    , HA.attribute "type" "button"
+                    , HE.onClick ViewAllHistory
+                    ]
+                    [ H.text "view all history" ]
                 ]
-                [ H.text "View all history" ]
             , I.viewgraph
                 model.name
                 (Dict.keys ts)
