@@ -72,16 +72,15 @@
                                 );
                                 document.getElementById(history_args.div).on('plotly_hover', function(data){
                                     var points = data.points;
-                                    var dates = [];
-                                    var values = [];
+                                    var list_data = [];
                                     points.forEach(function(point){
-                                        dates.push(point.data.name);
-                                        values.push(point.y);
+                                        list_data.push(
+                                            {"date": point.data.name,
+                                            "value": point.y});
                                     });
                                     var data = {
                                             "name" : new Date(points[0].x),
-                                            "dates" : dates,
-                                            "values": values
+                                            "data" : list_data
                                         };
 
                                     app.ports.dataFromHover.send(JSON.stringify(data));

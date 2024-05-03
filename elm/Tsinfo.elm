@@ -214,17 +214,28 @@ type Msg
 
 type alias DataFromHover =
     { name : String
-    , dates : List String
-    , values : List Float
+    , data : List DataItem
     }
+
+
+type alias DataItem =
+    { date : String
+    , value : Float
+    }
+
+
+dataItemDecoder : D.Decoder DataItem
+dataItemDecoder =
+    D.map2 DataItem
+        (D.field "date" D.string)
+        (D.field "value" D.float)
 
 
 dataFromHoverDecoder : D.Decoder DataFromHover
 dataFromHoverDecoder =
-    D.map3 DataFromHover
+    D.map2 DataFromHover
         (D.field "name" D.string)
-        (D.field "dates" (D.list D.string))
-        (D.field "values" (D.list D.float))
+        (D.field "data" (D.list dataItemDecoder))
 
 
 logentrydecoder : D.Decoder Logentry
@@ -1025,7 +1036,7 @@ update msg model =
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
                     let
-                        newmodel = { model | dataFromHover = Just datadict }
+                         newmodel = { model | dataFromHover = Just datadict }
                     in U.nocmd newmodel
                 Err _ ->
                     U.nocmd model

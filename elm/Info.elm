@@ -657,11 +657,7 @@ viewHistoryGraph model =
                 idate = Tuple.first tuple
             in
             { type_ = "scatter"
-            , name =
-                if (idate == lastIdate) then
-                    "Last"
-                else
-                   idate
+            , name = idate
             , x = Dict.keys (Tuple.second tuple)
             , y = Dict.values (Tuple.second tuple)
             , mode = "lines"
@@ -686,11 +682,13 @@ viewHistoryGraph model =
         ]
 
 
-viewHoverGraph data =
+viewHoverGraph dictData =
     let
-        dates = data.dates
-        values = List.map (\value -> Just value) data.values
-        title = "Application date : " ++ data.name
+        title = "Application date : " ++ dictData.name
+        sortedData = List.sortBy .date dictData.data
+        dates = List.map (\dict -> dict.date) sortedData
+        values = List.map (\dict -> Just dict.value) sortedData
+
         options = {
             showlegend = False
             , line = Nothing
@@ -698,7 +696,7 @@ viewHoverGraph data =
             }
         plot =
             scatterplot
-                data.name
+                dictData.name
                 dates
                 values
                 "lines"
