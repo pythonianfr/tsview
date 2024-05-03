@@ -786,9 +786,8 @@ view : Model -> H.Html Msg
 view model =
     H.div
         [ HA.class "main-content" ]
-        [ H.h1 [ HA.class "header-refinery"] [ H.text "Edit series" ]
-        , H.span [ HA.class "action-container" ]
-              <| I.viewactionwidgets model horizonevents False
+        [ H.span [ HA.class "action-container" ]
+              <| I.viewactionwidgets model horizonevents False "Series Editor"
         , I.viewtitle model CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]

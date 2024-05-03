@@ -2,11 +2,10 @@
     font-size: 1.5em;
 }
 
-h1.header-refinery {
-    font-size: 2em;
+.page-title {
+    font-size: 1.5em;
     color: rgb(92, 91, 91);
     justify-content: left;
-    margin-bottom: 3px;
     font-weight: 400;
 }
 

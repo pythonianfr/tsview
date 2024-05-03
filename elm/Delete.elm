@@ -205,9 +205,8 @@ view model =
             Nothing ->
                 H.div
                     [ HA.style "margin" "1em" ]
-                    [  H.h1 [ HA.class "header-refinery"] [ H.text "Delete series" ]
+                    [  H.h1 [ HA.class "page-title" ] [ H.text "Delete series" ]
                     , SeriesSelector.view model.search model.catalog selectorConfig ]
-
             Just error ->
                 viewError error
 

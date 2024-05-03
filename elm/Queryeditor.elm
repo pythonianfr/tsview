@@ -483,7 +483,7 @@ viewedition model =
             ]
 
     in
-    [ H.h1 [ HA.class "header-refinery"] [ H.text "Baskets" ]
+    [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
     , H.div [] basketslist
     , viewtree model.edited
     , vieweditor model

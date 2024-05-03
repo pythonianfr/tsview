@@ -93,11 +93,12 @@ view model =
         []
         [ H.div
                 []
-                [ H.h1 [ A.class "header-refinery"] [ H.text "Operators documentation" ]
+                [ H.h1 [ A.class "page-title" ] [ H.text "Operators documentation" ]
                 , H.div
                     [ A.class "operators"]
                     (List.map buildSection model.operators)
-        ]]
+                ]
+        ]
 
 sub model =  Sub.none
 

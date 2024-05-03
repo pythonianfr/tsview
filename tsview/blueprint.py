@@ -277,7 +277,7 @@ def tsview(tsa):
 
         args = _args(request.form)
         stdout = io.StringIO()
-
+        output = []
         try:
             content = request.files.to_dict()['new_formula.csv'].stream.read().decode("utf-8")
             stdout.write(content)
@@ -309,7 +309,6 @@ def tsview(tsa):
                     'output' : {}
                 })
 
-            output = []
             with redirect_stdout(stdout):
                 for row in df_formula.itertuples():
                     tsa.register_formula(

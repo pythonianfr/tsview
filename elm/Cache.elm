@@ -1025,7 +1025,7 @@ viewdoc =
 view : Model -> H.Html Msg
 view model =
     H.div []
-        [ H.h1 [] [ H.text "Policies" ]
+        [ H.h1 [ HA.class "page-title" ] [ H.text "Policies" ]
         , viewpolicies model
         , case model.linking of
               Nothing -> viewdoc

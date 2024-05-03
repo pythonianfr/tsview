@@ -469,7 +469,7 @@ view model =
         [ ]
         [ H.div
                 [ HA.class "main-content" ]
-                [ H.h1 [ HA.class "header-refinery"] [ H.text "Quick view" ]
+                [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
                 , H.div
                     [ HA.class "quickview" ]
                     [ H.header [ ] [ selector ]

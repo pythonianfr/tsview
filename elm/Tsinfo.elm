@@ -1394,10 +1394,9 @@ view model =
         [ H.div
             [ HA.class "main-content" ]
             [ H.div
-                [ HA.style "margin" ".5em" ]
-                [ H.h1 [ HA.class "header-refinery"] [ H.text "Series informations" ]
-                , H.span [ HA.class "tsinfo action-container" ]
-                      <| (I.viewactionwidgets model horizonevents True) ++
+                [ ]
+                [ H.span [ HA.class "tsinfo action-container" ]
+                      <| (I.viewactionwidgets model horizonevents True "Series Info") ++
                       [ I.viewdeletion model deleteevents
                       , I.viewrenameaction model renameevents
                       ]

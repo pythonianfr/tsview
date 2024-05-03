@@ -248,7 +248,7 @@ view : Model -> H.Html Msg
 view model =
         H.div
             []
-            [ H.h1 [ HA.class "header-refinery"] [ H.text "Load a formula batch" ]
+            [ H.h1 [ HA.class "page-title" ] [ H.text "Load a formula batch" ]
             , H.div [ HA.class "addformulas-content" ]
                 [ H.div
                     [ HA.class "addformulas-card" ]

@@ -749,7 +749,7 @@ view model =
                 Groups -> model.filteredgroups
 
     in
-    H.div [ A.style "margin" ".5em" ]
+    H.div [ A.class "main-content" ]
         [ H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
@@ -784,9 +784,9 @@ view model =
                       [ H.text "groups" ]
                   ]
               ]
-        , H.h1 [  ] [ H.text <| mode ++ " Catalog" ]
+        , H.h1 [ A.class "page-title" ] [ H.text <| mode ++ " Catalog" ]
         , H.div
-              [ A.class "tsview-form-input small" ]
+              [ A.class "tsview-form-input" ]
               [ H.div [] [ viewnamefilter ]
               , H.div [] [ viewformulafilter ]
               , viewmetafilter model
