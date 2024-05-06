@@ -177,10 +177,14 @@ def tsview(tsa):
                 name=name,
                 code=tsa.formula(name) or ''
             )
-        return render_template('tsformula.html',
-                               homeurl=homeurl(),
-                               spec=spec(),
-                               formula=json.dumps(formula))
+        flags_menu = json.dumps([homeurl(), 'formula-create'])
+        return render_template(
+            'tsformula.html',
+            homeurl=homeurl(),
+            spec=spec(),
+            formula=json.dumps(formula),
+            flags_menu=flags_menu
+        )
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
     def tsformula_pygmentize():
