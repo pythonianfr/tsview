@@ -400,10 +400,12 @@ def tsview(tsa):
     def tssearch():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-
+        base_url = homeurl()
+        flags_menu = json.dumps([base_url, 'timeseries-catalog'])
         return render_template(
             'tssearch.html',
-            homeurl=homeurl()
+            homeurl=homeurl(),
+            flags_menu=flags_menu,
         )
 
     @bp.route('/tssearch/allmetadata')
@@ -533,12 +535,4 @@ def tsview(tsa):
             return 'Nothing to see there.'
         return json.dumps(icons_definition)
 
-    @bp.route ('/standalonemenu')
-    def stand_alone_menu():
-        baseurl = homeurl()
-        flags = json.dumps([baseurl, 'timeseries-catalog'])
-        return render_template(
-            'stand_alone_menu.html',
-            flags = flags,
-        )
     return bp

@@ -1,0 +1,11 @@
+<script>
+ menuapp.ports.saveMenuData.subscribe(function (data) {
+     localStorage.setItem("menuData", JSON.stringify(data));
+ });
+
+ incache = localStorage.getItem("menuData")
+ if (incache === null) {
+     incache = '{"menuIsOpen": false}'
+ }
+ menuapp.ports.loadMenuData.send(incache);
+</script>

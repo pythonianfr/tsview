@@ -32,7 +32,7 @@ qeditor:
 operators:
 	elm make elm/Operators.elm $(FLAGS) --output tsview/tsview_static/operators_elm.js
 menu:
-	elm make elm/StandAloneMenu.elm $(FLAGS) --output tsview/tsview_static/stand_alone_menu_elm.js
+	elm make elm/StandAloneMenu.elm $(FLAGS) --output tsview/tsview_static/menu_stand_alone_elm.js
 
 tseditor:
 	elm make elm/Tseditor.elm $(FLAGS) --output tsview/tsview_static/tseditor_elm.js
