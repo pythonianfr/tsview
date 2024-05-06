@@ -3,7 +3,6 @@ module Search exposing (main)
 import Browser
 import Catalog as Cat
 import Catalog exposing (Msg(..))
-import Menu as Men
 import Debouncer.Messages as Debouncer exposing
     (Debouncer
     , fromSeconds
@@ -58,8 +57,6 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
-    -- menu
-    , menu : Men.Model
     }
 
 
@@ -83,8 +80,6 @@ type Msg
     | DebounceFormulaFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
-    --menu
-    | Menu Men.Msg
 
 
 getmeta baseurl dtype event =
@@ -444,12 +439,6 @@ update msg model =
              in
              U.nocmd { model | mode = mode }
 
-        --  Menu
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
-
 
 viewnamefilter =
     let input =
@@ -741,7 +730,6 @@ viewerrors model =
     else H.span [] []
 
 
-
 view : Model -> H.Html Msg
 view model =
     let
@@ -761,14 +749,8 @@ view model =
                 Groups -> model.filteredgroups
 
     in
-    H.div
-        [ A.class ( if model.menu.menuModeText
-                        then "grid-container-text"
-                        else "grid-container-icon") ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
-            [ A.class  "main-content" ]
-            [ H.span
+    H.div [ A.style "margin" ".5em" ]
+        [ H.span
               [ HE.onClick ToggleMode
               , A.style "float" "right"
               ]
@@ -816,7 +798,6 @@ view model =
             model.baseurl model.mode filtered model.catalog (nbsources > 1) (selectedsources model)
         , viewerrors model
         ]
-    ]
 
 
 type alias Input =
@@ -852,7 +833,6 @@ main =
                , errors = []
                , namefilterdeb = debouncerconfig
                , formulafilterdeb = debouncerconfig
-               , menu = Men.initmenu "timeseries-catalog"
                }
 
            init input =
@@ -860,14 +840,14 @@ main =
                , Cmd.batch
                    [ Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
                    , Cmd.map GotCatalog <| Cat.get input.baseurl "group" 1 Cat.ReceivedGroups
-                   , Men.getMenu input.baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-                   , Men.getIcons input.baseurl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
                    ]
                )
+
+           sub model = Sub.none
        in
            Browser.element
                { init = init
                , view = view
                , update = update
-               , subscriptions = \_ -> Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+               , subscriptions = sub
                }
