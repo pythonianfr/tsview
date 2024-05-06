@@ -260,14 +260,15 @@ def tsview(tsa):
     def updateformulas():
         if not request.files:
             return jsonify({'errors': ['Missing CSV file']})
+
         args = _args(request.form)
         stdout = io.StringIO()
+
         try:
             content = request.files.to_dict()['new_formula.csv'].stream.read().decode("utf-8")
             stdout.write(content)
             stdout.seek(0)
             df_formula = pd.read_csv(stdout, dtype={'name': str, 'text': str}, sep=',')
-
             if ('name' not in df_formula.columns) or ('text' not in df_formula.columns):
                 return jsonify({
                     'status' : 'invalid',
@@ -310,7 +311,7 @@ def tsview(tsa):
             return json.dumps({
                 'status': 'fail',
                 'crash': str(h(traceback.format_exc())),
-                'output': {'Registered' : output},
+                'output': {},
                 'errors' : {},
                 'warnings' : {}
             })

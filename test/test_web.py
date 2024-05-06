@@ -1,11 +1,19 @@
+import io
+from pathlib import Path
 import pandas as pd
+import json
+import collections
+import webtest
 
 from tshistory.testutil import (
+    genserie,
     gengroup,
     utcdt
 )
 
 from tsview.util import format_formula
+
+DATADIR = Path(__file__).parent / 'data'
 
 
 def test_log(client, tsa):
@@ -267,4 +275,100 @@ def test_spec_types(client):
         'by.or': {'items': 'Packed[query]', 'return': 'query'},
         'by.source': {'query': 'query', 'return': 'query'},
         'by.tzaware': {'return': 'query'}
+    }
+
+
+def test_formula_form_base(engine, client, tsa):
+    with engine.begin() as cn:
+        cn.execute('delete from tsh.registry')
+
+    ts = genserie('2024-1-1', 'D', 3)
+    tsa.update('crude-a', ts, 'Babar')
+
+    user_file = DATADIR / 'goodformula.csv'
+    # the user is pushing its own formulas
+
+    response = client.put(
+        '/updateformulas',
+        upload_files=[
+            ('new_formula.csv',
+             user_file.name,
+             user_file.read_bytes(),
+             'text/csv')
+        ]
+    )
+    assert response.status_code == 200
+    assert response.json == {
+        'crash': '',
+        'errors': {'missing': ['crude-b', 'crude-c', 'gas-a', 'gas-b', 'gas-c']},
+        'output': {}, 'status': 'invalid', 'warnings': {}
+    }
+
+
+    # really do it
+    for name in ('crude-b', 'crude-b', 'crude-c', 'gas-a', 'gas-b', 'gas-c'):
+        tsa.update(name, ts, 'Babar')
+
+    _posted = client.put(
+        '/updateformulas',
+        {'reallydoit': True},
+        upload_files=[
+            ('new_formula.csv',
+             user_file.name,
+             user_file.read_bytes(),
+             'text/csv')
+        ]
+    )
+    # the user is downloading the current formulaes
+    response = client.get('/downloadformulas')
+    formula_inserted = pd.read_csv(user_file)
+    formula_downloaded = pd.read_csv(io.StringIO(response.text))
+    assert set(formula_inserted['text']) == set(formula_downloaded['text'])
+
+    assert tsa.internal_metadata('arith2')['tzaware'] is False
+
+    # We reinsert the donwloaded formulaes and check that everything is kept in the process
+    response = client.put(
+        '/updateformulas',
+        {'reallydoit': True},
+        upload_files=[
+            ('new_formula.csv',
+             'formulareinserted.csv',
+             formula_downloaded.to_csv().encode(),
+             'text/csv')
+        ]
+    )
+
+    # confirmation
+    response = client.get('/downloadformulas')
+
+    # finaly
+    formula_roundtripped = pd.read_csv(io.StringIO(response.text))
+    assert formula_roundtripped.equals(formula_downloaded)
+
+    # bogus formulas
+    user_file = DATADIR / 'badformula.csv'
+    formula_inserted = pd.read_csv(user_file)
+    # the user is pushing its own formulaes
+    response = client.put(
+        '/updateformulas',
+        upload_files=[
+            ('new_formula.csv',
+             user_file.name,
+             user_file.read_bytes(),
+             'text/csv')
+        ]
+    )
+    assert response.json == {
+        'crash': '',
+        'errors': {
+            'syntax': [
+                'syntax',
+                "syntax_keyword : BadKeyword('keyword `#:ffill` not followed by a value')",
+                'timezone : ValueError("Formula `constant` has tzaware vs tznaive series:`(\'gas-b\', (\'add, \'series)):tznaive`,`(\'constant\', (\'add, \'constant)):tzaware`")'
+            ]
+        },
+        'output': {},
+        'status': 'invalid',
+        'warnings': {'existing': ['prio1']}
     }

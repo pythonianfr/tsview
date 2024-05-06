@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 
 from tshistory import api
 from tshistory.http.util import nosecurity
-from tshistory_refinery import schema
+from tshistory_refinery import schema, tsio
 from tsview import app
 
 
@@ -50,3 +50,14 @@ def client(tsa):
         app.make_app(tsa)
     )
     yield WebTester(wsgi)
+
+
+@pytest.fixture(scope='session')
+def remote(engine):
+    return api.timeseries(
+        str(engine.url),
+        namespace='remote',
+        handler=tsio.timeseries,
+        sources={'remote': (str(engine.url), 'remote')}
+    )
+
