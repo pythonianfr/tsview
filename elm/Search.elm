@@ -784,7 +784,7 @@ view model =
                       [ H.text "groups" ]
                   ]
               ]
-        , H.h1 [ A.class "header-refinery"] [ H.text <| mode ++ " Catalog" ]
+        , H.h1 [  ] [ H.text <| mode ++ " Catalog" ]
         , H.div
               [ A.class "tsview-form-input small" ]
               [ H.div [] [ viewnamefilter ]
@@ -813,27 +813,27 @@ main =
                toDebouncer
 
            newmodel input =
-               { baseurl = input.baseurl
-               , mode = Series
-               , catalog = Cat.empty
-               , seriesmetadata = Dict.empty
-               , seriesformula = Dict.empty
-               , groupsmetadata = Dict.empty
-               , groupsformula = Dict.empty
-               , filteredseries = []
-               , filteredgroups = []
-               , selectedserieskinds = []
-               , selectedseriessources = []
-               , selectedgroupskinds = []
-               , selectedgroupssources = []
-               , filterbyname = Nothing
-               , filterbyformula = Nothing
-               , metaitem = ("", "")
-               , filterbymeta = []
-               , errors = []
-               , namefilterdeb = debouncerconfig
-               , formulafilterdeb = debouncerconfig
-               }
+               Model
+                   input.baseurl
+                   Series
+                   Cat.empty
+                   Dict.empty
+                   Dict.empty
+                   Dict.empty
+                   Dict.empty
+                   []
+                   []
+                   []
+                   []
+                   []
+                   []
+                   Nothing
+                   Nothing
+                   ("", "")
+                   []
+                   []
+                   debouncerconfig
+                   debouncerconfig
 
            init input =
                ( newmodel input
