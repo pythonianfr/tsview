@@ -229,9 +229,12 @@ def tsview(tsa):
     def formula_operators():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
+        home_url = homeurl() or "/"
+        flags_menu = json.dumps([home_url, 'formula-documentation'])
         return render_template(
             'operators.html',
-            baseurl=homeurl() or "/",
+            baseurl=home_url,
+            flags_menu=flags_menu,
         )
 
     @bp.route('/tsformula/try')

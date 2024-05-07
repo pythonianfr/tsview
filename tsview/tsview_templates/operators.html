@@ -6,18 +6,30 @@
             integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
             crossorigin="anonymous">
       <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
-      <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
       <link rel="stylesheet" href="{{ url_for('tsview.static', filename='operators.css') }}"/>
-
+      <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+      <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
+      <script src="{{url_for('tsview.static', filename='operators_elm.js')}}"></script>
   </head>
-
-  <div id="tsformula-operators"></div>
-        <script src="{{url_for('tsview.static', filename='operators_elm.js')}}"></script>
+  <body>
+    <div class="grid-container">
+            <div id="menu-elm">
+            </div>
+            <div class="main-content">
+                <div id="tsformula-operators"></div>
+            </div>
+        </div>
         <script>
           var app = Elm.Operators.init({
               node: document.getElementById('tsformula-operators'),
               flags: "{{baseurl}}"
           });
         </script>
-        {% include "menu.html" %}
-
+        <script>
+             var menuapp = Elm.StandAloneMenu.init({
+              node: document.getElementById('menu-elm'),
+                flags: {{flags_menu | safe}}
+          });
+        </script>
+        {% include "menu_stand_alone.html" %}
+ </body>
