@@ -8,12 +8,19 @@
               integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
               crossorigin="anonymous">
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
-        <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+        <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
         <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
     </head>
 
     <body>
-        <div id="app"></div>
+      <div class="grid-container">
+            <div id="menu-elm">
+            </div>
+            <div class="main-content">
+                <div id="app"></div>
+            </div>
+        </div>
         <script src="./tsview_static/plot_elm.js"></script>
         <script>
          const baseurl = "{{ homeurl }}"
@@ -29,7 +36,13 @@
         </script>
         {% set function_type = 'view' %}
         {% include "plot_figure.js.jinja" %}
-        {% include "menu.html" %}
+        <script>
+             var menuapp = Elm.StandAloneMenu.init({
+              node: document.getElementById('menu-elm'),
+                flags: {{flags_menu | safe}}
+          });
+        </script>
+        {% include "menu_stand_alone.html" %}
     </body>
 </html>
 

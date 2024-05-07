@@ -96,11 +96,14 @@ def tsview(tsa):
     def home():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-
-        return render_template('tsview.html',
-                               homeurl=homeurl(),
-                               haseditor=json.dumps(False),  # NOTE: really fix me
-                               series=request.args.getlist("series"))
+        flags_menu = json.dumps([homeurl(), 'timeseries-quickview'])
+        return render_template(
+            'tsview.html',
+            homeurl=homeurl(),
+            haseditor=json.dumps(False),  # NOTE: really fix me
+            series=request.args.getlist("series"),
+            flags_menu=flags_menu,
+        )
 
     class logargs(_argsdict):
         defaults = {
