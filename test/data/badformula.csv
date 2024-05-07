@@ -1,0 +1,6 @@
+name,text
+prio1,(priority (* 10 (series "crude-a")) (series "crude-b") (series "crude-c"))
+primary,(priority (* 10 (series "crude-a")) (series "crude-b") (series "crude-c"))
+syntax,(i (am (broken(
+syntax_keyword, (add (series "crude-a" #:ffill) (series "crude-b" #:ffill))
+timezone, (add (series "gas-b") (constant 42.0 (date "2010-1-1") (now) "D" (date "1900-1-1")))
