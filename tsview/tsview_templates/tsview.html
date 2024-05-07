@@ -27,26 +27,8 @@
              }
          });
         </script>
-        <script>
-         class PlotFigure extends HTMLElement {
-             static get observedAttributes() {
-                 return ['args'];
-             }
-             attributeChangedCallback(name, old_value, new_value) {
-                 if ( name == 'args' ) {
-                     let args = JSON.parse(new_value);
-                     Plotly.newPlot(
-                         args.div,
-                         args.data,
-                         {showlegend: true, height: 700},
-                         {displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]}
-                     );
-                 }
-             }
-         }
-         window.customElements.define("plot-figure", PlotFigure);
-        </script>
-
+        {% set function_type = 'view' %}
+        {% include "plot_figure.js.jinja" %}
         {% include "menu.html" %}
     </body>
 </html>
