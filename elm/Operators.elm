@@ -11,12 +11,9 @@ import Json.Decode as JD
 import Json.Decode exposing (Decoder)
 import List
 
-import Menu as Men
-
 type alias Model =
     { baseUrl: String
     , operators: List Item
-    , menu : Men.Model
     }
 
 type alias Item =
@@ -37,7 +34,6 @@ specDecoder =
 
 type Msg =
     GotSpec (Result Http.Error ( List Item ))
-    | Menu Men.Msg
 
 getSpec: String -> Cmd Msg
 getSpec baseUrl =
@@ -52,26 +48,17 @@ update msg model =
         GotSpec (Ok spec)-> ( { model | operators = spec }
                             , Cmd.none )
         GotSpec (Err error)-> ( model, Cmd.none )
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu)
-
 
 initModel: String -> Model
 initModel baseUrl =
     { baseUrl = baseUrl
     , operators = []
-    , menu = Men.initmenu "formula-documentation"
     }
 
 init: String -> ( Model, ( Cmd Msg ))
 init baseUrl =
     ( initModel baseUrl
-    , Cmd.batch
-        [ getSpec baseUrl
-        , Men.getMenu baseUrl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-        , Men.getIcons baseUrl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
-       ]
+    , getSpec baseUrl
    )
 
 buildSection: Item -> Html Msg
@@ -103,23 +90,20 @@ processDoc doc =
 view: Model -> Html Msg
 view model =
     H.div
-        [ A.class ( if model.menu.menuModeText
-                        then "grid-container-text"
-                        else "grid-container-icon") ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
-                [ A.class "main-content" ]
+        []
+        [ H.div
+                []
                 [ H.h1 [ A.class "header-refinery"] [ H.text "Operators documentation" ]
                 , H.div
                     [ A.class "operators"]
                     (List.map buildSection model.operators)
         ]]
 
-sub model =  Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+sub model =  Sub.none
 
 main = Browser.element
         { init = init
         , view = view
         , update = update
-       , subscriptions = sub
+        , subscriptions = sub
         }
