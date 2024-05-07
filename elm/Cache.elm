@@ -9,7 +9,6 @@ import Http
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as LE
-import Menu as Men
 import Set exposing (Set)
 import Url.Builder as UB
 import Util as U
@@ -47,7 +46,6 @@ type alias PolicyError =
 
 type alias Model =
     { baseurl : String
-    , menu : Men.Model
     , policies : List Policy
     , formulas : Dict String String
     , deleting : Maybe String
@@ -279,8 +277,7 @@ refreshnow model policy =
 
 
 type Msg
-    = Menu Men.Msg
-    | GotPolicies (Result Http.Error (List Policy))
+    = GotPolicies (Result Http.Error (List Policy))
     | GotAllFormula (Result Http.Error String)
     | AskDeletePolicy String
     | CancelDeletePolicy
@@ -338,11 +335,6 @@ mode model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
-
         GotPolicies (Ok policies) ->
             U.nocmd { model | policies = policies }
 
@@ -851,7 +843,8 @@ viewcachedserieslist model =
 
 viewfreeserieslist model =
     H.div [ ]
-        [ H.h5 [] [ H.text "Free series" ]
+        [  H.h1 [ HA.class "header-refinery"] [ H.text "Policies" ]
+        , H.h5 [] [ H.text "Free series" ]
         , H.p [] [ H.input [ HA.class "form-control"
                            , HE.onInput FreeSeriesQuery
                            , HA.placeholder "type here to filter the series list by name"
@@ -1031,30 +1024,16 @@ viewdoc =
 
 view : Model -> H.Html Msg
 view model =
-    H.div
-        [ HA.class
-            (if model.menu.menuModeText then
-                "grid-container-text"
-
-             else
-                "grid-container-icon"
-            )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
-            [ HA.class "main-content" ]
-            [ H.div []
-                [ H.h1 [ HA.class "header-refinery"] [ H.text "Policies" ]
-                , viewpolicies model
-                , case model.linking of
-                      Nothing -> viewdoc
-                      Just _ -> H.span [] []
-                ]
-            ]
+    H.div []
+        [ H.h1 [] [ H.text "Policies" ]
+        , viewpolicies model
+        , case model.linking of
+              Nothing -> viewdoc
+              Just _ -> H.span [] []
         ]
 
 
-sub model = Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
+sub model = Sub.none
 
 
 type alias Input =
@@ -1066,7 +1045,6 @@ main =
         init input =
             let model = Model
                         input.baseurl
-                        (Men.initmenu "formula-cache")
                         []
                         Dict.empty
                         Nothing
@@ -1085,9 +1063,7 @@ main =
                         Set.empty
             in
             ( model
-            , Cmd.batch [ Men.getMenu input.baseurl (\returnHttp -> Menu (Men.GotMenu returnHttp))
-                        , Men.getIcons input.baseurl (\returnHttp -> Menu (Men.GotIcons returnHttp))
-                        , getpolicies model
+            , Cmd.batch [ getpolicies model
                         , U.getformulas input.baseurl "series" GotAllFormula
                         ]
             )
