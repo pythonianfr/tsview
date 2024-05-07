@@ -76,38 +76,31 @@ buildSection item =
     H.div
         [ ]
         [ H.h3
-            [ A.class "first"]
+            [ ]
             [ H.p
-                [ A.class "name" ]
+                [ A.class "name"
+                , A.title <| "from the module: " ++ item.source
+                ]
                 [ H.text item.name ]
-            , H.p
-                [ A.class "from" ]
-                [ H.text  " from : " ]
-            , H.p
-                [ A.class "source" ]
-                [ H.text  item.source  ]
             ]
         , H.pre
             [ A.class "doc"]
-            <| processDoc item.doc
+            [ viewitem item.doc ]
         ]
 
 
-processDoc: String -> List (Html Msg)
-processDoc doc =
-    List.map
-        (\ line -> H.p [] [H.text line])
-        ( String.split "\n" doc )
+viewitem doc =
+    H.p [ ] [ H.text doc ]
 
 
 view: Model -> Html Msg
 view model =
     H.div
         []
-        [ H.h1 [ A.class "page-title" ] [ H.text "Operators documentation" ]
+        [ H.h1 [ A.class "page-title" ] [ H.text "Formula operators documentation" ]
         , H.div
             [ A.class "operators"]
-            (List.map buildSection model.operators)
+            <| List.map buildSection model.operators
         ]
 
 
