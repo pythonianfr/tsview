@@ -11,7 +11,6 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import Json.Decode as JD
-import Menu as Men
 
 
 type Status
@@ -41,7 +40,6 @@ type alias Feedback =
 type alias Model =
     { baseUrl : String
     , status : MultiStatus
-    , menu : Men.Model
     , csv : Maybe Bytes
     , newfile : Maybe File
     , filename : String
@@ -51,8 +49,7 @@ type alias Model =
 
 
 type Msg
-    = Menu Men.Msg
-    | DownloadFormula
+    = DownloadFormula
     | GotCurrentCsv (Result Http.Error Bytes)
     | GotNewCsv
     | GotNewCsvSelected File
@@ -163,11 +160,6 @@ update msg model =
             model.status
     in
     case msg of
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
-
         DownloadFormula ->
             ( model
             , downloadFormulaCsv model
@@ -254,18 +246,8 @@ displaySubWarnings feedbackSub key =
 
 view : Model -> H.Html Msg
 view model =
-    H.div
-        [ HA.class
-            (if model.menu.menuModeText then
-                "grid-container-text"
-
-             else
-                "grid-container-icon"
-            )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
-            [ HA.class "main-content" ]
+        H.div
+            []
             [ H.h1 [ HA.class "header-refinery"] [ H.text "Load a formula batch" ]
             , H.div [ HA.class "addformulas-content" ]
                 [ H.div
@@ -420,12 +402,12 @@ view model =
                 , H.br [] []
                 ]
             ]
-        ]
+
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
+      Sub.none
 
 
 initModel baseurl =
@@ -435,7 +417,6 @@ initModel baseurl =
         , newcsv = Unactivated
         , feedback = Unactivated
         }
-    , menu = Men.initmenu "formula-batch"
     , csv = Nothing
     , newfile = Nothing
     , filename = ""
@@ -457,10 +438,7 @@ type alias Input =
 init : Input -> ( Model, Cmd Msg )
 init input =
     ( initModel input.baseurl
-    , Cmd.batch
-        [ Men.getMenu input.baseurl (\returnHttp -> Menu (Men.GotMenu returnHttp))
-        , Men.getIcons input.baseurl (\returnHttp -> Menu (Men.GotIcons returnHttp))
-        ]
+    , Cmd.none
     )
 
 
