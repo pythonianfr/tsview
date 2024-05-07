@@ -24,6 +24,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
 import Json.Decode as JD
+import List.Extra as List
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -455,18 +456,24 @@ update msg model =
 
         NewDates dates ->
             let
+                minDate = Maybe.withDefault
+                    ""
+                    (Maybe.map (String.replace " " "T") (List.head dates))
+                maxDate = Maybe.withDefault
+                    ""
+                    (Maybe.map (String.replace " " "T") (List.last dates))
                 horizonmodel =
                     model.horizon
                 newmodel =
-                    if List.isEmpty dates then
+                    if minDate == "" && maxDate == "" then
                         { model | horizon = { horizonmodel | timeSeries = model.initialTs } }
                     else
                         { model
                             | horizon =
                               { horizonmodel |
                                     timeSeries = Dict.filter
-                                                 (\key _ -> List.member key dates)
-                                                 horizonmodel.timeSeries
+                                        ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                                        horizonmodel.timeSeries
                               }
                         }
             in
