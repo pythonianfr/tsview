@@ -143,9 +143,11 @@ def tsview(tsa):
     @bp.route('/formulacache')
     def formulacache():
         if has_roles('admin', 'rw', 'ro'):
+            flags_menu = json.dumps([homeurl(), 'formula-cache'])
             return render_template(
                 'cache.html',
-                homeurl=homeurl()
+                homeurl=homeurl(),
+                flags_menu=flags_menu,
             )
 
     # formula editor
