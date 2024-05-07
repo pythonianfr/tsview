@@ -17,7 +17,6 @@ import Http
 import Json.Decode as JD
 import Json.Encode as JE
 import Lisp
-import Menu as Men
 import Metadata as M
 import Url.Builder as UB
 import Util as U
@@ -35,8 +34,6 @@ type alias Series =
 
 type alias Model =
     { baseurl : String
-    -- menu
-    , menu : Men.Model
     -- all errors
     , errors : List String
     -- baskets
@@ -55,8 +52,7 @@ type alias Model =
 
 
 type Msg
-    = Menu Men.Msg
-    | GotBasketNames (Result Http.Error String)
+    = GotBasketNames (Result Http.Error String)
     | SelectedBasket String
     | GotBasketDefinition (Result Http.Error String)
     | AceEditorMsg AceEditor.Msg
@@ -138,11 +134,6 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
-
         GotBasketNames (Ok rawbaskets) ->
             case JD.decodeString (JD.list JD.string) rawbaskets of
                 Ok baskets ->
@@ -527,16 +518,8 @@ viewcreation model =
 
 view model =
     H.div
-        [ HA.class
-            (if model.menu.menuModeText then
-                "grid-container-text"
-
-             else
-                "grid-container-icon"
-            )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
+        [ ]
+        [ H.div
             [ HA.class "main-content" ]
             [ H.div [ HA.class "baskets", HA.style "margin" ".5em" ] <|
                 if model.creating
@@ -556,7 +539,6 @@ main =
                let
                    model =
                        { baseurl = input.baseurl
-                       , menu = Men.initmenu "basket-edit"
                        , errors = []
                        , baskets = []
                        , name = Nothing
@@ -568,11 +550,8 @@ main =
                        , series = []
                        }
                in
-               ( model, Cmd.batch
-                            [ Men.getMenu input.baseurl (\returnHttp -> Menu (Men.GotMenu returnHttp))
-                            , Men.getIcons input.baseurl (\returnHttp -> Menu (Men.GotIcons returnHttp))
-                            , getbaskets model ] )
-           sub model = Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
+               ( model, getbaskets model )
+           sub model = Sub.none
        in
            Browser.element
                { init = init
