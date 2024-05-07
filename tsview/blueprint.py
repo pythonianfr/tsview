@@ -374,10 +374,11 @@ def tsview(tsa):
     def queryeditor():
         if not has_roles('admin', 'rw'):
             return 'Nothing to see there.'
-
+        flags_menu = json.dumps([homeurl(), 'basket-edit'])
         return render_template(
             'queryeditor.html',
-            homeurl=homeurl()
+            homeurl=homeurl(),
+            flags_menu=flags_menu,
         )
 
     # info
