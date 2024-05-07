@@ -16,7 +16,6 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import KeywordSelector
-import Menu as Men
 import Plotter exposing
     ( Series
     , defaultoptions
@@ -43,7 +42,6 @@ type alias Model =
     , mindate : Maybe Date
     , maxdate : Maybe Date
     , errors : List String
-    , menu : Men.Model
     }
 
 
@@ -60,8 +58,6 @@ type Msg
     | GotToday Date
     | FvdatePickerChanged String
     | TvdatePickerChanged String
-    -- menu
-    | Menu Men.Msg
 
 
 
@@ -305,11 +301,6 @@ update msg model =
             , Cmd.batch <| fetchseries newmodel True
             )
 
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
-
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -475,12 +466,8 @@ view model =
                         (permalink :: links)
     in
     H.div
-        [ HA.class ( if model.menu.menuModeText
-                     then "grid-container-text"
-                     else "grid-container-icon" )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
+        [ ]
+        [ H.div
                 [ HA.class "main-content" ]
                 [ H.h1 [ HA.class "header-refinery"] [ H.text "Quick view" ]
                 , H.div
@@ -498,11 +485,9 @@ sub: Model -> Sub Msg
 sub model =
     -- this is a cheap (cadenced) debouncer for the search ui
     if model.selecting then
-        Sub.batch [ Time.every 1000 (always MakeSearch)
-                  , Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
-                  ]
-    else
-        Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+        Time.every 1000 (always MakeSearch)
+    else Sub.none
+
 
 main : Program
        { baseurl : String
@@ -526,7 +511,6 @@ main =
                     , mindate = Nothing
                     , maxdate = Nothing
                     , errors = []
-                    , menu =  Men.initmenu "timeseries-quickview"
                     }
 
             in ( model
@@ -535,8 +519,6 @@ main =
                           GotCatalog
                           (Catalog.get model.baseurl "series" 1 Catalog.ReceivedSeries)
                      , Date.today |> Task.perform GotToday
-                     , Men.getMenu flags.baseurl (\returnHttp ->  Menu (Men.GotMenu returnHttp ))
-                     , Men.getIcons flags.baseurl (\returnHttp ->  Menu (Men.GotIcons returnHttp ))
                      ] ++ fetchseries model False
                )
 
