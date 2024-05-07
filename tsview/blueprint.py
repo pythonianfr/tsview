@@ -134,9 +134,13 @@ def tsview(tsa):
     @bp.route('/tsdelete')
     def tsdelete():
         if has_roles('admin', 'rw'):
-            return render_template('tsedit.html',
-                                   edit_kind="Delete",
-                                   homeurl=homeurl())
+            flags_menu = json.dumps([homeurl(), 'timeseries-delete'])
+            return render_template(
+                'tsedit.html',
+                edit_kind="Delete",
+                homeurl=homeurl(),
+                flags_menu=flags_menu,
+            )
 
         return 'You do not have the delete capability.'
 

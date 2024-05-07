@@ -7,19 +7,31 @@
               href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
               integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
               crossorigin="anonymous">
-        <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
-        <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
         <script src="./tsview_static/{{ edit_kind.lower() }}_elm.js"></script>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+        <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
     </head>
     <body>
-        <div id="app"></div>
+        <div class="grid-container">
+            <div id="menu-elm">
+            </div>
+            <div class="main-content">
+                <div id="app"></div>
+            </div>
+        </div>
         <script>
          var app = Elm.{{ edit_kind }}.init({
              node: document.getElementById("app"),
              flags: "{{ homeurl }}"
          });
         </script>
-        {% include "menu.html" %}
+         <script>
+             var menuapp = Elm.StandAloneMenu.init({
+              node: document.getElementById('menu-elm'),
+                flags: {{flags_menu | safe}}
+          });
+        </script>
+        {% include "menu_stand_alone.html" %}
     </body>
 </html>
