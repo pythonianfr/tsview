@@ -9,7 +9,6 @@ import Http
 import Json.Decode as Decode
 import Catalog
 import KeywordSelector
-import Menu as Men
 import SeriesSelector
 import Time
 import Url.Builder as UB
@@ -18,7 +17,6 @@ import Util as U
 
 type alias Model =
     { urlPrefix : String
-    , menu : Men.Model
     , catalog : Catalog.Model
     , search : SeriesSelector.Model
     , errors : Maybe (List String) -- why many ?
@@ -26,8 +24,7 @@ type alias Model =
 
 
 type Msg
-    = Menu Men.Msg
-    | GotCatalog Catalog.Msg
+    = GotCatalog Catalog.Msg
     | ToggleItem String
     | SearchSeries String
     | MakeSearch
@@ -88,11 +85,6 @@ update msg model =
 
     in
         case msg of
-            Menu menumsg ->
-                ( { model | menu = Men.updateModel menumsg model.menu }
-                , Men.buildCmd menumsg model.menu
-                )
-
             GotCatalog catmsg ->
                 let
                     newcat = Catalog.update catmsg model.catalog
@@ -209,29 +201,15 @@ view model =
         viewError xs =
             H.ul [] (List.map (\x -> H.li [] [ H.text x ]) xs)
     in
-        H.div
-            [ HA.class
-                (if model.menu.menuModeText then
-                    "grid-container-text"
+        case model.errors of
+            Nothing ->
+                H.div
+                    [ HA.style "margin" "1em" ]
+                    [  H.h1 [ HA.class "header-refinery"] [ H.text "Delete series" ]
+                    , SeriesSelector.view model.search model.catalog selectorConfig ]
 
-                 else
-                    "grid-container-icon"
-                )
-            ]
-            [ Men.viewMenu model.menu Menu
-            , H.div
-                [ HA.class "main-content" ]
-                [ H.h1 [ HA.class "header-refinery"] [ H.text "Delete series" ]
-                ,    case model.errors of
-                        Nothing ->
-                            H.div
-                                [ HA.style "margin" "1em" ]
-                                [ SeriesSelector.view model.search model.catalog selectorConfig ]
-
-                        Just error ->
-                            viewError error
-                ]
-            ]
+            Just error ->
+                viewError error
 
 
 main : Program String Model Msg
@@ -240,21 +218,15 @@ main =
         init prefix =
             ( Model
                   prefix
-                  (Men.initmenu "timeseries-delete")
                   Catalog.empty
                   SeriesSelector.null
                   Nothing
             ,
-               Cmd.batch
-                    [ Men.getMenu prefix (\returnHttp -> Menu (Men.GotMenu returnHttp))
-                    , Men.getIcons prefix (\returnHttp -> Menu (Men.GotIcons returnHttp))
-                    , Cmd.map GotCatalog (Catalog.get prefix "series" 0 Catalog.ReceivedSeries)]
+                Cmd.map GotCatalog (Catalog.get prefix "series" 0 Catalog.ReceivedSeries)
             )
 
         sub model =
-             Sub.batch
-                    [ Time.every 1000 (always MakeSearch)
-                    , Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))]
+            Time.every 1000 (always MakeSearch)
     in
         Browser.element
             { init = init
