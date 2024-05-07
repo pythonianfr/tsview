@@ -1,5 +1,7 @@
 module Operators exposing (main)
+
 import Browser
+import Dict
 import Html as H
 import Html.Attributes as A
 import Html exposing
@@ -9,7 +11,7 @@ import Html exposing
 import Http
 import Json.Decode as JD
 import Json.Decode exposing (Decoder)
-import List
+import Lisp
 import Util as U
 
 
@@ -85,12 +87,30 @@ buildSection item =
             ]
         , H.pre
             [ A.class "doc"]
-            [ viewitem item.doc ]
+            <| viewitem item.doc
         ]
 
 
 viewitem doc =
-    H.p [ ] [ H.text doc ]
+    let
+        chunks =
+            String.split "`" doc
+
+        tohtml chunk =
+            case String.startsWith "(" chunk of
+                True ->
+                    case Lisp.parse chunk of
+                        Just parsed ->
+                            H.span [ A.style "display" "inline-grid" ]
+                                <| Lisp.view parsed Dict.empty
+                        Nothing ->
+                            H.text chunk
+                False
+                    ->
+                      H.text chunk
+
+    in
+    List.map tohtml chunks
 
 
 view: Model -> Html Msg
