@@ -38,7 +38,6 @@ import JsonTree as JT exposing (TaggedValue(..))
 import List.Extra as List
 import List.Selection as LS
 import Maybe.Extra as Maybe
-import Menu as Men
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
@@ -90,8 +89,6 @@ type alias Model =
     , name : String
     , source : String
     , activetab : Tabs
-    -- menu
-    , menu : Men.Model
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -143,8 +140,6 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
-    --menu
-    | Menu Men.Msg
     -- tabs
     | Tab Tabs
     -- perms
@@ -439,10 +434,6 @@ update msg model =
             )
     in
     case msg of
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu
-            )
 
         Tab tab ->
             U.nocmd { model | activetab = tab }
@@ -1399,16 +1390,8 @@ view model =
 
     in
     H.div
-        [ HA.class
-            (if model.menu.menuModeText then
-                "grid-container-text"
-
-             else
-                "grid-container-icon"
-            )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
+        []
+        [ H.div
             [ HA.class "main-content" ]
             [ H.div
                 [ HA.style "margin" ".5em" ]
@@ -1473,7 +1456,6 @@ main =
                     , name = input.name
                     , source = ""
                     , activetab = Plot
-                    , menu = Men.initmenu "timeseries-catalog"
                     -- metadata edition
                     , canwrite = False
                     , editing = False
@@ -1527,9 +1509,7 @@ main =
             in
             ( model
             , Cmd.batch
-                [ Men.getMenu input.baseurl (\returnHttp -> Menu (Men.GotMenu returnHttp))
-                , Men.getIcons input.baseurl (\returnHttp -> Menu (Men.GotIcons returnHttp))
-                , M.getsysmetadata input.baseurl input.name GotSysMeta "series"
+                [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
                 , M.getusermetadata input.baseurl input.name GotUserMeta "series"
                 , getsource model model.name
                 , I.getwriteperms input.baseurl GetPermissions
@@ -1542,8 +1522,7 @@ main =
         , update = update
         , subscriptions =
             \_ -> Sub.batch
-                  [ Men.loadMenuData (\str -> Menu (Men.LoadMenuData str))
-                  , loadFromLocalStorage FromLocalStorage
+                  [ loadFromLocalStorage FromLocalStorage
                   , dateInInterval NewDates
                   , dataFromHover NewDataFromHover
                   ]
