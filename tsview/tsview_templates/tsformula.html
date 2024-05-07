@@ -1,55 +1,55 @@
 <!doctype html>
 <html>
     <head>
-    <meta charset="utf-8">
-    <link
-        href="./tsview_static/formula_elm.css"
-        rel="stylesheet"/>
-    <script
-        src="./tsview_static/ace.js"
-        type="text/javascript"
-        charset="utf-8">
-    </script>
-    <link
-      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
-      crossorigin="anonymous">
-    <script
-        src="https://unpkg.com/@webcomponents/custom-elements@1.4.1/custom-elements.min.js">
-    </script>
-    <script src="./tsview_static/ace_editor.js"></script>
-    <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
-    <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
-    <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
-    {% set function_type = 'formula' %}
-    {% include "plot_figure.js.jinja" %}
+        <meta charset="utf-8">
+        <link
+            href="./tsview_static/formula_elm.css"
+            rel="stylesheet"/>
+        <script
+            src="./tsview_static/ace.js"
+            type="text/javascript"
+            charset="utf-8">
+        </script>
+        <link
+            href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
+            crossorigin="anonymous">
+        <script
+            src="https://unpkg.com/@webcomponents/custom-elements@1.4.1/custom-elements.min.js">
+        </script>
+        <script src="./tsview_static/ace_editor.js"></script>
+        <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}"
+              rel="stylesheet"/>
+        <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
+        {% set function_type = 'formula' %}
+        {% include "plot_figure.js.jinja" %}
     </head>
     <body>
         <div class="grid-container">
-            <div id="menu-elm">
-            </div>
+            <div id="menu-elm"></div>
             <div class="main-content">
                 <div id="app"></div>
             </div>
         </div>
         <script src="./tsview_static/formula_elm.js"></script>
         <script>
-            var app = Elm.Editor.UI.Main.init({
-                node: document.getElementById("app"),
-                flags: {
-                    urlPrefix : "{{ homeurl }}",
-                    jsonSpec : {{ spec | safe }},
-                    formula : {{ formula | safe }},
-                    returnTypeStr : "Series"
-                }
-            });
+         var app = Elm.Editor.UI.Main.init({
+             node: document.getElementById("app"),
+             flags: {
+                 urlPrefix : "{{ homeurl }}",
+                 jsonSpec : {{ spec | safe }},
+                 formula : {{ formula | safe }},
+                 returnTypeStr : "Series"
+             }
+         });
         </script>
-         <script>
-             var menuapp = Elm.StandAloneMenu.init({
-              node: document.getElementById('menu-elm'),
-                flags: {{flags_menu | safe}}
-          });
+        <script>
+         var menuapp = Elm.StandAloneMenu.init({
+             node: document.getElementById('menu-elm'),
+             flags: {{flags_menu | safe}}
+         });
         </script>
         {% include "menu_stand_alone.html" %}
     </body>

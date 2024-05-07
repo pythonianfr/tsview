@@ -9,32 +9,33 @@
               crossorigin="anonymous">
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='pygmentize.css') }}"/>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
-        <link href="{{ url_for('tsview.static', filename='addformulas_elm.css')}}" rel="stylesheet"/>
-        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+        <link href="{{ url_for('tsview.static', filename='addformulas_elm.css')}}"
+              rel="stylesheet"/>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}"
+              rel="stylesheet"/>
         <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
     </head>
     <body>
         <div class="grid-container">
-            <div id="menu-elm">
-            </div>
+            <div id="menu-elm"></div>
             <div class="main-content">
                 <div id="addformulas"></div>
             </div>
         </div>
         <script src="./tsview_static/addformulas_elm.js"></script>
         <script>
-          var app = Elm.Addformulas.init({
-              node: document.getElementById('addformulas'),
-              flags: {
+         var app = Elm.Addformulas.init({
+             node: document.getElementById('addformulas'),
+             flags: {
                  baseurl : "{{ baseurl }}"
              }
-          });
+         });
         </script>
         <script>
-             var menuapp = Elm.StandAloneMenu.init({
-              node: document.getElementById('menu-elm'),
-                flags: {{flags_menu | safe}}
-              });
+         var menuapp = Elm.StandAloneMenu.init({
+             node: document.getElementById('menu-elm'),
+             flags: {{flags_menu | safe}}
+         });
         </script>
         {% include "menu_stand_alone.html" %}
     </body>

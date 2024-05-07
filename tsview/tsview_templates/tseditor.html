@@ -23,8 +23,7 @@
     </head>
     <body>
         <div class="grid-container">
-            <div id="menu-elm">
-            </div>
+            <div id="menu-elm"></div>
             <div class="main-content">
                 <div id="app"></div>
             </div>
@@ -90,10 +89,10 @@
          app.ports.loadFromLocalStorage.send(incache);
         </script>
         <script>
-             var menuapp = Elm.StandAloneMenu.init({
-              node: document.getElementById('menu-elm'),
-                flags: {{flags_menu | safe}}
-          });
+         var menuapp = Elm.StandAloneMenu.init({
+             node: document.getElementById('menu-elm'),
+             flags: {{flags_menu | safe}}
+         });
         </script>
         {% include "menu_stand_alone.html" %}
     </body>
