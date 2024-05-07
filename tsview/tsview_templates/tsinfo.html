@@ -12,15 +12,22 @@
         <script src="https://cdn.plot.ly/plotly-1.50.1.min.js"></script>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='pygmentize.css') }}"/>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
-        <link href="{{ url_for('tsview.static', filename='menu_elm.css')}}" rel="stylesheet"/>
         <script src="https://unpkg.com/@webcomponents/custom-elements@1.2.1/custom-elements.min.js">
         </script>
         <script src="./tsview_static/tsinfo_elm.js"></script>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+        <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
         {% set function_type = 'info' %}
         {% include "plot_figure.js.jinja" %}
     </head>
     <body>
-        <div id="app"></div>
+      <div class="grid-container">
+            <div id="menu-elm">
+            </div>
+            <div class="main-content">
+                <div id="app"></div>
+            </div>
+        </div>
         <script>
          var app = Elm.Tsinfo.init({
              node: document.getElementById('app'),
@@ -52,6 +59,12 @@
          }
          app.ports.loadFromLocalStorage.send(incache);
         </script>
-        {% include "menu.html" %}
+         <script>
+             var menuapp = Elm.StandAloneMenu.init({
+              node: document.getElementById('menu-elm'),
+                flags: {{flags_menu | safe}}
+          });
+        </script>
+        {% include "menu_stand_alone.html" %}
     </body>
 </html>
