@@ -1100,9 +1100,6 @@ viewcache model =
                 , if Dict.isEmpty model.policy
                   then H.span [] []
                   else viewcachepolicy model
-                , if model.has_cache
-                  then viewtogglecached model
-                  else H.span [] []
                 ]
 
         deleteaction =
@@ -1410,6 +1407,9 @@ view model =
                               , tabcontents
                                     [ viewplot model
                                     , I.viewformula model SwitchLevel
+                                    , if model.has_cache
+                                      then viewtogglecached model
+                                      else H.span [] []
                                     ]
                               ]
 
