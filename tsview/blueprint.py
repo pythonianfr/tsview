@@ -576,4 +576,15 @@ def tsview(tsa):
             return 'Nothing to see there.'
         return json.dumps(icons_definition)
 
+    @bp.route('/formulas')
+    def formulas():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        return render_template(
+            'formulas.html',
+            homeurl=homeurl(),
+            name=request.args.get('name')
+        )
+
     return bp
