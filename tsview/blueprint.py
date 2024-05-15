@@ -536,6 +536,20 @@ def tsview(tsa):
             flags_menu=flags_menu,
         )
 
+    @bp.route('/formula-components/<seriesname>')
+    def formula_components(seriesname):
+        assert tsa.exists(seriesname)
+        formula = tsa.formula(seriesname)
+        tree = fparse(formula)
+        infos = [
+            {
+                'name': name,
+                'type': tsa.type(name)
+            }
+            for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
+        ]
+        return json.dumps(infos)
+
     # menu
 
     @bp.route('/menu')

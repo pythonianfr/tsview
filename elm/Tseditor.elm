@@ -60,6 +60,7 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , initialTs : Dict String Entry
+    , components : List Component
     , view_nocache : Bool
     , randomNumber : Int
     , plotStatus : PlotStatus
@@ -70,6 +71,7 @@ type alias Model =
 type Msg
     = GotEditData (Result Http.Error String)
     | GotValueData (Result Http.Error String)
+    | GotComponents (Result Http.Error String)
     | GotMetadata (Result Http.Error String)
     | HorizonSelected (Maybe String)
     | UpdateOffset Offset
@@ -96,6 +98,10 @@ type alias Entry =
     , index : Int
     }
 
+type alias Component =
+    { name: String
+    , ctype: String
+    }
 
 type alias PasteType =
     { text: String
@@ -161,12 +167,26 @@ dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
     JD.dict entryDecoder
 
+componentsDecoder: JD.Decoder (List Component)
+componentsDecoder =
+    JD.list (JD.map2 Component
+                (JD.field "name" JD.string)
+                (JD.field "type" JD.string))
 
 getPoints: Model -> Cmd Msg
 getPoints model =
     if model.seriestype == I.Primary
         then geteditor model GotEditData
         else geteditor model GotValueData
+
+
+getComponents: Model -> Cmd Msg
+getComponents model =
+    Http.get
+        { url = (UB.crossOrigin model.baseurl
+                    [ "formula-components", model.name ]
+                    [] )
+        , expect = Http.expectString GotComponents }
 
 
 geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
@@ -270,6 +290,14 @@ update msg model =
 
         GotValueData (Err _) ->
             ( { model | plotStatus = Failure } , Cmd.none)
+
+        GotComponents (Ok rawdata) ->
+            case JD.decodeString componentsDecoder rawdata of
+                Ok val -> ( {model | components = val }
+                           , Cmd.none )
+                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotComponents (Err _) -> ( model, Cmd.none )
 
         HorizonSelected horizon ->
             let
@@ -545,6 +573,7 @@ getRelevantData model =
             ]
         else
             [ getPoints model
+            , getComponents model
             ]
 
 
@@ -930,6 +959,7 @@ main =
                     , randomNumber = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
+                    , components = []
                     , view_nocache = False
                     , plotStatus = Init
                     , clipboardclass = "bi bi-clipboard"
