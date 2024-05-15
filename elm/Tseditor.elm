@@ -361,7 +361,11 @@ update msg model =
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                    U.nocmd { model | meta = allmeta }
+                   let newmodel = { model | meta = allmeta }
+                   in
+                       ( newmodel
+                       , Cmd.batch (getData newmodel)
+                       )
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
@@ -444,14 +448,11 @@ update msg model =
                             }
                     in
                     ( newmodel
-                    , Cmd.batch
-                        [ geteditor newmodel GotEditData
-                        , Random.generate RandomNumber randomInt
-                        ]
+                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
                     )
                 Err _ ->
                     ( model
-                    , geteditor model GotEditData
+                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
                     )
 
         NewDates dates ->
@@ -492,6 +493,13 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
+
+getData : Model -> List (Cmd Msg)
+getData model =
+    [ geteditor model GotEditData
+    , Random.generate RandomNumber randomInt
+    , I.getidates model "series" InsertionDates
+    ]
 
 
 randomInt : Random.Generator Int
@@ -848,10 +856,7 @@ main =
                     }
             in
             ( model
-            , Cmd.batch
-                [ M.getsysmetadata model.baseurl model.name GotMetadata "series"
-                , I.getidates model "series" InsertionDates
-                ]
+            , Cmd.none -- The chain of command is triggerd by "FromLocalStorage" Msg
             )
 
     in Browser.element
