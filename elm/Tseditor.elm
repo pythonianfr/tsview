@@ -69,6 +69,7 @@ type alias Model =
 
 type Msg
     = GotEditData (Result Http.Error String)
+    | GotValueData (Result Http.Error String)
     | GotMetadata (Result Http.Error String)
     | HorizonSelected (Maybe String)
     | UpdateOffset Offset
@@ -161,6 +162,13 @@ dataDecoder =
     JD.dict entryDecoder
 
 
+getPoints: Model -> Cmd Msg
+getPoints model =
+    if model.seriestype == I.Primary
+        then geteditor model GotEditData
+        else geteditor model GotValueData
+
+
 geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
 geteditor model callback =
     getdata
@@ -178,7 +186,9 @@ geteditor model callback =
     , tzone = model.horizon.timeZone
     , inferredFreq = model.horizon.inferredFreq
     , keepnans = True
-    , apipoint = "supervision"
+    , apipoint = if model.seriestype == I.Primary
+                    then "supervision"
+                    else "state"
     }
 
 
@@ -190,6 +200,16 @@ reindex increment keyvalue =
     ( Tuple.first keyvalue
     , { data | index = increment }
     )
+
+
+decorateVanilla : Dict String (Maybe Float) -> Dict String Entry
+decorateVanilla values =
+    Dict.fromList
+        ( List.map
+            ( \ (date, value) ->
+                ( date
+                , {value=value, override=False, edited=Nothing, index=1}))
+            ( Dict.toList values ))
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -209,7 +229,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ geteditor newmodel GotEditData
+                [ getPoints newmodel
                 , Random.generate RandomNumber randomInt
                 ]
             )
@@ -223,16 +243,33 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                     in
-                    U.nocmd { model
-                                | plotStatus = Success
-                                , initialTs = indexedval
-                                , horizon = updateHorizonModel model.horizon indexedval
-                            }
+                        U.nocmd { model
+                                    | plotStatus = Success
+                                    , initialTs = indexedval
+                                    , horizon = updateHorizonModel model.horizon indexedval
+                                }
                 Err err ->
-                  doerr "series decode" <| JD.errorToString err
+                  doerr "got edit data decode" <| JD.errorToString err
 
         GotEditData (Err _) ->
             U.nocmd { model | plotStatus = Failure }
+
+        GotValueData (Ok rawdata) ->
+            case JD.decodeString
+                    (JD.dict (JD.maybe JD.float))
+                    rawdata of
+                Ok val -> let timeseries = decorateVanilla val
+                          in
+                            ( { model | initialTs = decorateVanilla val
+                                                , plotStatus = Success
+                                                , horizon = updateHorizonModel
+                                                                model.horizon
+                                                                (decorateVanilla val)}
+                               , Cmd.none)
+                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotValueData (Err _) ->
+            ( { model | plotStatus = Failure } , Cmd.none)
 
         HorizonSelected horizon ->
             let
@@ -250,7 +287,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ geteditor newmodel GotEditData
+                [ getPoints newmodel
                 , Random.generate RandomNumber randomInt
                 , saveToLocalStorage userprefs
                 ]
@@ -350,7 +387,7 @@ update msg model =
         GotEditedData (Ok _) ->
             ( model
             , Cmd.batch
-                  [ geteditor model GotEditData
+                  [ getPoints model
                   , Random.generate RandomNumber randomInt
                   ]
             )
@@ -361,10 +398,14 @@ update msg model =
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                   let newmodel = { model | meta = allmeta }
+                   let newmodel = { model | meta = allmeta
+                                          , seriestype = if Dict.member "formula" allmeta
+                                                            then I.Formula
+                                                            else  I.Primary
+                                  }
                    in
                        ( newmodel
-                       , Cmd.batch (getData newmodel)
+                       , Cmd.batch (getRelevantData newmodel)
                        )
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
@@ -411,7 +452,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ geteditor newmodel GotEditData
+                [ getPoints newmodel
                 , I.getidates newmodel "series" InsertionDates
                 , saveToLocalStorage userprefs
                 ]
@@ -432,7 +473,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ geteditor newmodel GotEditData
+                [ getPoints newmodel
                 , saveToLocalStorage userprefs
                 ]
             )
@@ -494,12 +535,17 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-getData : Model -> List (Cmd Msg)
-getData model =
-    [ geteditor model GotEditData
-    , Random.generate RandomNumber randomInt
-    , I.getidates model "series" InsertionDates
-    ]
+getRelevantData : Model -> List (Cmd Msg)
+getRelevantData model =
+    if model.seriestype == I.Primary
+        then
+            [ getPoints model
+            , Random.generate RandomNumber randomInt
+            , I.getidates model "series" InsertionDates
+            ]
+        else
+            [ getPoints model
+            ]
 
 
 randomInt : Random.Generator Int
@@ -711,6 +757,39 @@ editTable model =
             ]
 
 
+viewRelevantTable: Model -> H.Html Msg
+viewRelevantTable model =
+    if model.seriestype == I.Primary
+        then  viewedittable model
+        else viewValueTable model
+
+
+viewValueTable: Model -> H.Html Msg
+viewValueTable model =
+    H.table
+        []
+        ( List.map
+            buildRow
+            ( Dict.toList model.horizon.timeSeries ))
+
+
+buildRow : ( String, Entry ) -> H.Html Msg
+buildRow (date, entry) =
+    H.tr
+        []
+        [ H.td
+            []
+            [ H.text date
+            , H.text (printValue entry.value)]
+        ]
+
+printValue: Maybe Float -> String
+printValue value =
+    case value of
+        Nothing -> ""
+        Just val -> String.fromFloat val
+
+
 viewedittable : Model -> H.Html Msg
 viewedittable model =
     let
@@ -812,7 +891,8 @@ view model =
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
             ""
             defaultoptions
-        , viewedittable model
+        , viewRelevantTable model
+        , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
         ]
 
 
