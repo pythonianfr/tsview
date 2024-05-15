@@ -3,6 +3,7 @@ import Browser
 import Http
 import Html as H
 import Html.Attributes as HA
+import Html.Events as HE
 import Url.Builder as UB
 import Json.Decode as D
 import Util as U
@@ -13,11 +14,13 @@ type alias Model =
     , formulas : List Formula
     , name : String
     , errors : List String
+    , valueSearched : String
     }
 
 
 type Msg =
     GotFormulas (Result Http.Error String)
+    | InputChanged String
 
 
 type alias Imeta =
@@ -70,13 +73,20 @@ decodeListFormulas =
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ HA.class "data-table" ]
-        [ H.table
-            [ HA.class "table-style" ]
-            [ H.thead [ ]
-                [
+        [ ]
+        [ H.input
+            [ HE.onInput InputChanged
+            , HA.value model.valueSearched]
+            [ ]
+        , H.div
+            [ HA.class "data-table" ]
+            [ H.table
+                [ HA.class "table-style" ]
+                [ H.thead [ ]
+                    [
+                    ]
+                    , formatTableBody model
                 ]
-                , formatTableBody model
             ]
         ]
 
@@ -84,6 +94,18 @@ view model =
 formatTableBody : Model -> H.Html Msg
 formatTableBody model =
     let
+        listWords =
+            (List.filter
+                (\ word -> word /= "")
+                (String.split " " model.valueSearched)
+            )
+        filtreFormulas =
+            if List.isEmpty listWords then
+                model.formulas
+            else
+                List.filter
+                    (checkWordsInFormula listWords)
+                    model.formulas
         formatRow : Formula -> H.Html Msg
         formatRow formula =
             H.tr
@@ -110,14 +132,23 @@ formatTableBody model =
                     [ ]
                     [ H.text formula.imeta.formula ]
                 ]
-
-
     in H.tbody [ ]
-        [
-            H.tr
+        [ H.tr
             [ ]
-            ( List.map formatRow model.formulas )
+            ( List.map formatRow filtreFormulas )
         ]
+
+
+checkWordsInFormula : List String -> Formula -> Bool
+checkWordsInFormula listWord formula =
+    let
+        checkWordInString : String -> Bool
+        checkWordInString word =
+            ( String.contains word formula.imeta.formula )
+                        || (String.contains word formula.name )
+    in List.all
+        (\bool -> bool == True)
+        (List.map checkWordInString listWord)
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -136,6 +167,9 @@ update msg model =
 
         GotFormulas (Err err) ->
             doerr "getseries http" <| U.unwraperror err
+
+        InputChanged valueSearched ->
+            U.nocmd { model | valueSearched = valueSearched}
 
 
 getSeriesInfo : Model -> Cmd Msg
@@ -162,9 +196,10 @@ main =
             let
                 model =
                     { baseurl = input.baseurl
-                    , errors = []
-                    , formulas = []
+                    , errors = [ ]
+                    , formulas = [ ]
                     , name = input.name
+                    , valueSearched = ""
                     }
             in ( model , getSeriesInfo model )
 
@@ -173,5 +208,4 @@ main =
         , view = view
         , update = update
         , subscriptions = \_ -> Sub.none
-
     }
