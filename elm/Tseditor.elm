@@ -3,6 +3,7 @@ port module Tseditor exposing (main)
 import Array exposing (Array)
 import Browser
 import Dict exposing (Dict)
+import Set exposing (Set)
 import Either exposing (Either(..))
 import Horizon exposing
     ( HorizonModel
@@ -99,6 +100,8 @@ type alias Entry =
     , edited : Maybe String
     , index : Int
     }
+
+emptyEntry = Entry Nothing False Nothing 0
 
 type alias Component =
     { name: String
@@ -829,16 +832,75 @@ viewValueTable model =
          ( [ headerShowValue model ]
           ++ ( List.map
                 ( buildRow model )
-                ( Dict.toList model.horizon.timeSeries )))
+                ( datesValue model )))
 
 
-buildRow : Model -> ( String, Entry ) -> H.Html Msg
-buildRow model (date, entry) =
+datesValue: Model -> List String
+datesValue model =
+    List.sort
+    ( Set.toList
+        ( Set.union
+             ( datesFormula model )
+             ( datesComponents model )))
+
+
+datesFormula: Model -> Set String
+datesFormula model =
+    Set.fromList
+        ( List.map
+            (\ (date, _) -> date)
+            ( Dict.toList model.horizon.timeSeries ))
+
+
+datesComponents: Model -> Set String
+datesComponents model =
+    List.foldl
+        Set.union
+        Set.empty
+        ( List.map
+            (datesComponent model)
+            model.components )
+
+
+datesComponent: Model -> Component -> Set String
+datesComponent model comp =
+    Set.fromList
+        ( List.filter
+            ( filterDateComponent model )
+            ( Dict.keys
+                    ( Maybe.withDefault
+                            Dict.empty
+                            ( Dict.get
+                                comp.name
+                                model.componentsData ))))
+
+
+filterDateComponent: Model -> String-> Bool
+filterDateComponent model date =
+    let datesReference = Dict.keys model.horizon.timeSeries
+    in
+        case  List.minimum datesReference of
+            Nothing -> False
+            Just min -> case List.maximum datesReference of
+                Nothing -> False
+                Just max ->
+                    (date >= min) && (date <= max)
+
+
+buildRow : Model -> String -> H.Html Msg
+buildRow model date =
     H.tr
         []
         ( List.append
             [ H.td [] [ H.text date ]
-            , H.td [] [ H.text (printValue entry.value)]]
+            , H.td [] [ H.text ( printValue
+                                    ( Maybe.withDefault
+                                          emptyEntry
+                                          ( Dict.get
+                                            date
+                                            model.horizon.timeSeries )
+                                    ).value
+                                )]]
             ( addComponentCells model date ) )
 
 
