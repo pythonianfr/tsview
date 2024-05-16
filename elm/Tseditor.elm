@@ -827,19 +827,34 @@ viewValueTable model =
     H.table
         []
         ( List.map
-            buildRow
+            ( buildRow model )
             ( Dict.toList model.horizon.timeSeries ))
 
 
-buildRow : ( String, Entry ) -> H.Html Msg
-buildRow (date, entry) =
+buildRow : Model -> ( String, Entry ) -> H.Html Msg
+buildRow model (date, entry) =
     H.tr
         []
-        [ H.td
-            []
-            [ H.text date
-            , H.text (printValue entry.value)]
-        ]
+        ( List.append
+            [ H.td [] [ H.text date ]
+            , H.td [] [ H.text (printValue entry.value)]]
+            ( addComponentCells model date ) )
+
+
+addComponentCells: Model -> String -> List (H.Html Msg)
+addComponentCells model date =
+    List.map
+        ( \ comp -> H.td [] [H.text ( printValue
+                               ( Maybe.withDefault
+                                   Nothing
+                                   ( Dict.get
+                                        date
+                                        ( Maybe.withDefault
+                                            Dict.empty
+                                            ( Dict.get
+                                                comp.name
+                                                model.componentsData)))))])
+        model.components
 
 printValue: Maybe Float -> String
 printValue value =
