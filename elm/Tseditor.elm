@@ -826,9 +826,10 @@ viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     H.table
         []
-        ( List.map
-            ( buildRow model )
-            ( Dict.toList model.horizon.timeSeries ))
+         ( [ headerShowValue model ]
+          ++ ( List.map
+                ( buildRow model )
+                ( Dict.toList model.horizon.timeSeries )))
 
 
 buildRow : Model -> ( String, Entry ) -> H.Html Msg
@@ -839,6 +840,32 @@ buildRow model (date, entry) =
             [ H.td [] [ H.text date ]
             , H.td [] [ H.text (printValue entry.value)]]
             ( addComponentCells model date ) )
+
+
+headerShowValue: Model -> H.Html Msg
+headerShowValue model =
+    H.thead
+        []
+        [ H.tr
+            []
+            ( [ H.th [] []
+               , H.th
+                    []
+                    [ H.a
+                        []
+                        [ H.text model.name ]
+                    ]
+              ] ++ List.map buildLink model.components  )
+        ]
+
+
+buildLink: Component -> H.Html Msg
+buildLink comp =
+    H.th
+        []
+        [ H.a
+            [ HA.href ( "/tseditor?name=" ++ comp.name) ]
+            [ H.text comp.name ]]
 
 
 addComponentCells: Model -> String -> List (H.Html Msg)
