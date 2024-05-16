@@ -42,7 +42,6 @@ import Json.Encode as JE
 import Random
 import Task as T
 
-
 port copyToClipboard : String -> Cmd msg
 port dateInInterval : (List String -> msg) -> Sub msg
 
@@ -61,12 +60,14 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , initialTs : Dict String Entry
-    , components : List Component
-    , componentsData: Dict String Series
     , view_nocache : Bool
     , randomNumber : Int
     , plotStatus : PlotStatus
     , clipboardclass : String
+    -- show-values for formula
+    , components : List Component
+    , componentsData: Dict String Series
+    , queryBounds: Maybe (String, String)
     }
 
 
@@ -193,23 +194,38 @@ geteditor model callback =
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> String -> Cmd Msg
 getSeries model callback apipoint name =
-    getdata
-    { baseurl = model.baseurl
-    , name = name
-    , idate = Nothing
-    , callback = callback
-    , nocache = (U.bool2int model.view_nocache)
-    , fromdate =
-        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
-    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
-    , horizon = model.horizon.horizon |> Maybe.andThen
-                (\key-> OD.get key horizons) |> Maybe.map
-          (String.replace "{offset}" (String.fromInt model.horizon.offset))
-    , tzone = model.horizon.timeZone
-    , inferredFreq = model.horizon.inferredFreq
-    , keepnans = True
-    , apipoint = apipoint
-    }
+    case model.queryBounds of
+        Nothing -> getdata
+                    { baseurl = model.baseurl
+                    , name = name
+                    , idate = Nothing
+                    , callback = callback
+                    , nocache = (U.bool2int model.view_nocache)
+                    , fromdate =
+                        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
+                    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+                    , horizon = model.horizon.horizon |> Maybe.andThen
+                                (\key-> OD.get key horizons) |> Maybe.map
+                          (String.replace "{offset}" (String.fromInt model.horizon.offset))
+                    , tzone = model.horizon.timeZone
+                    , inferredFreq = model.horizon.inferredFreq
+                    , keepnans = True
+                    , apipoint = apipoint
+                    }
+        Just (min, max) -> getdata
+                            { baseurl = model.baseurl
+                            , name = name
+                            , idate = Nothing
+                            , callback = callback
+                            , nocache = (U.bool2int model.view_nocache)
+                            , fromdate = min
+                            , todate = max
+                            , horizon = Nothing
+                            , tzone = model.horizon.timeZone
+                            , inferredFreq = model.horizon.inferredFreq
+                            , keepnans = True
+                            , apipoint = apipoint
+                            }
 
 
 getComponents: Model -> Cmd Msg
@@ -265,6 +281,7 @@ update msg model =
                 newmodel =
                     { model | plotStatus = Loading
                     , horizon = updateOffset offset model.horizon
+                    , queryBounds = Nothing
                     }
             in
             ( newmodel
@@ -300,12 +317,12 @@ update msg model =
                     rawdata of
                 Ok val -> let timeseries = decorateVanilla val
                           in
-                            ( { model | initialTs = decorateVanilla val
-                                                , plotStatus = Success
-                                                , horizon = updateHorizonModel
-                                                                model.horizon
-                                                                (decorateVanilla val)}
-                               , Cmd.none)
+                            ( { model | initialTs = timeseries
+                                      , plotStatus = Success
+                                      , horizon = updateHorizonModel
+                                                    model.horizon
+                                                    timeseries }
+                            , Cmd.none )
                 Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotValueData (Err _) ->
@@ -343,6 +360,7 @@ update msg model =
                     { model
                         | plotStatus = Loading
                         , horizon = updateHorizon horizon model.horizon
+                        , queryBounds = Nothing
                     }
             in
             ( newmodel
@@ -557,31 +575,32 @@ update msg model =
                     )
 
         NewDates dates ->
-            let
-                minDate = Maybe.withDefault
-                    ""
-                    (Maybe.map (String.replace " " "T") (List.head dates))
-                maxDate = Maybe.withDefault
-                    ""
-                    (Maybe.map (String.replace " " "T") (List.last dates))
-                horizonmodel =
-                    model.horizon
-                newmodel =
-                    if minDate == "" && maxDate == "" then
-                        { model | horizon = { horizonmodel | timeSeries = model.initialTs } }
-                    else
-                        { model
-                            | horizon =
-                              { horizonmodel |
-                                    timeSeries = Dict.filter
-                                        ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                                        horizonmodel.timeSeries
-                              }
-                        }
-            in
-            ( newmodel
-            , Random.generate RandomNumber randomInt
-            )
+                 let
+                    minDate = Maybe.withDefault
+                        ""
+                        (Maybe.map (String.replace " " "T") (List.head dates))
+                    maxDate = Maybe.withDefault
+                        ""
+                        (Maybe.map (String.replace " " "T") (List.last dates))
+                    horizonmodel =
+                        model.horizon
+                    newmodel =
+                        if minDate == "" && maxDate == "" then
+                            { model | horizon = { horizonmodel | timeSeries = model.initialTs } }
+                        else
+                            { model
+                                | horizon =
+                                  { horizonmodel |
+                                        timeSeries = Dict.filter
+                                            ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                                            horizonmodel.timeSeries
+                                  }
+                            }
+                 in
+                    ( newmodel
+                    , Random.generate RandomNumber randomInt
+                    )
+
 
         CopyNameToClipboard ->
             ( { model | clipboardclass = "bi bi-check2" }
@@ -828,7 +847,7 @@ viewRelevantTable model =
 viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     H.table
-        []
+        [HA.class "table table-sm"]
          ( [ headerShowValue model ]
           ++ ( List.map
                 ( buildRow model )
@@ -1061,7 +1080,18 @@ view model =
 type alias Input =
     { baseurl : String
     , name : String
+    , min: String
+    , max: String
     }
+
+
+buildBounds: String -> String -> Maybe (String, String)
+buildBounds min max =
+    if (min == "None") || (min == "")
+        then Nothing
+        else if ( max =="None" ) || ( max == "" )
+            then Nothing
+            else Just (min, max)
 
 
 main : Program Input Model Msg
@@ -1092,11 +1122,12 @@ main =
                     , randomNumber = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
-                    , components = []
-                    , componentsData = Dict.empty
                     , view_nocache = False
                     , plotStatus = Init
                     , clipboardclass = "bi bi-clipboard"
+                    , components = []
+                    , componentsData = Dict.empty
+                    , queryBounds = buildBounds input.min input.max
                     }
             in
             ( model
