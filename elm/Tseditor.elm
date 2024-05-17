@@ -61,6 +61,7 @@ type alias Model =
     , rawPasted: String
     , initialTs : Dict String Entry
     , components : List Component
+    , componentsData: Dict String Series
     , view_nocache : Bool
     , randomNumber : Int
     , plotStatus : PlotStatus
@@ -72,6 +73,7 @@ type Msg
     = GotEditData (Result Http.Error String)
     | GotValueData (Result Http.Error String)
     | GotComponents (Result Http.Error String)
+    | GotComponentData String (Result Http.Error String)
     | GotMetadata (Result Http.Error String)
     | HorizonSelected (Maybe String)
     | UpdateOffset Offset
@@ -108,6 +110,7 @@ type alias PasteType =
     , index: String
     }
 
+type alias Series = Dict String (Maybe Float)
 
 type PlotStatus
     = Init
@@ -176,24 +179,20 @@ componentsDecoder =
 getPoints: Model -> Cmd Msg
 getPoints model =
     if model.seriestype == I.Primary
-        then geteditor model GotEditData
-        else geteditor model GotValueData
-
-
-getComponents: Model -> Cmd Msg
-getComponents model =
-    Http.get
-        { url = (UB.crossOrigin model.baseurl
-                    [ "formula-components", model.name ]
-                    [] )
-        , expect = Http.expectString GotComponents }
+        then getSeries model GotEditData "supervision" model.name
+        else getSeries model GotValueData "state" model.name
 
 
 geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
 geteditor model callback =
+    getSeries model callback "supervision" model.name
+
+
+getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> String -> Cmd Msg
+getSeries model callback apipoint name =
     getdata
     { baseurl = model.baseurl
-    , name = model.name
+    , name = name
     , idate = Nothing
     , callback = callback
     , nocache = (U.bool2int model.view_nocache)
@@ -206,10 +205,28 @@ geteditor model callback =
     , tzone = model.horizon.timeZone
     , inferredFreq = model.horizon.inferredFreq
     , keepnans = True
-    , apipoint = if model.seriestype == I.Primary
-                    then "supervision"
-                    else "state"
+    , apipoint = apipoint
     }
+
+
+getComponents: Model -> Cmd Msg
+getComponents model =
+    Http.get
+        { url = (UB.crossOrigin model.baseurl
+                    [ "formula-components", model.name ]
+                    [] )
+        , expect = Http.expectString GotComponents }
+
+
+getDataComponents: Model -> Cmd Msg
+getDataComponents model =
+    Cmd.batch ( List.map
+                    ( \ comp -> getSeries
+                                    model
+                                    ( GotComponentData comp.name )
+                                    "state"
+                                    comp.name )
+                    model.components )
 
 
 reindex : Int -> ( String, Entry ) -> ( String, Entry )
@@ -293,11 +310,23 @@ update msg model =
 
         GotComponents (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
-                Ok val -> ( {model | components = val }
-                           , Cmd.none )
+                Ok val -> let newmodel = { model | components = val}
+                          in ( newmodel
+                             , getDataComponents newmodel )
                 Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotComponents (Err _) -> ( model, Cmd.none )
+
+        GotComponentData name (Ok rawdata) ->
+             case JD.decodeString
+                    (JD.dict (JD.maybe JD.float))
+                    rawdata of
+                Ok val ->  let newCD = Dict.insert name val model.componentsData
+                           in
+                               U.nocmd { model | componentsData = newCD }
+                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotComponentData name (Err _) -> ( model, Cmd.none )
 
         HorizonSelected horizon ->
             let
@@ -960,6 +989,7 @@ main =
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , components = []
+                    , componentsData = Dict.empty
                     , view_nocache = False
                     , plotStatus = Init
                     , clipboardclass = "bi bi-clipboard"
