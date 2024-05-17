@@ -1,6 +1,8 @@
 module Formulas exposing (main)
 import Browser
+import Http
 import Html as H
+import Url.Builder as UB
 
 
 type alias Model =
@@ -8,8 +10,9 @@ type alias Model =
     , name : String
     }
 
+
 type Msg =
-    InitMsg
+    GotFormulas (Result Http.Error String)
 
 
 view : Model -> H.Html Msg
@@ -20,8 +23,21 @@ view model =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        InitMsg ->
-            (model, Cmd.none)
+        GotFormulas (Ok listFormulas) ->
+            ( model, Cmd.none )
+        GotFormulas (Err err) ->
+            ( model, Cmd.none )
+
+
+getSeriesInfo : Model -> Cmd Msg
+getSeriesInfo  model =
+    Http.get
+        { expect = Http.expectString GotFormulas
+        , url = UB.crossOrigin model.baseurl
+                [ "api",  "series", "find" ]
+                [ UB.string "query" "(by.formula)"
+                , UB.string "meta" "true"]
+        }
 
 
 type alias Input =
@@ -39,7 +55,7 @@ main =
                     { baseurl = input.baseurl
                     , name = input.name
                     }
-            in ( model , Cmd.none )
+            in ( model , getSeriesInfo model )
 
     in Browser.element
         { init = init
