@@ -936,16 +936,29 @@ headerShowValue model =
                         []
                         [ H.text model.name ]
                     ]
-              ] ++ List.map buildLink model.components  )
+              ] ++ List.map ( buildLink model ) model.components  )
         ]
 
 
-buildLink: Component -> H.Html Msg
-buildLink comp =
+queryNav: Model -> Component -> List UB.QueryParameter
+queryNav model comp =
+    let base = UB.string "name" comp.name
+    in case model.queryBounds of
+        Nothing -> [base]
+        Just (min, max) ->  [ base
+                            , UB.string "startdate" min
+                            , UB.string "enddate" max
+                            ]
+
+
+buildLink: Model -> Component -> H.Html Msg
+buildLink model comp =
     H.th
         []
         [ H.a
-            [ HA.href ( "/tseditor?name=" ++ comp.name) ]
+            [ HA.href ( UB.crossOrigin model.baseurl
+                            [ "tseditor" ]
+                            ( queryNav model comp ))]
             [ H.text comp.name ]]
 
 
