@@ -742,29 +742,10 @@ permaLink model =
         [ HA.href ( UB.crossOrigin
                         model.baseurl
                         ["tseditor"]
-                        ( queryPermalink model ))
+                        ( queryNav model model.name ))
         , HA.target "_blank"
         ]
         [ H.text "Permalink"]
-
-
-queryPermalink: Model -> List UB.QueryParameter
-queryPermalink model =
-    let base = UB.string "name" model.name
-    in case model.zoomBounds of
-         Just (min, max) ->  [ base
-                             , UB.string "startdate" min
-                             , UB.string "enddate" max
-                             ]
-         Nothing ->  case model.queryBounds of
-                        Just (min, max) ->  [ base
-                                            , UB.string "startdate" min
-                                            , UB.string "enddate" max
-                                            ]
-                        Nothing -> [ base
-                                   , UB.string "startdate" (getFromHorizon model)
-                                   , UB.string "enddate" (getToHorizon model)
-                                   ]
 
 
 viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
@@ -976,9 +957,9 @@ headerShowValue model =
         ]
 
 
-queryNav: Model -> Component -> List UB.QueryParameter
-queryNav model comp =
-    let base = UB.string "name" comp.name
+queryNav: Model -> String -> List UB.QueryParameter
+queryNav model name =
+    let base = UB.string "name" name
     in case model.zoomBounds of
          Just (min, max) ->  [ base
                              , UB.string "startdate" min
@@ -989,7 +970,10 @@ queryNav model comp =
                                             , UB.string "startdate" min
                                             , UB.string "enddate" max
                                             ]
-                        Nothing -> [base]
+                        Nothing ->  [ base
+                                    , UB.string "startdate" ( getFromHorizon model )
+                                    , UB.string "enddate" ( getToHorizon model )
+                                    ]
 
 
 buildLink: Model -> Component -> H.Html Msg
@@ -999,7 +983,7 @@ buildLink model comp =
         [ H.a
             [ HA.href ( UB.crossOrigin model.baseurl
                             [ "tseditor" ]
-                            ( queryNav model comp ))]
+                            ( queryNav model comp.name ))]
             [ H.text comp.name ]]
 
 
