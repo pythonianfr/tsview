@@ -188,17 +188,15 @@ getPoints model =
         else getSeries model GotValueData "state" model.name
 
 
-geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
-geteditor model callback =
-    getSeries model callback "supervision" model.name
-
 getFromHorizon: Model -> String
 getFromHorizon model =
     Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
 
+
 getToHorizon: Model -> String
 getToHorizon model =
     Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> String -> Cmd Msg
 getSeries model callback apipoint name =
@@ -428,7 +426,7 @@ update msg model =
                     in
                     if (Array.length model.insertion_dates) /= (Array.length adates) then
                         ( newmodel
-                        , geteditor model GetLastEditedData
+                        , getSeries model GetLastEditedData "supervision" model.name
                         )
                     else
                         ( newmodel
