@@ -114,6 +114,14 @@ horizons =  OD.fromList
          #:offset {offset})
          """
       )
+    , ( ""
+      , """
+         (horizon #:date (now)
+         #:past (delta #:days -1)
+         #:future (delta #:days 1)
+         #:offset {offset})
+         """
+      )
     ]
 
 

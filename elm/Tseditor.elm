@@ -566,16 +566,19 @@ update msg model =
         FromLocalStorage rawdata ->
             case JD.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
-                    let
-                        newmodel =
-                            { model
-                                | plotStatus = Loading
-                                , horizon = updatefromlocalstorage datadict model.horizon
-                            }
+                    let newdatadict = case model.queryBounds of
+                                        Nothing ->  datadict
+                                        Just _ ->  { datadict | horizon = Just ""}
                     in
-                    ( newmodel
-                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
-                    )
+                        let
+                            newmodel =
+                                { model
+                                    | plotStatus = Loading
+                                    , horizon = updatefromlocalstorage newdatadict model.horizon }
+                        in
+                        ( newmodel
+                        , M.getsysmetadata model.baseurl model.name GotMetadata "series"
+                        )
                 Err _ ->
                     ( model
                     , M.getsysmetadata model.baseurl model.name GotMetadata "series"
