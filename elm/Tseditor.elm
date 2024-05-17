@@ -192,6 +192,13 @@ geteditor : Model -> (Result Http.Error String -> Msg) -> Cmd Msg
 geteditor model callback =
     getSeries model callback "supervision" model.name
 
+getFromHorizon: Model -> String
+getFromHorizon model =
+    Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
+
+getToHorizon: Model -> String
+getToHorizon model =
+    Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> String -> Cmd Msg
 getSeries model callback apipoint name =
@@ -202,9 +209,8 @@ getSeries model callback apipoint name =
                     , idate = Nothing
                     , callback = callback
                     , nocache = (U.bool2int model.view_nocache)
-                    , fromdate =
-                        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
-                    , todate = Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+                    , fromdate = getFromHorizon model
+                    , todate = getToHorizon model
                     , horizon = model.horizon.horizon |> Maybe.andThen
                                 (\key-> OD.get key horizons) |> Maybe.map
                           (String.replace "{offset}" (String.fromInt model.horizon.offset))
@@ -736,6 +742,37 @@ encodeEditedData editedData =
         editedData
 
 
+permaLink: Model -> H.Html Msg
+permaLink model =
+    H.a
+        [ HA.href ( UB.crossOrigin
+                        model.baseurl
+                        ["tseditor"]
+                        ( queryPermalink model ))
+        , HA.target "_blank"
+        ]
+        [ H.text "Permalink"]
+
+
+queryPermalink: Model -> List UB.QueryParameter
+queryPermalink model =
+    let base = UB.string "name" model.name
+    in case model.zoomBounds of
+         Just (min, max) ->  [ base
+                             , UB.string "startdate" min
+                             , UB.string "enddate" max
+                             ]
+         Nothing ->  case model.queryBounds of
+                        Just (min, max) ->  [ base
+                                            , UB.string "startdate" min
+                                            , UB.string "enddate" max
+                                            ]
+                        Nothing -> [ base
+                                   , UB.string "startdate" (getFromHorizon model)
+                                   , UB.string "enddate" (getToHorizon model)
+                                   ]
+
+
 viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
 viewsavebutton plotstatus patch =
     let
@@ -1095,6 +1132,7 @@ view model =
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
             ""
             defaultoptions
+        , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
         ]
