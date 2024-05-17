@@ -64,10 +64,11 @@ type alias Model =
     , randomNumber : Int
     , plotStatus : PlotStatus
     , clipboardclass : String
+    , queryBounds: Maybe (String, String)
+    , zoomBounds: Maybe (String, String)
     -- show-values for formula
     , components : List Component
     , componentsData: Dict String Series
-    , queryBounds: Maybe (String, String)
     }
 
 
@@ -282,6 +283,7 @@ update msg model =
                     { model | plotStatus = Loading
                     , horizon = updateOffset offset model.horizon
                     , queryBounds = Nothing
+                    , zoomBounds = Nothing
                     }
             in
             ( newmodel
@@ -361,6 +363,7 @@ update msg model =
                         | plotStatus = Loading
                         , horizon = updateHorizon horizon model.horizon
                         , queryBounds = Nothing
+                        , zoomBounds = Nothing
                     }
             in
             ( newmodel
@@ -586,7 +589,8 @@ update msg model =
                         model.horizon
                     newmodel =
                         if minDate == "" && maxDate == "" then
-                            { model | horizon = { horizonmodel | timeSeries = model.initialTs } }
+                            { model | horizon = { horizonmodel | timeSeries = model.initialTs }
+                                    , zoomBounds = Nothing}
                         else
                             { model
                                 | horizon =
@@ -595,6 +599,7 @@ update msg model =
                                             ((\key _ -> ((key >= minDate) && (key <= maxDate))))
                                             horizonmodel.timeSeries
                                   }
+                                , zoomBounds = Just (minDate, maxDate)
                             }
                  in
                     ( newmodel
@@ -943,12 +948,17 @@ headerShowValue model =
 queryNav: Model -> Component -> List UB.QueryParameter
 queryNav model comp =
     let base = UB.string "name" comp.name
-    in case model.queryBounds of
-        Nothing -> [base]
-        Just (min, max) ->  [ base
-                            , UB.string "startdate" min
-                            , UB.string "enddate" max
-                            ]
+    in case model.zoomBounds of
+         Just (min, max) ->  [ base
+                             , UB.string "startdate" min
+                             , UB.string "enddate" max
+                             ]
+         Nothing ->  case model.queryBounds of
+                        Just (min, max) ->  [ base
+                                            , UB.string "startdate" min
+                                            , UB.string "enddate" max
+                                            ]
+                        Nothing -> [base]
 
 
 buildLink: Model -> Component -> H.Html Msg
@@ -1141,6 +1151,7 @@ main =
                     , components = []
                     , componentsData = Dict.empty
                     , queryBounds = buildBounds input.min input.max
+                    , zoomBounds = Nothing
                     }
             in
             ( model
