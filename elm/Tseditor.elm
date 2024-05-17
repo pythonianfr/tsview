@@ -292,9 +292,8 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getPoints newmodel
-                , Random.generate RandomNumber randomInt
-                ]
+                ([ Random.generate RandomNumber randomInt
+                 ] ++ getRelevantData newmodel)
             )
     in
     case msg of
@@ -372,10 +371,9 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getPoints newmodel
-                , Random.generate RandomNumber randomInt
-                , saveToLocalStorage userprefs
-                ]
+                ([ Random.generate RandomNumber randomInt
+                 , saveToLocalStorage userprefs
+                 ] ++ getRelevantData newmodel)
             )
 
         UpdateOffset (Left i) ->
@@ -472,9 +470,8 @@ update msg model =
         GotEditedData (Ok _) ->
             ( model
             , Cmd.batch
-                  [ getPoints model
-                  , Random.generate RandomNumber randomInt
-                  ]
+                  ([ Random.generate RandomNumber randomInt
+                   ] ++ getRelevantData model)
             )
 
         GotEditedData (Err _) ->
@@ -490,8 +487,9 @@ update msg model =
                                   }
                    in
                        ( newmodel
-                       , Cmd.batch (getRelevantData newmodel)
-                       )
+                       , Cmd.batch ( [ Random.generate RandomNumber randomInt
+                                     , I.getidates newmodel "series" InsertionDates
+                                     ] ++ (getRelevantData newmodel)))
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
@@ -537,10 +535,9 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getPoints newmodel
-                , I.getidates newmodel "series" InsertionDates
-                , saveToLocalStorage userprefs
-                ]
+                ([ I.getidates newmodel "series" InsertionDates
+                 , saveToLocalStorage userprefs
+                 ] ++  getRelevantData newmodel )
             )
 
         InferredFreq isChecked ->
@@ -558,9 +555,8 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getPoints newmodel
-                , saveToLocalStorage userprefs
-                ]
+                ([ saveToLocalStorage userprefs
+                 ] ++ getRelevantData newmodel )
             )
 
         FromLocalStorage rawdata ->
@@ -630,10 +626,7 @@ getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
     if model.seriestype == I.Primary
         then
-            [ getPoints model
-            , Random.generate RandomNumber randomInt
-            , I.getidates model "series" InsertionDates
-            ]
+            [ getPoints model]
         else
             [ getPoints model
             , getComponents model
