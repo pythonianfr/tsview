@@ -2,6 +2,7 @@ module Formulas exposing (main)
 import Browser
 import Http
 import Html as H
+import Html.Attributes as HA
 import Url.Builder as UB
 import Json.Decode as D
 import Util as U
@@ -68,7 +69,55 @@ decodeListFormulas =
 
 view : Model -> H.Html Msg
 view model =
-    H.div [ ][ H.text "hello world !"]
+    H.div
+        [ HA.class "data-table" ]
+        [ H.table
+            [ HA.class "table-style" ]
+            [ H.thead [ ]
+                [
+                ]
+                , formatTableBody model
+            ]
+        ]
+
+
+formatTableBody : Model -> H.Html Msg
+formatTableBody model =
+    let
+        formatRow : Formula -> H.Html Msg
+        formatRow formula =
+            H.tr
+                [ ]
+                [ H.td
+                    [ ]
+                    [ H.text formula.name
+                    , H.a
+                        [ HA.href <| UB.crossOrigin model.baseurl
+                            [ "tsinfo" ]
+                            [ UB.string "name" formula.name ]
+                    , HA.target "_blank"
+                    ]
+                    [ H.text "view" ]
+                    , H.a
+                        [ HA.href <| UB.crossOrigin model.baseurl
+                            [ "tsformula" ]
+                            [ UB.string "name" formula.name ]
+                    , HA.target "_blank"
+                    ]
+                    [ H.text "edit" ]
+                    ]
+                , H.td
+                    [ ]
+                    [ H.text formula.imeta.formula ]
+                ]
+
+
+    in H.tbody [ ]
+        [
+            H.tr
+            [ ]
+            ( List.map formatRow model.formulas )
+        ]
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
