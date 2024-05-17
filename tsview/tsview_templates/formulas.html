@@ -14,10 +14,18 @@
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
         <script src="https://unpkg.com/@webcomponents/custom-elements@1.2.1/custom-elements.min.js">
         </script>
+        <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
+        <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
         <script src="./tsview_static/formulas_elm.js"></script>
     </head>
     <body>
-        <div id="app"></div>
+        <div class="grid-container">
+            <div id="menu-elm">
+            </div>
+            <div class="main-content">
+                <div id="app"></div>
+            </div>
+        </div>
         <script>
          var app = Elm.Formulas.init({
              node: document.getElementById('app'),
@@ -27,5 +35,12 @@
              }
          });
         </script>
+        <script>
+            var menuapp = Elm.StandAloneMenu.init({
+             node: document.getElementById('menu-elm'),
+               flags: {{flags_menu | safe}}
+         });
+       </script>
+       {% include "menu_stand_alone.html" %}
     </body>
 </html>

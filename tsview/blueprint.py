@@ -580,11 +580,12 @@ def tsview(tsa):
     def formulas():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-
+        flags_menu = json.dumps([homeurl(), 'formula-catalog'])
         return render_template(
             'formulas.html',
             homeurl=homeurl(),
-            name=request.args.get('name')
+            name=request.args.get('name'),
+            flags_menu=flags_menu,
         )
 
     return bp
