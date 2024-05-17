@@ -24,6 +24,10 @@ div.main-content {
     align-items: center; /* vertical */
 }
 
+.action-left > * {
+    margin-left: .5em;
+}
+
 .action-center {
     display: flex;
     flex: auto;

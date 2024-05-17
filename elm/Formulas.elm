@@ -7,6 +7,7 @@ import Html.Events as HE
 import Url.Builder as UB
 import Json.Decode as D
 import Util as U
+import Info exposing (layoutFormula)
 
 
 type alias Model =
@@ -74,18 +75,26 @@ view : Model -> H.Html Msg
 view model =
     H.div
         [ ]
-        [ H.input
-            [ HE.onInput InputChanged
-            , HA.value model.valueSearched]
-            [ ]
+        [ H.div
+            [ HA.class "action-left" ]
+            [ H.div
+                [  ]
+                [ H.text "Search:" ]
+            , H.div
+                [  ]
+                [ H.input
+                    [ HE.onInput InputChanged
+                    , HA.value model.valueSearched
+                    ]
+                    [ ]
+                ]
+            ]
         , H.div
             [ HA.class "data-table" ]
             [ H.table
-                [ HA.class "table-style" ]
-                [ H.thead [ ]
-                    [
-                    ]
-                    , formatTableBody model
+                [ HA.class "table table-striped" ]
+                [ H.thead [ ][ ]
+                , formatTableBody model
                 ]
             ]
         ]
@@ -94,6 +103,7 @@ view model =
 formatTableBody : Model -> H.Html Msg
 formatTableBody model =
     let
+
         listWords =
             (List.filter
                 (\ word -> word /= "")
@@ -112,31 +122,45 @@ formatTableBody model =
                 [ ]
                 [ H.td
                     [ ]
-                    [ H.text formula.name
-                    , H.a
-                        [ HA.href <| UB.crossOrigin model.baseurl
-                            [ "tsinfo" ]
-                            [ UB.string "name" formula.name ]
-                    , HA.target "_blank"
-                    ]
-                    [ H.text "view" ]
-                    , H.a
-                        [ HA.href <| UB.crossOrigin model.baseurl
-                            [ "tsformula" ]
-                            [ UB.string "name" formula.name ]
-                    , HA.target "_blank"
-                    ]
-                    [ H.text "edit" ]
-                    ]
+                    [ formatNamelinks model formula ]
                 , H.td
                     [ ]
-                    [ H.text formula.imeta.formula ]
+                    [layoutFormula model formula.imeta.formula]
                 ]
     in H.tbody [ ]
         [ H.tr
             [ ]
             ( List.map formatRow filtreFormulas )
         ]
+
+
+formatLink : Model -> Formula -> String -> String -> H.Html Msg
+formatLink model formula page text =
+    H.a
+        [ HA.href <| UB.crossOrigin model.baseurl
+            [ page ]
+            [ UB.string "name" formula.name ]
+        , HA.target "_blank"
+        ]
+        [H.text text]
+
+
+formatNamelinks : Model -> Formula -> H.Html Msg
+formatNamelinks model formula =
+    H.div
+        [ HA.class "action-left" ]
+        [ H.div
+            [  ]
+            [ H.text formula.name ]
+        , H.div
+            [  ]
+            [ formatLink model formula "tsinfo" "view" ]
+        , H.div
+            [  ]
+            [ formatLink model formula "tsformula" "edit" ]
+        ]
+
+
 
 
 checkWordsInFormula : List String -> Formula -> Bool

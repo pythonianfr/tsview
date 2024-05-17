@@ -1,5 +1,6 @@
 module Info exposing
     ( delete
+    , layoutFormula
     , formuladecoder
     , getformula
     , getidates
@@ -518,16 +519,6 @@ viewformula model toggleevent =
                                 ] [ ]
                           ]
                     ]
-
-        viewparsed parsed =
-            case parsed of
-                Nothing -> []
-                Just parsedformula ->
-                    Lisp.view parsedformula <|
-                        Dict.fromList [ ("series", viewseriesname model)
-                                      , ("integration", viewintegrationnames model)
-                                      ]
-
         displayformula =
             -- fall back to the level 0 formula if there are still
             -- in flight queries
@@ -546,7 +537,21 @@ viewformula model toggleevent =
             H.div [ ]
                 <| [ H.h2 [ ] [ H.text "Formula" ] ]
                     ++ (depthslider formula)
-                    ++ [ H.span [] <| viewparsed <| Lisp.parse formula ]
+                    ++ [ layoutFormula model formula ]
+
+
+layoutFormula model formula =
+    let
+        viewparsed parsed =
+            case parsed of
+                Nothing -> []
+                Just parsedformula ->
+                    Lisp.view parsedformula <|
+                        Dict.fromList [ ("series", viewseriesname model)
+                                        , ("integration", viewintegrationnames model)
+                                    ]
+    in H.span [] <| viewparsed <| Lisp.parse formula
+
 
 
 viewseealso model =
