@@ -1,9 +1,6 @@
 import io
 from pathlib import Path
 import pandas as pd
-import json
-import collections
-import webtest
 
 from tshistory.testutil import (
     genserie,
