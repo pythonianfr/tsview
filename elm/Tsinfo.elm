@@ -12,6 +12,12 @@ import Debouncer.Messages as Debouncer exposing
     )
 import Dict exposing (Dict)
 import Either exposing (Either(..))
+import NavTabs exposing
+    ( header
+    , tabcontents
+    , Tabs(..)
+    , strseries
+    )
 import Horizon exposing
     ( HorizonModel
     , LocalStorageData
@@ -75,13 +81,6 @@ type PlotStatus
     = Loading
     | Success
     | Failure
-
-
-type Tabs
-    = Plot
-    | Logs
-    | UserMetadata
-    | FormulaCache
 
 
 type alias Model =
@@ -409,13 +408,6 @@ updatedChangedHistoryIdateDebouncer =
     }
 
 
-strseries : Model -> Bool
-strseries model =
-    case M.dget "value_type" model.meta of
-        "object" -> True
-        _ -> False
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -531,7 +523,7 @@ update msg model =
                     in
                     U.nocmd newmodel
                 Err err ->
-                    if strseries model
+                    if strseries model.meta
                     then U.nocmd model
                     else doerr "gotplotdata decode" <| D.errorToString err
 
@@ -985,7 +977,7 @@ update msg model =
                     in
                     U.nocmd {model | historyPlots = newHistoryPlots}
                 Err err ->
-                    if strseries model
+                    if strseries model.meta
                     then U.nocmd model
                     else doerr "gotplotdata decode" <| D.errorToString err
 
@@ -1318,55 +1310,6 @@ historyModeSwitch model =
         ]
 
 
-
-strtab tablelayout =
-    case tablelayout of
-        Plot -> "Plot"
-        UserMetadata -> "Metadata"
-        Logs -> "Logs"
-        FormulaCache -> "Cache"
-
-
-maketab model active tab =
-    let
-        tabname = strtab tab
-    in
-    H.li
-        [ HA.class "nav-item" ]
-        [ H.a
-              ([ HE.onClick (Tab tab)
-               , HA.class "nav-link"
-               , HA.attribute "data-toggle" "tab"
-               , HA.attribute "role" "tab"
-               , HA.attribute "aria-selected" (if active then "true" else "false")
-               , HA.id tabname
-               ] ++ if active then [ HA.class "active" ] else []
-              )
-            [ H.div
-                  []
-                  [ H.text <| tabname ++ " " ]
-            ]
-        ]
-
-
-header model tabs =
-    H.ul [ HA.id "tabs"
-         , HA.class "nav nav-tabs"
-         , HA.attribute "role" "tablist"
-         ]
-        <| LS.toList
-        <| LS.mapSelected
-            { selected = maketab model True
-            , rest = maketab model False
-            }
-            tabs
-
-
-tabcontents items =
-    H.span [ HA.style "margin" ".1rem" ]
-        items
-
-
 view : Model -> H.Html Msg
 view model =
     let
@@ -1377,13 +1320,14 @@ view model =
                 I.Formula ->
                     [ Plot, UserMetadata, FormulaCache ]
 
+
         tabs =
             tablist
                 |> LS.fromList
                 |> LS.select model.activetab
 
         head =
-            header model tabs
+            header Tab tabs
 
     in
     H.div
@@ -1400,7 +1344,7 @@ view model =
                 , I.viewtitle model CopyNameToClipboard
                 , case model.activetab of
                       Plot ->
-                          if strseries model
+                          if strseries model.meta
                           then H.div [] [ head ]
                           else H.div []
                               [ head
