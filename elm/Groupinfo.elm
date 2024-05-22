@@ -1,4 +1,4 @@
-module Groupinfo exposing (main)
+port module Groupinfo exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -29,8 +29,13 @@ import Plotter exposing
     , plotargs
     , Group
     )
+import Process as P
+import Task as T
 import Url.Builder as UB
 import Util as U
+
+
+port copyToClipboard : String -> Cmd msg
 
 
 type alias Logentry =
@@ -87,6 +92,7 @@ type alias Model =
     , editeditems : Dict String String
     -- deletion
     , deleting : Bool
+    , clipboardclass : String
     }
 
 
@@ -120,6 +126,8 @@ type Msg
     | CancelDeletion
     | ConfirmDeletion
     | Deleted (Result Http.Error String)
+    | CopyNameToClipboard
+    | ResetClipboardClass
 
 
 logentrydecoder : D.Decoder Logentry
@@ -432,6 +440,17 @@ update msg model =
         Deleted (Err err) ->
             doerr "deletion failed" <| U.unwraperror err
 
+        CopyNameToClipboard ->
+            ( { model | clipboardclass = "bi bi-check2" }
+            , Cmd.batch
+                [ copyToClipboard model.name
+                , T.perform (always (ResetClipboardClass)) (P.sleep 1000)
+                ]
+            )
+
+        ResetClipboardClass ->
+            U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+
 
 -- views
 
@@ -640,6 +659,7 @@ main =
                        , editeditems = Dict.empty
                        -- deletion
                        , deleting = False
+                       , clipboardclass = "bi bi-clipboard"
                        }
                in
                ( model
