@@ -20,7 +20,15 @@ import Info as I
 import Json.Decode as D
 import Json.Encode as E
 import JsonTree as JT exposing (TaggedValue(..))
+import List.Selection as LS
 import Metadata as M
+import Task as T
+import NavTabs as Nav exposing
+    ( header
+    , tabcontents
+    , strseries
+    , Tabs(..)
+    )
 import Plotter exposing
     ( defaultoptions
     , getgroupplotdata
@@ -93,6 +101,7 @@ type alias Model =
     -- deletion
     , deleting : Bool
     , clipboardclass : String
+    , activetab : Tabs
     }
 
 
@@ -128,6 +137,7 @@ type Msg
     | Deleted (Result Http.Error String)
     | CopyNameToClipboard
     | ResetClipboardClass
+    | Tab Tabs
 
 
 logentrydecoder : D.Decoder Logentry
@@ -440,6 +450,9 @@ update msg model =
         Deleted (Err err) ->
             doerr "deletion failed" <| U.unwraperror err
 
+        Tab tab ->
+            U.nocmd { model | activetab = tab }
+
         CopyNameToClipboard ->
             ( { model | clipboardclass = "bi bi-check2" }
             , Cmd.batch
@@ -520,8 +533,7 @@ viewplot model =
             plotargs "plot" plots ""
     in
     div [ ]
-        [ h2 [ ] [ text "Plot" ]
-        , I.viewdatespicker model idatepickerevents
+        [ I.viewdatespicker model idatepickerevents
         , viewdatesrange model
         , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
@@ -589,25 +601,69 @@ deleteevents =
 
 
 view model =
-    div [ A.style "margin" ".5em" ]
-        [ span [ A.style "float" "right" ] [ I.viewdeletion model deleteevents ]
-         , h1 [ ]
-              [ text "Group "
-              , span
-                    [ A.class "font-italic" ]
-                    [ text model.name ]
-              ]
-        -- , viewseealso model
-        , I.viewmeta model
-        , I.viewusermeta model metaevents True
-        , I.viewformula model SwitchLevel
-        , viewbindings model
-        , case Dict.get model.formula_depth model.formula of
-              Nothing -> I.viewlog model True
-              Just _ -> span [] []
-        , viewplot model
-        , I.viewerrors model
-        ]
+    let
+        tablist =
+            case Dict.get model.formula_depth model.formula of
+                Nothing ->
+                    [ Plot, UserMetadata, Logs ]
+                Just _ ->
+                    [ Plot, UserMetadata, FormulaCache ]
+
+        tabs =
+            tablist
+                |> LS.fromList
+                |> LS.select model.activetab
+
+        head =
+            Nav.header Tab tabs
+
+    in
+        div
+            [ ]
+            [ div
+                [ A.class "main-content" ]
+                [ div
+                    [ ]
+                    [ span
+                        [ A.class "groupinfo action-container" ]
+                        [ div
+                            [ A.class "page-title" ]
+                            [ text "Group Info" ]
+                        , I.viewdeletion model deleteevents ]
+                    , I.viewtitle model CopyNameToClipboard
+                    , viewbindings model
+                    , case model.activetab of
+                        Plot ->
+                            if Nav.strseries model.meta
+                            then div [] [ head ]
+                            else
+                            div []
+                                [ head
+                                , tabcontents
+                                    [ viewplot model
+                                    , I.viewformula model SwitchLevel
+                                    ]
+                                ]
+
+                        UserMetadata ->
+                            div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
+
+                        Logs ->
+                            div []
+                                [ head
+                                , tabcontents
+                                    [ case Dict.get model.formula_depth model.formula of
+                                        Nothing -> I.viewlog model False
+                                        Just _ -> span [] []
+                                    ]
+                                ]
+
+                        FormulaCache ->
+                            div [] []
+                    , I.viewerrors model
+                    ]
+                ]
+            ]
 
 
 type alias Input =
@@ -659,6 +715,7 @@ main =
                        , editeditems = Dict.empty
                        -- deletion
                        , deleting = False
+                       , activetab = Plot
                        , clipboardclass = "bi bi-clipboard"
                        }
                in
