@@ -1,8 +1,9 @@
 import io
 import json
 import traceback
+from collections import defaultdict
 from contextlib import redirect_stdout
-import pandas as pd
+
 from flask import (
     Blueprint,
     jsonify,
@@ -11,6 +12,8 @@ from flask import (
     render_template,
     url_for
 )
+import numpy as np
+import pandas as pd
 from pml import HTML
 
 from dash import _utils
@@ -27,8 +30,14 @@ from sqlhelp import select
 from tshistory import search
 from tshistory.util import find_first_uriname
 
-from tshistory_formula.helper import validate_formula
-from tshistory_formula.registry import FUNCS
+from tshistory_formula.helper import (
+    BadKeyword,
+    validate
+)
+from tshistory_formula.registry import (
+    AUTO,
+    FUNCS
+)
 from tshistory_formula.interpreter import jsontypes
 
 from tsview.util import (
@@ -68,6 +77,97 @@ def homeurl():
 def has_roles(*required_roles):
     role = request.environ.get('ROLE') or 'guest'
     return role in required_roles
+
+
+def validate_formula(tsa, df_formula):
+    errors = defaultdict(list)
+    warnings = defaultdict(list)
+
+    ok = set()
+    syntax_error = set()
+    missing = set()
+
+    # conflicts with primary series are an error
+    primaries = {
+        name for name in np.unique(df_formula['name'])
+        if tsa.type(name) == 'primary'
+            and tsa.exists(name)
+    }
+
+    # overriding an existing formula yields a warning
+    formulas = {
+        name for name in np.unique(df_formula['name'])
+        if tsa.type(name) == 'formula'
+            and tsa.exists(name)
+    }
+
+    uploadset = {
+        row.name
+        for row in df_formula.itertuples()
+    }
+
+    def exists(sname):
+        if not tsa.exists(sname):
+            if sname in AUTO:
+                return True
+            return False
+        return True
+
+    for row in df_formula.itertuples():
+        # formula syntax error detection
+        try:
+            parsed = fparse(row.text)
+            try:
+                validate(parsed)
+            except BadKeyword as error:
+                syntax_error.add(row.name + ' : ' + repr(error))
+                continue
+
+        except SyntaxError:
+            syntax_error.add(row.name)
+            continue
+
+        # and needed series
+        needset = set(
+            tsa.tsh.find_metas(tsa.engine, parsed)
+        )
+        # even if ok, the def might refer to the current
+        # uploaded set, or worse ...
+        newmissing = {
+            needname
+            for needname in needset
+            if needname not in uploadset and not exists(needname)
+        }
+        missing |= newmissing
+        if not newmissing:
+            ok.add(row.name)
+
+            # and last but not least.. tz compatibility
+            # we need to check if the needed series exist otherwise it will raise a tz error
+            need_uploadset = {
+                needname
+                for needname in needset
+                if needname in uploadset and not exists(needname)
+            }
+            if not need_uploadset:
+                try:
+                    tsa.tsh.check_tz_compatibility(tsa.engine, parsed)
+                except Exception as error:
+                    syntax_error.add(row.name + ' : ' + repr(error))
+
+    if primaries:
+        errors['primary'] = sorted(primaries)
+
+    if formulas:
+        warnings['existing'] = sorted(formulas)
+
+    if syntax_error:
+        errors['syntax'] = sorted(syntax_error)
+
+    if missing:
+        errors['missing'] = sorted(missing)
+
+    return errors, warnings
 
 
 def tsview(tsa):
