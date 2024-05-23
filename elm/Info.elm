@@ -278,7 +278,7 @@ viewdatespicker model events =
                 Just date -> U.cleanupdate date
 
         idate =
-            [ H.label [ HA.for "idate-picker" ] [ H.text "revision date" ]
+            [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date" ]
             , H.span [ ] [ H.text " " ]
             , H.input [ HA.type_ "datetime-local"
                       , HA.id "idate-picker"

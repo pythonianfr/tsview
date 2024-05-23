@@ -17,6 +17,7 @@ import NavTabs exposing
     , tabcontents
     , Tabs(..)
     , strseries
+    , viewdatespicker
     )
 import Horizon exposing
     ( HorizonModel
@@ -67,13 +68,6 @@ type alias Logentry =
     , author : String
     , date : String
     , meta : M.UserMetadata
-    }
-
-
-type alias IdatePickerEvents =
-    { idatepickerchanged : String -> Msg
-    , fvdatepickerchanged : String -> Msg
-    , tvdatepickerchanged : String -> Msg
     }
 
 
@@ -150,8 +144,6 @@ type Msg
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
     | IdatePickerChanged String
-    | FvdatePickerChanged String
-    | TvdatePickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
@@ -663,32 +655,6 @@ update msg model =
             , getplot newmodel
             )
 
-        FvdatePickerChanged value ->
-            let
-                horizon =
-                    model.horizon
-                newmodel =
-                    { model
-                        | horizon = { horizon | mindate = value }
-                    }
-            in
-            ( newmodel
-            , getplot newmodel
-            )
-
-        TvdatePickerChanged value ->
-            let
-                horizon =
-                    model.horizon
-                newmodel =
-                    { model
-                        | horizon = { horizon | maxdate = value }
-                    }
-            in
-            ( newmodel
-            , getplot newmodel
-            )
-
         -- user metadata edition
 
         MetaEditAsked ->
@@ -1166,14 +1132,6 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
             ]
 
 
-idatepickerevents : IdatePickerEvents
-idatepickerevents =
-    { idatepickerchanged = IdatePickerChanged
-    , fvdatepickerchanged = FvdatePickerChanged
-    , tvdatepickerchanged = TvdatePickerChanged
-    }
-
-
 viewplot : Model -> H.Html Msg
 viewplot model =
     let
@@ -1221,7 +1179,10 @@ viewplot model =
             ]
     else
         H.div []
-            [ viewdatespicker model idatepickerevents
+            [ viewdatespicker
+                model.date_index
+                model.insertion_dates
+                IdatePickerChanged
             , historyModeSwitch model
             , viewDatesRange
                 model.insertion_dates
@@ -1265,30 +1226,6 @@ renameevents =
     , cancelrename = CancelRename
     , askrename = AskRename
     }
-
-
-
-viewdatespicker : Model ->  IdatePickerEvents -> H.Html Msg
-viewdatespicker model events =
-    let
-        currdate =
-            case Array.get model.date_index model.insertion_dates of
-                Nothing -> ""
-                Just date -> U.cleanupdate date
-    in H.div
-        [ HA.class "row" ]
-        [H.div
-            [ HA.class "col" ]
-            [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date : " ]
-            , H.span [ ] [ H.text " " ]
-            , H.input [ HA.type_ "datetime-local"
-                        , HA.id "idate-picker"
-                        , HA.name "idate-picker"
-                        , HA.value currdate
-                        , HE.onInput events.idatepickerchanged
-                        ] [ ]
-            ]
-        ]
 
 
 historyModeSwitch : Model -> H.Html Msg

@@ -3,18 +3,45 @@ module NavTabs exposing
      , tabcontents
      , strseries
      , Tabs(..)
+     , viewdatespicker
     )
+import Array exposing (Array)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import List.Selection as LS
 import Metadata as M
+import Util as U
+
 
 type Tabs
     = Plot
     | Logs
     | UserMetadata
     | FormulaCache
+
+
+viewdatespicker : Int -> Array String ->  ( String -> msg ) -> H.Html msg
+viewdatespicker date_index insertion_dates msg  =
+    let
+        currdate =
+            case Array.get date_index insertion_dates of
+                Nothing -> ""
+                Just date -> U.cleanupdate date
+    in H.div
+        [ HA.class "row" ]
+        [H.div
+            [ HA.class "col" ]
+            [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date : " ]
+            , H.span [ ] [ H.text " " ]
+            , H.input [ HA.type_ "datetime-local"
+                        , HA.id "idate-picker"
+                        , HA.name "idate-picker"
+                        , HA.value currdate
+                        , HE.onInput msg
+                        ] [ ]
+            ]
+        ]
 
 
 strseries : M.StdMetadata -> Bool

@@ -28,6 +28,7 @@ import NavTabs as Nav exposing
     , tabcontents
     , strseries
     , Tabs(..)
+    , viewdatespicker
     )
 import Plotter exposing
     ( defaultoptions
@@ -113,8 +114,6 @@ type Msg
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
     | IdatePickerChanged String
-    | FvdatePickerChanged String
-    | TvdatePickerChanged String
     -- formula
     | GotFormula (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
@@ -346,22 +345,6 @@ update msg model =
                , getplot newmodel True
                )
 
-        FvdatePickerChanged value ->
-            let
-                newmodel = { model | mindate = value }
-            in
-                ( newmodel
-                , getplot newmodel True
-                )
-
-        TvdatePickerChanged value ->
-            let
-                newmodel = { model | maxdate = value }
-            in
-                ( newmodel
-                , getplot newmodel True
-                )
-
         -- user metadata edition
 
         MetaEditAsked ->
@@ -505,13 +488,6 @@ viewdatesrange model =
             ]
 
 
-idatepickerevents =
-    { idatepickerchanged = IdatePickerChanged
-    , fvdatepickerchanged = FvdatePickerChanged
-    , tvdatepickerchanged = TvdatePickerChanged
-    }
-
-
 viewplot model =
     let
         groupdata =
@@ -533,7 +509,10 @@ viewplot model =
             plotargs "plot" plots ""
     in
     div [ ]
-        [ I.viewdatespicker model idatepickerevents
+        [ viewdatespicker
+            model.date_index
+            model.insertion_dates
+            IdatePickerChanged
         , viewdatesrange model
         , div [ A.id "plot" ] [ ]
         -- the "plot-figure" node is pre-built in the template side
