@@ -18,6 +18,8 @@ import NavTabs exposing
     , Tabs(..)
     , strseries
     , viewdatespicker
+    , DeleteEvents
+    , MetaEvents
     )
 import Horizon exposing
     ( HorizonModel
@@ -126,6 +128,22 @@ type alias Model =
     , historyDateIndex : Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
+    }
+
+
+type alias HorizonEvents =
+    { inferredFreqMsg : Bool -> Msg
+    , timeZoneMsg : String -> Msg
+    , offsetMsg : Offset -> Msg
+    , timeDeltaMsg : Maybe String -> Msg
+    }
+
+
+type alias RenameEvents =
+    { confirmrename : Msg
+    , editnewname : String -> Msg
+    , cancelrename : Msg
+    , askrename : Msg
     }
 
 
@@ -1193,41 +1211,6 @@ viewplot model =
             ]
 
 
-metaevents =
-    { metaeditasked = MetaEditAsked
-    , metaeditcancel = MetaEditCancel
-    , editedvalue = EditedValue
-    , metaitemtodelete = MetaItemToDelete
-    , newkey = NewKey
-    , newvalue = NewValue
-    , savemeta = SaveMeta
-    , addmetaitem = AddMetaItem
-    }
-
-
-horizonevents =
-    { inferredFreqMsg = InferredFreq
-    , timeZoneMsg = TimeZoneSelected
-    , offsetMsg = UpdateOffset
-    , timeDeltaMsg = HorizonSelected
-    }
-
-
-deleteevents =
-    { confirmdeletion = ConfirmDeletion
-    , canceldeletion = CancelDeletion
-    , askdeletion = AskDeletion
-    }
-
-
-renameevents =
-    { confirmrename = ConfirmRename
-    , editnewname = EditNewName
-    , cancelrename = CancelRename
-    , askrename = AskRename
-    }
-
-
 historyModeSwitch : Model -> H.Html Msg
 historyModeSwitch model =
     H.div
@@ -1266,6 +1249,33 @@ view model =
         head =
             header Tab tabs
 
+        horizonEvents = HorizonEvents
+            InferredFreq
+            TimeZoneSelected
+            UpdateOffset
+            HorizonSelected
+
+        deleteEvents = DeleteEvents
+            ConfirmDeletion
+            CancelDeletion
+            AskDeletion
+
+        renameEvents = RenameEvents
+            ConfirmRename
+            EditNewName
+            CancelRename
+            AskRename
+
+        metaEvents = MetaEvents
+            MetaEditAsked
+            MetaEditCancel
+            EditedValue
+            MetaItemToDelete
+            NewKey
+            NewValue
+            SaveMeta
+            AddMetaItem
+
     in
     H.div
         []
@@ -1274,9 +1284,9 @@ view model =
             [ H.div
                 [ ]
                 [ H.span [ HA.class "tsinfo action-container" ]
-                      <| (I.viewactionwidgets model horizonevents True "Series Info") ++
-                      [ I.viewdeletion model deleteevents
-                      , I.viewrenameaction model renameevents
+                      <| (I.viewactionwidgets model horizonEvents True "Series Info") ++
+                      [ I.viewdeletion model deleteEvents
+                      , I.viewrenameaction model renameEvents
                       ]
                 , I.viewtitle model CopyNameToClipboard
                 , case model.activetab of
@@ -1295,7 +1305,7 @@ view model =
                               ]
 
                       UserMetadata ->
-                          H.div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
+                        H.div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
 
                       Logs ->
                           H.div []

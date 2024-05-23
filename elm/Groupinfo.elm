@@ -18,8 +18,6 @@ import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import Info as I
 import Json.Decode as D
-import Json.Encode as E
-import JsonTree as JT exposing (TaggedValue(..))
 import List.Selection as LS
 import Metadata as M
 import Task as T
@@ -29,6 +27,8 @@ import NavTabs as Nav exposing
     , strseries
     , Tabs(..)
     , viewdatespicker
+     , DeleteEvents
+     , MetaEvents
     )
 import Plotter exposing
     ( defaultoptions
@@ -139,20 +139,7 @@ type Msg
     | Tab Tabs
 
 
-logentrydecoder : D.Decoder Logentry
-logentrydecoder =
-    D.map4 Logentry
-        (D.field "rev" D.int)
-        (D.field "author" D.string)
-        (D.field "date" D.string)
-        (D.field "meta" (D.dict M.decodemetaval))
-
-
-logdecoder : D.Decoder (List Logentry)
-logdecoder =
-    D.list logentrydecoder
-
-
+getplot : Model -> Bool -> Cmd Msg
 getplot model atidate =
     let
         idate =
@@ -182,6 +169,7 @@ bindingsdecoder =
              (D.list bindingdecoder))
 
 
+getbindings : Model -> Cmd Msg
 getbindings model =
     Http.get
         { expect = Http.expectString GotBindings
@@ -451,18 +439,7 @@ update msg model =
 -- views
 
 
-metaevents =
-    { metaeditasked = MetaEditAsked
-    , metaeditcancel = MetaEditCancel
-    , editedvalue = EditedValue
-    , metaitemtodelete = MetaItemToDelete
-    , newkey = NewKey
-    , newvalue = NewValue
-    , savemeta = SaveMeta
-    , addmetaitem = AddMetaItem
-    }
-
-
+viewdatesrange : Model -> Html Msg
 viewdatesrange model =
     let
         numidates = Array.length model.insertion_dates
@@ -488,6 +465,7 @@ viewdatesrange model =
             ]
 
 
+viewplot : Model -> Html Msg
 viewplot model =
     let
         groupdata =
@@ -521,6 +499,7 @@ viewplot model =
         ]
 
 
+viewbindings : Model -> Html Msg
 viewbindings model =
     let
         viewitem accessor item =
@@ -572,13 +551,7 @@ viewbindings model =
             ]
 
 
-deleteevents =
-    { confirmdeletion = ConfirmDeletion
-    , canceldeletion = CancelDeletion
-    , askdeletion = AskDeletion
-    }
-
-
+view : Model -> Html Msg
 view model =
     let
         tablist =
@@ -596,6 +569,21 @@ view model =
         head =
             Nav.header Tab tabs
 
+        deleteEvents = DeleteEvents
+                ConfirmDeletion
+                CancelDeletion
+                AskDeletion
+
+        metaEvents = MetaEvents
+            MetaEditAsked
+            MetaEditCancel
+            EditedValue
+            MetaItemToDelete
+            NewKey
+            NewValue
+            SaveMeta
+            AddMetaItem
+
     in
         div
             [ ]
@@ -608,7 +596,7 @@ view model =
                         [ div
                             [ A.class "page-title" ]
                             [ text "Group Info" ]
-                        , I.viewdeletion model deleteevents ]
+                        , I.viewdeletion model deleteEvents ]
                     , I.viewtitle model CopyNameToClipboard
                     , viewbindings model
                     , case model.activetab of
@@ -625,7 +613,7 @@ view model =
                                 ]
 
                         UserMetadata ->
-                            div [] [ head, tabcontents [ I.viewusermeta model metaevents False ] ]
+                            div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
 
                         Logs ->
                             div []

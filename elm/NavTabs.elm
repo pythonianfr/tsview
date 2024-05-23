@@ -4,6 +4,8 @@ module NavTabs exposing
      , strseries
      , Tabs(..)
      , viewdatespicker
+     , DeleteEvents
+     , MetaEvents
     )
 import Array exposing (Array)
 import Html as H
@@ -19,6 +21,25 @@ type Tabs
     | Logs
     | UserMetadata
     | FormulaCache
+
+
+type alias MetaEvents msg =
+    { metaeditasked : msg
+    , metaeditcancel : msg
+    , editedvalue : String -> String -> msg
+    , metaitemtodelete : String -> msg
+    , newkey : String -> msg
+    , newvalue : String -> msg
+    , savemeta : msg
+    , addmetaitem : msg
+    }
+
+
+type alias DeleteEvents msg =
+    { confirmdeletion : msg
+    , canceldeletion : msg
+    , askdeletion : msg
+    }
 
 
 viewdatespicker : Int -> Array String ->  ( String -> msg ) -> H.Html msg
