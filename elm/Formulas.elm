@@ -78,6 +78,9 @@ view model =
         [ H.div
             [ HA.class "action-left" ]
             [ H.div
+                [ HA.class "page-title" ]
+                [ H.text "All formulas" ]
+            , H.div
                 [  ]
                 [ H.text "Search:" ]
             , H.div
