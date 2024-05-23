@@ -501,11 +501,12 @@ def tsview(tsa):
     def groupinfo():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-
+        flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
         return render_template(
             'groupinfo.html',
             homeurl=homeurl(),
-            name=request.args.get('name')
+            name=request.args.get('name'),
+            flags_menu=flags_menu
         )
 
     @bp.route('/tsinfo/canwrite')
