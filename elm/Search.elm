@@ -198,7 +198,7 @@ metafilter model =
             lowerkeys metadict =
                 List.map lower <| Dict.keys metadict
 
-            lowervalue  =
+            lowervalue =
                 M.metavaltostring >> lower
 
             lowervalues metadict =
@@ -215,6 +215,16 @@ metafilter model =
                 let lvalue = lower value in
                 List.any (matchvalue lvalue) <| lowervalues meta
 
+            matchkeyvalue key val meta =
+                let
+                    dval = Dict.get key meta
+                in
+                case dval of
+                    Nothing ->
+                        False
+                    Just aval ->
+                        (lowervalue aval) == (String.toLower val)
+
             match meta query =
                 case query of
                     (key, "") ->
@@ -224,7 +234,7 @@ metafilter model =
                         matchvalues value meta
 
                     (key, value) ->
-                        (matchkeys key meta) && (matchvalues value meta)
+                        matchkeyvalue key value meta
 
             metadata =
                 case model.mode of
