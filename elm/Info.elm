@@ -716,13 +716,14 @@ viewHoverGraph dictData =
         ]
 
 
-viewlog model showtitle =
+viewlog model showtitle msgLogNumber msgSeeLogs =
     if List.length model.log > 0 then
         H.div
             [ ]
             [ if showtitle
               then H.h2 [ ] [ H.text "History Log" ]
               else H.span [ ] [ ]
+            , logsNumberInput model msgLogNumber msgSeeLogs
             , H.table
                 [ HA.class "table table-striped table-hover table-sm" ]
                 [ H.thead [ ]
@@ -735,6 +736,35 @@ viewlog model showtitle =
                 ]
             ]
     else H.div [ ] [ ]
+
+
+logsNumberInput model msgLogNumber msgSeeLogs =
+    let
+        logNumber = case model.logsNumber of
+            Just number ->
+                String.fromInt number
+            Nothing ->
+                ""
+    in
+    H.div
+        [ ]
+        [ H.text "Logs displayed : "
+        , H.input
+            [ HA.class "form-control-sm"
+            , HA.placeholder "Enter a valid number"
+            , HA.attribute "type" "text"
+            , HA.value logNumber
+            , HE.onInput msgLogNumber
+            ]
+            []
+        , H.span [] [ H.text " " ]
+        , H.button
+            [ HA.attribute "type" "button"
+            , HA.class "btn btn-primary btn-sm"
+            , HE.onClick msgSeeLogs
+            ]
+            [ H.text "See more logs" ]
+        ]
 
 
 viewdeletion model events  =

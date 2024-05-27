@@ -104,6 +104,7 @@ type alias Model =
     , deleting_cache : Bool
     -- log
     , log : List Logentry
+    , logsNumber : Maybe Int
     -- plot
     , insertion_dates : Array String
     , date_index : Int
@@ -214,6 +215,8 @@ type Msg
     | ChangedHistoryIdate String
     | ViewAllHistory
     | NewDataFromHover String
+    | LogsNumber String
+    | SeeLogs
 
 
 type alias DataFromHover =
@@ -303,14 +306,14 @@ getplot model =
     }
 
 
-getlog : String -> String-> Cmd Msg
-getlog urlprefix name  =
+getlog : String -> String-> Maybe Int -> Cmd Msg
+getlog urlprefix name logLimit  =
     Http.get
         { expect = Http.expectString GotLog
         , url = UB.crossOrigin urlprefix
               [ "api", "series", "log" ]
               [ UB.string "name" name
-              , UB.int "limit" 10
+              , UB.int "limit" (Maybe.withDefault 10 logLimit)
               ]
         }
 
@@ -458,7 +461,7 @@ update msg model =
                                       , getdepth model
                                       , gethascache model
                                       ]
-                                 else [ getlog model.baseurl model.name ]
+                                 else [ getlog model.baseurl model.name model.logsNumber]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -584,7 +587,7 @@ update msg model =
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel
                         , I.getidates newmodel "series" InsertionDates
-                        , getlog model.baseurl model.name
+                        , getlog model.baseurl model.name model.logsNumber
                         ]
             )
 
@@ -1008,6 +1011,12 @@ update msg model =
                 Err _ ->
                     U.nocmd model
 
+        LogsNumber strLogsNumber ->
+            U.nocmd { model | logsNumber = String.toInt strLogsNumber }
+
+        SeeLogs ->
+            ( model, getlog model.baseurl model.name model.logsNumber )
+
 
 -- views
 
@@ -1071,7 +1080,7 @@ viewcache model =
         cachecontrol =
             H.span [ ]
                 [ if List.length model.log > 0
-                  then I.viewlog model False
+                  then I.viewlog model False LogsNumber SeeLogs
                   else H.span [] []
                 , if Dict.isEmpty model.policy
                   then H.span [] []
@@ -1312,7 +1321,7 @@ view model =
                               [ head
                               , tabcontents
                                     [ case model.seriestype of
-                                          I.Primary -> I.viewlog model False
+                                          I.Primary -> I.viewlog model False LogsNumber SeeLogs
                                           I.Formula -> H.span [] []
                                     ]
                               ]
@@ -1366,6 +1375,7 @@ main =
                     , deleting_cache = False
                     -- log
                     , log = [ ]
+                    , logsNumber = Just 10
                     -- plot
                     , insertion_dates = Array.empty
                     , date_index = 0

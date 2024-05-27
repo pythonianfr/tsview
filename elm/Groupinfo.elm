@@ -89,6 +89,7 @@ type alias Model =
     , view_nocache : Bool
     -- log
     , log : List Logentry
+    , logsNumber : Maybe Int
     -- plot
     , plotdata : Maybe Group
     , insertion_dates : Array String
@@ -137,6 +138,8 @@ type Msg
     | CopyNameToClipboard
     | ResetClipboardClass
     | Tab Tabs
+    | LogsNumber String
+    | SeeLogs
 
 
 getplot : Model -> Bool -> Cmd Msg
@@ -435,6 +438,12 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
+        LogsNumber strLogsNumber ->
+            U.nocmd { model | logsNumber = String.toInt strLogsNumber }
+
+        SeeLogs ->
+            U.nocmd model
+
 
 -- views
 
@@ -620,7 +629,7 @@ view model =
                                 [ head
                                 , tabcontents
                                     [ case Dict.get model.formula_depth model.formula of
-                                        Nothing -> I.viewlog model False
+                                        Nothing -> I.viewlog model False LogsNumber SeeLogs
                                         Just _ -> span [] []
                                     ]
                                 ]
@@ -670,6 +679,7 @@ main =
                        , view_nocache = False
                        -- log
                        , log = [ ]
+                       , logsNumber  = Just 10
                        -- plot
                        , plotdata = Nothing
                        , insertion_dates = Array.empty
