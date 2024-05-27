@@ -1,20 +1,14 @@
 module Parser2Suite exposing (testParsing)
 
 import Either
-import Expect
-import Test exposing (Test, test)
+import Test
+
 import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderString)
 import Editor.SpecParser exposing (parseSpecString)
 
+import TestUtil exposing (T)
 import JsonSpec exposing (jsonSpec)
-
-
-type alias T =
-    { name : String
-    , input : String
-    , output : String
-    }
 
 
 formulaTests : List T
@@ -98,7 +92,7 @@ formulaTests =
     ]
 
 
-testParsing : Test
+testParsing : Test.Test
 testParsing =
     let
         parsedspec =
@@ -110,13 +104,4 @@ testParsing =
                 Ok parsedformula -> renderString parsedformula
                 Err err -> String.trim err
     in
-    List.map
-        (\x ->
-            let
-                res =
-                    Expect.equal (render x.input) (String.trim x.output)
-            in
-            test x.name (always res)
-        )
-        formulaTests
-        |> Test.concat
+    TestUtil.buildTests render formulaTests |> Test.concat
