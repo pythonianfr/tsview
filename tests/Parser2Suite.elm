@@ -30,6 +30,7 @@ formulaTests =
     """
     ) """
 (2, 9) =>  Invalid: Lack of a Number mandatory argument
+    when parsing inside operator + at (2, 5)
     """
 
     , T "+ OK"
@@ -84,6 +85,7 @@ formulaTests =
     """
     ) """
 (2, 4) =>  Invalid: Lack of a Number mandatory argument
+    when parsing inside operator + at (2, 4)
     """
 
     , T "* Right"
@@ -125,6 +127,7 @@ formulaTests =
     """
     ) """
 (2, 30) =>  Invalid: Duplicate keyword for argument
+    when parsing inside operator + at (2, 5)
 """
 
     , T "#k1, k2 OK"
@@ -154,6 +157,7 @@ formulaTests =
     """
     ) """
 (2, 38) =>  Expecting: Valid operator name
+    when parsing inside operator priority at (2, 11)
     """
 
     , T "full OK"

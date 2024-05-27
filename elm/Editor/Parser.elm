@@ -26,52 +26,59 @@ type alias SpecEnv =
     , operator : T.Operator
     }
 
+type Ctx = OperatorCtx String
 
-type alias Parser c x a =
-    Reader.Reader SpecEnv (PE.Parser c x a)
+type alias CParser x a =
+    Reader.Reader SpecEnv (PE.Parser Ctx x a)
 
 
-map : (a -> b) -> Parser c x a -> Parser c x b
+map : (a -> b) -> CParser x a -> CParser x b
 map f = Reader.map (PE.map f)
 
-andThen : (a -> Parser c x b) -> Parser c x a -> Parser c x b
+andThen : (a -> CParser x b) -> CParser x a -> CParser x b
 andThen f ma =
-    let andThen_ : SpecEnv -> PE.Parser c x b
+    let andThen_ : SpecEnv -> PE.Parser Ctx x b
         andThen_ env =
             Reader.run ma env |> PE.andThen (\a -> Reader.run (f a) env)
     in Reader.asks andThen_
 
 evalParser :
-    SpecEnv -> PE.ProblemMap c x -> Parser c x a -> PA.Parser c x a
+    SpecEnv -> PE.ProblemMap Ctx x -> CParser x a -> PA.Parser Ctx x a
 evalParser specEnv problemMap pa =
     Reader.run (Reader.run pa specEnv) problemMap
 
-oneOf : List (Parser c x a) -> Parser c x a
+oneOf : List (CParser x a) -> CParser x a
 oneOf xs =
     ask <| \specEnv ->
         ask <| \problemMap ->
             PA.oneOf (List.map (evalParser specEnv problemMap) xs)
 
-many :  Parser c x a -> Parser c x (List a)
+many :  CParser x a -> CParser x (List a)
 many pa =
     ask <| \specEnv ->
         ask <| \problemMap ->
             PE.many (evalParser specEnv problemMap pa)
 
-succeed : a -> Parser c x a
+succeed : a -> CParser x a
 succeed x =
     Reader.reader <|
         Reader.reader <|
             PA.succeed x
 
-problem : String -> Parser c x a
+problem : String -> CParser x a
 problem s =
     Reader.reader <|
         asks .invalid <| \invalid ->
             PA.problem <| invalid s
 
+inContext : Ctx -> CParser x a -> CParser x a
+inContext ctx pa =
+    ask <| \specEnv ->
+        ask <| \problemMap ->
+            PA.inContext ctx (evalParser specEnv problemMap pa)
 
-parseLiteralExpr : T.LiteralType -> Parser c x T.PrimitiveExpr
+
+parseLiteralExpr : T.LiteralType -> CParser x T.PrimitiveExpr
 parseLiteralExpr t = oneOf
     -- XXX should handle nil
     [ Reader.reader (SpecParser.literalParser t)
@@ -79,12 +86,12 @@ parseLiteralExpr t = oneOf
     , parseTypedOperator_ |> map T.OperatorExpr
     ]
 
-setReturnType : T.PrimitiveType -> Parser c x a -> Parser c x a
+setReturnType : T.PrimitiveType -> CParser x a -> CParser x a
 setReturnType p =
     let t = T.ReturnPrimitiveType p
     in Reader.local (\senv -> {senv | returnType = t})
 
-parsePrimitiveExpr : T.PrimitiveType -> Parser c x T.PrimitiveExpr
+parsePrimitiveExpr : T.PrimitiveType -> CParser x T.PrimitiveExpr
 parsePrimitiveExpr p = setReturnType p <| case p of
     T.Literal t -> parseLiteralExpr t
 
@@ -92,23 +99,23 @@ parsePrimitiveExpr p = setReturnType p <| case p of
 
 parseUnion :
     NE.Nonempty T.PrimitiveType ->
-    Parser c x (T.PrimitiveType, T.PrimitiveExpr)
+    CParser x (T.PrimitiveType, T.PrimitiveExpr)
 parseUnion primitiveTypes =
     NE.toList primitiveTypes
         |> List.map (\x -> map (Tuple.pair x) (parsePrimitiveExpr x))
         |> oneOf
         -- XXX show problems
 
-parsePacked : T.Packed -> Parser c x T.TypedOperator
+parsePacked : T.Packed -> CParser x T.TypedOperator
 parsePacked (T.Packed t) =
     let x = T.ReturnList t
     in Reader.local (\senv -> {senv | returnType = x}) parseTypedOperator_
 
-parseVarArgs : T.Packed -> Parser c x (List T.PrimitiveExpr)
+parseVarArgs : T.Packed -> CParser x (List T.PrimitiveExpr)
 parseVarArgs (T.Packed t) =
     many (parsePrimitiveExpr t)
 
-parseArgExpr : T.ArgType -> Parser c x T.ArgExpr
+parseArgExpr : T.ArgType -> CParser x T.ArgExpr
 parseArgExpr argType = case argType of
     T.PrimitiveType t ->
         parsePrimitiveExpr t |> map T.PrimitiveExpr
@@ -121,7 +128,7 @@ parseArgExpr argType = case argType of
         , parseVarArgs p |> map (T.VarArgsExpr p)
         ]
 
-parseArg : Bool -> (T.Key, T.ArgType) -> Parser c x (T.Key, T.ArgExpr)
+parseArg : Bool -> (T.Key, T.ArgType) -> CParser x (T.Key, T.ArgExpr)
 parseArg isKeyword (k, t) =
     ask <| \senv ->
         ask <| \({toToken} as pm) ->
@@ -133,10 +140,10 @@ parseArg isKeyword (k, t) =
                 |. PA.spaces
                 |= evalParser senv pm (parseArgExpr t)
 
-parsePositional : (T.Key, T.ArgType) -> Parser c x (T.Key, T.ArgExpr)
+parsePositional : (T.Key, T.ArgType) -> CParser x (T.Key, T.ArgExpr)
 parsePositional = parseArg False
 
-parseWithKey : (T.Key, T.ArgType) -> Parser c x (T.Key, T.ArgExpr)
+parseWithKey : (T.Key, T.ArgType) -> CParser x (T.Key, T.ArgExpr)
 parseWithKey = parseArg True
 
 
@@ -150,9 +157,9 @@ type alias Args =
 
 parseArgs_ :
     SpecEnv ->
-    PE.ProblemMap c x ->
+    PE.ProblemMap Ctx x ->
     (ArgsSpec,  Args) ->
-    PA.Parser c x (PA.Step (ArgsSpec, Args) Args)
+    PA.Parser Ctx x (PA.Step (ArgsSpec, Args) Args)
 parseArgs_ senv pm (argsSpec, args) =
     let
         done = (parseArgsWithKey argsSpec |> evalParser senv pm)
@@ -168,13 +175,13 @@ parseArgs_ senv pm (argsSpec, args) =
 
         [] -> done
 
-parseArgs : ArgsSpec -> Args -> Parser c x Args
+parseArgs : ArgsSpec -> Args -> CParser x Args
 parseArgs argsSpec args =
     ask <| \senv ->
         ask <| \pm ->
             PA.loop (argsSpec, args) (parseArgs_ senv pm)
 
-parseArgsWithKey : ArgsSpec -> Parser c x Args
+parseArgsWithKey : ArgsSpec -> CParser x Args
 parseArgsWithKey argsSpec = asksM (.operator >> .optArgs) <| \optArgs ->
     let
         spec = Assoc.toList optArgs
@@ -183,7 +190,7 @@ parseArgsWithKey argsSpec = asksM (.operator >> .optArgs) <| \optArgs ->
 
     in many <| oneOf (List.map parseWithKey spec)
 
-parseTypedArgs : T.TypedOperator -> Parser c x T.TypedOperator
+parseTypedArgs : T.TypedOperator -> CParser x T.TypedOperator
 parseTypedArgs ({operator} as op) =
     let
         argKeys = Assoc.keys operator.args
@@ -200,7 +207,7 @@ parseTypedArgs ({operator} as op) =
             (\( k, _ ) -> Dict.get k specKeyIdx |> Maybe.withDefault -1)
             xs
 
-        checkDuplicate : Args -> Parser c x Args
+        checkDuplicate : Args -> CParser x Args
         checkDuplicate xs =
             if List.Extra.allDifferentBy Tuple.first xs then
                 succeed xs
@@ -211,7 +218,7 @@ parseTypedArgs ({operator} as op) =
         renderArg t =
             "Lack of a " ++ renderArgType t ++ " mandatory argument"
 
-        checkArgs : T.TypedOperator -> Parser c x T.TypedOperator
+        checkArgs : T.TypedOperator -> CParser x T.TypedOperator
         checkArgs ({ typedArgs } as t) =
             let typedArgsKeys = Assoc.keys typedArgs
             in List.filter
@@ -233,8 +240,8 @@ parseTypedArgs ({operator} as op) =
             {op | typedArgs = typedArgs, typedOptArgs = typedOptArgs})
         |> andThen checkArgs
 
-parseOperatorName : Parser c x String
-parseOperatorName = Reader.reader <| asks .expecting <| \expecting ->
+parseOperatorName : CParser x String
+parseOperatorName = Reader.reader <| ask <| \{expecting} ->
     let specials = String.toList "_-+*/.<>="
         accept = \c -> List.member c specials
     in PA.variable
@@ -245,7 +252,7 @@ parseOperatorName = Reader.reader <| asks .expecting <| \expecting ->
         }
         |. PA.spaces
 
-getOperator : Parser c x T.TypedOperator
+getOperator : CParser x T.TypedOperator
 getOperator = askM <| \({spec, returnType}) ->
     let initTyped op = T.TypedOperator op Assoc.empty Assoc.empty
     in parseOperatorName
@@ -253,23 +260,27 @@ getOperator = askM <| \({spec, returnType}) ->
             >> Either.unpack problem (initTyped >> succeed)
         )
 
-parseTypedOperator_ : Parser c x T.TypedOperator
+parseTypedOperator_ : CParser x T.TypedOperator
 parseTypedOperator_ =
     ask <| \senv ->
         ask <| \pm ->
             PA.backtrackable (evalParser senv pm parseTypedOperator)
 
-parseTypedOperator : Parser c x T.TypedOperator
+parseTypedOperator : CParser x T.TypedOperator
 parseTypedOperator =
     ask <| \senv ->
-        ask <| \({toToken} as pm) -> PE.between
-            (PA.symbol (toToken "(")
-                |. PA.spaces)
-            (PA.spaces
-                |. PA.symbol (toToken ")"))
-            (getOperator |> andThen parseTypedArgs |> evalParser senv pm)
+        ask <| \({toToken} as pm) -> getOperator
+            |> andThen (\typedOp -> inContext
+                (OperatorCtx typedOp.operator.name)
+                (parseTypedArgs typedOp))
+            |> evalParser senv pm
+            |> PE.between
+                (PA.symbol (toToken "(")
+                    |. PA.spaces)
+                (PA.spaces
+                    |. PA.symbol (toToken ")"))
 
-parseTopOperator : Parser c x T.TypedOperator
+parseTopOperator : CParser x T.TypedOperator
 parseTopOperator =
     ask <| \senv ->
         ask <| \({expecting} as pm) ->
@@ -278,6 +289,10 @@ parseTopOperator =
                 |= (evalParser senv pm parseTypedOperator)
                 |. PA.spaces
                 |. (PA.end <| expecting "End of formula")
+
+renderCtx : Ctx -> String
+renderCtx ctx = case ctx of
+    OperatorCtx name -> "inside operator " ++ name
 
 parseFormula :
     T.Spec ->
@@ -295,6 +310,6 @@ parseFormula spec returnTypeStr formulaCode =
         }
             |> Reader.run parseTopOperator
             |> PE.runParser
-                (PE.defaultProblemMap <| always "C")
+                (PE.defaultProblemMap renderCtx)
                 formulaCode
         )
