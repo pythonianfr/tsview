@@ -11,6 +11,7 @@ import Editor.Type as T
 
 type RenderType
     = Root
+    | Void
     | Operator String
     | Arg
     | OptArg String
@@ -61,6 +62,8 @@ valueToString value =
 buildTypeTree : T.TypedExpr -> List (Tree RenderType)
 buildTypeTree sexpr =
     case sexpr of
+        T.TLiteral T.Void _ -> [ Tree.singleton Void ]
+
         T.TLiteral _ ( _, x ) ->
             [ Tree.singleton (Value x) ]
 
@@ -128,6 +131,7 @@ renderTree indent tree =
         Root ->
             renderChildren indent
 
+        Void -> renderElement "()"
         Operator name ->
             let
                 children =

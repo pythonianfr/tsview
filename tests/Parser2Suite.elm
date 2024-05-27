@@ -19,7 +19,9 @@ type alias T =
 
 formulaTests : List T
 formulaTests =
-    [ T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
+    [ T "Parsing void" "(   )" "()"
+    , T "Parsing internal void" "( + 2   ()  )" "(+ 2 ())"
+    , T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
     , T "+ series OK" "( + 2   #:flag #t  #:b (+ 1 6))" """
 (+
     2
@@ -32,7 +34,7 @@ formulaTests =
     0.5)
 """
     , T "+ too many args" "(+ 3 4 5)" "ExpectingSymbol ) at row:1 col:8"
-    , T "@ unsupported op" "(@ 3 4)" "ExpectingVariable at row:1 col:2"
+    , T "@ unsupported op" "(@ 3 4)" "ExpectingSymbol ) at row:1 col:2"
     , T "+ wrong args" "(+ ab 4)" "ProblemString Lack of mandatory argument at row:1 col:4"
     , T "* Right" "(* -9.26e-08 #:b (+ 9.259e-02 -109))" """
 (*

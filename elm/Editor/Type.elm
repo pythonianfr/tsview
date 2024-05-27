@@ -23,6 +23,7 @@ type LiteralType
     | String -- standard input
     | TimestampString -- datetime picker
     | SearchString -- catalog browser
+    | Void -- no input
 
 
 -- primitive types used in the spec
@@ -67,3 +68,10 @@ type TypedExpr
     | TUnion (Nonempty SpecType) ( SpecType, TypedExpr )
     | TVarargs SpecType (List TypedExpr)
     | TOperator Operator (KAssoc TypedExpr) (KAssoc TypedExpr)
+  
+-- utils for no input
+voidValue : EditableValue
+voidValue = StringValue ""
+
+voidExpr : TypedExpr
+voidExpr = TLiteral Void ("", voidValue)

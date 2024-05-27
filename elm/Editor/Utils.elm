@@ -97,6 +97,8 @@ valueParser inputType =
             stringParser
                 |> andThen (\x -> ( x, T.StringValue x ))
 
+        T.Void -> Parser.succeed ("", T.voidValue)
+
 
 strLiteralType : T.LiteralType -> String
 strLiteralType iType =
@@ -118,6 +120,9 @@ strLiteralType iType =
 
         T.SearchString ->
             "SearchString"
+
+        T.Void ->
+            "Void"
 
 
 strSpecType : T.SpecType -> String

@@ -176,9 +176,10 @@ parseOperator spec =
     Parser.between
         (Parser.symbol "(" |. Parser.spaces)
         (Parser.spaces |. Parser.symbol ")" |. Parser.spaces)
-        (Lisp.symbolparser
-            |. Parser.spaces
-            |> Parser.andThen getopspec
+        (Parser.oneOf
+            [ Lisp.symbolparser |. Parser.spaces |> Parser.andThen getopspec
+            , Parser.succeed T.voidExpr |. Parser.spaces
+            ]
         )
 
 
