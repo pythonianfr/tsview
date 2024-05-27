@@ -368,6 +368,8 @@ hasValue : Entry Node -> Bool
 hasValue {entryType} = case entryType of
     Primitive (PInput {value}) -> Maybe.isJust value
 
+    Primitive (POperator {name}) -> name /= ""
+
     _ -> True
 
 renderArgs :
