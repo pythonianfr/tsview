@@ -555,10 +555,13 @@ viewErrors_ mList = flip HX.viewMaybe mList <| \xs ->
     (List.map (\x -> H.span [ HA.class "error" ] [ H.text x ]) xs)
 
 viewErrors : Model -> Html msg
-viewErrors { editor } = editor.currentFormula
-    |> Either.leftToMaybe
-    |> Maybe.map (Tuple.second >> PE.renderParserErrors >> String.lines)
-    |> viewErrors_
+viewErrors { editor } = case T.getCode editor.currentFormula of
+    "()" -> HX.nothing
+
+    _ -> editor.currentFormula
+        |> Either.leftToMaybe
+        |> Maybe.map (Tuple.second >> PE.renderParserErrors >> String.lines)
+        |> viewErrors_
 
 hasErrors : Model -> Bool
 hasErrors { editor } = Either.isLeft editor.currentFormula
