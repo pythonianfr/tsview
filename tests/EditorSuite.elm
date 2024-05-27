@@ -10,40 +10,26 @@ import Editor.Type as ET
 import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderFormula)
 import Editor.UI.Type exposing
-    (initializeTypedExpr
-    , buildEditionTree
-    , renderTypedExpr
-    , parseEditionTree
+    ( buildEditor
+    , renderTypedOperator
+    , parseEditor
     )
-import Editor.UI.Render exposing (renderEditionTree)
+import Editor.UI.Render exposing (renderEditor)
 
-import JsonSpec exposing (spec, gSpec)
+import JsonSpec exposing (gSpec, returnType)
 import TestUtil exposing (T)
 
 
-initTests : List (T ET.SpecType)
-initTests =
-    [ T "init Packed" (ET.Packed ET.Series) "()"
-    ]
-
-testInitialize : Test.Test
-testInitialize =
-    let
-        render x = initializeTypedExpr x |> renderFormula
-    in
-    Test.describe "testInitialize" <| TestUtil.buildTests render initTests
-
-buildEditionTreeTests : List (T String)
-buildEditionTreeTests =
+buildEditorTests : List (T String)
+buildEditorTests =
     [ T "Small tree"  "(* 3 4)" """
-Top: Operator(*) isExpand=True
-  EntryRow: Arg(a),
-            Selector[Number],
-            Input[Number](value=3)
-  EntryRow: Arg(b),
-            Union[Series, Number](Number),
-            Selector[Number],
-            Input[Number](value=4)
+RArg(EDITOR): Selector[Series],
+              Operator(* => Series)
+  RArg(a): Selector[Number],
+           Input[Number](value=3)
+  RArg(b): Union[Series, Number](Number),
+           Selector[Number],
+           Input[Number](value=4)
 """
     , T "priority" """
 (priority
@@ -52,100 +38,80 @@ Top: Operator(*) isExpand=True
     (series "DE")
 )
 """ """
-Top: Operator(priority) isExpand=True
-  VarArgsRow: Arg(serieslist),
-              VarArgEntry[Union[Series, Number]]
-    VarItem: Arg(list_item) isExpand=True,
-             Union[Series, Number](Series),
-             Selector[Series],
-             Operator(series)
-      EntryRow: Arg(name),
-                Input[SearchString](value="UK")
-      OperatorOptions: OptArgs isExpand=False
-        EntryRow: OptArg(fill, Default=nil),
-                  Union[String, Int](String),
-                  Input[String](value=nil)
-        EntryRow: OptArg(weight, Default=nil),
-                  Selector[Number],
-                  Input[Number](value=nil)
-    VarItem: Arg(list_item) isExpand=True,
-             Union[Series, Number](Series),
-             Selector[Series],
-             Operator(series)
-      EntryRow: Arg(name),
-                Input[SearchString](value="FR")
-      OperatorOptions: OptArgs isExpand=False
-        EntryRow: OptArg(fill, Default=nil),
-                  Union[String, Int](String),
-                  Input[String](value=nil)
-        EntryRow: OptArg(weight, Default=nil),
-                  Selector[Number],
-                  Input[Number](value=nil)
-    VarItem: Arg(list_item) isExpand=True,
-             Union[Series, Number](Series),
-             Selector[Series],
-             Operator(series)
-      EntryRow: Arg(name),
-                Input[SearchString](value="DE")
-      OperatorOptions: OptArgs isExpand=False
-        EntryRow: OptArg(fill, Default=nil),
-                  Union[String, Int](String),
-                  Input[String](value=nil)
-        EntryRow: OptArg(weight, Default=nil),
-                  Selector[Number],
-                  Input[Number](value=nil)
-  VarEnd: AddItem
-  OperatorOptions: OptArgs isExpand=False
-    EntryRow: OptArg(k1, Default=nil),
-              Union[String, Number](String),
-              Input[String](value=nil)
-    EntryRow: OptArg(k2, Default=nil),
-              Union[Number, Timestamp](Number),
-              Selector[Number],
-              Input[Number](value=nil)
+RArg(EDITOR): Selector[Series],
+              Operator(priority => Series)
+  RArg(serieslist): Selector[Packed[Series, Number]] isExpand=True,
+                    CVarArgs(Union[Series, Number])
+    RVarItem: Union[Series, Number](Series) isExpand=True,
+              Selector[Series],
+              Operator(series => Series)
+      RArg(name): Input[SearchString](value="UK")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[String, Int](String),
+                                     Input[String]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarItem: Union[Series, Number](Series) isExpand=True,
+              Selector[Series],
+              Operator(series => Series)
+      RArg(name): Input[SearchString](value="FR")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[String, Int](String),
+                                     Input[String]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarItem: Union[Series, Number](Series) isExpand=True,
+              Selector[Series],
+              Operator(series => Series)
+      RArg(name): Input[SearchString](value="DE")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[String, Int](String),
+                                     Input[String]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarEnd: AddItem
+  ROptArgs: OperatorOptions isExpand=False
+    ROptArg(k1, Default=None): Union[String, Number](String),
+                               Input[String]()
+    ROptArg(k2, Default=None): Union[Number, Timestamp](Number),
+                               Selector[Number],
+                               Input[Number]()
 """
     ]
 
-testBuildEditionTree : Test.Test
-testBuildEditionTree =
+testBuildEditor : Test.Test
+testBuildEditor =
     let
-        render x = parseFormula spec x
-            |> Either.map (buildEditionTree gSpec)
-            |> Either.unpack identity renderEditionTree
+        render x = buildEditor gSpec returnType x
+            |> parseEditor
+            |> renderEditor
     in
-    Test.describe "buildEditionTree"
-        <| TestUtil.buildTests render buildEditionTreeTests
+    Test.describe "buildEditor"
+        <| TestUtil.buildTests render buildEditorTests
 
-testRenderTypedExpr : Test.Test
-testRenderTypedExpr =
+testRenderTypedOperator : Test.Test
+testRenderTypedOperator =
     let
-        render x = parseFormula spec x
-            |> Either.map (buildEditionTree gSpec)
-            -- Actual test
-            |> Either.map (renderTypedExpr >> buildEditionTree gSpec)
-            |> Either.unpack identity renderEditionTree
+        render x = buildEditor gSpec returnType x
+            |> renderTypedOperator
+            |> renderEditor
     in
-    Test.describe "renderTypedExpr"
-        <| TestUtil.buildTests render buildEditionTreeTests
+    Test.describe "renderTypedOperator"
+        <| TestUtil.buildTests render buildEditorTests
 
-testParseEditionTree : Test.Test
-testParseEditionTree =
+testParseEditor : Test.Test
+testParseEditor =
     let
-        render x = parseFormula spec x
-            |> Either.map (buildEditionTree gSpec)
-            -- Actual test
-            |> Either.andThen (parseEditionTree gSpec
-                >> (\(mErr, tree) -> Either.leftFromMaybe tree mErr)
-            )
-            |> Either.unpack identity renderEditionTree
+        render x = buildEditor gSpec returnType x
+            |> parseEditor
+            |> renderEditor
     in
-    Test.describe "parseEditionTree"
-        <| TestUtil.buildTests render buildEditionTreeTests
+    Test.describe "parseEditor"
+        <| TestUtil.buildTests render buildEditorTests
 
 mainTest : Test.Test
 mainTest = Test.concat
-    [ testInitialize
-    , testBuildEditionTree
-    , testRenderTypedExpr
-    , testParseEditionTree
+    [ testBuildEditor
+    , testRenderTypedOperator
+    , testParseEditor
     ]

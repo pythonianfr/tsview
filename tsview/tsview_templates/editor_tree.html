@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+    <head>
+    <meta charset="utf-8">
+    <link
+        href="./tsview_static/formula_elm.css"
+        rel="stylesheet"/>
+    <script
+        src="./tsview_static/ace.js"
+        type="text/javascript"
+        charset="utf-8">
+    </script>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
+      crossorigin="anonymous">
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
+      integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+      crossorigin="anonymous">
+    </script>
+    <script
+        src="https://unpkg.com/@webcomponents/custom-elements@1.4.1/custom-elements.min.js">
+    </script>
+    <script src="./tsview_static/ace_editor.js"></script>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script src="./tsview_static/editor_tree.js"></script>
+        <script>
+            var app = Elm.Editor.UI.Tree.init({
+                node: document.getElementById("app"),
+                flags: {{ spec | safe }}
+            });
+        </script>
+    </body>
+</html>

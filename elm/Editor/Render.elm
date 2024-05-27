@@ -1,140 +1,140 @@
-module Editor.Render exposing (renderFormula)
+module Editor.Render exposing (renderFormula, renderBool, renderLiteralExpr)
 
-import Bool.Extra as Bool
-import Either exposing (Either(..))
+import Either
+import Maybe.Extra as Maybe
 
+import List.Extra
 import AssocList as Assoc
-import List.Extra as List
-import Tree exposing (Tree)
+
+import Optics.Core as O exposing (o)
+import OpticsExtra as OE
 
 import Editor.Type as T
 
-
-type RenderType
-    = Root
-    | Operator String
-    | Arg
-    | OptArg String
-    | Value T.EditableValue
+import Editor.SpecRender as SpecRender
 
 
-type alias RenderNode =
-    { isBottom : Bool
-    , rtype : RenderType
+type alias IsInline = Bool
+
+type RenderValue
+    = Value (Maybe T.LiteralExpr)
+    | Operator IsInline String (List ArgType)
+
+type ArgType
+    = Arg RenderValue
+    | OptArg T.Key RenderValue
+
+
+-- invalid Prism but useful for testing
+renderValue_ : O.SimplePrism pr ArgType RenderValue
+renderValue_ = O.prism Arg <| \argType ->
+    case argType of
+        Arg x -> Either.Right x
+
+        OptArg _ x -> Either.Right x
+
+value_ : O.SimplePrism pr RenderValue (Maybe T.LiteralExpr)
+value_ = O.prism Value <| \v ->
+    case v of
+        Value x -> Either.Right x
+
+        _ -> Either.Left v
+
+
+renderBool : Bool -> String
+renderBool bool = case bool of
+    True -> "#t"
+
+    False -> "#f"
+
+renderLiteralExpr : T.LiteralExpr -> String
+renderLiteralExpr literalExpr = case literalExpr of
+    T.BoolExpr x -> renderBool x
+
+    _ -> SpecRender.renderLiteralExpr literalExpr
+
+renderPrimitiveExpr : T.PrimitiveExpr -> RenderValue
+renderPrimitiveExpr primitiveExpr = case primitiveExpr of
+    T.LiteralExpr _ x -> Value x
+
+    T.UnionExpr _ (_, x) -> renderPrimitiveExpr x
+
+    T.OperatorExpr x -> renderTypedOperator x
+
+renderTypedExpr : T.TypedExpr -> List RenderValue
+renderTypedExpr typedExpr = case typedExpr of
+    T.PrimitiveExpr x ->
+        List.singleton <| renderPrimitiveExpr x
+    
+    T.CompositeExpr (T.VarArgsExpr _ xs) ->
+        List.map renderPrimitiveExpr xs
+
+    T.CompositeExpr (T.PackedExpr _ x) ->
+        List.singleton <| renderTypedOperator x
+
+renderTypedOperator : T.TypedOperator -> RenderValue
+renderTypedOperator {operator, typedArgs, typedOptArgs} =
+    let
+        args = List.concatMap
+            (\x -> renderTypedExpr x |> List.map Arg)
+            (Assoc.values typedArgs)
+
+        optArgs = List.concatMap
+            (\(k, x) -> renderTypedExpr x |>  List.map (OptArg k))
+            (Assoc.toList typedOptArgs)
+
+        isInline = List.all (O.is (o renderValue_ value_)) (args ++ optArgs) 
+
+    in Operator isInline operator.name (args ++ optArgs)
+
+
+type alias Indent =
+    { indent : Int
+    , line : String
     }
 
+line_ : O.SimpleLens ls Indent String
+line_ = O.lens .line (\s a -> { s | line = a })
 
-nil : String
-nil = "nil"
+renderArg : Int -> ArgType -> List Indent
+renderArg i argType = case argType of
+    Arg x -> renderValue i x
 
-quoted : String -> String
-quoted x = "\"" ++ x ++ "\""
+    OptArg k x -> renderValue i x
+        |> O.over (o OE.listHead_ line_) (\s -> "#:" ++ k ++ " " ++ s)
 
-valueToString : T.EditableValue -> String
-valueToString value = case value of
-    T.Nil ->  nil
+renderValue : Int -> RenderValue -> List Indent
+renderValue i v = case v of
+    Value x ->
+        [ Indent i <| Maybe.unwrap " " renderLiteralExpr x ]
 
-    T.BoolValue True -> "#t"
+    Operator False name args ->
+        (Indent i name) :: (List.concatMap (renderArg (i + 1)) args)
+            |> O.over (o OE.listHead_ line_) (\s -> "(" ++ s)
+            |> O.over (o OE.listLast_ line_) (\s -> s ++ ")")
 
-    T.BoolValue False -> "#f"
+    Operator True name [] ->
+        [ Indent i <| "(" ++ name ++ ")" ]
+        
+    Operator True name args ->
+        let sargs = List.concatMap (renderArg i) args
+                |> List.map .line
+                |> String.join " "
+        in
+        [ Indent i <| "(" ++ name ++ " " ++ sargs ++ ")" ]
 
-    T.IntValue x -> String.fromInt x
-
-    T.NumberValue x -> String.fromFloat x
-
-    T.StringValue x -> quoted x
-
-    T.TimestampValue x -> quoted x
-
-buildTypeTree : T.TypedExpr -> List (Tree RenderType)
-buildTypeTree sexpr = case sexpr of
-    T.TLiteral _ T.Nil -> []
-
-    T.TLiteral _ x -> [ Tree.singleton (Value x) ]
-
-    T.TVarArgs _ xs -> List.concatMap buildTypeTree xs
-
-    T.TUnion _ ( _, x ) -> buildTypeTree x
-
-    T.TOperator op xs ys ->
-        let
-            args = List.map
-                (buildTypeTree >> Tree.tree Arg)
-                (Assoc.values xs)
-
-            optArgs = List.map
-                (\( k, v ) -> Tree.tree (OptArg k) (buildTypeTree v))
-                (Assoc.toList ys)
-
-        in [ Tree.tree (Operator op.name) (args ++ optArgs) ]
-
-buildRenderTree : Tree RenderType -> Tree RenderNode
-buildRenderTree tree =
+renderFormula : T.TypedOperator -> T.FormulaCode
+renderFormula typedOperator =
     let
-        n = Tree.label tree
+        tab = String.repeat 4 " "
 
-        forest = Tree.children tree |> List.map buildRenderTree
+        renderIndent : Indent -> String
+        renderIndent {indent, line} = String.repeat indent tab ++ line
 
-        isNotOperator r = case r.rtype of
-            Operator _ -> False
-            _ -> True
+    in renderTypedOperator typedOperator
+        |> renderValue 0
+        |> List.map renderIndent
+        |> String.join "\n"
 
-        isBottom = forest
-            |> List.map Tree.label
-            |> List.all (\r -> r.isBottom && isNotOperator r)
-    in
-    Tree.tree (RenderNode isBottom n) forest
-
-
-renderTree : Int -> Tree RenderNode -> List ( Int, String )
-renderTree indent tree =
-    let
-        r = Tree.label tree
-        renderElement x = [ ( indent, x ) ]
-        renderChildren i =
-            Tree.children tree |> List.concatMap (renderTree i)
-
-    in case r.rtype of
-        Root -> renderChildren indent
-
-        Operator opName ->
-            let
-                name = if (opName == "__void__") then "" else opName
-                children = renderChildren (indent + 1)
-                prefix =
-                    "(" ++ name ++ Bool.ifElse "" " " (List.isEmpty children)
-            in
-            if r.isBottom then
-                let args = String.join " " <| List.map Tuple.second children
-                in renderElement <| prefix ++ args ++ ")"
-            else
-                let xs = (indent, prefix) :: children
-                    lastIdx = List.length xs - 1
-                in List.indexedMap (\i x ->
-                    if i == lastIdx then Tuple.mapSecond (\s -> s ++ ")") x
-                    else x) xs
-
-        Arg -> renderChildren indent
-
-        OptArg key -> List.updateAt
-            0
-            (\(_, x) -> ( indent, "#:" ++ key ++ " " ++ x ))
-            (renderChildren indent)
-
-        Value x -> renderElement (valueToString x)
-
-
-renderFormula : T.TypedExpr -> String
-renderFormula =
-    let
-        iStr = String.repeat 4 " "
-    in buildTypeTree
-        >> Tree.tree Root
-        >> buildRenderTree
-        >> renderTree 0
-        >> List.map (\( i, x ) -> String.repeat i iStr ++ String.trimRight x)
-        >> String.join "\n"
-
-
-inspectTypedExpr : T.TypedExpr -> String
-inspectTypedExpr = Debug.todo "inspecTypedExpr"
+-- inspectTypedExpr : T.TypedExpr -> String
+-- inspectTypedExpr = Debug.todo "Tree `TypedExpr`"

@@ -1,17 +1,18 @@
 module JsonSpec exposing (..)
 
-import Either
 
-import Editor.Type exposing (Spec)
-import Editor.UI.Type exposing (GSpec, buildGSpec)
+import Editor.Type as T
 import Editor.SpecParser exposing (parseSpecString)
 
 
-spec : Spec
-spec = parseSpecString jsonSpec |> Either.unpack Tuple.first identity
+spec : T.Spec
+spec = parseSpecString jsonSpec |> Tuple.second
 
-gSpec : GSpec
-gSpec = buildGSpec spec
+gSpec : T.GSpec
+gSpec = T.buildGSpec spec
+
+returnType : T.ReturnType
+returnType = T.returnSeries
 
 jsonSpec : String
 jsonSpec =

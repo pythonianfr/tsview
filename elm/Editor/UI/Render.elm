@@ -1,13 +1,14 @@
-module Editor.UI.Render exposing (renderEditionTree)
+module Editor.UI.Render exposing (renderEditor)
 
 import Bool.Extra as Bool
 import Maybe.Extra as Maybe
-import Basics.Extra exposing (uncurry)
 
-import Tree
-import List.Extra
 import String.Format as F
-import List.NonEmpty as NE
+import List.Nonempty as NE
+import RoseTree.Tree as Tree
+
+import Optics.Core as O exposing (o)
+import OpticsExtra as OE
 
 import Editor.Type as T
 import Editor.SpecRender as SpecRender
@@ -22,45 +23,56 @@ type alias Indent =
     , rowStr : String
     }
 
+rowType_ : O.SimpleLens ls Indent String
+rowType_ = O.lens .rowType <| \s a -> { s | rowType = a }
+
+
 renderArg : String -> Maybe String -> Maybe String
 renderArg x = Maybe.map (\v -> x ++ "=" ++ v)
 
 renderArgs : List (Maybe String) -> String
 renderArgs xs = Maybe.values xs |> String.join " "
 
-renderOperator : T.Operator -> String
-renderOperator op = "Operator({{ }})" |> F.value op.name
+renderUnion :  Union -> String
+renderUnion {primitiveTypes, primitiveType} = "Union[{{ }}]({{ }})"
+    |> F.value (SpecRender.renderPrimitiveTypes primitiveTypes)
+    |> F.value (SpecRender.renderPrimitiveType primitiveType)
+
+renderSelector : Selector -> String
+renderSelector {returnType} = "Selector[{{ }}]"
+    |> F.value (T.renderReturnType returnType)
+
+renderOperator : Operator -> String
+renderOperator {specOperator, returnType} =
+    "Operator({{ }} => {{ }})"
+        |> F.value specOperator.name
+        |> F.value (T.renderReturnType returnType)
 
 renderInput : Input -> String
 renderInput {literalType, value, userInput, errMess} =
     "Input[{{ }}]({{ }})"
-        |> F.value (SpecRender.renderLiteralType literalType)
+        |> F.value (T.renderLiteralType literalType)
         |> F.value (renderArgs
-        [ renderArg "value" <| Maybe.map SpecRender.renderEditableValue value
+        [ renderArg "value" <| Maybe.map SpecRender.renderLiteralExpr value
         , renderArg "userInput" userInput
         , renderArg "errMess" errMess
         ])
 
-renderArgType : ArgType -> T.Key -> String
-renderArgType t k = case t of
-    Arg -> "Arg({{ }})" |> F.value k
+renderNode : Node -> String
+renderNode node = case node of
+    Primitive (PInput x) -> renderInput x
 
-    OptArg v -> "OptArg({{ }}, Default={{ }})"
-        |> F.value k
-        |> F.value (SpecRender.renderEditableValue v)
+    Primitive (POperator op) -> renderOperator op
 
-renderUnion :  Union -> String
-renderUnion {specTypes, specType} = "Union[{{ }}]({{ }})"
-    |> F.value (SpecRender.renderSpecTypes specTypes)
-    |> F.value (SpecRender.renderSpecType specType)
+    Composite (CVarArgs t) -> "CVarArgs({{ }})"
+        |> F.value (SpecRender.renderPrimitiveType t)
 
-renderSelector : Selector -> String
-renderSelector {specType} = "Selector[{{ }}]"
-    |> F.value (SpecRender.renderSpecType specType)
+    Composite (CPacked t op) -> "CPacked({{ }}, {{ }})"
+        |> F.value (SpecRender.renderPrimitiveType t)
+        |> F.value (renderOperator op)
 
-
-renderRawEntry : (a -> String) -> RawEntry a -> NE.NonEmpty String
-renderRawEntry f {argType, argKey, unions, selector, entryType} =
+renderEntry : Entry Node -> List String
+renderEntry {unions, selector, entryType} =
     let
         renderUnions : List Union -> List (Maybe String)
         renderUnions = List.map (renderUnion >> Just)
@@ -68,36 +80,42 @@ renderRawEntry f {argType, argKey, unions, selector, entryType} =
     List.append
         (Maybe.unwrap [] (NE.toList >> renderUnions) unions)
         [ Maybe.map renderSelector selector
-        , Just <| f entryType
+        , Just <| renderNode entryType
         ]
-    |> Maybe.values
-    |> NE.fromCons (renderArgType argType argKey)
+        |> Maybe.values
 
-renderEntryType : EntryType -> String
-renderEntryType t = case t of
-    InputEntry x -> renderInput x
-    OperatorEntry op -> renderOperator op
+renderRowType : RowType -> (String, List String)
+renderRowType rowType = case rowType of
+    RArg {key, entry} ->
+        ( "RArg({{ }})"
+            |> F.value key
+        , renderEntry entry
+        )
 
-renderEntry : Entry -> NE.NonEmpty String
-renderEntry = renderRawEntry renderEntryType
+    ROptArgs ->
+        ( "ROptArgs"
+        , [ "OperatorOptions" ]
+        )
 
-renderVarArgEntry : VarArgEntry -> NE.NonEmpty String
-renderVarArgEntry = renderRawEntry
-    (\t -> "VarArgEntry[{{ }}]" |> F.value (SpecRender.renderSpecType t))
+    ROptArg {key, defaultValue, entry} ->
+        let
+            v = Maybe.unwrap "None" SpecRender.renderLiteralExpr defaultValue
+        in
+        ( "ROptArg({{ }}, Default={{ }})"
+            |> F.value key
+            |> F.value v
+        , renderEntry entry
+        )
 
-renderRowType : RowType -> (String, NE.NonEmpty String)
-renderRowType r = case r of
-    TopRow op -> ("Top", NE.singleton <| renderOperator op)
+    RVarItem entry ->
+        ( "RVarItem"
+        , renderEntry <| O.over entryType_ Primitive entry
+        )
 
-    EntryRow e -> ("EntryRow", renderEntry e)
-
-    OptionsRow -> ("OperatorOptions", NE.singleton "OptArgs")
-
-    VarArgsRow (VarArg e) -> ("VarArgsRow", renderVarArgEntry e)
-
-    VarArgsRow (VarItem e) -> ("VarItem", renderEntry e)
-
-    VarArgsRow VarEnd -> ("VarEnd", NE.singleton "AddItem")
+    RVarEnd ->
+        ( "RVarEnd"
+        , [ "AddItem" ]
+        )
 
 renderEditionRow : Int -> EditionRow -> List Indent
 renderEditionRow i {rowType, isExpand} =
@@ -105,25 +123,24 @@ renderEditionRow i {rowType, isExpand} =
         extra =
             [ renderArg "isExpand" (Maybe.map Bool.toString isExpand)
             ]
-    in renderRowType rowType |> uncurry (\t (headLine, tail) ->
-        (renderArgs (Just headLine :: extra)) :: tail
-        |> List.Extra.unconsLast
-        |> Maybe.map (\(last, xs) -> List.append
-            (List.map (\x -> x ++ ",") xs)
-            (List.singleton last))
-        |> Maybe.andThen List.Extra.uncons
-        |> Maybe.map (\(x, xs) ->
-            (Indent i True t x) :: (List.map (Indent i False t) xs))
-        |> Maybe.withDefault [])
+    in renderRowType rowType |> \(t, rows) -> rows
+        |> O.over OE.listHead_ (\x -> renderArgs (Just x :: extra))
+        |> O.over OE.consLast_ (\(x, xs) ->
+            ( x
+            , List.map (\y -> y ++ ",") xs
+            )
+        )
+        |> O.over OE.cons_ (\(x, xs) ->
+            ( Indent i True t x
+            , List.map (Indent i False t) xs
+            )
+        )
 
 renderTree : Int -> EditionTree -> List Indent
 renderTree i tree =
-    let
-        node = Tree.label tree
-        forest = Tree.children tree
-    in List.append
-        (renderEditionRow i node)
-        (List.concatMap (renderTree (i + 1)) forest)
+    List.append
+        (renderEditionRow i <| O.get OE.node_ tree)
+        (List.concatMap (renderTree (i + 1)) <| O.get OE.forest_ tree)
 
 renderIndent : Indent -> String
 renderIndent {indent, isHead, rowType, rowStr} =
@@ -136,10 +153,10 @@ renderIndent {indent, isHead, rowType, rowStr} =
 
     in (doIndent indent) ++ (if isHead then prefix else shift) ++ rowStr
 
-renderEditionTree : EditionTree -> String
-renderEditionTree tree =
-    renderTree 0 tree
+renderEditor : Editor -> String
+renderEditor {root} =
+    O.review treeRoot_ root
+        |> renderTree 0
         |> (\xs -> List.append xs [Indent 0 False "" ""])
         |> List.map renderIndent
         |> String.join "\n"
-

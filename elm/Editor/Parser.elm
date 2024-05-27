@@ -2,355 +2,274 @@ module Editor.Parser exposing (..)
 
 import Set
 import Dict
-import Bool.Extra as Bool
 import Tuple.Extra as Tuple
-import Either exposing (Either(..))
+import Maybe.Extra as Maybe
+import Either exposing (Either)
 
-import String.Format
+import Reader
+import ReaderExtra exposing (ask, asks, askM, asksM)
+import List.Extra
 import AssocList as Assoc
-import List.NonEmpty as NE
-import List.Extra exposing (allDifferentBy)
-import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
-import Parser.Extras as Parser
+import List.Nonempty as NE
+import Parser.Advanced as PA exposing ((|.), (|=))
 
-import Lisp
-import Editor.Type as T exposing (TypedExpr, Spec, SpecType)
+import Editor.Type as T
+import Editor.SpecParser as Parser exposing (Parser)
 
 
-stringParser : Parser String
-stringParser =
-    let
-        quote =
-            '"'
-
-        quoteSymbol =
-            String.fromChar quote
-    in
-    Parser.succeed identity
-        |. Parser.symbol quoteSymbol
-        |= Parser.variable
-            { start = always True
-            , inner = (/=) quote
-            , reserved = Set.empty
-            }
-        |. Parser.symbol quoteSymbol
+type alias SpecEnv =
+    { gSpec : T.GSpec
+    , returnType : T.ReturnType
+    , operator : T.Operator
+    }
 
 
-minusSign : Parser Bool
-minusSign =
-    Parser.oneOf
-        [ Parser.map (always True) (Parser.symbol "-")
-        , Parser.succeed False
-        ]
+type alias Parser c x a =
+    Reader.Reader SpecEnv (Parser.Parser c x a)
 
 
-numberParser : Parser number -> Parser number
-numberParser pa =
-    Parser.succeed
-        (\negative x ->
-            if negative then
-                -x
+map : (a -> b) -> Parser c x a -> Parser c x b
+map f = Reader.map (Parser.map f)
 
-            else
-                x
-        )
-        |= minusSign
-        |= pa
+andThen : (a -> Parser c x b) -> Parser c x a -> Parser c x b
+andThen f ma =
+    let andThen_ : SpecEnv -> Parser.Parser c x b
+        andThen_ env =
+            Reader.run ma env |> Parser.andThen (\a -> Reader.run (f a) env)
+    in Reader.asks andThen_
 
+evalParser :
+    SpecEnv -> Parser.ProblemMap c x -> Parser c x a -> PA.Parser c x a
+evalParser specEnv problemMap pa =
+    Reader.run (Reader.run pa specEnv) problemMap
 
-boolParser : Parser Bool
-boolParser =
-    Parser.oneOf
-        [ Parser.succeed True |. Parser.keyword "#t"
-        , Parser.succeed False |. Parser.keyword "#f"
-        ]
+oneOf : List (Parser c x a) -> Parser c x a
+oneOf xs =
+    ask <| \specEnv ->
+        ask <| \problemMap ->
+            PA.oneOf (List.map (evalParser specEnv problemMap) xs)
 
+many :  Parser c x a -> Parser c x (List a)
+many pa =
+    ask <| \specEnv ->
+        ask <| \problemMap ->
+            Parser.many (evalParser specEnv problemMap pa)
 
-boolToString : Bool -> String
-boolToString x =
-    case x of
-        True ->
-            "True"
+succeed : a -> Parser c x a
+succeed x =
+    Reader.reader <|
+        Reader.reader <|
+            PA.succeed x
 
-        False ->
-            "False"
-
-
-valueParser : T.LiteralType -> Parser ( String, T.EditableValue )
-valueParser inputType =
-    let
-        andThen f =
-            Parser.andThen (f >> Parser.succeed)
-    in
-    case inputType of
-        T.Bool ->
-            boolParser
-                |> andThen (\x -> ( boolToString x, T.BoolValue x ))
-
-        T.Int ->
-            numberParser Parser.int
-                |> andThen (\x -> ( String.fromInt x, T.IntValue x ))
-
-        T.Number ->
-            numberParser Parser.float
-                |> andThen (\x -> ( String.fromFloat x, T.NumberValue x ))
-
-        T.String ->
-            stringParser
-                |> andThen (\x -> ( x, T.StringValue x ))
-
-        T.TimestampString ->
-            -- XXX should be a date parser ?
-            stringParser
-                |> andThen (\x -> ( x, T.TimestampValue x ))
-
-        T.SearchString ->
-            stringParser
-                |> andThen (\x -> ( x, T.StringValue x ))
+problem : String -> Parser c x a
+problem s =
+    Reader.reader <|
+        asks .internal <| \internal ->
+            PA.problem <| internal s
 
 
-parseTypedExpr : Spec -> SpecType -> Parser TypedExpr
-parseTypedExpr spec specType =
-    case specType of
-        T.Editable x -> Parser.oneOf
-            [ Parser.map
-                (Tuple.second >> T.TLiteral x)
-                (valueParser x |. Parser.spaces)
-            , parseOperator spec
-            ]
+parseLiteralExpr : T.LiteralType -> Parser c x T.PrimitiveExpr
+parseLiteralExpr t = oneOf
+    -- XXX should handle nil
+    [ Reader.reader (Parser.literalParser t) |> map (Just >> T.LiteralExpr t)
+    , parseTypedOperator |> map T.OperatorExpr
+    ]
 
-        T.Series ->
-            parseOperator spec
+setReturnType : T.PrimitiveType -> Parser c x a -> Parser c x a
+setReturnType p =
+    let t = T.BaseReturnType <| T.findBaseReturnType p
+    in Reader.local (\senv -> {senv | returnType = t})
 
-        T.Query ->
-            parseOperator spec
+parsePrimitiveExpr : T.PrimitiveType -> Parser c x T.PrimitiveExpr
+parsePrimitiveExpr p = setReturnType p <| case p of
+    T.Literal t -> parseLiteralExpr t
 
-        T.Timestamp ->
-            parseOperator spec
+    T.OperatorOutput _ -> parseTypedOperator |> map T.OperatorExpr
 
-        T.VarArgs x ->
-            Parser.map (T.TVarArgs x) (parseList spec x)
+    T.Union xs -> parseUnion xs |> map (T.UnionExpr xs)
 
-        T.Packed x ->
-            parseOperator spec
+parseUnion :
+    NE.Nonempty T.PrimitiveType ->
+    Parser c x (T.PrimitiveType, T.PrimitiveExpr)
+parseUnion primitiveTypes =
+    NE.toList primitiveTypes
+        |> List.map (\x -> map (Tuple.pair x) (parsePrimitiveExpr x))
+        |> oneOf
+        -- XXX show problems
 
-        T.Union xs ->
-            Parser.map (T.TUnion xs) (parseUnion spec xs)
+parsePacked : T.PrimitiveType -> Parser c x T.TypedOperator
+parsePacked t =
+    let x = T.ReturnPacked <| T.listBaseReturnType t
+    in Reader.local (\senv -> {senv | returnType = x}) parseTypedOperator
 
+parseVarArgs : T.PrimitiveType -> Parser c x (List T.PrimitiveExpr)
+parseVarArgs t =
+    many (parsePrimitiveExpr t)
 
-parseList : Spec -> SpecType -> Parser (List TypedExpr)
-parseList spec specType =
-    Parser.loop []
-        (\xs ->
-            Parser.oneOf
-                [ parseTypedExpr spec specType
-                    |> Parser.map (\x -> x :: xs |> Parser.Loop)
-                , Parser.succeed (List.reverse xs |> Parser.Done)
-                ]
-        )
+parseTypedExpr : T.SpecType -> Parser c x T.TypedExpr
+parseTypedExpr specType = case specType of
+    T.PrimitiveType t ->
+        parsePrimitiveExpr t |> map T.PrimitiveExpr
 
+    T.CompositeType (T.VarArgs t) ->
+        parseVarArgs t |> map (T.VarArgsExpr t >> T.CompositeExpr)
 
-parseUnion : Spec -> NE.NonEmpty SpecType -> Parser ( SpecType, TypedExpr )
-parseUnion spec =
-    NE.toList
-        >> List.map (\x -> Parser.map (Tuple.pair x) (parseTypedExpr spec x))
-        >> Parser.oneOf
+    T.CompositeType (T.Packed _) ->
+        problem "Packed unsupported as argument type"
+
+parseArg : Bool -> (T.Key, T.SpecType) -> Parser c x (T.Key, T.TypedExpr)
+parseArg isKeyword (k, t) =
+    ask <| \senv ->
+        ask <| \({toToken} as pm) ->
+            let
+                parseKeyword = PA.keyword (toToken <| "#:" ++ k)
+            in
+            PA.succeed (Tuple.pair k)
+                |. (if isKeyword then parseKeyword else Parser.empty)
+                |. PA.spaces
+                |= evalParser senv pm (parseTypedExpr t)
+
+parsePositional : (T.Key, T.SpecType) -> Parser c x (T.Key, T.TypedExpr)
+parsePositional = parseArg False
+
+parseWithKey : (T.Key, T.SpecType) -> Parser c x (T.Key, T.TypedExpr)
+parseWithKey = parseArg True
 
 
 type alias ArgsSpec =
-    List ( T.Key, SpecType )
-
-
-type alias OptArgsSpec =
-    T.KAssoc SpecType
+    List (T.Key, T.SpecType)
 
 
 type alias Args =
-    List ( T.Key, TypedExpr )
+    List (T.Key, T.TypedExpr)
 
 
-parseArgs : Spec -> ArgsSpec -> OptArgsSpec -> Args -> Parser Args
-parseArgs spec argsSpec optArgsSpec args =
-    case argsSpec of
-        ( k, t ) :: xs ->
-            let
-                parsePositional : Parser Args
-                parsePositional =
-                    Parser.succeed (\v -> ( k, v ) :: args)
-                        |. Parser.spaces
-                        |= parseTypedExpr spec t
-            in
-            Parser.oneOf
-                [ parsePositional |> Parser.andThen (parseArgs spec xs optArgsSpec)
-                , parseArgsWithKey spec argsSpec optArgsSpec args
-                ]
-
-        [] ->
-            parseArgsWithKey spec [] optArgsSpec args
-
-
-parseArgsWithKey : Spec -> ArgsSpec -> OptArgsSpec -> Args -> Parser Args
-parseArgsWithKey spec argsSpec optArgsSpec args =
+parseArgs_ :
+    SpecEnv ->
+    Parser.ProblemMap c x ->
+    (ArgsSpec,  Args) ->
+    PA.Parser c x (PA.Step (ArgsSpec, Args) Args)
+parseArgs_ senv pm (argsSpec, args) =
     let
-        parseOptArg ks ( k, t ) =
-            Parser.succeed (\v -> ( k, v ) :: ks |> Parser.Loop)
-                |. Parser.keyword ("#:" ++ k)
-                |. Parser.spaces
-                |= parseTypedExpr spec t
-    in
-    Parser.loop args
-        (\xs ->
-            let
-                optArgParsers =
-                    List.map
-                        (parseOptArg xs)
-                        (argsSpec ++ Assoc.toList optArgsSpec)
+        done = (parseArgsWithKey argsSpec |> evalParser senv pm)
+            |> PA.map (List.append (List.reverse args) >> PA.Done)
 
-                end =
-                    if allDifferentBy Tuple.first xs then
-                        Parser.succeed <| Parser.Done xs
+    in case argsSpec of
+        x :: xs -> PA.oneOf
+            [ (parsePositional x |> evalParser senv pm)
+                |. PA.spaces
+                |> PA.map (\a -> PA.Loop (xs, a::args))
+            , done
+            ]
 
-                    else
-                        Parser.problem "Duplicate keyword for argument"
-            in
-            Parser.oneOf (optArgParsers ++ [ end ])
-        )
+        [] -> done
 
+parseArgs : ArgsSpec -> Args -> Parser c x Args
+parseArgs argsSpec args =
+    ask <| \senv ->
+        ask <| \pm ->
+            PA.loop (argsSpec, args) (parseArgs_ senv pm)
 
-parseOperatorArgs : Spec -> T.Operator -> Parser T.TypedExpr
-parseOperatorArgs spec op =
+parseArgsWithKey : ArgsSpec -> Parser c x Args
+parseArgsWithKey argsSpec = asksM (.operator >> .optArgs) <| \optArgs ->
     let
-        argKeys =
-            Assoc.keys op.args
+        spec = Assoc.toList optArgs
+            |> List.map (Tuple.mapSecond Tuple.first) -- drop default value
+            |> List.append argsSpec
 
-        optArgKeys =
-            Assoc.keys op.optArgs
+    in many <| oneOf (List.map parseWithKey spec)
 
-        keyIdx =
+parseTypedArgs : T.TypedOperator -> Parser c x T.TypedOperator
+parseTypedArgs ({operator} as op) =
+    let
+        argKeys = Assoc.keys operator.args
+        optArgKeys = Assoc.keys operator.optArgs
+
+        specKeyIdx : Dict.Dict T.Key Int
+        specKeyIdx =
             List.indexedMap Tuple.pair (argKeys ++ optArgKeys)
                 |> List.map Tuple.flip
                 |> Dict.fromList
 
-        sortByKeys =
-            List.sortBy
-                (\( k, _ ) ->
-                    Dict.get k keyIdx
-                        |> Maybe.withDefault -1
-                )
-                >> Assoc.fromList
+        sortBySpecKeys : Args -> T.TypedExprs
+        sortBySpecKeys xs = Assoc.fromList <| List.sortBy
+            (\( k, _ ) -> Dict.get k specKeyIdx |> Maybe.withDefault -1)
+            xs
 
-        checkArgs ( args, optArgs ) =
-            if Assoc.size args == List.length argKeys then
-                Parser.succeed ( args, optArgs )
-
+        checkDuplicate : Args -> Parser c x Args
+        checkDuplicate xs =
+            if List.Extra.allDifferentBy Tuple.first xs then
+                succeed xs
             else
-                Parser.problem "Lack of mandatory argument"
+                problem "Duplicate keyword for argument"
+
+        checkArgs : T.TypedOperator -> Parser c x T.TypedOperator
+        checkArgs ({ typedArgs, typedOptArgs } as t) =
+            if Assoc.size typedArgs == List.length argKeys then
+                succeed t
+            else
+                problem "Lack of mandatory argument"
+
     in
-    parseArgs
-        spec
-        (Assoc.toList op.args)
-        (Assoc.map (\_ x -> Tuple.first x) op.optArgs)
-        []
-        |> Parser.map sortByKeys
-        |> Parser.map (Assoc.partition (\k _ -> List.member k argKeys))
-        |> Parser.andThen checkArgs
-        |> Parser.map (\( args, optArgs ) -> T.TOperator op args optArgs)
+    Reader.local
+        (\senv -> {senv | operator = operator})
+        (parseArgs (Assoc.toList operator.args) [])
+        |> andThen checkDuplicate
+        |> map sortBySpecKeys -- order user input from Spec for rendering
+        |> map (Assoc.partition (\k _ -> List.member k argKeys))
+        |> map (\(typedArgs, typedOptArgs) ->
+            {op | typedArgs = typedArgs, typedOptArgs = typedOptArgs})
+        |> andThen checkArgs
 
+parseOperatorName : Parser c x String
+parseOperatorName = Reader.reader <| asks .expecting <| \expecting ->
+    let specials = String.toList "_-+*/.<>="
+        accept = \c -> List.member c specials
+    in PA.variable
+        { start = \c -> Char.isLower c || accept c
+        , inner = \c -> Char.isAlphaNum c || accept c
+        , reserved = Set.empty
+        , expecting = expecting "Valid operator name"
+        }
+        |. PA.spaces
 
-parseOperator : Spec -> Parser T.TypedExpr
-parseOperator spec =
-    let
-        errMess = "could not find the operator {{ }} in the spec"
+getOperator : Parser c x (T.TypedOperator)
+getOperator = askM <| \({gSpec, returnType}) ->
+    let initTyped op = T.TypedOperator op Assoc.empty Assoc.empty returnType
+    in parseOperatorName
+        |>  map 
+            (\k -> Assoc.get k gSpec.spec |> Either.fromMaybe ("no " ++ k))
+        |> andThen (Either.unpack problem (initTyped >> succeed))
 
-        getopspec opname =
-            case Assoc.get opname spec of
-                Just opspec ->
-                    parseOperatorArgs spec opspec
-                Nothing ->
-                    Parser.problem <| String.Format.value opname <| errMess
-    in
-    Parser.between
-        (Parser.symbol "(" |. Parser.spaces)
-        (Parser.spaces |. Parser.symbol ")" |. Parser.spaces)
-        (Parser.oneOf
-            [ Lisp.symbolparser |. Parser.spaces |> Parser.andThen getopspec
-            , Parser.succeed T.voidTOperator |. Parser.spaces
-            ]
-        )
+parseTypedOperator : Parser c x T.TypedOperator
+parseTypedOperator =
+    ask <| \senv ->
+        ask <| \({toToken} as pm) -> Parser.between
+            (PA.symbol (toToken "(") |. PA.spaces)
+            (PA.spaces |. PA.symbol (toToken ")"))
+            (getOperator |> andThen parseTypedArgs |> evalParser senv pm)
 
+parseTopOperator : Parser c x T.TypedOperator
+parseTopOperator =
+    ask <| \senv ->
+        ask <| \({expecting} as pm) ->
+            PA.succeed identity
+                |. PA.spaces
+                |= (evalParser senv pm parseTypedOperator)
+                |. PA.spaces
+                |. (PA.end <| expecting "End of formula")
 
-parseFormula : Spec -> String -> Either String T.TypedExpr
-parseFormula spec formulaCode =
-    let
-        runParser =
-            Parser.run
-                (Parser.succeed identity
-                    |. Parser.spaces
-                    |= parseOperator spec
-                    |. Parser.end
-                )
-    in
-    formulaCode
-        |> runParser
-        |> Either.fromResult
-        |> Either.mapLeft deadEndsToString
-
-
-deadEndsToString : List DeadEnd -> String
-deadEndsToString deadEnds =
-    let
-        deadEndToString : DeadEnd -> String
-        deadEndToString deadEnd =
-            let
-                position : String
-                position =
-                    "row:"
-                        ++ String.fromInt deadEnd.row
-                        ++ " col:"
-                        ++ String.fromInt deadEnd.col
-                        ++ " "
-            in
-            case deadEnd.problem of
-                Expecting str ->
-                    "Expecting " ++ str ++ "at " ++ position
-
-                ExpectingInt ->
-                    "ExpectingInt at " ++ position
-
-                ExpectingHex ->
-                    "ExpectingHex at " ++ position
-
-                ExpectingOctal ->
-                    "ExpectingOctal at " ++ position
-
-                ExpectingBinary ->
-                    "ExpectingBinary at " ++ position
-
-                ExpectingFloat ->
-                    "ExpectingFloat at " ++ position
-
-                ExpectingNumber ->
-                    "ExpectingNumber at " ++ position
-
-                ExpectingVariable ->
-                    "ExpectingVariable at " ++ position
-
-                ExpectingSymbol str ->
-                    "ExpectingSymbol " ++ str ++ " at " ++ position
-
-                ExpectingKeyword str ->
-                    "ExpectingKeyword " ++ str ++ "at " ++ position
-
-                ExpectingEnd ->
-                    "ExpectingEnd at " ++ position
-
-                UnexpectedChar ->
-                    "UnexpectedChar at " ++ position
-
-                Problem str ->
-                    "ProblemString " ++ str ++ " at " ++ position
-
-                BadRepeat ->
-                    "BadRepeat at " ++ position
-    in
-    List.foldl (++) "" (List.map deadEndToString deadEnds)
+parseFormula :
+    T.GSpec ->
+    T.ReturnType ->
+    T.FormulaCode ->
+    Either T.ParserErrors T.TypedOperator
+parseFormula gSpec returnType formulaCode =
+    { gSpec = gSpec
+    , returnType = returnType
+    , operator = T.voidOperator
+    }
+        |> Reader.run parseTopOperator
+        |> Parser.runParser
+            (Parser.defaultProblemMap <| always "C")
+            formulaCode

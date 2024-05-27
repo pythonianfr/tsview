@@ -1,24 +1,14 @@
-module Spec2Suite exposing (parsing)
+module Spec2Suite exposing (testParsing)
 
-import Expect
-import Either exposing (Either(..))
-import Test exposing (Test, test)
-
-import Json.Decode as D
-import List.NonEmpty as NE
+import Test
 
 import Editor.SpecParser exposing (parseSpecString)
 import Editor.SpecRender exposing (renderSpec)
 
-
-type alias T =
-    { name : String
-    , jsonSpec : String
-    , result : String
-    }
+import TestUtil exposing (T)
 
 
-tests : List T
+tests : List (T String)
 tests =
     [ T "series"
         """
@@ -26,6 +16,10 @@ tests =
   [
     "series",
     [
+      [
+        "return",
+        "Series"
+      ],
       [
         "name",
         "seriesname"
@@ -45,10 +39,6 @@ tests =
       [
         "weight",
         "Default[Number=None]"
-      ],
-      [
-        "return",
-        "Series"
       ]
     ]
   ]
@@ -61,9 +51,9 @@ series
         name: SearchString
         date: Timestamp
     optional_arguments:
-        fill: Union[String, Number] Default=nil
-        prune: Int Default=nil
-        weight: Number Default=nil
+        fill: Union[String, Number] Default=None
+        prune: Int Default=None
+        weight: Number Default=None
     return: Series
 -----
 """
@@ -73,6 +63,10 @@ series
   [
     "series",
     [
+      [
+        "return",
+        "Series"
+      ],
       [
         "name",
         "seriesname"
@@ -84,10 +78,6 @@ series
       [
         "weight",
         "Default[Number=None]"
-      ],
-      [
-        "return",
-        "Series"
       ]
     ]
   ],
@@ -95,16 +85,16 @@ series
     "today",
     [
       [
+        "return",
+        "Timestamp"
+      ],
+      [
         "naive",
         "Default[bool=False]"
       ],
       [
         "tz",
         "Default[str=\\"UTC\\"]"
-      ],
-      [
-        "return",
-        "Timestamp"
       ]
     ]
   ],
@@ -112,12 +102,12 @@ series
     "priority",
     [
       [
-        "serieslist",
-        "List[Series]"
-      ],
-      [
         "return",
         "Series"
+      ],
+      [
+        "serieslist",
+        "List[Series]"
       ]
     ]
   ],
@@ -150,8 +140,8 @@ series
     arguments:
         name: SearchString
     optional_arguments:
-        fill: Union[String, Number] Default=nil
-        weight: Number Default=nil
+        fill: Union[String, Number] Default=None
+        weight: Number Default=None
     return: Series
 -----
 today
@@ -177,21 +167,11 @@ timedelta
     ]
 
 
-parsing : Test
-parsing =
+testParsing : Test.Test
+testParsing =
     let
-        rdr : String -> String
-        rdr =
-            parseSpecString
-                >> Either.unpack
-                    (Tuple.second >> NE.toList >> String.join "\n")
-                    renderSpec
-
-        checkStr x _ =
-            let
-                res =
-                    rdr x.jsonSpec
-            in
-            Expect.equal res (String.trim x.result)
+        render = parseSpecString
+            >> Tuple.second
+            >> renderSpec
     in
-    List.map (\x -> checkStr x |> test x.name) tests |> Test.concat
+    TestUtil.buildTests render tests |> Test.concat

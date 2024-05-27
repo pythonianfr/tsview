@@ -1,103 +1,118 @@
-module Editor.SpecRender exposing 
-    ( renderLiteralType
+module Editor.SpecRender exposing
+    ( renderPrimitiveType
+    , renderPrimitiveTypes
     , renderSpecType
-    , renderSpecTypes
-    , renderEditableValue
+    , renderLiteralExpr
     , renderSpec
+    , renderGSpec
     )
 
 import Bool.Extra as Bool
+import Maybe.Extra as Maybe
 
 import AssocList as Assoc
-import List.NonEmpty as NE
+import List.Nonempty as NE
 
-import Editor.Type as T exposing (..)
+import Editor.Type as T
 
 
-renderLiteralType : T.LiteralType -> String
-renderLiteralType t = case t of
-    T.Int -> "Int"
+renderPrimitiveType : T.PrimitiveType -> String
+renderPrimitiveType primitiveType = case primitiveType of
+    T.Literal t -> T.renderLiteralType t
 
-    T.Number -> "Number"
+    T.OperatorOutput t -> T.renderOperatorOutputType t
 
-    T.String -> "String"
+    T.Union xs -> "Union[" ++ renderPrimitiveTypes xs ++ "]"
 
-    T.Bool -> "Bool"
+renderPrimitiveTypes : NE.Nonempty T.PrimitiveType -> String
+renderPrimitiveTypes xs =
+    NE.map renderPrimitiveType xs |> NE.toList |> String.join ", "
 
-    T.TimestampString -> "Timestamp"
+renderCompositeType : T.CompositeType -> String
+renderCompositeType compositeType = case compositeType of
+    T.VarArgs t -> "List[" ++ renderPrimitiveType t ++ "]"
 
-    T.SearchString -> "SearchString"
+    T.Packed t -> "Packed[" ++ renderPrimitiveType t ++ "]"
 
 renderSpecType : T.SpecType -> String
 renderSpecType sType = case sType of
-    T.Editable x -> renderLiteralType x
+    T.PrimitiveType t -> renderPrimitiveType t
 
-    T.Timestamp -> "Timestamp"
+    T.CompositeType t -> renderCompositeType t
 
-    T.Query -> "Query"
+renderLiteralExpr : T.LiteralExpr -> String
+renderLiteralExpr literalExpr = case literalExpr of
+    T.BoolExpr x -> Bool.toString x
 
-    T.Series -> "Series"
+    T.IntExpr x -> String.fromInt x
 
-    T.VarArgs x -> "List[" ++ renderSpecType x ++ "]"
+    T.NumberExpr x -> String.fromFloat x
 
-    T.Packed x -> "Packed[" ++ renderSpecType x ++ "]"
+    T.StringExpr x -> "\"" ++ x ++ "\""
 
-    T.Union xs -> "Union[" ++ renderSpecTypes xs ++ "]"
+    T.TimestampExpr x -> x
 
-renderSpecTypes : NE.NonEmpty SpecType -> String
-renderSpecTypes xs =
-    NE.map renderSpecType xs |> NE.toList |> String.join ", "
 
-renderEditableValue : EditableValue -> String
-renderEditableValue v = case v of
-    T.Nil -> "nil"
+type alias Indent =
+    { indent : Int
+    , line : String
+    }
 
-    T.BoolValue x -> Bool.toString x
 
-    T.IntValue x -> String.fromInt x
-
-    T.NumberValue x -> String.fromFloat x
-
-    T.StringValue x -> "\"" ++ x ++ "\""
-
-    T.TimestampValue x -> x
-
-renderSection : String -> (a -> String) -> T.KAssoc a -> List ( Int, String )
+renderSection : String -> (a -> String) -> T.KAssoc a -> List Indent
 renderSection title rdrType ks =
-    let
-        rdrArg ( k, v ) = ( 2, k ++ ": " ++ rdrType v )
-    in
-    Assoc.toList ks
+    let rdrArg ( k, v ) = Indent 2 (k ++ ": " ++ rdrType v)
+    in Assoc.toList ks
         |> List.map rdrArg
         |> NE.fromList
-        |> Maybe.map (NE.cons ( 1, title ) >> NE.toList)
-        |> Maybe.withDefault []
+        |> Maybe.unwrap
+            []
+            (\xs -> NE.cons (Indent 1 title) xs |> NE.toList)
 
-
-renderOperator : T.Operator -> List ( Int, String )
+renderOperator : T.Operator -> List Indent
 renderOperator op =
     let
+        rdrArg = renderSpecType
 
-        rdrArg v = renderSpecType v
+        rdrDefault = Maybe.unwrap "None" renderLiteralExpr
 
         rdrOptArg ( x, v ) =
-            renderSpecType x ++ " Default=" ++ renderEditableValue v
+            renderSpecType x ++ " Default=" ++ rdrDefault v
+
+        return = "return: " ++ renderSpecType op.return
     in
     List.concat
-        [ List.singleton ( 0, op.name )
+        [ List.singleton <| Indent 0 op.name
         , renderSection "arguments:" rdrArg op.args
         , renderSection "optional_arguments:" rdrOptArg op.optArgs
-        , List.singleton ( 1, "return: " ++ renderSpecType op.return )
+        , List.singleton <| Indent 1 return
         ]
 
+render : (a -> List Indent) -> List a -> String
+render f xs =
+    let
+        sep : Indent
+        sep = Indent 0 (String.repeat 5 "-" )
+
+        tab : String
+        tab = String.repeat 4 " "
+
+        renderIndent : Indent -> String
+        renderIndent {indent, line} = String.repeat indent tab ++ line
+
+    in List.concatMap (f >> List.append [sep]) xs
+        |> (\ys -> if (List.isEmpty ys) then [] else (List.append ys [sep]))
+        |> List.map renderIndent
+        |> String.join "\n"
 
 renderSpec : T.Spec -> String
-renderSpec =
-    let
-        sep = [ ( 0, String.repeat 5 "-" ) ]
-        iStr = String.repeat 4 " "
-    in
-    Assoc.values
-        >> List.foldl (\x xs -> xs ++ renderOperator x ++ sep) sep
-        >> List.map (\( i, s ) -> String.repeat i iStr ++ s)
-        >> String.join "\n"
+renderSpec spec = Assoc.values spec |> render renderOperator
+
+renderOperators : (T.BaseReturnType, T.Operators) -> List Indent
+renderOperators (baseReturnType, operators) =
+    (Indent 1 <| T.renderBaseReturnType baseReturnType) ::
+    (Indent 0 "") ::
+    (List.concatMap renderOperator <| Assoc.values operators)
+
+renderGSpec : T.GSpec -> String
+renderGSpec {gOperators} = Assoc.toList gOperators |> render renderOperators
