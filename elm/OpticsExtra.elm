@@ -11,6 +11,18 @@ import RoseTree.Tree as Tree exposing (Tree)
 import Optics.Basic as OB
 import Optics.Core as O exposing (o)
 
+import AssocList as Assoc
+
+
+-- utils
+
+has_ : O.Optic pr ls s t a b -> s -> Bool
+has_ optics s = O.getSome optics s |> Maybe.isJust
+
+only_ : (a -> Bool) -> O.SimpleTraversal a a
+only_ = OB.only
+
+
 -- Maybe
 just_ : O.Prism pr (Maybe a) (Maybe b) a b
 just_ = OB.just_
@@ -25,7 +37,7 @@ first_ = OB.first
 second_ : O.Lens n ( c, a ) ( c, b ) a b
 second_ = OB.second
 
--- List
+-- List XXX uncons !
 cons_ : O.Prism pr (List a) (List b) (a, List a) (b, List b)
 cons_ = OB.cons
 
@@ -47,6 +59,9 @@ listLast_ = O.traversal
     (\xs -> O.getAll (listIx_ <| List.length xs - 1) xs)
     (\f xs -> O.over (listIx_ <| List.length xs - 1) f xs)
 
+listEach_ : O.Traversal (List a) (List b) a b
+listEach_ = O.traversal identity List.map
+
 
 -- Nonempty
 
@@ -63,6 +78,16 @@ neLast_ = O.traversal
     (\xs -> O.getAll (neIx_ <| NE.length xs - 1) xs)
     (\f xs -> O.over (neIx_ <| NE.length xs - 1) f xs)
 
+neEach_ : O.Traversal (NE.Nonempty a) (NE.Nonempty b) a b
+neEach_ = O.traversal NE.toList NE.map
+
+
+-- Assoc
+
+assocValues_ : O.SimpleTraversal (Assoc.Dict k v) v
+assocValues_ = O.traversal
+    (\assoc -> Assoc.toList assoc |> List.map Tuple.second)
+    (\f assoc -> Assoc.map (\_ v -> f v) assoc)
 
 -- Tree
 

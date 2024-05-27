@@ -1,89 +1,41 @@
 module Editor.SpecParser exposing (..)
 
 import Set
-import Either exposing (Either(..))
+import Array
 import Maybe.Extra as Maybe
+import Either exposing (Either(..))
 
 import Reader
-import ReaderExtra exposing (ask, asks)
-import AssocList as Assoc
 import List.Nonempty as NE
 import List.Nonempty.Ancillary as NEA
 import Json.Decode as JD
-import String.Format as SF
 import Parser.Advanced as PA exposing ((|.), (|=))
+import Optics.Core as O exposing (o)
+
+import AssocList as Assoc
+import ReaderExtra exposing (ask, asks)
+import ParserExtra as PE exposing (Parser)
+import OpticsExtra as OE
 
 import Editor.Type as T exposing (SpecErrors, Spec)
 
 
--- Parser.Advanced helpers
-
-many : PA.Parser c x a -> PA.Parser c x (List a)
-many p =
-    let
-        parseStep : (List a) -> PA.Parser c x (PA.Step (List a) (List a))
-        parseStep xs = PA.oneOf
-            [ PA.succeed (\x -> PA.Loop (x :: xs))
-                |= p
-                |. PA.spaces
-            , PA.succeed (PA.Done (List.reverse xs))
-            ]
-
-    in PA.loop [] parseStep
-
-
-some : PA.Parser c x a -> PA.Parser c x (a, List a)
-some p = PA.succeed Tuple.pair
-    |= p
-    |. PA.spaces
-    |= many p
-
-
-between :
-    PA.Parser c x opening ->
-    PA.Parser c x closing ->
-    PA.Parser c x a ->
-    PA.Parser c x a
-between opening closing p = PA.succeed identity
-    |. opening
-    |. PA.spaces
-    |= p
-    |. PA.spaces
-    |. closing
-
-
-empty : PA.Parser c x ()
-empty = PA.succeed ()
-
-
--- Internal Parser library (stack Reader on top of PA.Parser)
-
-type alias ProblemMap c x =
-    { expecting : (String -> x)
-    , toToken : (String -> PA.Token x)
-    , invalid : (String -> x)
-    , internal : (String -> x)
-    , renderProblem : (x -> String)
-    , renderContext : (c -> String)
+type alias EncodedArg =
+    { key : T.Key
+    , encodedValue : String
     }
 
+type alias OperatorSpec =
+    { operatorName : String
+    , encodedArgs : NE.Nonempty EncodedArg
+    }
 
-type alias Parser c x a =
-    Reader.Reader (ProblemMap c x) (PA.Parser c x a)
-
-
-map : (a -> b) -> Parser c x a -> Parser c x b
-map f = Reader.map (PA.map f)
-
-map2 : (a -> b -> c) -> Parser c_ x a -> Parser c_ x b -> Parser c_ x c
-map2 f = Reader.map2 (\a b -> PA.succeed f |= a |= b)
-
-andThen : (a -> Parser c x b) -> Parser c x a -> Parser c x b
-andThen f ma =
-    let andThen_ : ProblemMap c x -> PA.Parser c x b
-        andThen_ env =
-            Reader.run ma env |> PA.andThen (\a -> Reader.run (f a) env)
-    in Reader.asks andThen_
+type alias Arg =
+    { isOpt : Bool
+    , key : T.Key
+    , argType : T.ArgType
+    , defaultExpr : Maybe T.LiteralExpr
+    }
 
 
 boolParser : Parser c x Bool
@@ -92,127 +44,20 @@ boolParser = asks .toToken <| \toToken -> PA.oneOf
     , PA.succeed False |. (PA.keyword <| toToken "#f")
     ]
 
-minusSign : Parser c x Bool
-minusSign = asks .toToken <| \toToken -> PA.oneOf
-    [ PA.map (always True) (PA.symbol <| toToken "-")
-    , PA.succeed False
-    ]
-
-numParser : String -> (x -> x -> PA.Parser c x number) -> Parser c x number
-numParser s pa = ask <| \({invalid, expecting} as env) ->
-    PA.succeed (\negative v -> if negative then -v else v)
-        |= Reader.run minusSign env
-        |= pa (expecting s) (invalid s)
-
-stringParser : Parser c x String
-stringParser = ask <| \{expecting, toToken} ->
-    let quote = Char.fromCode 34 -- "char"
-        quoteSymbol = String.fromChar quote
-        tokenSymbol = toToken quoteSymbol
-    in PA.succeed identity
-        |. PA.symbol tokenSymbol
-        |= PA.variable
-            { start = always True
-            , inner = (/=) quote
-            , reserved = Set.empty
-            , expecting = expecting "String"
-            }
-        |. PA.symbol tokenSymbol
-
 literalParser : T.LiteralType -> Parser c x T.LiteralExpr
 literalParser literalType = case literalType of
-    T.Bool -> boolParser |> map T.BoolExpr
+    T.Bool -> boolParser |> PE.map T.BoolExpr
 
-    T.Int -> numParser "Int" PA.int |> map T.IntExpr
+    T.Int -> PE.numParser "Int" PA.int |> PE.map T.IntExpr
 
-    T.Number -> numParser "Float" PA.float |> map T.NumberExpr
+    T.Number -> PE.numParser "Float" PA.float |> PE.map T.NumberExpr
 
-    T.String -> stringParser |> map T.StringExpr
+    T.String -> PE.stringParser |> PE.map T.StringExpr
 
-    T.TimestampString -> stringParser |> map T.TimestampExpr
+    T.TimestampString -> PE.stringParser |> PE.map T.TimestampExpr
 
-    T.SearchString -> stringParser |> map T.StringExpr
+    T.SeriesName -> PE.stringParser |> PE.map T.StringExpr
 
-
-runParser :
-   ProblemMap c x -> String -> Parser c x a -> Either T.ParserErrors a
-runParser ({renderContext, renderProblem} as env) code pa =
-    let
-        convCtx {row, col, context} =
-            T.Annotation row col (renderContext context)
-
-        convDeadEnd : (PA.DeadEnd c x) -> T.ParserError
-        convDeadEnd {row, col, problem, contextStack} =
-            { annotation = T.Annotation row col (renderProblem problem)
-            , contextStack = List.map convCtx contextStack |> NE.fromList
-            }
-
-        noErr =
-            NE.singleton <| T.ParserError (T.Annotation 0 0 "NO ERR") Nothing
-
-    in PA.run (Reader.run pa env) code
-        |> Either.fromResult
-        |> Either.mapLeft
-            (List.map convDeadEnd >> NE.fromList >> Maybe.withDefault noErr)
-
-renderParserErrors : T.ParserErrors -> String
-renderParserErrors =
-    let
-        tab = String.repeat 4 " "
-
-        renderLine : T.Annotation -> String
-        renderLine {rowPos, colPos, errMess} =
-            "({{ }}, {{ }}) =>  {{ }}"
-                |> SF.value (String.fromInt rowPos)
-                |> SF.value (String.fromInt colPos)
-                |> SF.value errMess
-
-        renderCtx : T.Annotation -> String
-        renderCtx {rowPos, colPos, errMess} =
-            "when parsing {{ }} at ({{ }}, {{ }})"
-                |> SF.value errMess
-                |> SF.value (String.fromInt rowPos)
-                |> SF.value (String.fromInt colPos)
-                |> String.append tab
-
-        renderErr : T.ParserError -> List String
-        renderErr {annotation, contextStack} = (renderLine annotation) ::
-            (Maybe.unwrap [] (NE.map renderCtx >> NE.toList) contextStack)
-
-    in
-    (NE.toList >> List.concatMap renderErr >> String.join "\n")
-
-parserErrorsToString : Either T.ParserErrors a -> Either String a
-parserErrorsToString = Either.mapLeft renderParserErrors
-
-
-type Problem
-    = Expecting String
-    | ExpectingToken String
-    | Invalid String
-    | Internal String
-
-
-defaultProblemMap : (c -> String) -> ProblemMap c Problem
-defaultProblemMap f =
-    let
-        renderProblem : Problem -> String
-        renderProblem p = case p of
-            Expecting s -> "Expecting: " ++  s
-            ExpectingToken s -> "Expecting Token: " ++ s
-            Invalid s -> "Invalid: " ++s
-            Internal s -> "Internal error: " ++ s
-    in
-    { expecting = Expecting
-    , toToken = (\s -> PA.Token s (ExpectingToken s))
-    , invalid = Invalid
-    , internal = Internal
-    , renderProblem = renderProblem
-    , renderContext = f
-    }
-
-
--- Spec parser
 
 literalTypeParser : Parser c x T.LiteralType
 literalTypeParser = asks .toToken <| \toToken -> PA.oneOf
@@ -230,14 +75,14 @@ literalTypeParser = asks .toToken <| \toToken -> PA.oneOf
     , PA.succeed T.TimestampString |. PA.keyword (toToken "TimestampString")
     , PA.succeed T.TimestampString |. PA.keyword (toToken "Timestamp")
 
-    , PA.succeed T.SearchString |. PA.keyword (toToken "seriesname") -- py
-    , PA.succeed T.SearchString |. PA.keyword (toToken "SearchString")
+    , PA.succeed T.SeriesName |. PA.keyword (toToken "seriesname") -- py
+    , PA.succeed T.SeriesName |. PA.keyword (toToken "SeriesName")
     ]
 
 operatorOutputTypeParser : Parser c x T.OperatorOutputType
 operatorOutputTypeParser = asks .expecting <| \expecting ->
     PA.variable
-        { start = Char.isUpper
+        { start = Char.isAlpha
         , inner = Char.isAlphaNum
         , reserved = Set.empty
         , expecting = expecting "OperatorOutputType"
@@ -245,7 +90,13 @@ operatorOutputTypeParser = asks .expecting <| \expecting ->
         |> PA.map T.OperatorOutputType
 
 primitiveTypeParser : Parser c x T.PrimitiveType
-primitiveTypeParser = ask <| \({toToken, internal} as env) ->
+primitiveTypeParser = PE.oneOf
+    [ literalTypeParser |> PE.map T.Literal
+    , operatorOutputTypeParser |> PE.map T.OperatorOutput
+    ]
+
+unionTypeParser : Parser c x (NE.Nonempty T.PrimitiveType)
+unionTypeParser = ask <| \({toToken, internal} as env) ->
     let
         unionTypesParser : PA.Parser c x (List T.PrimitiveType)
         unionTypesParser =  PA.sequence
@@ -256,40 +107,46 @@ primitiveTypeParser = ask <| \({toToken, internal} as env) ->
             , item = PA.lazy (\_ -> Reader.run primitiveTypeParser env)
             , trailing = PA.Forbidden
             }
+    in
+    unionTypesParser |> PA.andThen (\xs -> NE.fromList xs |> Maybe.unwrap
+        (internal "Empty Union" |> PA.problem)
+        (PA.succeed))
 
-        toUnion : List T.PrimitiveType -> PA.Parser c x T.PrimitiveType
-        toUnion xs = NE.fromList xs |> Maybe.unwrap
-            (internal "Empty Union" |> PA.problem)
-            (T.Union >> PA.succeed)
-
-    in PA.oneOf
-    [ unionTypesParser |> PA.andThen toUnion
-    , Reader.run literalTypeParser env |> PA.map T.Literal
-    , Reader.run operatorOutputTypeParser env |> PA.map T.OperatorOutput
-    ]
-
-parseContainer : T.Key -> String -> String -> Parser c x T.PrimitiveType
-parseContainer key opening closing = ask <| \({toToken} as env) ->
+parseContainer : T.Key -> Parser c x T.PrimitiveType
+parseContainer key = ask <| \({toToken} as env) ->
     PA.succeed identity
         |. PA.keyword (toToken key)
-        |. PA.symbol (toToken opening)
+        |. PA.symbol (toToken "[")
         |= Reader.run primitiveTypeParser env
-        |. PA.keyword (toToken closing)
+        |. PA.keyword (toToken "]")
 
-compositeTypeParser : Parser c x T.CompositeType
-compositeTypeParser = ask <| \env -> PA.oneOf
-    [ Reader.run (parseContainer "List" "[" "]") env |> PA.map T.VarArgs
-    , Reader.run (parseContainer "Packed" "[" "]") env |> PA.map T.Packed
+argTypeParser : Parser c x T.ArgType
+argTypeParser = PE.oneOf
+    [ unionTypeParser |> PE.map T.UnionType
+    , parseContainer "Packed" |> PE.map (T.Packed >> T.PackedType)
+    , primitiveTypeParser |> PE.map T.PrimitiveType
     ]
 
-specTypeParser : Parser c x T.SpecType
-specTypeParser = ask <| \env -> PA.oneOf
-    [ Reader.run compositeTypeParser env |> PA.map T.CompositeType
-    , Reader.run primitiveTypeParser env |> PA.map T.PrimitiveType
+returnTypeParser : Parser c x (NE.Nonempty T.ReturnType)
+returnTypeParser =
+    let
+        fromArgType argType = asks .internal <| \internal -> case argType of
+            T.PrimitiveType x ->
+                PA.succeed <| NE.singleton <| T.ReturnPrimitiveType x
+
+            T.UnionType xs ->
+                PA.succeed <| NE.map T.ReturnPrimitiveType xs
+
+            T.PackedType _ ->
+                PA.problem <| internal "Packed unsupported as return"
+
+    in PE.oneOf
+    [ parseContainer "List" |> PE.map (T.ReturnList >> NE.singleton)
+    , argTypeParser |> PE.andThen fromArgType
     ]
 
-parseDefault : Parser c x ( T.SpecType, Maybe T.LiteralExpr )
-parseDefault = ask <| \({toToken} as env) ->
+parseDefaultArgument : Parser c x ( T.ArgType, Maybe T.LiteralExpr )
+parseDefaultArgument = ask <| \({toToken} as env) ->
     let
         parseNone = PA.succeed Nothing |. PA.keyword (toToken "None")
 
@@ -298,7 +155,7 @@ parseDefault = ask <| \({toToken} as env) ->
             , PA.succeed False |. PA.keyword (toToken "False")
             ]
 
-    in Reader.run specTypeParser env
+    in Reader.run argTypeParser env
         |. PA.symbol (toToken "=")
         |> PA.andThen (\t -> PA.map (Tuple.pair t) <| case t of
             T.PrimitiveType (T.Literal T.Bool) -> parsePyBool
@@ -310,77 +167,175 @@ parseDefault = ask <| \({toToken} as env) ->
 
             _ -> parseNone)
 
-run : String -> Parser Never Problem a -> Either String a
-run s pa =
-    runParser (defaultProblemMap <| always "c") s pa |> parserErrorsToString
-
-
-type alias EncodedArg =
-    { key : T.Key
-    , encodedValue : String
-    }
-
-type alias OperatorSpec =
-    { operatorName : String
-    , encodedArgs : NE.Nonempty EncodedArg
-    }
-
-type alias Errs a =
-    (List String, a)
-
-parseArgument : EncodedArg -> Errs T.Operator -> Errs T.Operator
-parseArgument {key, encodedValue} (errs, op) =
+runParser : String -> Parser Never PE.Problem a -> Either String a
+runParser s p =
     let
-        step : Either String T.Operator -> Errs T.Operator
-        step = Either.unpack (\e -> (e :: errs, op)) (Tuple.pair errs)
-    in
-    step <| run encodedValue <| ask <| \({toToken} as env) -> PA.oneOf
-        [ PA.succeed (\x -> { op | optArgs = Assoc.insert key x op.optArgs})
+        showErr err = String.join "\n"
+            [ "Error when parsing : " ++ s
+            , String.repeat 40 "-"
+            , err
+            , ""
+            ]
+
+    in Either.mapLeft showErr <| PE.run s <| ask <| \({expecting} as env) ->
+        Reader.run p env |. (PA.end <| expecting "End of input")
+
+parseArgument : EncodedArg -> Either String Arg
+parseArgument {key, encodedValue} =
+    runParser encodedValue <| ask <| \({toToken} as env) -> PA.oneOf
+        [ PA.succeed (\(argType, defaultExpr) ->
+                { isOpt = True
+                , key = key
+                , argType = argType
+                , defaultExpr = defaultExpr
+                }
+            )
             |. PA.keyword (toToken "Default")
             |. PA.symbol (toToken "[")
-            |= Reader.run parseDefault env
+            |= Reader.run parseDefaultArgument env
             |. PA.symbol (toToken "]")
-        , PA.succeed (\x -> { op | args = Assoc.insert key x op.args})
-            |= Reader.run specTypeParser env
+        , PA.succeed (\argType ->
+                { isOpt = False
+                , key = key
+                , argType = argType
+                , defaultExpr = Nothing
+                }
+            )
+            |= Reader.run argTypeParser env
         ]
 
-parseOperator : OperatorSpec -> Either (List String) T.Operator
-parseOperator {operatorName, encodedArgs} =
-    let
-        {key, encodedValue} = NE.head encodedArgs
-        encodedArgs_ = NE.tail encodedArgs
-
-        toEither : Errs T.Operator -> Either (List String) T.Operator
-        toEither (errs, op) =
-            if (List.isEmpty errs) then (Right op) else (Left errs)
-
-    in (run encodedValue <| ask <| \({internal} as env) ->
+parseReturn : EncodedArg -> Either String (NE.Nonempty T.ReturnType)
+parseReturn {key, encodedValue} =
+    runParser encodedValue <| ask <| \({internal} as env) ->
         if key == "return" then
-            Reader.run specTypeParser env
+            Reader.run returnTypeParser env
         else
-            PA.problem (internal "No return keyword as first argument"))
-    |> Either.mapBoth
-        List.singleton
-        (T.Operator operatorName Assoc.empty Assoc.empty)
-    |> Either.andThen
-        (\op -> List.foldl parseArgument ([], op) encodedArgs_ |> toEither)
+            PA.problem (internal "No return keyword as first argument")
 
-parseSpec : Result JD.Error (List OperatorSpec) -> (SpecErrors, Spec)
-parseSpec jsonResult =
+
+addArgument : Arg -> T.Operator -> T.Operator
+addArgument {isOpt, key, argType, defaultExpr} op =
+    if isOpt then
+        { op | optArgs = Assoc.insert key (argType, defaultExpr) op.optArgs }
+    else
+        { op | args = Assoc.insert key argType op.args }
+
+traverseList : (a -> Either String b) -> List a -> Either String (List b)
+traverseList f =
+    List.foldr (\a b -> Either.map2 (::) (f a) b) (Either.singleton [])
+
+parseOperatorSpec : OperatorSpec -> Either String (NE.Nonempty T.Operator)
+parseOperatorSpec {operatorName, encodedArgs} = Either.map2
+    (\returnTypes args -> NE.map
+        (\returnType -> List.foldl
+            addArgument
+            (T.Operator operatorName Assoc.empty Assoc.empty returnType)
+            args
+        )
+        returnTypes
+    )
+    (parseReturn <| NE.head encodedArgs)
+    (traverseList parseArgument <| NE.tail encodedArgs)
+
+parseSpec_ : Result JD.Error (List OperatorSpec) -> (SpecErrors, Spec)
+parseSpec_ jsonResult =
     let
+        addOp op mArray = Just <| Maybe.unwrap
+            (Array.fromList [op])
+            (Array.push op)
+            mArray
+
         makeSpec : List T.Operator -> Spec
-        makeSpec ops = Assoc.fromList <| List.map (\op -> (op.name, op)) ops
+        makeSpec ops = List.foldr
+            (\op s -> Assoc.update op.return (addOp op) s)
+            Assoc.empty
+            ops
+            |> Assoc.map (\_ v -> Array.toList v
+                |> List.reverse
+                |> List.map (\op -> (op.name, op))
+                |> Assoc.fromList
+            )
 
         partition :
-            List (Either (List String) T.Operator) -> (SpecErrors, Spec)
-        partition = Either.partition
-            >> Tuple.mapBoth (List.concat >> NE.fromList) makeSpec
+            List (Either String (NE.Nonempty T.Operator)) -> (SpecErrors, Spec)
+        partition = Either.partition >> Tuple.mapBoth
+            (NE.fromList)
+            (List.concatMap NE.toList >> makeSpec)
 
     in Either.fromResult jsonResult
         |> Either.mapLeft (JD.errorToString >> NE.singleton >> Just)
         |> Either.unpack
             (\errs -> (errs, Assoc.empty))
-            (\ops -> List.map parseOperator ops |> partition)
+            (\ops -> List.map parseOperatorSpec ops |> partition)
+
+
+type alias UnionTypes = NE.Nonempty T.PrimitiveType
+
+probeUnion : T.ArgType -> List T.PrimitiveType -> T.ArgType
+probeUnion argType primitiveTypes = case primitiveTypes of
+    [] -> argType
+
+    t :: [] -> T.PrimitiveType t
+
+    t :: xs -> T.UnionType <| NE.Nonempty t xs
+
+reduceForLiteral : UnionTypes -> T.ArgType -> T.ArgType
+reduceForLiteral unionTypes argType =
+    O.getAll (o OE.neEach_ literal_) unionTypes
+        |> List.map T.Literal
+        |> probeUnion argType
+
+reduceForOperatorOutput : T.Operator -> UnionTypes -> T.ArgType -> T.ArgType
+reduceForOperatorOutput {args} unionTypes argType =
+    let
+        argsLen = Assoc.size args
+
+        literalNb = List.length <| O.getAll
+            (o OE.assocValues_ (o primitiveType_ literal_))
+            args
+
+    in if literalNb == (argsLen - 1) then
+        O.getAll (o OE.neEach_ operatorOutput_) unionTypes
+            |> List.map T.OperatorOutput
+            |> probeUnion argType
+    else
+        argType
+
+reduceUnion : T.Operator -> T.ArgType -> T.ArgType
+reduceUnion ({return} as op) argType = case argType of
+    T.UnionType primitiveTypes -> case return of
+        T.ReturnPrimitiveType (T.Literal _) ->
+            reduceForLiteral primitiveTypes argType
+
+        T.ReturnPrimitiveType (T.OperatorOutput _) ->
+            reduceForOperatorOutput op primitiveTypes argType
+
+        _ -> argType
+
+    _ -> argType
+
+reduceOperator : T.Operator -> T.Operator
+reduceOperator op =
+    let
+        argTypes_ : O.SimpleTraversal T.Operator T.ArgType
+        argTypes_ = o args_ OE.assocValues_
+
+    in if (O.getAll (o argTypes_ union_) op |> List.length) == 1 then
+        O.over argTypes_ (reduceUnion op) op
+    else
+        op
+
+parseSpec :
+   T.SpecConfig -> Result JD.Error (List OperatorSpec) -> (SpecErrors, Spec)
+parseSpec {reduce} jsonResult =
+    parseSpec_ jsonResult |> Tuple.mapSecond (\spec ->
+        if reduce then
+            Assoc.map
+                (\_ ops -> Assoc.map (\_ op -> reduceOperator op) ops)
+                spec
+        else
+            spec
+        )
 
 operatorSpecDecoder : JD.Decoder OperatorSpec
 operatorSpecDecoder =
@@ -390,10 +345,45 @@ operatorSpecDecoder =
         (JD.index 0 JD.string)
         (JD.index 1 <| NEA.decodeArray d)
 
-parseSpecValue : JD.Value -> (SpecErrors, Spec)
-parseSpecValue =
-    JD.decodeValue (JD.list operatorSpecDecoder) >> parseSpec
+parseSpecValue : T.SpecConfig -> JD.Value -> (SpecErrors, Spec)
+parseSpecValue specCfg specValue =
+    JD.decodeValue (JD.list operatorSpecDecoder) specValue
+        |> parseSpec specCfg
 
-parseSpecString : String -> (SpecErrors, Spec)
-parseSpecString =
-    JD.decodeString (JD.list operatorSpecDecoder) >> parseSpec
+parseSpecString : T.SpecConfig -> String -> (SpecErrors, Spec)
+parseSpecString specConfig specString =
+    JD.decodeString (JD.list operatorSpecDecoder) specString
+        |> parseSpec specConfig
+
+parseReturnType : String -> Either String T.ReturnType
+parseReturnType s =
+    runParser s returnTypeParser |> Either.map NE.head
+
+
+-- optics helpers
+args_ : O.SimpleLens ls T.Operator (T.KAssoc T.ArgType)
+args_ = O.lens .args <| \s a -> { s | args = a }
+
+primitiveType_ : O.SimplePrism pr T.ArgType T.PrimitiveType
+primitiveType_ = O.prism T.PrimitiveType <| \s -> case s of
+    T.PrimitiveType xs -> Right xs
+
+    _ -> Left s
+
+union_ : O.SimplePrism pr T.ArgType (NE.Nonempty T.PrimitiveType)
+union_ = O.prism T.UnionType <| \s -> case s of
+    T.UnionType xs -> Right xs
+
+    _ -> Left s
+
+literal_ : O.SimplePrism pr T.PrimitiveType T.LiteralType
+literal_ = O.prism T.Literal <| \s -> case s of
+    T.Literal x -> Right x
+
+    _ -> Left s
+
+operatorOutput_ : O.SimplePrism pr T.PrimitiveType T.OperatorOutputType
+operatorOutput_ = O.prism T.OperatorOutput <| \s -> case s of
+    T.OperatorOutput x -> Right x
+
+    _ -> Left s

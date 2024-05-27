@@ -6,13 +6,7 @@ import Editor.SpecParser exposing (parseSpecString)
 
 
 spec : T.Spec
-spec = parseSpecString jsonSpec |> Tuple.second
-
-gSpec : T.GSpec
-gSpec = T.buildGSpec spec
-
-returnType : T.ReturnType
-returnType = T.returnSeries
+spec = parseSpecString {reduce = True} jsonSpec |> Tuple.second
 
 jsonSpec : String
 jsonSpec =
@@ -86,7 +80,28 @@ jsonSpec =
       ],
       [
         "serieslist",
-        "List[Union[Series, Number]]"
+        "Packed[Series]"
+      ],
+      [
+        "k1",
+        "Default[Union[str, Number]=None]"
+      ],
+      [
+        "k2",
+        "Default[Union[Number, Timestamp]=None]"
+      ]
+    ]
+  ],
+  [
+    "ipriority",
+    [
+      [
+        "return",
+        "Number"
+      ],
+      [
+        "serieslist",
+        "Packed[Number]"
       ],
       [
         "k1",
@@ -149,6 +164,53 @@ jsonSpec =
       [
         "tz",
         "Default[str=None]"
+      ]
+    ]
+  ],
+  [
+    "add",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "serieslist",
+        "Packed[Series]"
+      ]
+    ]
+  ],
+  [
+    "findseries",
+    [
+      [
+        "return",
+        "List[Series]"
+      ],
+      [
+        "q",
+        "query"
+      ],
+      [
+        "naive",
+        "Default[bool=False]"
+      ],
+      [
+        "fill",
+        "Default[Union[str, Number]=None]"
+      ]
+    ]
+  ],
+  [
+    "by.name",
+    [
+      [
+        "return",
+        "query"
+      ],
+      [
+        "namequery",
+        "str"
       ]
     ]
   ],

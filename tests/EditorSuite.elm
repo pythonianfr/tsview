@@ -11,59 +11,58 @@ import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderFormula)
 import Editor.UI.Type exposing
     ( buildEditor
-    , renderTypedOperator
+    , testTypedOperator
     , parseEditor
     )
 import Editor.UI.Render exposing (renderEditor)
 
-import JsonSpec exposing (gSpec, returnType)
+import JsonSpec exposing (spec)
 import TestUtil exposing (T)
 
 
-buildEditorTests : List (T String)
+buildEditorTests : List (T (String, String))
 buildEditorTests =
-    [ T "Small tree"  "(* 3 4)" """
-RArg(EDITOR): Selector[Series],
-              Operator(* => Series)
+    [ T "Small tree"  ("Number", "(* 3 4)") """
+RArg(EDITOR): Selector[Number],
+              Operator(* => Number)
   RArg(a): Selector[Number],
            Input[Number](value=3)
-  RArg(b): Union[Series, Number](Number),
-           Selector[Number],
+  RArg(b): Selector[Number],
            Input[Number](value=4)
 """
-    , T "priority" """
+    , T "priority"
+    ( "Series"
+    , """
 (priority
     (series "UK")
     (series "FR")
     (series "DE")
 )
-""" """
+"""
+    ) """
 RArg(EDITOR): Selector[Series],
               Operator(priority => Series)
-  RArg(serieslist): Selector[Packed[Series, Number]] isExpand=True,
-                    CVarArgs(Union[Series, Number])
-    RVarItem: Union[Series, Number](Series) isExpand=True,
-              Selector[Series],
+  RArg(serieslist): Selector[List[Series]],
+                    CVarArgs(Series)
+    RVarItem: Selector[Series] isExpand=True,
               Operator(series => Series)
-      RArg(name): Input[SearchString](value="UK")
+      RArg(name): Input[SeriesName](value="UK")
       ROptArgs: OperatorOptions isExpand=False
         ROptArg(fill, Default=None): Union[String, Int](String),
                                      Input[String]()
         ROptArg(weight, Default=None): Selector[Number],
                                        Input[Number]()
-    RVarItem: Union[Series, Number](Series) isExpand=True,
-              Selector[Series],
+    RVarItem: Selector[Series] isExpand=True,
               Operator(series => Series)
-      RArg(name): Input[SearchString](value="FR")
+      RArg(name): Input[SeriesName](value="FR")
       ROptArgs: OperatorOptions isExpand=False
         ROptArg(fill, Default=None): Union[String, Int](String),
                                      Input[String]()
         ROptArg(weight, Default=None): Selector[Number],
                                        Input[Number]()
-    RVarItem: Union[Series, Number](Series) isExpand=True,
-              Selector[Series],
+    RVarItem: Selector[Series] isExpand=True,
               Operator(series => Series)
-      RArg(name): Input[SearchString](value="DE")
+      RArg(name): Input[SeriesName](value="DE")
       ROptArgs: OperatorOptions isExpand=False
         ROptArg(fill, Default=None): Union[String, Int](String),
                                      Input[String]()
@@ -82,8 +81,7 @@ RArg(EDITOR): Selector[Series],
 testBuildEditor : Test.Test
 testBuildEditor =
     let
-        render x = buildEditor gSpec returnType x
-            |> parseEditor
+        render (returnType, x) = buildEditor spec returnType x
             |> renderEditor
     in
     Test.describe "buildEditor"
@@ -92,17 +90,17 @@ testBuildEditor =
 testRenderTypedOperator : Test.Test
 testRenderTypedOperator =
     let
-        render x = buildEditor gSpec returnType x
-            |> renderTypedOperator
+        render (returnType, x) = buildEditor spec returnType x
+            |> testTypedOperator
             |> renderEditor
     in
-    Test.describe "renderTypedOperator"
+    Test.describe "testTypedOperator"
         <| TestUtil.buildTests render buildEditorTests
 
 testParseEditor : Test.Test
 testParseEditor =
     let
-        render x = buildEditor gSpec returnType x
+        render (returnType, x) = buildEditor spec returnType x
             |> parseEditor
             |> renderEditor
     in

@@ -7,27 +7,36 @@ import Basics.Extra exposing (flip)
 
 import Reader
 import ReaderExtra as RE exposing (ask, asks)
-import AssocList as Assoc
 import List.Nonempty as NE
 import RoseTree.Tree as Tree
+import Optics.Core as O exposing (o)
+import Parser.Advanced as PA exposing ((|.))
 
 import Browser
-import Html as H exposing (Html)
-import Html.Extra as HEX
-import Html.Events as HE
-import Html.Attributes as HA
-import Html.Attributes.Extra as HAX
 import Json.Decode as JD
-import Parser.Advanced as PA exposing ((|.))
 import Cmd.Extra exposing (withNoCmd, withCmd)
 
-import Optics.Core as O exposing (o)
-import OpticsExtra as OE
 
+import AssocList as Assoc
+import OpticsExtra as OE
+import ParserExtra as PE
 import AceEditor as Ace
+import HtmlData as H exposing (Html)
+import HtmlData.Events as HE
+import HtmlData.Attributes as HA
+import HtmlData.Extra exposing (toElmHtml)
+import HtmlExtra as HX
+
 import Editor.Type as T
-import Editor.SpecRender exposing (renderPrimitiveType)
-import Editor.SpecParser as Parser
+import Editor.SpecRender exposing
+    ( renderLiteralType
+    , renderPrimitiveType
+    )
+import Editor.SpecParser exposing
+    ( literalParser
+    , primitiveTypeParser
+    , parseSpecValue
+    )
 import Editor.Render exposing (renderBool)
 
 import Editor.UI.Type exposing (..)
@@ -49,9 +58,11 @@ type ListAction
     | RemoveItem Int
 
 type EntryAction
-    = SelectUnion Int T.PrimitiveType
-    | SelectOperator Operator
+    = SelectUnion T.PrimitiveType
+    | SelectOperator T.Operator
     | UnselectOperator T.PrimitiveType
+    | SelectVarArgs T.Packed
+    | SelectPacked T.Packed T.Operator
     | ReadInput String
 
 type EditAction
@@ -76,11 +87,11 @@ type Msg
 type alias HMsg = Html Msg
 
 
-parseLiteralExpr : T.LiteralType -> Parser.Parser c x T.LiteralExpr
+parseLiteralExpr : T.LiteralType -> PE.Parser c x T.LiteralExpr
 parseLiteralExpr literalType = ask <| \({expecting} as env) ->
-    Reader.run (Parser.literalParser literalType) env
+    Reader.run (literalParser literalType) env
         |. PA.spaces
-        |. (PA.end <| expecting <| T.renderLiteralType literalType)
+        |. (PA.end <| expecting <| renderLiteralType literalType)
 
 updateInput : String -> Input -> Input
 updateInput s ({literalType} as input) =
@@ -98,11 +109,11 @@ updateInput s ({literalType} as input) =
        T.TimestampString ->
            O.assign value_ (setStr T.TimestampExpr) input
 
-       T.SearchString ->
+       T.SeriesName ->
            O.assign value_ (setStr T.StringExpr) input
 
        _ -> parseLiteralExpr literalType
-            |> Parser.run s
+            |> PE.run s
             |> Either.unpack
                 (\e -> input
                     |> O.assign value_ Nothing
@@ -111,52 +122,37 @@ updateInput s ({literalType} as input) =
                     |> O.assign value_ (Just x)
                     |> O.assign errMess_  Nothing)
 
-resetUnions : Unions -> Unions
-resetUnions unions =
-    let
-        union = NE.head unions
-
-        listUnions : T.PrimitiveType -> List Union -> List Union
-        listUnions t xs = case t of
-            T.Union ts ->
-                let t_ = NE.head ts
-                in listUnions t_ ((Union ts t_) :: xs)
-
-            _ -> List.reverse xs
-
-    in union
-    |> O.get primitiveType_
-    |> flip listUnions []
-    |> NE.Nonempty union
-
 updateEntryNode :
    EntryAction -> EntryForest Node -> EReader (EntryForest Node)
 updateEntryNode entryAction ((entry, forest) as x) = case entryAction of
-    SelectUnion i primitiveType -> entry
-        |> O.assign
-            (o justUnions_ (o (OE.neIx_ i) primitiveType_))
-            primitiveType
-        -- |> O.over justUnions_ resetUnions XXX handle nested unions (split)
-        |> \e -> Maybe.unwrap
-            (Reader.reader x)
-            (\t -> updateEntryNode (UnselectOperator t) (e, forest))
-            (O.getSome
-                (o justUnions_ (o OE.neLast_ primitiveType_))
-                e)
+    SelectUnion primitiveType -> entry
+        |> O.assign (o justUnion_ primitiveType_) primitiveType
+        |> \e -> updateEntryNode (UnselectOperator primitiveType) (e, forest)
 
-    SelectOperator {specOperator, returnType} -> ask <| \editor ->
-        initializeOperator specOperator returnType
+    SelectOperator op -> asks .spec <| \spec ->
+        initializeOperator op
             |> Reader.andThen fromTypedOperator
-            |> RE.run editor.gSpec
-            |> O.over (o OE.first_ entryType_) (POperator >> Primitive)
-            |> O.assign (o OE.first_ unions_) entry.unions
+            |> RE.run spec
+            |> O.assign (o OE.first_ entryType_) (Primitive <| POperator op)
+            |> O.assign (o OE.first_ union_) entry.union
 
-    UnselectOperator primitiveType -> ask <| \editor ->
+    UnselectOperator primitiveType -> asks .spec <| \spec ->
         initializePrimitiveExpr primitiveType
             |> Reader.andThen fromPrimitiveExpr
-            |> RE.run editor.gSpec
+            |> RE.run spec
             |> O.over (o OE.first_ entryType_) Primitive
-            |> O.assign (o OE.first_ unions_) entry.unions
+            |> O.assign (o OE.first_ union_) entry.union
+
+    SelectVarArgs packed -> asks .spec <| \spec ->
+        initializeTypedExpr (T.PackedType packed)
+            |> Reader.andThen fromArgExpr
+            |> RE.run spec
+
+    SelectPacked packed op -> asks .spec <| \spec ->
+        initializeOperator op
+            |> Reader.andThen fromTypedOperator
+            |> RE.run spec
+            |> O.assign (o OE.first_ entryType_) (Packed packed op)
 
     ReadInput s ->  Reader.reader <| O.over
         (o (o OE.first_ entryType_) (o primitive_ pInput_))
@@ -194,12 +190,22 @@ updateRowType entryAction (rowType, forest) = case rowType of
     _ -> Reader.reader (rowType, forest)
 
 initAddItem : Editor -> T.PrimitiveType -> EditionTree
-initAddItem {gSpec} primitiveType =
+initAddItem {spec} primitiveType =
     initializePrimitiveExpr primitiveType
         |> Reader.andThen fromPrimitiveExpr
-        |> RE.run gSpec
+        |> RE.run spec
         |> O.over OE.first_ (RVarItem >> newEditionRow)
         |> newTree
+
+updateExpand : EditionRow -> EditionRow
+updateExpand ({rowType, isExpand} as x) =
+    let default = defaultIsExpand rowType
+    in case (default, isExpand) of
+        (Nothing, _) -> O.assign isExpand_ Nothing x
+
+        (_, Nothing) -> O.assign isExpand_ default x
+
+        _ -> x
 
 updateNode : EditAction -> EditionTree -> EReader EditionTree
 updateNode editAction tree = ask <| \editor -> case editAction of
@@ -218,18 +224,19 @@ updateNode editAction tree = ask <| \editor -> case editAction of
             |> O.over
                 OE.first_
                 (\r -> O.assign rowType_ r node)
+            |> O.over OE.first_ updateExpand
             |> newTree
 
     EditList (RemoveItem i) ->
         Tree.removeAt [i] tree
 
-    EditList (AddItem i) -> (o composite_ cVarArgs_)
+    EditList (AddItem i) -> varArgs_
         |> o (o rowType_ rowEntryType_)
         |> o OE.node_
         |> flip O.getSome tree
         |> Maybe.unwrap
             tree
-            (\t -> Tree.insertBefore [i] (initAddItem editor t) tree)
+            (\(T.Packed t) -> Tree.insertBefore [i] (initAddItem editor t) tree)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = case msg of
@@ -240,7 +247,7 @@ update msg model = case msg of
                 (OE.treeIx_ <| Array.toList treePath)
                 (updateNode editAction >> RE.run model.editor)
             |> O.getSome treeRoot_ |> Maybe.withDefault root)
-        |> O.over editor_ parseEditor
+        |> O.over editor_ updateFormula
         |> withNoCmd
 
 
@@ -288,9 +295,9 @@ renderInput {literalType, value, userInput, errMess} =
         ]
         []
     , H.text " "
-    , H.text <| "[" ++ T.renderLiteralType literalType ++ "]"
+    , H.text <| "[" ++ renderLiteralType literalType ++ "]"
     , H.text " "
-    , HEX.viewMaybe H.text errMess
+    , HX.viewMaybe H.text errMess
     ]
 
 renderNode : Node -> Reader HMsg
@@ -300,11 +307,7 @@ renderNode node = case node of
 
         _ -> renderInput x
 
-    Primitive (POperator op) -> Reader.reader <| H.span []
-        [ H.text <| "Operator(" ++ op.specOperator.name ++")"
-        ]
-
-    _ -> Reader.reader <| HEX.nothing
+    _ -> Reader.reader <| HX.nothing
 
 type alias SelectArgs =
     { current : String
@@ -332,60 +335,74 @@ renderSelect {current, labels, toEditAction} = asks .treePath <| \treePath ->
     ]
     (List.map renderOption labels)
 
-renderUnion : Node -> Int -> Union -> Reader HMsg
-renderUnion node i {primitiveTypes, primitiveType} =
+renderUnion : Node -> Union -> Reader HMsg
+renderUnion node {primitiveTypes, primitiveType} =
     renderSelect
         { current = renderPrimitiveType primitiveType
         , labels = NE.toList <| NE.map renderPrimitiveType primitiveTypes
-        , toEditAction = \s -> Parser.primitiveTypeParser
-            |> Parser.run s
+        , toEditAction = \s -> primitiveTypeParser
+            |> PE.run s
             |> Either.toMaybe
-            |> Maybe.map (SelectUnion i)
+            |> Maybe.map SelectUnion
         }
 
--- XXX should be improved (workshop)
 fromReturnType : T.ReturnType -> T.PrimitiveType
-fromReturnType returnType = case T.fromReturnType returnType |> NE.head of
-    T.ReturnLiteral t -> T.Literal t
+fromReturnType returnType = case returnType of
+    T.ReturnPrimitiveType p -> p
 
-    T.ReturnOperatorOutput t -> T.OperatorOutput t
+    T.ReturnList p -> p
 
 renderSelector : Node -> Selector -> Reader HMsg
-renderSelector node {operators, returnType} = case node of
-    Primitive _ ->
-        let unselected = "___"
-        in renderSelect
-            { current = O.getSome (o primitive_ pOperator_) node
-                |> Maybe.unwrap unselected (\op -> op.specOperator.name)
-            , labels = unselected :: (Assoc.keys operators)
-            , toEditAction = \s -> Assoc.get s operators
-                |> Maybe.unwrap
-                    (UnselectOperator <| fromReturnType returnType)
-                    (\x -> SelectOperator <| Operator x returnType)
+renderSelector node {operators, returnType} =
+    let
+        unselected = "   "
+
+        labels = unselected :: (Assoc.keys operators)
+
+        toEditAction toUnselectAction toSelectAction = \s ->
+            Assoc.get s operators
+                |> Maybe.unwrap toUnselectAction toSelectAction
                 |> Just
+
+    in renderSelect <| case node of
+        Primitive _ ->
+            { current = O.getSome (o primitive_ pOperator_) node
+                |> Maybe.unwrap unselected .name
+            , labels = labels
+            , toEditAction = toEditAction
+                (UnselectOperator <| fromReturnType returnType)
+                SelectOperator
             }
 
-    Composite _ -> Reader.reader HEX.nothing -- XXX Packed
+        VarArgs packed ->
+            { current = unselected
+            , labels = labels
+            , toEditAction = toEditAction
+                (SelectVarArgs packed)
+                (SelectPacked packed)
+            }
+
+        Packed packed op ->
+            { current = op.name
+            , labels = labels
+            , toEditAction = toEditAction
+                (SelectVarArgs packed)
+                (SelectPacked packed)
+            }
 
 renderEntry : Entry Node -> Reader (List HMsg)
-renderEntry {unions, selector, entryType} =
-    let
-        renderUnions : List Union -> List (Maybe (Reader HMsg))
-        renderUnions = List.indexedMap
-            (\i x -> renderUnion entryType i x |> Just)
-
-    in RE.sequence <| Maybe.values <| List.append
-        (Maybe.unwrap [] (NE.toList >> renderUnions) unions)
-        [ Maybe.map (renderSelector entryType) selector
-        , Just <| renderNode entryType
-        ]
+renderEntry {union, selector, entryType} = RE.sequence <| Maybe.values
+    [ Maybe.map (renderUnion entryType) union
+    , Maybe.map (renderSelector entryType) selector
+    , Just <| renderNode entryType
+    ]
 
 liftTuple : (a, Reader b) -> Reader (a, b)
 liftTuple (a, rb) = Reader.map2 Tuple.pair (Reader.reader a) rb
 
 prefix : { bullet : Bool, label : String } -> HMsg
 prefix {bullet, label} = H.span []
-    [ if bullet then (H.text " • ") else HEX.nothing
+    [ if bullet then (H.text " • ") else HX.nothing
     , H.text label
     ]
 
@@ -396,7 +413,7 @@ listButton listAction symbol = asks .treePath <| \treePath -> H.span []
             |> O.getSome OE.consLast_
             |> Maybe.map (\(i, path) ->
                 listAction i |> EditList |> EditNode (Array.fromList path))
-            |> HAX.attributeMaybe HE.onClick
+            |> HX.attributeMaybe HE.onClick
         ]
         [ H.text symbol ]
     ]
@@ -435,7 +452,7 @@ renderRowType rowType = liftTuple <| case rowType of
 
 renderExpand : Maybe Bool -> Reader HMsg
 renderExpand mIsExpand = asks .treePath <| \treePath ->
-    flip HEX.viewMaybe mIsExpand <| \isExpand -> H.a
+    flip HX.viewMaybe mIsExpand <| \isExpand -> H.a
         [ HE.onClick <| EditNode treePath ToggleExpand ]
         [ H.text <| if isExpand then "-" else "+" ]
 
@@ -509,8 +526,9 @@ view {editor} =
     in O.review treeRoot_ editor.root
         |> renderTree 0
         |> RE.run (RowEnv Array.empty Nothing)
-        |> O.assign (o OE.listHead_ prefixNode_) HEX.nothing
-        |> List.concatMap renderHRow
+        |> O.assign (o OE.listHead_ prefixNode_) HX.nothing
+        |> List.map renderHRow
+        |> List.concat
         |> List.append
             [ col "col_expand header" "Expand"
             , col "col_editor header" "Editor"
@@ -543,12 +561,11 @@ viewHeader editionMode =
 
 viewError : T.CurrentFormula -> List (Html Msg)
 viewError = Either.unpack
-        (\(_, errs) -> Parser.renderParserErrors errs
-            |> String.lines
-            |> List.map (\x -> H.span
-                [ HA.class "error" ]
-                [ H.text x ]))
-        (always [])
+    (\(_, errs) -> PE.renderParserErrors errs
+        |> String.lines
+        |> List.map (\x -> H.span [ HA.class "error" ] [ H.text x ])
+    )
+    (always [])
 
 renderReadOnly : Model -> List HMsg
 renderReadOnly model =
@@ -579,18 +596,17 @@ updateTree msg model = update msg model
 
 initModel : JD.Value -> Model
 initModel jsonSpec =
-    Parser.parseSpecValue jsonSpec |> \(errs, spec) ->
- --       { editor = initEditor (T.buildGSpec spec) T.returnSeries
-        { editor = buildEditor (T.buildGSpec spec) T.returnSeries formulaDev
+    parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
+ --       { editor = initEditor spec "Series"
+        { editor = buildEditor spec "Series" formulaDev
         , specErrors = errs
         }
-        |> O.over editor_ parseEditor
 
 main : Program JD.Value Model Msg
 main = Browser.element
     { init = initModel >> withNoCmd
     , update = updateTree
-    , view = viewTree
+    , view = viewTree >> toElmHtml
     , subscriptions = always Sub.none
     }
 
@@ -606,27 +622,43 @@ defaultValue_ = O.lens .defaultValue <| \s a -> { s | defaultValue = a }
 -- dev
 formulaDev : String
 formulaDev = """
-(priority
-    (+
-        3
-        (series "a.b" #:weight 3.5))
-    (priority
-        (*
-            10.3
-            (series "gaz.es"))
-        (+
-            -1.7
-            (series "gaz.pt" #:weight 0.3)
-            #:flag #t)
-        (series "gaz.es.pt.predicted" #:fill 2 #:weight 1.1)
-        #:k2 (timedelta
-            (today)
-            #:years 5))
-    (series "gaz.nl" #:fill "all" #:weight 3)
+(resample
     (*
-        1.2
-        (series "gaz.fr"))
-    (series "gaz.de" #:fill 79)
-    #:k1 4.7)
+        0.0005
+        (mul
+            (sub
+                (resample
+                    (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
+                    "30min"
+                    #:method "mean")
+                (resample
+                    (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
+                    "30min"
+                    #:method "interpolate"))
+            (add
+                (mul
+                    (series "power.price.imbalance.fr.short.eurmwh.entsoe.obs.30min")
+                    (<
+                        (resample
+                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
+                            "30min"
+                            #:method "mean")
+                        (resample
+                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
+                            "30min"
+                            #:method "interpolate")))
+                (mul
+                    (series "power.price.imbalance.fr.long.eurmwh.entsoe.obs.30min")
+                    (>
+                        (resample
+                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
+                            "30min"
+                            #:method "mean")
+                        (resample
+                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
+                            "30min"
+                            #:method "interpolate"))))))
+    "H"
+    #:method "sum")
     """
 

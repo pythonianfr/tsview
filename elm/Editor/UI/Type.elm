@@ -6,15 +6,16 @@ import Either exposing (Either(..))
 import Basics.Extra exposing (uncurry)
 
 import Reader
-import ReaderExtra as RE exposing (ask, askM)
-import AssocList as Assoc
 import List.Nonempty as NE
 import RoseTree.Tree as Tree
-
 import Optics.Core as O exposing (o)
+
+import AssocList as Assoc
 import OpticsExtra as OE
+import ReaderExtra as RE exposing (ask)
 
 import Editor.Type as T
+import Editor.SpecRender as SR
 import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderFormula)
 
@@ -23,8 +24,6 @@ type alias Union =
     { primitiveTypes : NE.Nonempty T.PrimitiveType
     , primitiveType : T.PrimitiveType
     }
-
-type alias Unions = NE.Nonempty Union
 
 type alias Selector =
     { returnType : T.ReturnType
@@ -38,25 +37,17 @@ type alias Input =
     , errMess : Maybe String
     }
 
-type alias Operator =
-    { specOperator : T.Operator
-    , returnType : T.ReturnType
-    }
-
 type Primitive
     = PInput Input
-    | POperator Operator
-
-type Composite
-    = CVarArgs T.PrimitiveType
-    | CPacked T.PrimitiveType Operator
+    | POperator T.Operator
 
 type Node
     = Primitive Primitive
-    | Composite Composite
+    | VarArgs T.Packed
+    | Packed T.Packed T.Operator
 
 type alias Entry a =
-    { unions : Maybe Unions
+    { union : Maybe Union
     , selector : Maybe Selector
     , entryType : a
     }
@@ -90,11 +81,11 @@ type alias EditionForest = List EditionTree
 
 type alias EntryForest a = (Entry a, EditionForest)
 
-type alias Root = EntryForest Operator
+type alias Root = EntryForest T.Operator
 
 type alias Editor =
-    { gSpec : T.GSpec
-    , returnType : T.ReturnType
+    { spec : T.Spec
+    , returnTypeStr : T.ReturnTypeStr
     , currentFormula : T.CurrentFormula
     , root : Root
     }
@@ -105,47 +96,38 @@ type alias Forest a = List (Tree.Tree a)
 newTree : (a, Forest a) -> Tree.Tree a
 newTree (x, forest) = Tree.branch x forest
 
-has : O.Optic pr ls s t a b -> s -> Bool
-has optics s = O.getSome optics s |> Maybe.isJust
-
 
 -- initialize Tree from SpecType
+
+type alias Reader a = Reader.Reader T.Spec a
 
 initializePrimitiveExpr : T.PrimitiveType -> Reader T.PrimitiveExpr
 initializePrimitiveExpr primitiveType = case primitiveType of
     T.Literal t -> Reader.reader <|
         T.LiteralExpr t Nothing
 
-    T.OperatorOutput x ->
-        T.ReturnOperatorOutput x
-            |> T.BaseReturnType
-            |> T.TypedOperator T.voidOperator Assoc.empty Assoc.empty
+    T.OperatorOutput (T.OperatorOutputType s) ->
+        let voidOp = T.voidOperator -- XXX
+        in { voidOp | return = T.returnTypeFromString s }
+            |> (\op -> T.TypedOperator op Assoc.empty Assoc.empty)
             |> T.OperatorExpr
             |> Reader.reader
 
-    T.Union xs -> Reader.map
-        (\e -> T.UnionExpr xs (NE.head xs, e))
-        (initializePrimitiveExpr <| NE.head xs)
-
-initializeCompositeExpr : T.CompositeType -> Reader T.CompositeExpr
-initializeCompositeExpr compositeType = case compositeType of
-    T.VarArgs t -> Reader.map
-        (\e -> T.VarArgsExpr t [ e ])
-        (initializePrimitiveExpr t)
-
-    T.Packed t -> Reader.reader
-        (T.PackedExpr t T.voidTypedOperator)
-
-initializeTypedExpr : T.SpecType -> Reader T.TypedExpr
-initializeTypedExpr specType = case specType of
+initializeTypedExpr : T.ArgType -> Reader T.ArgExpr
+initializeTypedExpr argType = case argType of
     T.PrimitiveType t ->
         Reader.map T.PrimitiveExpr <| initializePrimitiveExpr t
 
-    T.CompositeType t ->
-        Reader.map T.CompositeExpr <| initializeCompositeExpr t
+    T.UnionType xs -> Reader.map
+        (\e -> T.UnionExpr xs (NE.head xs, e))
+        (initializePrimitiveExpr <| NE.head xs)
 
-initializeOperator : T.Operator -> T.ReturnType -> Reader T.TypedOperator
-initializeOperator ({args, optArgs} as op) returnType = ask <| \env ->
+    T.PackedType ((T.Packed t) as p) -> Reader.map
+        (\e -> T.VarArgsExpr p [ e ])
+        (initializePrimitiveExpr t)
+
+initializeOperator : T.Operator ->  Reader T.TypedOperator
+initializeOperator ({args, optArgs} as op) = ask <| \env ->
     T.TypedOperator
         op
         (Assoc.map
@@ -154,66 +136,33 @@ initializeOperator ({args, optArgs} as op) returnType = ask <| \env ->
         (Assoc.map
             (\_ (t, _) -> initializeTypedExpr t |> RE.run env)
             optArgs)
-        returnType
-
-
--- EditionTree building and rendering : Union helpers
-
-unstackUnion :
-   T.PrimitiveExpr -> (Maybe (NE.Nonempty Union), T.PrimitiveExpr)
-unstackUnion primitiveExpr =
-    let
-        unstackUnion_ xs t = case t of
-            T.UnionExpr (primitiveTypes) (primitiveType, t_) ->
-                unstackUnion_ ((Union primitiveTypes primitiveType)::xs) t_
-
-            _ -> (List.reverse xs, t)
-
-    in unstackUnion_ [] primitiveExpr |> Tuple.mapFirst NE.fromList
-
-stackUnion : Maybe (NE.Nonempty Union) -> T.PrimitiveExpr -> T.PrimitiveExpr
-stackUnion mUnions primitiveExpr =
-    let
-        stackUnions : T.PrimitiveExpr -> List Union -> T.PrimitiveExpr
-        stackUnions t unions = case unions of
-            ({primitiveTypes, primitiveType}) :: xs  ->
-               stackUnions (T.UnionExpr primitiveTypes (primitiveType, t)) xs
-
-            [] -> t
-
-    in Maybe.map (NE.toList >> List.reverse) mUnions
-        |> Maybe.unwrap primitiveExpr (stackUnions primitiveExpr)
 
 
 -- probeSelector
 
-returnTypeFromPrimitive : Primitive -> T.ReturnType
-returnTypeFromPrimitive primitive = case primitive of
-    PInput {literalType} -> T.BaseReturnType <| T.ReturnLiteral literalType
-
-    POperator {returnType} -> returnType
-
-returnTypeFromComposite : Composite -> T.ReturnType
-returnTypeFromComposite composite =
-   T.ReturnPacked <| T.listBaseReturnType <| case composite of
-       CVarArgs primitiveType -> primitiveType
-
-       CPacked primitiveType _ -> primitiveType
-
 probeSelector : T.ReturnType -> Entry a -> Reader (Entry a)
-probeSelector returnType entry = ask <| \gSpec ->
-    T.findOperators gSpec returnType
+probeSelector returnType entry = ask <| \spec ->
+    SR.findOperators spec returnType
         |> Either.toMaybe
         |> Maybe.map (Selector returnType)
         |> (\selector -> O.assign selector_ selector entry)
 
 selectorFromPrimitive : Entry Primitive -> Reader (Entry Primitive)
 selectorFromPrimitive entry =
-    probeSelector (returnTypeFromPrimitive entry.entryType) entry
+    let
+        returnTypeFromPrimitive : T.ReturnType
+        returnTypeFromPrimitive = case entry.entryType of
+            PInput {literalType} ->
+                T.ReturnPrimitiveType <| T.Literal literalType
 
-selectorFromComposite : Entry Composite -> Reader (Entry Composite)
-selectorFromComposite entry =
-    probeSelector (returnTypeFromComposite entry.entryType) entry
+            POperator {return} ->
+                return
+
+    in probeSelector returnTypeFromPrimitive entry
+
+selectorFromPacked : T.Packed ->  Entry Node -> Reader (Entry Node)
+selectorFromPacked (T.Packed t) entry =
+    probeSelector (T.ReturnList t) entry
 
 
 -- helpers for building EditionTree
@@ -221,18 +170,14 @@ selectorFromComposite entry =
 type alias EditionArg =
     { isOpt : Bool
     , key : String
-    , specType : T.SpecType
+    , argType : T.ArgType
     , defaultValue : Maybe T.LiteralExpr
     }
 
-type alias TypedExprs = T.KAssoc T.TypedExpr
-
-type alias Reader a = Reader.Reader T.GSpec a
-
 type alias ReaderEntry a = Reader (Entry a, EditionForest)
 
-run : T.GSpec -> Reader a -> a
-run gSpec ra = Reader.run ra gSpec
+run : T.Spec -> Reader a -> a
+run spec ra = Reader.run ra spec
 
 andThen : (a -> Reader a_) -> Reader (a, b) -> Reader (a_, b)
 andThen f rab = rab |> Reader.andThen (\(a, b) ->
@@ -248,21 +193,24 @@ newInput t =
 
 newEntry : a -> Entry a
 newEntry t =
-    { unions = Nothing
+    { union = Nothing
     , selector = Nothing
     , entryType = t
     }
 
-newEditionRow : RowType -> EditionRow
-newEditionRow x = EditionRow x <|
-    if has (o rowEntryType_ (o primitive_ pOperator_)) x then
+defaultIsExpand : RowType -> Maybe Bool
+defaultIsExpand x =
+    if OE.has_ (o rowEntryType_ (o primitive_ pOperator_)) x then
         Just True
-    else if has (o rowEntryType_ composite_) x then
+    else if OE.has_ (o rowEntryType_ varArgs_) x then
         Just True
-    else if has (rOptArgs_) x then
+    else if OE.has_ (rOptArgs_) x then
         Just False
     else
         Nothing
+
+newEditionRow : RowType -> EditionRow
+newEditionRow x = EditionRow x <| defaultIsExpand x
 
 
 -- fromTypedOperator
@@ -274,11 +222,6 @@ fromPrimitiveExpr_ primitiveExpr = case primitiveExpr of
         , []
         )
 
-    T.UnionExpr _ _ as unionExpr ->
-        let (unions, t) = unstackUnion unionExpr
-        in fromPrimitiveExpr t
-            |> Reader.map (O.assign (o OE.first_ unions_) unions)
-
     T.OperatorExpr x ->
         fromTypedOperator_ x
             |> Reader.map (O.over (o OE.first_ entryType_) POperator)
@@ -287,43 +230,46 @@ fromPrimitiveExpr  : T.PrimitiveExpr -> ReaderEntry Primitive
 fromPrimitiveExpr x =
     fromPrimitiveExpr_ x |> andThen selectorFromPrimitive
 
-fromCompositeExpr_ : T.CompositeExpr -> ReaderEntry Composite
-fromCompositeExpr_ compositeExpr = case compositeExpr of
-    T.VarArgsExpr primitiveType primitiveExprs ->
+fromArgExpr : T.ArgExpr -> ReaderEntry Node
+fromArgExpr argExpr = case argExpr of
+    T.PrimitiveExpr p ->
+        fromPrimitiveExpr p
+            |> Reader.map (O.over (o OE.first_ entryType_) Primitive)
+
+    T.UnionExpr xs (t, p) ->
+        let union = Union xs t
+        in fromPrimitiveExpr p
+            |> Reader.map (O.assign (o OE.first_ union_) (Just union))
+            |> Reader.map (O.over (o OE.first_ entryType_) Primitive)
+
+    T.VarArgsExpr packed primitiveExprs ->
         let
             toTree : T.PrimitiveExpr -> Reader EditionTree
             toTree e = fromPrimitiveExpr e
                 |> Reader.map (O.over OE.first_ (RVarItem >> newEditionRow))
                 |> Reader.map newTree
 
-        in Reader.map2
-            Tuple.pair
-            (CVarArgs primitiveType |> newEntry |> Reader.reader)
-            (RE.traverse toTree primitiveExprs)
+            rVarEnd : EditionTree
+            rVarEnd = RVarEnd |> newEditionRow |> Tree.leaf
 
-    T.PackedExpr primitiveType typedOperator ->
+        in RE.traverse toTree primitiveExprs
+            |> Reader.map (\forest ->
+                ( newEntry <| VarArgs packed
+                , List.append forest [rVarEnd]
+                )
+            )
+            |> andThen (selectorFromPacked packed)
+
+    T.PackedExpr packed typedOperator ->
         fromTypedOperator_ typedOperator
             |> Reader.map
-                (O.over (o OE.first_ entryType_) (CPacked primitiveType))
+                (O.over (o OE.first_ entryType_) (Packed packed))
+            |> andThen (selectorFromPacked packed)
 
-fromCompositeExpr : T.CompositeExpr -> ReaderEntry Composite
-fromCompositeExpr x =
-    fromCompositeExpr_ x |> andThen selectorFromComposite
-
-fromTypedExpr : T.TypedExpr -> ReaderEntry Node
-fromTypedExpr typedExpr = case typedExpr of
-    T.PrimitiveExpr e ->
-        fromPrimitiveExpr e
-            |> Reader.map (O.over (o OE.first_ entryType_) Primitive)
-
-    T.CompositeExpr e ->
-        fromCompositeExpr e
-            |> Reader.map (O.over (o OE.first_ entryType_) Composite)
-
-buildForest : TypedExprs -> List EditionArg -> Reader EditionForest
-buildForest typedExprs editionArgs = ask <| \gSpec ->
+buildForest : T.ArgExprs -> List EditionArg -> Reader EditionForest
+buildForest argExprs editionArgs = ask <| \spec ->
     List.map
-    (\{isOpt, key, specType, defaultValue} ->
+    (\{isOpt, key, argType, defaultValue} ->
         let
             fromEditionArg : Entry Node -> EditionRow
             fromEditionArg entry = newEditionRow <|
@@ -332,44 +278,38 @@ buildForest typedExprs editionArgs = ask <| \gSpec ->
                 else
                     (Arg key entry |> RArg)
 
-            rowVarArgs_ : O.SimpleTraversal RowType T.PrimitiveType
-            rowVarArgs_ = o rowEntryType_ (o composite_ cVarArgs_)
+            rowVarArgs_ : O.SimpleTraversal RowType T.Packed
+            rowVarArgs_ = o rowEntryType_ varArgs_
 
-        in Assoc.get key typedExprs
+        in Assoc.get key argExprs
             |> Maybe.withDefaultLazy
-                (\() -> initializeTypedExpr specType |> RE.run gSpec)
-            |> fromTypedExpr
-            |> run gSpec
+                (\() -> initializeTypedExpr argType |> RE.run spec)
+            |> fromArgExpr
+            |> run spec
             |> O.over OE.first_ fromEditionArg
             |> newTree
-            |> (\tree ->
-            if has (o OE.node_ (o rowType_ rowVarArgs_)) tree then
-                let x = RVarEnd |> newEditionRow |> Tree.leaf
-                in O.over OE.forest_ (\xs -> List.append xs [ x ]) tree
-            else
-                tree)
     )
     editionArgs
 
-fromTypedOperator_ : T.TypedOperator -> ReaderEntry Operator
-fromTypedOperator_ {operator, typedArgs, typedOptArgs, returnType} =
-    ask <| \gSpec ->
+fromTypedOperator_ : T.TypedOperator -> ReaderEntry T.Operator
+fromTypedOperator_ {operator, typedArgs, typedOptArgs} =
+    ask <| \spec ->
         let
-            args = run gSpec <| buildForest typedArgs <| List.map
-                (\(key, specType) ->
+            args = run spec <| buildForest typedArgs <| List.map
+                (\(key, argType) ->
                     { isOpt = False
                     , key = key
-                    , specType = specType
+                    , argType = argType
                     , defaultValue = Nothing
                     }
                 )
                 (Assoc.toList operator.args)
 
-            optArgs = run gSpec <| buildForest typedOptArgs <| List.map
-                (\(key, (specType, defaultValue)) ->
+            optArgs = run spec <| buildForest typedOptArgs <| List.map
+                (\(key, (argType, defaultValue)) ->
                     { isOpt = True
                     , key = key
-                    , specType = specType
+                    , argType = argType
                     , defaultValue = defaultValue
                     }
                 )
@@ -379,14 +319,14 @@ fromTypedOperator_ {operator, typedArgs, typedOptArgs, returnType} =
                 then Nothing
                 else Just <| Tree.branch (newEditionRow ROptArgs) optArgs
         in
-        ( newEntry <| Operator operator returnType
+        ( newEntry <| operator
         , List.append args <| Maybe.toList optNode
         )
 
-fromTypedOperator : T.TypedOperator -> ReaderEntry Operator
+fromTypedOperator : T.TypedOperator -> ReaderEntry T.Operator
 fromTypedOperator typedOperator =
     fromTypedOperator_ typedOperator
-        |> andThen (probeSelector typedOperator.returnType)
+        |> andThen (probeSelector typedOperator.operator.return)
 
 
 -- toTypedOperator
@@ -397,127 +337,138 @@ getNodes optics = List.concatMap (\tree ->
     O.getSome (o OE.node_ (o rowType_ optics)) tree
         |> Maybe.map (\a -> (a, O.get OE.forest_ tree)) |> Maybe.toList)
 
-toPrimitiveExpr : Entry Primitive -> EditionForest -> T.PrimitiveExpr
-toPrimitiveExpr {unions, entryType} forest = stackUnion unions <|
-    case entryType of
-        PInput {literalType, value} ->
-            T.LiteralExpr literalType value
+toPrimitiveExpr : Primitive -> EditionForest -> T.PrimitiveExpr
+toPrimitiveExpr primitive forest = case primitive of
+    PInput {literalType, value} ->
+        T.LiteralExpr literalType value
 
-        POperator op ->
-            T.OperatorExpr <| toTypedOperator op forest
+    POperator op ->
+        T.OperatorExpr <| toTypedOperator op forest
 
-toCompositeExpr : Entry Composite -> EditionForest -> T.CompositeExpr
-toCompositeExpr {entryType} forest = case entryType of
-    CVarArgs primitiveType ->
-        T.VarArgsExpr primitiveType <|
-            List.map (uncurry toPrimitiveExpr) (getNodes rVarItem_ forest)
-
-    CPacked primitiveType op ->
-        T.PackedExpr primitiveType <| toTypedOperator op forest
-
-toTypedExpr : Entry Node -> EditionForest -> T.TypedExpr
-toTypedExpr ({entryType} as entry) forest = case entryType of
+toArgExpr : Entry Node -> EditionForest -> T.ArgExpr
+toArgExpr ({union, entryType} as entry) forest = case entryType of
     Primitive t ->
-        T.PrimitiveExpr <|
-            toPrimitiveExpr (O.assign entryType_ t entry) forest
+        let expr = toPrimitiveExpr t forest
+        in case union of
+            Nothing ->
+                T.PrimitiveExpr expr
 
-    Composite t ->
-        T.CompositeExpr <|
-            toCompositeExpr (O.assign entryType_ t entry) forest
+            Just {primitiveTypes, primitiveType} ->
+                T.UnionExpr primitiveTypes (primitiveType, expr)
+
+    VarArgs p ->
+        T.VarArgsExpr p <| List.map
+            (uncurry toPrimitiveExpr)
+            (getNodes (o rVarItem_ entryType_) forest)
+
+    Packed p op ->
+        T.PackedExpr p <| toTypedOperator op forest
 
 hasValue : Entry Node -> Bool
 hasValue {entryType} = case entryType of
     Primitive (PInput {value}) -> Maybe.isJust value
-    
+
     _ -> True
 
 renderArgs :
     { required : Bool } ->
     O.SimpleTraversal RowType {s | key : T.Key, entry : Entry Node} ->
     EditionForest ->
-    TypedExprs
+    T.ArgExprs
 renderArgs {required} optics forest =
     Assoc.fromList <| Maybe.values <| List.map
     (\({key, entry}, subforest) ->
-        let typedExpr = (key, toTypedExpr entry subforest)
+        let argExpr = (key, toArgExpr entry subforest)
         in
         if required then
-            Just typedExpr
+            Just argExpr
         else if (hasValue entry) then
-            Just typedExpr
+            Just argExpr
         else
             Nothing)
     (getNodes optics forest)
 
-toTypedOperator : Operator -> EditionForest -> T.TypedOperator
-toTypedOperator {specOperator, returnType} forest =
+toTypedOperator : T.Operator -> EditionForest -> T.TypedOperator
+toTypedOperator operator forest =
     let
         isOpt : EditionTree -> Bool
-        isOpt = has (o OE.node_ (o rowType_ rOptArgs_))
+        isOpt = OE.has_ (o OE.node_ (o rowType_ rOptArgs_))
 
         (argsForest, optArgsForest) = List.Extra.unconsLast forest
             |> Maybe.andThen (\((lastTree, _) as x) ->
                 if isOpt lastTree then Just x else Nothing)
             |> Maybe.unwrap
                 (forest, [])
-                (\(optTree, args) -> Tuple.pair args <| O.get OE.forest_ optTree)
+                (\(optTree, args) ->
+                    Tuple.pair args <| O.get OE.forest_ optTree)
 
     in T.TypedOperator
-        specOperator
+        operator
         (renderArgs {required = True} rArg_ argsForest)
         (renderArgs {required = False} rOptArg_ optArgsForest)
-        returnType
 
 
 -- Editor
 
 parse :
-    T.GSpec -> T.ReturnType -> T.FormulaCode -> T.CurrentFormula
-parse gSpec returnType formulaCode =
-    parseFormula gSpec returnType formulaCode
+    T.Spec -> T.ReturnTypeStr -> T.FormulaCode -> T.CurrentFormula
+parse spec returnTypeStr formulaCode =
+    parseFormula spec returnTypeStr formulaCode
         |> Either.mapBoth (Tuple.pair formulaCode) (Tuple.pair formulaCode)
 
-initEditor : T.GSpec -> T.ReturnType -> Editor
-initEditor gSpec returnType =
-    buildEditor gSpec returnType (renderFormula T.voidTypedOperator)
+initEditor : T.Spec -> T.ReturnTypeStr -> Editor
+initEditor spec returnTypeStr =
+    buildEditor spec returnTypeStr (renderFormula T.voidTypedOperator)
 
-buildEditor : T.GSpec -> T.ReturnType -> T.FormulaCode -> Editor
-buildEditor gSpec returnType formulaCode =
+buildEditor : T.Spec -> T.ReturnTypeStr -> T.FormulaCode -> Editor
+buildEditor spec returnTypeStr formulaCode =
     let
-        currentFormula = parse gSpec returnType formulaCode
+        currentFormula = parse spec returnTypeStr formulaCode
 
         root = Either.toMaybe currentFormula
             |> Maybe.unwrap T.voidTypedOperator Tuple.second
             |> fromTypedOperator
-            |> run gSpec
+            |> run spec
 
-    in Editor gSpec returnType currentFormula root
+    in Editor spec returnTypeStr currentFormula root
+
+renderTypedOperator : Editor -> T.TypedOperator
+renderTypedOperator {root} =
+    O.over OE.first_ .entryType root |> uncurry toTypedOperator
 
 -- Test TypedOperator rendering, useless for production
-renderTypedOperator : Editor -> Editor
-renderTypedOperator ({gSpec, root} as editor) =
+testTypedOperator : Editor -> Editor
+testTypedOperator ({spec} as editor) =
     let
-        newRoot = O.over OE.first_ .entryType root
-            |> uncurry toTypedOperator
+        newRoot = renderTypedOperator editor
             |> fromTypedOperator
-            |> run gSpec
+            |> run spec
     in
     { editor | root = newRoot }
 
-parseEditor : Editor -> Editor
-parseEditor ({gSpec, returnType, root} as editor) =
+updateFormula : Editor -> Editor
+updateFormula ({spec, returnTypeStr, root} as editor) =
     let
         currentFormula = O.over OE.first_ .entryType root
             |> uncurry toTypedOperator
             |> renderFormula
-            |> parse gSpec returnType
+            |> parse spec returnTypeStr
+    in
+    { editor | currentFormula = currentFormula }
 
-        newRoot = Either.toMaybe currentFormula
+-- Test Formula rendering and parsing, useless for production
+parseEditor : Editor -> Editor
+parseEditor ({spec, root} as editor) =
+    let
+        newEditor = updateFormula editor
+
+        -- loose current root state in case of valid formula
+        newRoot = Either.toMaybe newEditor.currentFormula
             |> Maybe.unwrap
                 root
-                (Tuple.second >> fromTypedOperator >> run gSpec)
+                (Tuple.second >> fromTypedOperator >> run spec)
     in
-    { editor | currentFormula = currentFormula, root = newRoot }
+    { newEditor | root = newRoot }
 
 
 -- lens helpers for navigating nested strucutres
@@ -542,22 +493,9 @@ pInput_ = O.prism PInput <| \s -> case s of
 
     _ -> Left s
 
-pOperator_ : O.SimplePrism ls Primitive Operator
+pOperator_ : O.SimplePrism ls Primitive T.Operator
 pOperator_ = O.prism POperator <| \s -> case s of
     POperator x -> Right x
-
-    _ -> Left s
-
--- Composite
-cVarArgs_ : O.SimplePrism ls Composite T.PrimitiveType
-cVarArgs_ = O.prism CVarArgs <| \s -> case s of
-    CVarArgs x -> Right x
-
-    _ -> Left s
-
-cPacked_ : O.SimplePrism ls Composite (T.PrimitiveType, Operator)
-cPacked_ = O.prism (uncurry CPacked) <| \s -> case s of
-    CPacked x y -> Right (x, y)
 
     _ -> Left s
 
@@ -567,10 +505,15 @@ primitive_ = O.prism Primitive <| \s -> case s of
     Primitive x -> Right x
 
     _ -> Left s
+varArgs_ : O.SimplePrism ls Node T.Packed
+varArgs_ = O.prism VarArgs <| \s -> case s of
+    VarArgs x -> Right x
 
-composite_ : O.SimplePrism ls Node Composite
-composite_ = O.prism Composite <| \s -> case s of
-    Composite x -> Right x
+    _ -> Left s
+
+packed_ : O.SimplePrism ls Node (T.Packed, T.Operator)
+packed_ = O.prism (uncurry Packed) <| \s -> case s of
+    Packed x y -> Right (x, y)
 
     _ -> Left s
 
@@ -579,18 +522,18 @@ primitiveType_ : O.SimpleLens ls Union T.PrimitiveType
 primitiveType_ = O.lens .primitiveType <| \s a -> { s | primitiveType = a }
 
 -- Entry a
-unions_ : O.SimpleLens ls (Entry a) (Maybe Unions)
-unions_ = O.lens .unions <| \s a -> { s | unions = a }
+union_ : O.SimpleLens ls (Entry a) (Maybe Union)
+union_ = O.lens .union <| \s a -> { s | union = a }
 
-justUnions_ : O.SimpleTraversal (Entry a) Unions
-justUnions_ = o unions_ OE.just_
+justUnion_ : O.SimpleTraversal (Entry a) Union
+justUnion_ = o union_ OE.just_
 
 selector_ : O.SimpleLens ls (Entry a) (Maybe Selector)
 selector_ = O.lens .selector <| \s a -> { s | selector = a }
 
 entryType_ : O.Lens ls (Entry a) (Entry b) a b
-entryType_ = O.lens .entryType <| \{unions, selector} b ->
-    { unions = unions
+entryType_ = O.lens .entryType <| \{union, selector} b ->
+    { union = union
     , selector = selector
     , entryType = b}
 

@@ -1,0 +1,52 @@
+name:                tsformula-bin
+version:             0.1
+license:             BSD-3-Clause
+author:              "André Espaze"
+maintainer:          "andre.espaze@pythonian.fr"
+copyright:           "2023 André Espaze"
+
+extra-source-files:
+- README.md
+
+description:         Run Elm tsformula from command line 
+
+dependencies:
+- base >= 4.7 && < 5
+- protolude
+- neat-interpolation
+- file-embed
+- temporary
+- typed-process
+- aeson
+- aeson-pretty
+- optparse-applicative
+- directory
+- filepath
+- text
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+
+cpp-options:
+- -DELM_JS="tsformula.js"
+
+executables:
+  tsformula:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tsformula-bin

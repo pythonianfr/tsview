@@ -9,11 +9,12 @@ module AceEditor exposing
     )
 
 import Bool.Extra as Bool
-import Html as H exposing (Html)
-import Html.Attributes as A
-import Html.Events as Events
 import Json.Decode as D
 import Json.Encode as E
+
+import HtmlData as H exposing (Html)
+import HtmlData.Attributes as HA
+import HtmlData.Events as Events
 
 
 type alias Config =
@@ -35,7 +36,7 @@ type Msg
     = Edited String
 
 
-encodeAttrs : Config -> String -> List (H.Attribute msg)
+encodeAttrs : Config -> String -> List (HA.Attribute msg)
 encodeAttrs cfg code =
     let
         jsonCfg =
@@ -46,8 +47,8 @@ encodeAttrs cfg code =
                 ]
                 |> E.encode 0
     in
-    [ A.attribute "cfg" jsonCfg
-    , A.attribute "code" code
+    [ HA.attribute "cfg" jsonCfg
+    , HA.attribute "code" code
     ]
 
 
@@ -55,13 +56,13 @@ readOnly : Config -> String -> Html msg
 readOnly cfg code =
     H.node
         "ace-readonly"
-        (A.class "ace_readonly" :: encodeAttrs cfg code)
+        (HA.class "ace_readonly" :: encodeAttrs cfg code)
         []
 
 readOnly_ : String -> Html msg
 readOnly_ = readOnly default
 
-onChange : (String -> Msg) -> H.Attribute Msg
+onChange : (String -> Msg) -> HA.Attribute Msg
 onChange toMsg =
     D.at [ "detail", "value" ] D.string |> D.map toMsg |> Events.on "onChange"
 
@@ -71,17 +72,17 @@ edit cfg code reload =
     let
         reloadAttr =
             if reload then
-                A.attribute "reload" code
+                HA.attribute "reload" code
 
             else
-                A.attribute "reload" ""
+                HA.attribute "reload" ""
 
         attrs =
             encodeAttrs cfg code
     in
     H.node
         "ace-editor"
-        (A.class "ace_edit" :: onChange Edited :: reloadAttr :: attrs)
+        (HA.class "ace_edit" :: onChange Edited :: reloadAttr :: attrs)
         []
 
 edit_ : String -> Bool -> Html Msg

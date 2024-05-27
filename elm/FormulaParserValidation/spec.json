@@ -84,7 +84,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ]
     ]
   ],
@@ -258,7 +258,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ]
     ]
   ],
@@ -313,7 +313,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ]
     ]
   ],
@@ -368,7 +368,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ],
       [
         "skipna",
@@ -385,7 +385,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ],
       [
         "skipna",
@@ -402,7 +402,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ],
       [
         "skipna",
@@ -490,7 +490,7 @@
       ],
       [
         "serieslist",
-        "List[Series]"
+        "Packed[Series]"
       ],
       [
         "skipna",
@@ -541,6 +541,40 @@
       [
         "tz",
         "Default[str=None]"
+      ]
+    ]
+  ],
+  [
+    "findseries",
+    [
+      [
+        "return",
+        "List[Series]"
+      ],
+      [
+        "q",
+        "query"
+      ],
+      [
+        "naive",
+        "Default[bool=False]"
+      ],
+      [
+        "fill",
+        "Default[Union[str, Number]=None]"
+      ]
+    ]
+  ],
+  [
+    "by.name",
+    [
+      [
+        "return",
+        "query"
+      ],
+      [
+        "namequery",
+        "str"
       ]
     ]
   ],

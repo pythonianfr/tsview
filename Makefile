@@ -59,6 +59,10 @@ pygmentize:
 elm-test:
 	elm-test
 
+tsformula-cmd:
+	elm make $(FLAGS) --output tsformula-bin/tsformula.js tsformula-bin/src/Main.elm
+	cd tsformula-bin && stack install
+
 elm-validation:
 	elm make --output elm/FormulaParserValidation/tsformula_elm_parser.js $(FLAGS) \
 		elm/FormulaParserValidation/Main.elm

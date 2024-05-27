@@ -1,16 +1,19 @@
-module Editor.Render exposing (renderFormula, renderBool, renderLiteralExpr)
+module Editor.Render exposing
+    ( renderFormula
+    , renderBool
+    , renderLiteralExpr
+    , inspectTypedOperator
+    )
 
 import Either
 import Maybe.Extra as Maybe
 
-import List.Extra
-import AssocList as Assoc
-
 import Optics.Core as O exposing (o)
+
+import AssocList as Assoc
 import OpticsExtra as OE
 
 import Editor.Type as T
-
 import Editor.SpecRender as SpecRender
 
 
@@ -34,11 +37,11 @@ renderValue_ = O.prism Arg <| \argType ->
         OptArg _ x -> Either.Right x
 
 value_ : O.SimplePrism pr RenderValue (Maybe T.LiteralExpr)
-value_ = O.prism Value <| \v ->
-    case v of
-        Value x -> Either.Right x
+value_ = O.prism Value <| \s ->
+    case s of
+        Value a -> Either.Right a
 
-        _ -> Either.Left v
+        _ -> Either.Left s
 
 
 renderBool : Bool -> String
@@ -57,30 +60,31 @@ renderPrimitiveExpr : T.PrimitiveExpr -> RenderValue
 renderPrimitiveExpr primitiveExpr = case primitiveExpr of
     T.LiteralExpr _ x -> Value x
 
-    T.UnionExpr _ (_, x) -> renderPrimitiveExpr x
-
     T.OperatorExpr x -> renderTypedOperator x
 
-renderTypedExpr : T.TypedExpr -> List RenderValue
-renderTypedExpr typedExpr = case typedExpr of
+renderArgExpr : T.ArgExpr -> List RenderValue
+renderArgExpr argExpr = case argExpr of
     T.PrimitiveExpr x ->
         List.singleton <| renderPrimitiveExpr x
     
-    T.CompositeExpr (T.VarArgsExpr _ xs) ->
+    T.UnionExpr _ (_, x) ->
+        List.singleton <| renderPrimitiveExpr x
+
+    T.VarArgsExpr _ xs ->
         List.map renderPrimitiveExpr xs
 
-    T.CompositeExpr (T.PackedExpr _ x) ->
+    T.PackedExpr _ x ->
         List.singleton <| renderTypedOperator x
 
 renderTypedOperator : T.TypedOperator -> RenderValue
 renderTypedOperator {operator, typedArgs, typedOptArgs} =
     let
         args = List.concatMap
-            (\x -> renderTypedExpr x |> List.map Arg)
+            (\x -> renderArgExpr x |> List.map Arg)
             (Assoc.values typedArgs)
 
         optArgs = List.concatMap
-            (\(k, x) -> renderTypedExpr x |>  List.map (OptArg k))
+            (\(k, x) -> renderArgExpr x |>  List.map (OptArg k))
             (Assoc.toList typedOptArgs)
 
         isInline = List.all (O.is (o renderValue_ value_)) (args ++ optArgs) 
@@ -136,5 +140,5 @@ renderFormula typedOperator =
         |> List.map renderIndent
         |> String.join "\n"
 
--- inspectTypedExpr : T.TypedExpr -> String
--- inspectTypedExpr = Debug.todo "Tree `TypedExpr`"
+inspectTypedOperator : T.TypedOperator -> String
+inspectTypedOperator typedOperator = "TODO : render TypedOperator"

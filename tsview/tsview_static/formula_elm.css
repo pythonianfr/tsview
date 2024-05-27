@@ -84,9 +84,16 @@ footer[class~="code_left"] {
     align-items: center;
 }
 
+.ui_editor div {
+    width: 100%;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
 .col_expand {
     grid-column: expanded;
     grid-row: span 1;
+    text-align: center;
 }
 
 .col_editor {
@@ -112,4 +119,8 @@ footer[class~="code_left"] {
 .error {
     display: block;
     padding: .8em .3em;
+}
+
+.even {
+    background-color: #DCEBFF;
 }

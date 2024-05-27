@@ -40,18 +40,18 @@ renderUnion {primitiveTypes, primitiveType} = "Union[{{ }}]({{ }})"
 
 renderSelector : Selector -> String
 renderSelector {returnType} = "Selector[{{ }}]"
-    |> F.value (T.renderReturnType returnType)
+    |> F.value (SpecRender.renderReturnType returnType)
 
-renderOperator : Operator -> String
-renderOperator {specOperator, returnType} =
+renderOperator : T.Operator -> String
+renderOperator op =
     "Operator({{ }} => {{ }})"
-        |> F.value specOperator.name
-        |> F.value (T.renderReturnType returnType)
+        |> F.value op.name
+        |> F.value (SpecRender.renderReturnType op.return)
 
 renderInput : Input -> String
 renderInput {literalType, value, userInput, errMess} =
     "Input[{{ }}]({{ }})"
-        |> F.value (T.renderLiteralType literalType)
+        |> F.value (SpecRender.renderLiteralType literalType)
         |> F.value (renderArgs
         [ renderArg "value" <| Maybe.map SpecRender.renderLiteralExpr value
         , renderArg "userInput" userInput
@@ -64,25 +64,19 @@ renderNode node = case node of
 
     Primitive (POperator op) -> renderOperator op
 
-    Composite (CVarArgs t) -> "CVarArgs({{ }})"
+    VarArgs (T.Packed t) -> "CVarArgs({{ }})"
         |> F.value (SpecRender.renderPrimitiveType t)
 
-    Composite (CPacked t op) -> "CPacked({{ }}, {{ }})"
+    Packed (T.Packed t) op -> "CPacked({{ }}, {{ }})"
         |> F.value (SpecRender.renderPrimitiveType t)
         |> F.value (renderOperator op)
 
 renderEntry : Entry Node -> List String
-renderEntry {unions, selector, entryType} =
-    let
-        renderUnions : List Union -> List (Maybe String)
-        renderUnions = List.map (renderUnion >> Just)
-    in
-    List.append
-        (Maybe.unwrap [] (NE.toList >> renderUnions) unions)
-        [ Maybe.map renderSelector selector
-        , Just <| renderNode entryType
-        ]
-        |> Maybe.values
+renderEntry {union, selector, entryType} = Maybe.values
+    [ Maybe.map renderUnion union
+    , Maybe.map renderSelector selector
+    , Just <| renderNode entryType
+    ]
 
 renderRowType : RowType -> (String, List String)
 renderRowType rowType = case rowType of
