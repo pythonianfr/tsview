@@ -594,15 +594,23 @@ viewTree model =
 updateTree : Msg -> Model -> (Model, Cmd Msg)
 updateTree msg model = update msg model
 
-initModel : JD.Value -> Model
-initModel jsonSpec =
+initModel : Flags -> Model
+initModel {jsonSpec, formula} =
     parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
- --       { editor = initEditor spec "Series"
-        { editor = buildEditor spec "Series" formulaDev
+        { editor = Maybe.unwrap
+            (buildEditor spec "Series" formulaDev)
+            (buildEditor spec "Series")
+            formula
         , specErrors = errs
         }
 
-main : Program JD.Value Model Msg
+type alias Flags =
+    { urlPrefix : String
+    , jsonSpec : JD.Value
+    , formula : Maybe T.FormulaCode
+    }
+
+main : Program Flags Model Msg
 main = Browser.element
     { init = initModel >> withNoCmd
     , update = updateTree

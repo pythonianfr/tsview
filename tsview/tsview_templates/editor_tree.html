@@ -31,7 +31,11 @@
         <script>
             var app = Elm.Editor.UI.Tree.init({
                 node: document.getElementById("app"),
-                flags: {{ spec | safe }}
+                flags: {
+                    urlPrefix : "",
+                    jsonSpec : {{ spec | safe }},
+                    formula : {{ formula | safe }}
+                }
             });
         </script>
     </body>
