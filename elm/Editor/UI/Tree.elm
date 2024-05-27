@@ -105,6 +105,16 @@ updateInput s ({literalType} as input) =
         setErr : String -> Maybe String
         setErr e = if (s == "") then Nothing else (Just e)
 
+        defaultUpdate = parseLiteralExpr literalType
+            |> PE.run s
+            |> Either.unpack
+                (\e -> input
+                    |> O.assign value_ Nothing
+                    |> O.assign errMess_  (setErr e))
+                (\x -> input
+                    |> O.assign value_ (Just x)
+                    |> O.assign errMess_  Nothing)
+
     in O.assign userInput_ (Just s) <| case literalType of
        T.String ->
            O.assign value_ (setStr T.StringExpr) input
@@ -115,15 +125,12 @@ updateInput s ({literalType} as input) =
        T.SeriesName ->
            O.assign value_ (setStr T.StringExpr) input
 
-       _ -> parseLiteralExpr literalType
-            |> PE.run s
-            |> Either.unpack
-                (\e -> input
-                    |> O.assign value_ Nothing
-                    |> O.assign errMess_  (setErr e))
-                (\x -> input
-                    |> O.assign value_ (Just x)
-                    |> O.assign errMess_  Nothing)
+       T.Bool -> case s of
+            "" -> O.assign value_ Nothing input
+
+            _ -> defaultUpdate
+
+       _ -> defaultUpdate
 
 updateEntryNode :
    EntryAction -> EntryForest Node -> EReader (EntryForest Node)
@@ -295,6 +302,10 @@ renderCheckInput {value} =
             (renderBool >> ReadInput >> EditEntry >> EditNode treePath)
         ]
         []
+    , H.button
+        [ HE.onClick (ReadInput "" |> EditEntry |> EditNode treePath)
+        ]
+        [ H.text <| String.fromChar <| Char.fromCode 8634 ]
     ]
 
 renderInput : Input -> Reader HMsg
