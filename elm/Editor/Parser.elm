@@ -10,6 +10,7 @@ import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
 import Parser.Extras as Parser
 import Editor.Type as T exposing (TypedExpr, Spec, SpecType)
 import Editor.Utils exposing (valueParser)
+import String.Format
 import Tuple.Extra as Tuple
 
 
@@ -163,12 +164,14 @@ parseOperatorArgs spec op =
 parseOperator : Spec -> Parser T.TypedExpr
 parseOperator spec =
     let
+        errMess = "could not find the operator {{ }} in the spec"
+
         getopspec opname =
             case Assoc.get opname spec of
                 Just opspec ->
                     parseOperatorArgs spec opspec
                 Nothing ->
-                    Parser.problem <| "could not find the operator " ++ opname ++ " in the spec"
+                    Parser.problem <| String.Format.value opname <| errMess
     in
     Parser.between
         (Parser.symbol "(" |. Parser.spaces)

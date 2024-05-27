@@ -22,6 +22,7 @@
             "elm-community/maybe-extra": "5.2.0",
             "hayleigh-dot-dev/tuple-extra": "1.0.0",
             "hecrj/html-parser": "2.3.4",
+            "jorgengranseth/elm-string-format": "1.0.1",
             "justinmimbs/date": "4.0.1",
             "jzxhuang/http-extras": "2.1.0",
             "klazuka/elm-json-tree-view": "2.1.0",
@@ -35,6 +36,7 @@
             "elm/bytes": "1.0.8",
             "elm/file": "1.0.5",
             "elm/random": "1.0.0",
+            "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.3",
             "rtfeldman/elm-hex": "1.0.0"
         }
