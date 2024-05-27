@@ -304,7 +304,7 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     let
-        editionTree = Tree.init
+        (editionTree, treeCmd) = Tree.init
             { urlPrefix = urlPrefix
             , jsonSpec = jsonSpec
             , formulaCode = Maybe.map .code formula
@@ -324,9 +324,10 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     , plotData = Dict.empty
     , plotErrMess = Nothing
     }
-    |> CX.withCmd
-        (Cmd.map EditionTreeMsg <| Tree.sendTreeEdited editionTree)
-
+    |> CX.withCmd (Cmd.batch
+        [ (Cmd.map EditionTreeMsg <| Tree.sendTreeEdited editionTree)
+        , (Cmd.map EditionTreeMsg treeCmd)
+        ])
 
 main : Program Flags Model Msg
 main = Browser.element

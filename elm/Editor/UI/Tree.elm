@@ -13,9 +13,16 @@ import RoseTree.Tree as Tree
 import Optics.Core as O exposing (o)
 import Parser.Advanced as PA exposing ((|.))
 
+import Http
 import Browser
+import Url.Builder as UB
+import Json.Encode as JE
 import Json.Decode as JD
+import Html as H exposing (Html)
+import Html.Events as HE
+import Html.Attributes as HA
 
+import HtmlExtra as HX
 import Util exposing (sendCmd)
 
 
@@ -23,10 +30,6 @@ import AssocList as Assoc
 import OpticsExtra as OE
 import ParserExtra as PE
 import AceEditor as Ace
-import Html as H exposing (Html)
-import Html.Events as HE
-import Html.Attributes as HA
-import HtmlExtra as HX
 
 import Editor.Type as T
 import Editor.SpecRender exposing
@@ -48,6 +51,7 @@ type alias TreePath = Array.Array Int
 type alias RowEnv =
     { treePath : TreePath
     , defaultValue : Maybe T.LiteralExpr
+    , seriesNames : List String
     }
 
 type alias Reader a = Reader.Reader RowEnv a
@@ -58,6 +62,11 @@ type ListAction
     = AddItem Int
     | RemoveItem Int
 
+type SelectorAction
+    = OpenSelector Bool
+    | SetKeywords String
+    | SelectItem String
+
 type EntryAction
     = SelectUnion T.PrimitiveType
     | SelectOperator T.Operator
@@ -65,6 +74,7 @@ type EntryAction
     | SelectVarArgs T.Packed
     | SelectPacked T.Packed T.Operator
     | ReadInput String
+    | SelectorAction SelectorAction
 
 type EditAction
     = ToggleExpand
@@ -73,6 +83,7 @@ type EditAction
 
 type alias Model =
     { editor : Editor
+    , seriesNames : List String
     , specErrors : T.SpecErrors
     }
 
@@ -85,10 +96,38 @@ type Msg
     = EditNode TreePath EditAction
     | TreeEdited T.FormulaCode
     | Edit T.FormulaCode
+    | GotSeriesNames (Result Http.Error (List String))
 
 
 type alias HMsg = Html Msg
 
+
+type alias SelectorInput =
+    { selectedItem : Maybe String
+    , keywords : String
+    , isOpen : Bool
+    }
+
+encodeSelectorInput : SelectorInput -> String
+encodeSelectorInput s = JE.encode 0 <| JE.object
+    [ ("selectedItem", Maybe.unwrap JE.null JE.string s.selectedItem)
+    , ("keywords", JE.string s.keywords)
+    , ("isOpen", JE.bool s.isOpen)
+    ]
+
+decodeSelectorInput : String -> Maybe SelectorInput
+decodeSelectorInput s =
+    let toMaybe = Either.toMaybe << Either.fromResult
+    in toMaybe <| flip JD.decodeString s <| JD.map3 SelectorInput
+        (JD.field "selectedItem" <| JD.nullable JD.string)
+        (JD.field "keywords" JD.string)
+        (JD.field "isOpen" JD.bool)
+
+decodeSelectorInputFromUserInput : Maybe String -> SelectorInput
+decodeSelectorInputFromUserInput userInput =
+    Maybe.withDefault
+        (SelectorInput Nothing "" False)
+        (Maybe.join <| Maybe.map decodeSelectorInput userInput)
 
 parseLiteralExpr : T.LiteralType -> PE.Parser c x T.LiteralExpr
 parseLiteralExpr literalType = ask <| \({expecting} as env) ->
@@ -132,6 +171,35 @@ updateInput s ({literalType} as input) =
 
        _ -> defaultUpdate
 
+updateSelector : SelectorAction -> Input -> Input
+updateSelector act ({userInput} as input) =
+    let
+        selectorInput = decodeSelectorInputFromUserInput userInput
+
+        store : (SelectorInput, Input) -> Input
+        store (s, i) = O.assign
+            userInput_
+            (Just <| encodeSelectorInput s)
+            i
+
+    in store <| case act of
+        OpenSelector isOpen ->
+            ( {selectorInput | isOpen = isOpen}
+            , input
+            )
+
+        SetKeywords s ->
+            ( {selectorInput | keywords = s}
+            , input
+            )
+
+        SelectItem s ->
+            ( { selectorInput
+                | selectedItem = Just s
+                , isOpen = False }
+            , { input | value = Just <| T.StringExpr s }
+            )
+
 updateEntryNode :
    EntryAction -> EntryForest Node -> EReader (EntryForest Node)
 updateEntryNode entryAction ((entry, forest) as x) = case entryAction of
@@ -167,6 +235,11 @@ updateEntryNode entryAction ((entry, forest) as x) = case entryAction of
     ReadInput s ->  Reader.reader <| O.over
         (o (o OE.first_ entryType_) (o primitive_ pInput_))
         (updateInput s)
+        x
+
+    SelectorAction act -> Reader.reader <| O.over
+        (o (o OE.first_ entryType_) (o primitive_ pInput_))
+        (updateSelector act)
         x
 
 type alias RowForest = (RowType, EditionForest)
@@ -250,6 +323,12 @@ updateNode editAction tree = ask <| \editor -> case editAction of
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = case msg of
+    GotSeriesNames (Ok xs) ->
+        { model  | seriesNames = xs } |> withNoCmd
+
+    GotSeriesNames (Err _) ->
+        model |> withNoCmd
+
     EditNode treePath editAction -> model
         |> O.over (o editor_ root_) (\root ->
             O.review treeRoot_ root
@@ -305,7 +384,7 @@ renderCheckInput {value} =
     , H.button
         [ HE.onClick (ReadInput "" |> EditEntry |> EditNode treePath)
         ]
-        [ H.text <| String.fromChar <| Char.fromCode 8634 ]
+        [ H.text <| Util.fromCharCode 8634 ]
     ]
 
 renderInput : Input -> Reader HMsg
@@ -325,10 +404,101 @@ renderInput {literalType, value, userInput, errMess} =
     , HX.viewMaybe H.text errMess
     ]
 
+renderClosedSelector :
+    Input -> SelectorInput -> (SelectorAction -> Msg) -> HMsg
+renderClosedSelector {value} {selectedItem} toMsg =
+    let
+        name =
+            Maybe.withDefault
+            (Maybe.unwrap "" renderLiteralExpr value)
+            selectedItem
+    in
+    H.span
+        [ HA.title name ]
+        [ H.input
+            [ HA.value name
+            , HA.disabled True
+            ]
+            []
+        , H.button
+            [ HE.onClick (OpenSelector True |> toMsg) ]
+            [ H.text <| Util.fromCharCode 9998 ]
+        ]
+
+renderOpenSelector :
+    Input -> SelectorInput -> List String -> (SelectorAction -> Msg) -> HMsg
+renderOpenSelector input {keywords, selectedItem } rawItems toMsg =
+    let
+        limitResults xs =
+            let len = List.length xs
+            in if (len > 100) then
+                [ ((String.fromInt len) ++  " results", False) ]
+            else if len ==0 then
+                    [ ("No result", False) ]
+                else
+                    (List.map (\x -> (x, True)) xs)
+
+        items = List.foldl
+            (\word xs -> List.filter (String.contains word) xs)
+            rawItems
+            (String.words keywords)
+            |> limitResults
+
+        width = List.map (Tuple.first >> String.length) items
+            |> List.maximum
+            |> Maybe.withDefault 20
+            |> \x -> round (1.1 * toFloat x)
+
+        renderItem (x, enabled) = H.button
+            [ HA.class "list-group-item list-group-item-action"
+            , HA.classList [("active", (Just x == selectedItem))]
+            , HA.disabled (not enabled)
+            , HE.onMouseDown (SelectItem x |> toMsg)
+            ]
+            [ H.text x ]
+
+    in H.span
+    [ HA.class "series_dropdown"
+    ]
+    [ H.input
+        [ HA.value keywords
+        , HA.placeholder "Type keywords for selection"
+        , HE.onInput (SetKeywords >> toMsg)
+        ]
+        []
+    , H.button
+        [ HE.onClick (OpenSelector False |> toMsg)
+        ]
+        [ H.text <| Util.fromCharCode 10060 ]
+    , H.div
+        [ HA.class "series_dropdown_menu"
+        , HA.style "min-width" (String.fromInt width ++ "ch")
+        ]
+        [ H.div
+            [ HA.class "list-group" ]
+            (List.map renderItem items)
+        ]
+    ]
+
+renderSeriesName : Input -> Reader HMsg
+renderSeriesName ({userInput} as input) = ask <| \{seriesNames, treePath} ->
+    let
+        selectorInput = decodeSelectorInputFromUserInput userInput
+
+        toMsg : SelectorAction -> Msg
+        toMsg msg = msg |> SelectorAction |> EditEntry |> EditNode treePath
+
+    in if selectorInput.isOpen then
+        renderOpenSelector input selectorInput seriesNames toMsg
+    else
+        renderClosedSelector input selectorInput toMsg
+
 renderNode : Node -> Reader HMsg
 renderNode node = case node of
     Primitive (PInput ({literalType} as x)) -> case literalType of
         T.Bool -> renderCheckInput x
+
+        T.SeriesName -> renderSeriesName x
 
         _ -> renderInput x
 
@@ -543,14 +713,14 @@ renderHRow {expandNode, indent, prefixNode, entryNodes} =
     ]
 
 view : Model -> HMsg
-view {editor} =
+view {editor, seriesNames} =
     let
         col cls txt =
             H.header [ HA.class cls ] [ H.text txt ]
 
     in O.review treeRoot_ editor.root
         |> renderTree 0
-        |> RE.run (RowEnv Array.empty Nothing)
+        |> RE.run (RowEnv Array.empty Nothing seriesNames)
         |> O.assign (o OE.listHead_ prefixNode_) HX.nothing
         |> List.map renderHRow
         |> List.concat
@@ -601,12 +771,28 @@ init_ formulaCode returnTypeStr (errs, spec) =
         (initEditor spec returnTypeStr)
         (\code -> buildEditor spec returnTypeStr code |> updateFormula)
         formulaCode
+    , seriesNames = []
     , specErrors = errs
     }
 
-init : Flags -> Model
-init {jsonSpec, formulaCode, returnTypeStr} =
-    parseSpecValue {reduce = True} jsonSpec |> init_ formulaCode returnTypeStr
+getSeriesNames : String -> Cmd Msg
+getSeriesNames urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "series", "find" ]
+        [ UB.string "query" "(by.everything)"
+        , UB.string "meta" "false"
+        ]
+    , expect = Http.expectJson
+        GotSeriesNames
+        (JD.list (JD.field "name" JD.string))
+    }
+
+init : Flags -> (Model, Cmd Msg)
+init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
+    parseSpecValue {reduce = True} jsonSpec
+        |> init_ formulaCode returnTypeStr
+        |> withCmd (getSeriesNames urlPrefix)
 
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
@@ -677,6 +863,7 @@ initModel {jsonSpec, formulaCode} =
             (buildEditor spec "Series" formulaDev)
             (buildEditor spec "Series")
             formulaCode
+        , seriesNames = []
         , specErrors = errs
         }
 

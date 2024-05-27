@@ -124,3 +124,16 @@ footer[class~="code_left"] {
 .even {
     background-color: #DCEBFF;
 }
+
+.series_dropdown {
+    display: inline-block;
+    position: relative;
+}
+
+.series_dropdown_menu {
+    display: block;
+    position: absolute;
+    right: 0;
+    background-color: #fff;
+    z-index: 2;
+}

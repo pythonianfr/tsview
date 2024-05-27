@@ -9,6 +9,7 @@ module Util exposing
     , getformulas
     , nocmd
     , sendCmd
+    , fromCharCode
     , pygmentyze
     , snd
     , tovirtualdom
@@ -29,6 +30,10 @@ nocmd model = ( model, Cmd.none )
 sendCmd : (a -> msg) -> a -> Cmd msg
 sendCmd toMsg a =
     Task.succeed a |> Task.perform toMsg
+
+fromCharCode : Int -> String
+fromCharCode value = Char.fromCode value |> String.fromChar
+
 
 bool2int b =
     if b then 1 else 0
