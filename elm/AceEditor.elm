@@ -12,9 +12,9 @@ import Bool.Extra as Bool
 import Json.Decode as D
 import Json.Encode as E
 
-import HtmlData as H exposing (Html)
-import HtmlData.Attributes as HA
-import HtmlData.Events as Events
+import Html as H exposing (Html)
+import Html.Attributes as HA
+import Html.Events as Events
 
 
 type alias Config =
@@ -36,7 +36,7 @@ type Msg
     = Edited String
 
 
-encodeAttrs : Config -> String -> List (HA.Attribute msg)
+encodeAttrs : Config -> String -> List (H.Attribute msg)
 encodeAttrs cfg code =
     let
         jsonCfg =
@@ -62,7 +62,7 @@ readOnly cfg code =
 readOnly_ : String -> Html msg
 readOnly_ = readOnly default
 
-onChange : (String -> Msg) -> HA.Attribute Msg
+onChange : (String -> Msg) -> H.Attribute Msg
 onChange toMsg =
     D.at [ "detail", "value" ] D.string |> D.map toMsg |> Events.on "onChange"
 
@@ -70,15 +70,8 @@ onChange toMsg =
 edit : Config -> String -> Bool -> Html Msg
 edit cfg code reload =
     let
-        reloadAttr =
-            if reload then
-                HA.attribute "reload" code
-
-            else
-                HA.attribute "reload" ""
-
-        attrs =
-            encodeAttrs cfg code
+        reloadAttr = HA.attribute "reload" <| if reload then code else ""
+        attrs = encodeAttrs cfg code
     in
     H.node
         "ace-editor"

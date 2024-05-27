@@ -420,15 +420,18 @@ parse spec returnTypeStr formulaCode =
 
 initEditor : T.Spec -> T.ReturnTypeStr -> Editor
 initEditor spec returnTypeStr =
-    buildEditor spec returnTypeStr (renderFormula T.voidTypedOperator)
+    let typedOp = T.makeEmptyTypedOperator returnTypeStr
+    in buildEditor spec returnTypeStr (renderFormula typedOp)
 
 buildEditor : T.Spec -> T.ReturnTypeStr -> T.FormulaCode -> Editor
 buildEditor spec returnTypeStr formulaCode =
     let
         currentFormula = parse spec returnTypeStr formulaCode
 
+        typedOp = T.makeEmptyTypedOperator returnTypeStr
+
         root = Either.toMaybe currentFormula
-            |> Maybe.unwrap T.voidTypedOperator Tuple.second
+            |> Maybe.unwrap typedOp Tuple.second
             |> fromTypedOperator
             |> run spec
 

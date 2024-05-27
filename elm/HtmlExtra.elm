@@ -2,13 +2,17 @@ module HtmlExtra exposing (..)
 
 import Maybe
 
-import HtmlData as H exposing (Html)
-import HtmlData.Events as HE
-import HtmlData.Attributes as HA
+import Html as H exposing (Html)
+import Html.Events as HE
+import Html.Attributes as HA
 
 
-attributeMaybe : (a -> HA.Attribute msg) -> Maybe a -> HA.Attribute msg
-attributeMaybe f = Maybe.map f >> Maybe.withDefault HA.NoAttribute
+attributeMaybe : (a -> H.Attribute msg) -> Maybe a -> H.Attribute msg
+attributeMaybe f ma =
+    let
+        noAttribute = HA.classList []
+    in
+    Maybe.map f ma |> Maybe.withDefault noAttribute
 
 nothing : Html msg
 nothing = H.text ""
@@ -16,3 +20,6 @@ nothing = H.text ""
 viewMaybe : (a -> Html msg) -> Maybe a -> Html msg
 viewMaybe f ma =
     Maybe.map f ma |> Maybe.withDefault nothing
+
+viewIf : Bool -> Html msg -> Html msg
+viewIf cond html = if cond then html else nothing

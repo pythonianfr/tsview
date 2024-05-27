@@ -115,9 +115,17 @@ returnTypeFromString : String -> ReturnType
 returnTypeFromString s =
     OperatorOutputType s |> OperatorOutput |> ReturnPrimitiveType
 
-voidOperator : Operator
-voidOperator =
-    returnTypeFromString "void" |> Operator "" Assoc.empty Assoc.empty
+makeEmptyOperator : ReturnTypeStr -> Operator
+makeEmptyOperator s =
+    returnTypeFromString s |> Operator "" Assoc.empty Assoc.empty
 
-voidTypedOperator : TypedOperator
-voidTypedOperator = TypedOperator voidOperator Assoc.empty Assoc.empty
+voidOperator : Operator
+voidOperator = makeEmptyOperator "void"
+
+makeEmptyTypedOperator : ReturnTypeStr -> TypedOperator
+makeEmptyTypedOperator s =
+    TypedOperator (makeEmptyOperator s) Assoc.empty Assoc.empty
+
+getCode : CurrentFormula -> FormulaCode
+getCode currentFormula =
+    Either.unpack Tuple.first Tuple.first currentFormula

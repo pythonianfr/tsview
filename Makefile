@@ -46,7 +46,7 @@ addformulas:
 # 	touch tsview/tsview_static/ace
 
 formula:
-	elm make elm/TsView/Formula/Main.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
+	elm make elm/Editor/UI/Main.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
 
 # Dev components for formula
 editor_tree:

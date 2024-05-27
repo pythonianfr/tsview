@@ -4,6 +4,7 @@ import Array
 import Either
 import Maybe.Extra as Maybe
 import Basics.Extra exposing (flip)
+import Cmd.Extra exposing (withNoCmd, withCmd)
 
 import Reader
 import ReaderExtra as RE exposing (ask, asks)
@@ -14,17 +15,17 @@ import Parser.Advanced as PA exposing ((|.))
 
 import Browser
 import Json.Decode as JD
-import Cmd.Extra exposing (withNoCmd, withCmd)
+
+import Util exposing (sendCmd)
 
 
 import AssocList as Assoc
 import OpticsExtra as OE
 import ParserExtra as PE
 import AceEditor as Ace
-import HtmlData as H exposing (Html)
-import HtmlData.Events as HE
-import HtmlData.Attributes as HA
-import HtmlData.Extra exposing (toElmHtml)
+import Html as H exposing (Html)
+import Html.Events as HE
+import Html.Attributes as HA
 import HtmlExtra as HX
 
 import Editor.Type as T
@@ -82,6 +83,8 @@ editor_ = O.lens .editor <| \s a -> {s | editor = a}
 
 type Msg
     = EditNode TreePath EditAction
+    | TreeEdited T.FormulaCode
+    | Edit T.FormulaCode
 
 
 type alias HMsg = Html Msg
@@ -248,7 +251,18 @@ update msg model = case msg of
                 (updateNode editAction >> RE.run model.editor)
             |> O.getSome treeRoot_ |> Maybe.withDefault root)
         |> O.over editor_ updateFormula
-        |> withNoCmd
+        |> (\m -> ( m, sendTreeEdited m))
+
+    Edit code ->
+        let
+            {spec, returnTypeStr} = model.editor
+
+            newEditor = buildEditor spec returnTypeStr code
+        in
+        { model | editor = newEditor } |> withNoCmd
+
+    TreeEdited _ ->
+        model |> withNoCmd
 
 
 -- HTML rendering
@@ -535,6 +549,47 @@ view {editor} =
             ]
         |> H.section [ HA.class "ui_editor" ]
 
+viewErrors_ : Maybe (List String) -> Html msg
+viewErrors_ mList = flip HX.viewMaybe mList <| \xs ->
+    H.div []
+    (List.map (\x -> H.span [ HA.class "error" ] [ H.text x ]) xs)
+
+viewErrors : Model -> Html msg
+viewErrors { editor } = editor.currentFormula
+    |> Either.leftToMaybe
+    |> Maybe.map (Tuple.second >> PE.renderParserErrors >> String.lines)
+    |> viewErrors_
+
+hasErrors : Model -> Bool
+hasErrors { editor } = Either.isLeft editor.currentFormula
+
+viewSpecErrors : Model -> Html msg
+viewSpecErrors {specErrors} = specErrors
+    |> Maybe.map NE.toList
+    |> viewErrors_
+
+
+type alias Flags =
+    { urlPrefix : String
+    , jsonSpec : JD.Value
+    , formulaCode : Maybe T.FormulaCode
+    , returnTypeStr : T.ReturnTypeStr
+    }
+
+
+init : Flags -> Model
+init {jsonSpec, formulaCode, returnTypeStr} =
+    parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
+        { editor = Maybe.unwrap
+            (initEditor spec returnTypeStr)
+            (\code -> buildEditor spec returnTypeStr code |> updateFormula)
+            formulaCode
+        , specErrors = errs
+        }
+
+sendTreeEdited : Model -> Cmd Msg
+sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
+
 
 -- Internal application for development
 
@@ -595,26 +650,20 @@ updateTree : Msg -> Model -> (Model, Cmd Msg)
 updateTree msg model = update msg model
 
 initModel : Flags -> Model
-initModel {jsonSpec, formula} =
+initModel {jsonSpec, formulaCode} =
     parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
         { editor = Maybe.unwrap
             (buildEditor spec "Series" formulaDev)
             (buildEditor spec "Series")
-            formula
+            formulaCode
         , specErrors = errs
         }
-
-type alias Flags =
-    { urlPrefix : String
-    , jsonSpec : JD.Value
-    , formula : Maybe T.FormulaCode
-    }
 
 main : Program Flags Model Msg
 main = Browser.element
     { init = initModel >> withNoCmd
     , update = updateTree
-    , view = viewTree >> toElmHtml
+    , view = viewTree
     , subscriptions = always Sub.none
     }
 

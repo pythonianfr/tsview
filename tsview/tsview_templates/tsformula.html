@@ -47,16 +47,16 @@
     </script>
     </head>
     <body>
-        <section>TEST</h1>
         <div id="app"></div>
         <script src="./tsview_static/formula_elm.js"></script>
         <script>
-            var app = Elm.TsView.Formula.Main.init({
+            var app = Elm.Editor.UI.Main.init({
                 node: document.getElementById("app"),
                 flags: {
                     urlPrefix : "{{ homeurl }}",
                     jsonSpec : {{ spec | safe }},
-                    formula : {{ formula | safe }}
+                    formula : {{ formula | safe }},
+                    returnTypeStr : "Series"
                 }
             });
         </script>

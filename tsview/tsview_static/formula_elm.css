@@ -77,7 +77,7 @@ footer[class~="code_left"] {
     grid-gap: 0.3em;
     grid-template-columns:
         [expanded-start] auto
-        [editor-start expanded-end] minmax(90vw, auto)
+        [editor-start expanded-end] minmax(50vw, auto)
         [editor-end]
     ;
     grid-auto-rows: 1fr;

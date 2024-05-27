@@ -8,6 +8,7 @@ module Util exposing
     , fragmentsmatcher
     , getformulas
     , nocmd
+    , sendCmd
     , pygmentyze
     , snd
     , tovirtualdom
@@ -20,10 +21,14 @@ import Html.Parser
 import Html.Parser.Util
 import Http
 import Url.Builder as UB
+import Task
 
 
 nocmd model = ( model, Cmd.none )
 
+sendCmd : (a -> msg) -> a -> Cmd msg
+sendCmd toMsg a =
+    Task.succeed a |> Task.perform toMsg
 
 bool2int b =
     if b then 1 else 0

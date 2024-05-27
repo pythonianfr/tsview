@@ -11,6 +11,7 @@ import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderFormula)
 import Editor.UI.Type exposing
     ( buildEditor
+    , initEditor
     , testTypedOperator
     , parseEditor
     )
@@ -42,7 +43,7 @@ RArg(EDITOR): Selector[Number],
     ) """
 RArg(EDITOR): Selector[Series],
               Operator(priority => Series)
-  RArg(serieslist): Selector[List[Series]],
+  RArg(serieslist): Selector[List[Series]] isExpand=True,
                     CVarArgs(Series)
     RVarItem: Selector[Series] isExpand=True,
               Operator(series => Series)
@@ -107,9 +108,30 @@ testParseEditor =
     Test.describe "parseEditor"
         <| TestUtil.buildTests render buildEditorTests
 
+initEditorTests : List (T String)
+initEditorTests =
+    [ T "Series init" "Series" """
+RArg(EDITOR): Selector[Series],
+              Operator( => Series)
+    """
+    , T "Number init" "Number" """
+RArg(EDITOR): Operator( => Number)
+"""
+    ]
+
+testInitEditor : Test.Test
+testInitEditor =
+    let
+        render returnType =
+            initEditor spec returnType |> renderEditor
+    in
+    Test.describe "initEditor"
+        <| TestUtil.buildTests render initEditorTests
+
 mainTest : Test.Test
 mainTest = Test.concat
     [ testBuildEditor
     , testRenderTypedOperator
     , testParseEditor
+    , testInitEditor
     ]
