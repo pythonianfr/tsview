@@ -96,6 +96,13 @@ type Msg
     | ResetClipboardClass
 
 
+maxPoints = 1000
+
+msgTooManyPoints =
+    """ Too many points to display. Please select a smaller time
+    frame or an area on the graph."""
+
+
 type alias Entry =
     { value : Maybe Float
     , override : Bool
@@ -825,11 +832,10 @@ editTable model =
     if Dict.isEmpty model.horizon.timeSeries
     then H.div [ class ][ ]
     else
-        if Dict.size model.horizon.timeSeries > 1000
+        if Dict.size model.horizon.timeSeries > maxPoints
         then H.div
             [ class ]
-            [ H.text """ Too many points to display. Please select a smaller time
-                      frame or an area on the graph."""
+            [ H.text msgTooManyPoints
             , node
             ]
     else
@@ -865,10 +871,23 @@ viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     H.table
         [HA.class "table table-sm"]
-         ( [ headerShowValue model ]
-          ++ ( List.map
+          [ headerShowValue model
+          , bodyShowValue model ]
+
+
+bodyShowValue: Model -> H.Html Msg
+bodyShowValue model =
+    if (List.length (Dict.toList model.horizon.timeSeries)) < maxPoints
+    then
+        H.tbody
+            []
+            ( List.map
                 ( buildRow model )
-                ( datesValue model )))
+                ( datesValue model ))
+    else
+        H.p
+            []
+            [ H.text msgTooManyPoints ]
 
 
 datesValue: Model -> List String
