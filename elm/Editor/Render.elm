@@ -64,7 +64,7 @@ buildTypeTree sexpr =
     case sexpr of
         T.TLiteral T.Void _ -> [ Tree.singleton Void ]
 
-        T.TLiteral _ ( _, x ) ->
+        T.TLiteral _ x ->
             [ Tree.singleton (Value x) ]
 
         T.TVarargs _ xs ->

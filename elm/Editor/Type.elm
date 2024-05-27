@@ -64,7 +64,7 @@ type alias Spec =
 
 -- typed formula for the ui consumption
 type TypedExpr
-    = TLiteral LiteralType ( String, EditableValue )
+    = TLiteral LiteralType EditableValue
     | TUnion (Nonempty SpecType) ( SpecType, TypedExpr )
     | TVarargs SpecType (List TypedExpr)
     | TOperator Operator (KAssoc TypedExpr) (KAssoc TypedExpr)
@@ -74,4 +74,4 @@ voidValue : EditableValue
 voidValue = StringValue ""
 
 voidExpr : TypedExpr
-voidExpr = TLiteral Void ("", voidValue)
+voidExpr = TLiteral Void voidValue

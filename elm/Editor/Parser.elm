@@ -17,11 +17,12 @@ import Tuple.Extra as Tuple
 parseTypedExpr : Spec -> SpecType -> Parser TypedExpr
 parseTypedExpr spec specType =
     case specType of
-        T.Editable x ->
-            Parser.oneOf
-                [ Parser.map (T.TLiteral x) (valueParser x |. Parser.spaces)
-                , parseOperator spec
-                ]
+        T.Editable x -> Parser.oneOf
+            [ Parser.map
+                (Tuple.second >> T.TLiteral x)
+                (valueParser x |. Parser.spaces)
+            , parseOperator spec
+            ]
 
         T.Series ->
             parseOperator spec
