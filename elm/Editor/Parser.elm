@@ -75,7 +75,7 @@ parseLiteralExpr t = oneOf
     -- XXX should handle nil
     [ Reader.reader (SpecParser.literalParser t)
         |> map (Just >> T.LiteralExpr t)
-    , parseTypedOperator |> map T.OperatorExpr
+    , parseTypedOperator_ |> map T.OperatorExpr
     ]
 
 setReturnType : T.PrimitiveType -> Parser c x a -> Parser c x a
@@ -101,7 +101,7 @@ parseUnion primitiveTypes =
 parsePacked : T.Packed -> Parser c x T.TypedOperator
 parsePacked (T.Packed t) =
     let x = T.ReturnList t
-    in Reader.local (\senv -> {senv | returnType = x}) parseTypedOperator
+    in Reader.local (\senv -> {senv | returnType = x}) parseTypedOperator_
 
 parseVarArgs : T.Packed -> Parser c x (List T.PrimitiveExpr)
 parseVarArgs (T.Packed t) =
@@ -244,10 +244,16 @@ getOperator = askM <| \({spec, returnType}) ->
             >> Either.unpack problem (initTyped >> succeed)
         )
 
+parseTypedOperator_ : Parser c x T.TypedOperator
+parseTypedOperator_ =
+    ask <| \senv ->
+        ask <| \pm ->
+            PA.backtrackable (evalParser senv pm parseTypedOperator)
+
 parseTypedOperator : Parser c x T.TypedOperator
 parseTypedOperator =
     ask <| \senv ->
-        ask <| \({toToken} as pm) -> PA.backtrackable <| PE.between
+        ask <| \({toToken} as pm) -> PE.between
             (PA.symbol (toToken "(")
                 |. PA.spaces)
             (PA.spaces
