@@ -11,7 +11,7 @@ import TestUtil exposing (T)
 import JsonSpec exposing (jsonSpec)
 
 
-formulaTests : List T
+formulaTests : List (T String)
 formulaTests =
     [ T "Parsing void" "(   )" "()"
     , T "Parsing internal void" "( + 2   ()  )" "(+ 2 ())"

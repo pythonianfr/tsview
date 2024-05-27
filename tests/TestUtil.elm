@@ -4,16 +4,14 @@ import Expect
 import Test
 
 
-type alias T =
+type alias T a =
     { name : String
-    , input : String
+    , input : a
     , output : String
     }
 
 
-type alias RenderInput = (String -> String)
-
-buildTests : RenderInput -> List T -> List Test.Test
+buildTests : (a -> String) -> List (T a) -> List Test.Test
 buildTests render xs = 
     List.map
         (\x ->
