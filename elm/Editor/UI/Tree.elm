@@ -537,7 +537,7 @@ viewHeader editionMode =
             EditionMode -> ( ReadOnly, "💾" )
     in H.header
     [ HA.class "code_left" ]
-    [ H.span [] [ H.text "Formula edition " ]
+    [ H.span [] [ H.text "Formula edition" ]
   --  , H.a [ Events.onClick (ChangeState newState) ] [ H.text sign ]
     ]
 

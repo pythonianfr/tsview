@@ -524,49 +524,55 @@ parseEditor ({gSpec, returnType, root} as editor) =
 
 --Input
 literalType_ : O.SimpleLens ls Input T.LiteralType
-literalType_ = O.lens .literalType (\s a -> { s | literalType = a })
+literalType_ = O.lens .literalType <| \s a -> { s | literalType = a }
 
 value_ : O.SimpleLens ls Input (Maybe T.LiteralExpr)
-value_ = O.lens .value (\s a -> { s | value = a })
+value_ = O.lens .value <| \s a -> { s | value = a }
 
 userInput_ : O.SimpleLens ls Input (Maybe String)
-userInput_ = O.lens .userInput (\s a -> { s | userInput = a })
+userInput_ = O.lens .userInput <| \s a -> { s | userInput = a }
 
 errMess_ : O.SimpleLens ls Input (Maybe String)
-errMess_ = O.lens .errMess (\s a -> { s | errMess = a })
+errMess_ = O.lens .errMess <| \s a -> { s | errMess = a }
 
 -- Primitive
 pInput_ : O.SimplePrism ls Primitive Input
-pInput_ = O.prism PInput (\s -> case s of
+pInput_ = O.prism PInput <| \s -> case s of
     PInput x -> Right x
-    _ -> Left s)
+
+    _ -> Left s
 
 pOperator_ : O.SimplePrism ls Primitive Operator
-pOperator_ = O.prism POperator (\s -> case s of
+pOperator_ = O.prism POperator <| \s -> case s of
     POperator x -> Right x
-    _ -> Left s)
+
+    _ -> Left s
 
 -- Composite
 cVarArgs_ : O.SimplePrism ls Composite T.PrimitiveType
-cVarArgs_ = O.prism CVarArgs (\s -> case s of
+cVarArgs_ = O.prism CVarArgs <| \s -> case s of
     CVarArgs x -> Right x
-    _ -> Left s)
+
+    _ -> Left s
 
 cPacked_ : O.SimplePrism ls Composite (T.PrimitiveType, Operator)
-cPacked_ = O.prism (uncurry CPacked) (\s -> case s of
+cPacked_ = O.prism (uncurry CPacked) <| \s -> case s of
     CPacked x y -> Right (x, y)
-    _ -> Left s)
+
+    _ -> Left s
 
 -- Node
 primitive_ : O.SimplePrism ls Node Primitive
-primitive_ = O.prism Primitive (\s -> case s of
+primitive_ = O.prism Primitive <| \s -> case s of
     Primitive x -> Right x
-    _ -> Left s)
+
+    _ -> Left s
 
 composite_ : O.SimplePrism ls Node Composite
-composite_ = O.prism Composite (\s -> case s of
+composite_ = O.prism Composite <| \s -> case s of
     Composite x -> Right x
-    _ -> Left s)
+
+    _ -> Left s
 
 -- Union
 primitiveType_ : O.SimpleLens ls Union T.PrimitiveType
@@ -574,60 +580,68 @@ primitiveType_ = O.lens .primitiveType <| \s a -> { s | primitiveType = a }
 
 -- Entry a
 unions_ : O.SimpleLens ls (Entry a) (Maybe Unions)
-unions_ = O.lens .unions (\s a -> { s | unions = a })
+unions_ = O.lens .unions <| \s a -> { s | unions = a }
 
 justUnions_ : O.SimpleTraversal (Entry a) Unions
 justUnions_ = o unions_ OE.just_
 
 selector_ : O.SimpleLens ls (Entry a) (Maybe Selector)
-selector_ = O.lens .selector (\s a -> { s | selector = a })
+selector_ = O.lens .selector <| \s a -> { s | selector = a }
 
 entryType_ : O.Lens ls (Entry a) (Entry b) a b
-entryType_ = O.lens .entryType (\{unions, selector} b ->
+entryType_ = O.lens .entryType <| \{unions, selector} b ->
     { unions = unions
     , selector = selector
-    , entryType = b})
+    , entryType = b}
 
 -- Arg or OptArg
 key_ : O.SimpleLens ls ({ s | key : T.Key }) T.Key
-key_ = O.lens .key (\s a -> { s | key = a })
+key_ = O.lens .key <| \s a -> { s | key = a }
 
 entry_ : O.SimpleLens ls ({ s | entry : Entry a }) (Entry a)
-entry_ = O.lens .entry (\s a -> { s | entry = a })
+entry_ = O.lens .entry <| \s a -> { s | entry = a }
 
 -- RowType
 rArg_ : O.SimplePrism pr RowType Arg
-rArg_ = O.prism RArg (\s -> case s of
+rArg_ = O.prism RArg <| \s -> case s of
     RArg a -> Right a
-    _ -> Left s)
+
+    _ -> Left s
 
 rOptArgs_ : O.SimplePrism pr RowType ()
-rOptArgs_ = O.prism (always ROptArgs) (\s -> case s of
+rOptArgs_ = O.prism (always ROptArgs) <| \s -> case s of
     ROptArgs -> Right ()
-    _ -> Left s)
+
+    _ -> Left s
 
 rOptArg_ : O.SimplePrism pr RowType OptArg
-rOptArg_ = O.prism ROptArg (\s -> case s of
+rOptArg_ = O.prism ROptArg <| \s -> case s of
     ROptArg a -> Right a
-    _ -> Left s)
+
+    _ -> Left s
 
 rVarItem_ : O.SimplePrism pr RowType (Entry Primitive)
-rVarItem_ = O.prism RVarItem (\s -> case s of
+rVarItem_ = O.prism RVarItem <| \s -> case s of
     RVarItem a -> Right a
-    _ -> Left s)
+
+    _ -> Left s
 
 rVarEnd_ : O.SimplePrism pr RowType ()
-rVarEnd_ = O.prism (always RVarEnd) (\s -> case s of
+rVarEnd_ = O.prism (always RVarEnd) <| \s -> case s of
     RVarEnd -> Right ()
-    _ -> Left s)
+
+    _ -> Left s
 
 -- invalid prism law but useful
 rowEntry_ : O.SimplePrism pr RowType (Entry Node)
-rowEntry_ = O.prism (Arg "INVALID" >> RArg) (\s -> case s of
+rowEntry_ = O.prism (Arg "INVALID" >> RArg) <| \s -> case s of
     RArg {entry} -> Right entry
+
     ROptArg {entry} -> Right entry
+
     RVarItem entry -> Right <| O.over entryType_ Primitive entry
-    _ -> Left s)
+
+    _ -> Left s
 
 rowEntryType_ : O.SimpleTraversal RowType Node
 rowEntryType_ = o rowEntry_ entryType_
