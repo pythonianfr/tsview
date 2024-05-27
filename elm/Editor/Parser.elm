@@ -7,6 +7,7 @@ import Lisp
 import List.Extra exposing (allDifferentBy)
 import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
+import Parser.Extras as Parser
 import Editor.Type as T exposing (TypedExpr, Spec, SpecType)
 import Editor.Utils exposing (valueParser)
 import Tuple.Extra as Tuple
@@ -169,16 +170,13 @@ parseOperator spec =
                 Nothing ->
                     Parser.problem <| "could not find the operator " ++ opname ++ " in the spec"
     in
-    (Parser.succeed identity
-        |. Parser.symbol "("
-        |. Parser.spaces
-        |= Lisp.symbolparser
-        |. Parser.spaces
-        |> Parser.andThen getopspec
-    )
-        |. Parser.spaces
-        |. Parser.symbol ")"
-        |. Parser.spaces
+    Parser.between
+        (Parser.symbol "(" |. Parser.spaces)
+        (Parser.spaces |. Parser.symbol ")" |. Parser.spaces)
+        (Lisp.symbolparser
+            |. Parser.spaces
+            |> Parser.andThen getopspec
+        )
 
 
 parseFormula : Spec -> String -> Either String T.TypedExpr
