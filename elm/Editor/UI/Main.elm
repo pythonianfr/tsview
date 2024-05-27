@@ -255,23 +255,26 @@ viewEditor model = H.article [ HA.class "main" ]
     ]
 
 viewPlot : Model -> Html Msg
-viewPlot {formulaName, plotData, plotErrMess} =
-    let
-        plot = scatterplot
-            (Maybe.withDefault "editor.code" formulaName)
-            (Dict.keys plotData)
-            (Dict.values plotData)
-            "lines"
-        args = plotargs "plot" [plot]
-    in
-    -- the "plot-figure" node is pre-built in the template side
-    -- (html component)
-    H.section
-        []
-        [ H.node "plot-figure" [ HA.attribute "args" args ] []
-        , viewError plotErrMess
-        ]
+viewPlot _ = H.text "Plot"
 
+-- viewPlot : Model -> Html Msg
+-- viewPlot {formulaName, plotData, plotErrMess} =
+--     let
+--         plot = scatterplot
+--             (Maybe.withDefault "editor.code" formulaName)
+--             (Dict.keys plotData)
+--             (Dict.values plotData)
+--             "lines"
+--         args = plotargs "plot" [plot]
+--     in
+--     -- the "plot-figure" node is pre-built in the template side
+--     -- (html component)
+--     H.section
+--         []
+--         [ H.node "plot-figure" [ HA.attribute "args" args ] []
+--         , viewError plotErrMess
+--         ]
+--
 view : Model -> Html Msg
 view model = H.div [ HA.style "margin" ".5em" ]
     [ Tree.viewSpecErrors model.editionTree
