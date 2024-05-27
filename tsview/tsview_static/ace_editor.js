@@ -9,6 +9,21 @@ function setConfig(editor, jsonCfg) {
     return editor;
 }
 
+function setPayload(editor, jsonPayload) {
+    payload = JSON.parse(jsonPayload);
+    var session = editor.getSession();
+
+    session.setValue(payload.code);
+    session.setAnnotations(payload.annotations);
+
+    xs = payload.annotations;
+    if (xs) {
+        editor.gotoLine(xs[0].row + 1, xs[0].column, true);
+    };
+
+    return editor;
+}
+
 class AceReadOnly extends HTMLElement {
     constructor() {
         self = super();
@@ -21,13 +36,13 @@ class AceReadOnly extends HTMLElement {
         var editor = ace.edit(pre);
 
         setConfig(editor, this.getAttribute('cfg'));
+        setPayload(editor, this.getAttribute('payload'));
         editor.setReadOnly(true);
-        editor.setValue(this.getAttribute('code') || '');
 
         this.editor = editor;
     }
     static get observedAttributes() {
-        return ['cfg', 'code'];
+        return ['cfg', 'payload'];
     }
     attributeChangedCallback(name, oldVal, newVal) {
         var editor = this.editor;
@@ -38,8 +53,8 @@ class AceReadOnly extends HTMLElement {
             case 'cfg':
                 setConfig(editor, newVal);
                 break;
-            case 'code':
-                editor.setValue(newVal);
+            case 'payload':
+                setPayload(editor, newVal);
                 break;
         }
     }
@@ -71,7 +86,7 @@ class AceEditor extends AceReadOnly {
             return false;
         }
         if (name=='reload' && newVal!='') {
-            editor.setValue(newVal);
+            editor.session.setValue(newVal);
         }
     }
 }

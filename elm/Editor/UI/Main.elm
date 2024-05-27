@@ -2,6 +2,7 @@ module Editor.UI.Main exposing (main)
 
 import Dict
 import Maybe.Extra as Maybe
+import Basics.Extra exposing (flip)
 
 import Browser
 import Http
@@ -15,6 +16,8 @@ import Json.Decode exposing (Value)
 import List.Nonempty as NE exposing (Nonempty)
 import Cmd.Extra as CX
 
+import ParserExtra
+import AceEditor as Ace
 import HtmlExtra as HX
 import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
@@ -239,15 +242,38 @@ viewError mStr = HX.viewMaybe
     (\x -> H.span [ HA.class "error" ] [ H.text x ])
     mStr
 
+convertAnnotation :
+        Ace.AnnotationType -> ParserExtra.Annotation -> Ace.Annotation
+convertAnnotation annotationType {rowPos, colPos, errMess} =
+    { annotationType = annotationType
+    , rowPos = rowPos
+    , colPos = colPos
+    , message = errMess
+    }
+
+getAnnotations : ParserExtra.ParserErrors -> Ace.Annotations
+getAnnotations xs = flip NE.concatMap xs <| \{annotation, contextStack} ->
+    Maybe.unwrap
+        []
+        (NE.map (convertAnnotation Ace.Info) >> NE.toList)
+        contextStack
+        |> NE.Nonempty (convertAnnotation Ace.Warning annotation)
+
 viewEditor : Model -> Html Msg
-viewEditor model = H.article [ HA.class "main" ]
+viewEditor model =
+    let
+        annotations =
+            Tree.getParserErrors model.editionTree  |> Maybe.map getAnnotations
+
+    in H.article [ HA.class "main" ]
     [ H.div
         [ HA.class "code_left" ]
-        [ H.map CodeEditorMsg (CodeEditor.viewEdition model.codeEditor)
+        [ CodeEditor.viewEdition model.codeEditor annotations
+            |> H.map CodeEditorMsg
         , Tree.viewErrors model.editionTree
         , HX.viewIf (canSave model) (viewSave model)
-        , H.map CodeEditorMsg <|
-            CodeEditor.viewLastValid model.codeEditor model.lastFormulaCode
+        , CodeEditor.viewLastValid model.codeEditor model.lastFormulaCode
+            |> H.map CodeEditorMsg
         ]
     , H.div
         [ HA.class "code_right" ]

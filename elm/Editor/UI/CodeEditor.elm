@@ -72,24 +72,24 @@ viewHeader mode =
     , H.a [ HE.onClick (SwitchMode newMode) ] [ H.text sign ]
     ]
 
-viewEdition : Model -> Html Msg
-viewEdition model =
-    let
-        code = Maybe.withDefault "" model.formulaCode
-
+viewEdition : Model -> Maybe AceEditor.Annotations -> Html Msg
+viewEdition model annotations =
+    let code = Maybe.withDefault "" model.formulaCode
     in H.section [ HA.class "code_editor" ] <| case model.mode of
     ReadOnly ->
         [ viewHeader model.mode
         , H.div
             [ HA.class "code_left" ]
-            [ AceEditor.readOnly_ code ]
+            [ AceEditor.readOnly_ annotations code ]
         ]
 
     Edition ->
         [ viewHeader model.mode
         , H.div
             [ HA.class "code_left", editorHeight ]
-            [ AceEditor.edit_ code model.reload |> H.map AceEditorMsg ]
+            [ AceEditor.edit_ annotations code model.reload
+                |> H.map AceEditorMsg
+            ]
         ]
 
 viewLastValid : Model -> Maybe String -> Html Msg
@@ -101,6 +101,6 @@ viewLastValid model code = case model.mode of
             [ H.span [] [ H.text "Last valid formula" ] ]
         , H.div
             [ HA.class "code_left" ]
-            [ AceEditor.readOnly_ <| Maybe.withDefault "" code
+            [ AceEditor.readOnly_ Nothing (Maybe.withDefault "" code)
             ]
         ]

@@ -730,22 +730,60 @@ view {editor, seriesNames} =
             ]
         |> H.section [ HA.class "ui_editor" ]
 
+
+renderErrorRow : Int -> PE.Annotation -> Html msg
+renderErrorRow charCode {rowPos, colPos, errMess} = H.tr
+    []
+    [ H.td [] [ H.text <| Util.fromCharCode charCode ]
+    , H.td [] [ H.text <| String.fromInt rowPos ]
+    , H.td [] [ H.text <| String.fromInt colPos ]
+    , H.td [] [ H.text <| errMess ]
+    ]
+
+renderParserError : PE.ParserError -> NE.Nonempty (Html msg)
+renderParserError {annotation, contextStack} = NE.Nonempty
+    (renderErrorRow 9888 annotation)
+    (Maybe.unwrap
+        []
+        (NE.map (renderErrorRow 8505) >> NE.toList)
+        contextStack
+    )
+
+renderParserErrors : PE.ParserErrors -> Html msg
+renderParserErrors xs =
+    let
+        tableHead = ["", "Line", "Col.", "Message"]
+            |> List.map
+                (\x -> H.th [ HA.scope "col" ] [ H.text x ])
+            |> H.tr []
+            |> List.singleton
+            |> H.thead []
+
+    in H.table
+    [ HA.class "table" ]
+    [ tableHead
+    , H.tbody
+        []
+        (NE.concatMap renderParserError xs |> NE.toList)
+    ]
+
+getParserErrors : Model -> Maybe PE.ParserErrors
+getParserErrors {editor} =
+    editor.currentFormula |> Either.leftToMaybe |> Maybe.map Tuple.second
+
+viewErrors : Model -> Html msg
+viewErrors model = case T.getCode model.editor.currentFormula of
+    "()" -> HX.nothing
+
+    _ -> getParserErrors model |> HX.viewMaybe renderParserErrors
+
+hasErrors : Model -> Bool
+hasErrors { editor } = Either.isLeft editor.currentFormula
+
 viewErrors_ : Maybe (List String) -> Html msg
 viewErrors_ mList = flip HX.viewMaybe mList <| \xs ->
     H.div []
     (List.map (\x -> H.span [ HA.class "error" ] [ H.text x ]) xs)
-
-viewErrors : Model -> Html msg
-viewErrors { editor } = case T.getCode editor.currentFormula of
-    "()" -> HX.nothing
-
-    _ -> editor.currentFormula
-        |> Either.leftToMaybe
-        |> Maybe.map (Tuple.second >> PE.renderParserErrors >> String.lines)
-        |> viewErrors_
-
-hasErrors : Model -> Bool
-hasErrors { editor } = Either.isLeft editor.currentFormula
 
 viewSpecErrors : Model -> Html msg
 viewSpecErrors {specErrors} = specErrors
@@ -834,7 +872,7 @@ renderReadOnly model =
     [ H.div
         [ HA.class "code_left" , editorHeight ]
         [ viewHeader ReadOnly
-        , Ace.readOnly_ <| Either.unpack
+        , Ace.readOnly_ Nothing <| Either.unpack
             Tuple.first
             Tuple.first
             model.editor.currentFormula
