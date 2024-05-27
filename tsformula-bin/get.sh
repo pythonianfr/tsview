@@ -1,4 +1,4 @@
-for site in eflower totalbe kallista
+for site in eflower greenalp totalbe meteo kallista
 do
     curl -n https://refinery.${site}.pythonian.fr/downloadformulas \
         > formula/${site}_formula.csv
