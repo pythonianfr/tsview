@@ -207,7 +207,7 @@ viewactionwidgets model horizonevents editor pagetitle =
                     [ if editor then "tseditor" else "tsinfo" ]
                     [ UB.string "name" model.name ]
               ]
-              [ H.text editorlabel ]
+              [ H.text <| if editor then editorlabel else "series info" ]
         , case model.seriestype of
               Formula ->
                   H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
