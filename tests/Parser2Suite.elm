@@ -29,7 +29,7 @@ formulaTests =
 ( + 2   ()  )
     """
     ) """
-(2, 9) =>  Invalid: Lack of mandatory argument
+(2, 9) =>  Invalid: Lack of a Number mandatory argument
     """
 
     , T "+ OK"
@@ -83,7 +83,7 @@ formulaTests =
 (+ a b 4)
     """
     ) """
-(2, 4) =>  Invalid: Lack of mandatory argument
+(2, 4) =>  Invalid: Lack of a Number mandatory argument
     """
 
     , T "* Right"
@@ -146,6 +146,15 @@ formulaTests =
     (findseries
         (by.name "pmax_avail.nuclear.be")))
 """
+
+    , T "No operator in a list"
+    ( "Series"
+    , """
+(priority (series "a") (series "b") () ())
+    """
+    ) """
+(2, 38) =>  Expecting: Valid operator name
+    """
 
     , T "full OK"
     ( "Series"

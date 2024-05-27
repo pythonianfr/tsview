@@ -3,6 +3,7 @@ module Editor.Parser exposing (..)
 import Set
 import Dict
 import Tuple.Extra as Tuple
+import Maybe.Extra as Maybe
 import Either exposing (Either)
 
 import Reader
@@ -16,7 +17,7 @@ import ReaderExtra exposing (ask, asks, askM, asksM)
 
 import Editor.Type as T
 import Editor.SpecParser as SpecParser
-import Editor.SpecRender exposing (findOperator)
+import Editor.SpecRender exposing (findOperator, renderArgType)
 
 
 type alias SpecEnv =
@@ -206,12 +207,20 @@ parseTypedArgs ({operator} as op) =
             else
                 problem "Duplicate keyword for argument"
 
+        renderArg : T.ArgType -> String
+        renderArg t =
+            "Lack of a " ++ renderArgType t ++ " mandatory argument"
+
         checkArgs : T.TypedOperator -> Parser c x T.TypedOperator
-        checkArgs ({ typedArgs, typedOptArgs } as t) =
-            if Assoc.size typedArgs == List.length argKeys then
-                succeed t
-            else
-                problem "Lack of mandatory argument"
+        checkArgs ({ typedArgs } as t) =
+            let typedArgsKeys = Assoc.keys typedArgs
+            in List.filter
+                (\(k, _) -> not <| List.member k typedArgsKeys)
+                (Assoc.toList operator.args)
+                |> List.head
+                |> Maybe.unwrap
+                    (succeed t)
+                    (Tuple.second >> renderArg >> problem)
 
     in
     Reader.local
