@@ -12,13 +12,9 @@ type alias T a =
 
 
 buildTests : (a -> String) -> List (T a) -> List Test.Test
-buildTests render xs = 
-    List.map
-        (\x ->
-            let
-                res =
-                    Expect.equal (render x.input) (String.trim x.output)
-            in
-            Test.test x.name (always res)
-        )
-        xs
+buildTests render = List.map (\x ->
+    let
+        res = Expect.equal
+            (render x.input |> String.trim)
+            (x.output |> String.trim)
+    in Test.test x.name (always res))

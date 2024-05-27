@@ -1,20 +1,23 @@
 module Parser2Suite exposing (testParsing)
 
-import Either
 import Test
+import Either
 
 import Editor.Parser exposing (parseFormula)
-import Editor.Render exposing (renderString)
-import Editor.SpecParser exposing (parseSpecString)
+import Editor.Render exposing (renderFormula)
 
 import TestUtil exposing (T)
-import JsonSpec exposing (jsonSpec)
+import JsonSpec exposing (spec)
 
 
 formulaTests : List (T String)
 formulaTests =
     [ T "Parsing void" "(   )" "()"
-    , T "Parsing internal void" "( + 2   ()  )" "(+ 2 ())"
+    , T "Parsing internal void" "( + 2   ()  )" """
+(+
+    2
+    ())
+"""
     , T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
     , T "+ series OK" "( + 2   #:flag #t  #:b (+ 1 6))" """
 (+
@@ -95,13 +98,10 @@ formulaTests =
 testParsing : Test.Test
 testParsing =
     let
-        parsedspec =
-            parseSpecString jsonSpec |> Either.unpack Tuple.first identity
-
         render : String -> String
         render input =
-            case parseFormula parsedspec input |> Either.toResult of
-                Ok parsedformula -> renderString parsedformula
+            case parseFormula spec input |> Either.toResult of
+                Ok parsedformula -> renderFormula parsedformula
                 Err err -> String.trim err
     in
     TestUtil.buildTests render formulaTests |> Test.concat

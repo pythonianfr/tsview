@@ -1,5 +1,17 @@
 module JsonSpec exposing (..)
 
+import Either
+
+import Editor.Type exposing (Spec)
+import Editor.UI.Type exposing (GSpec, buildGSpec)
+import Editor.SpecParser exposing (parseSpecString)
+
+
+spec : Spec
+spec = parseSpecString jsonSpec |> Either.unpack Tuple.first identity
+
+gSpec : GSpec
+gSpec = buildGSpec spec
 
 jsonSpec : String
 jsonSpec =

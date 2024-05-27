@@ -1,15 +1,12 @@
 module Editor.Type exposing (..)
 
 import AssocList as Assoc
-import List.Nonempty as NE exposing (Nonempty)
+import List.NonEmpty as NE exposing (NonEmpty)
 
 
-type alias Key =
-    String
+type alias Key = String
 
-
-type alias KAssoc a =
-    Assoc.Dict Key a
+type alias KAssoc a = Assoc.Dict Key a
 
 
 -- primitive types *for the edition tree* literal inputs handling
@@ -23,7 +20,6 @@ type LiteralType
     | String -- standard input
     | TimestampString -- datetime picker
     | SearchString -- catalog browser
-    | Void -- no input
 
 
 -- primitive types used in the spec
@@ -32,10 +28,10 @@ type SpecType
     | Timestamp
     | Series
     | Query
-    | Union (Nonempty SpecType)
+    | Union (NonEmpty SpecType)
     -- | Record (Nonempty (String, LiteralType, Maybe EditableValue))
     -- varargs handling
-    | Varargs SpecType -- for literal inputs to varargs
+    | VarArgs SpecType -- for literal inputs to varargs
     | Packed SpecType -- special purpose list for varargs
 
 
@@ -58,20 +54,23 @@ type alias Operator =
     }
 
 
-type alias Spec =
-    KAssoc Operator
+type alias Spec = KAssoc Operator
 
 
 -- typed formula for the ui consumption
 type TypedExpr
     = TLiteral LiteralType EditableValue
-    | TUnion (Nonempty SpecType) ( SpecType, TypedExpr )
-    | TVarargs SpecType (List TypedExpr)
+    | TUnion (NonEmpty SpecType) ( SpecType, TypedExpr )
+    | TVarArgs SpecType (List TypedExpr)
     | TOperator Operator (KAssoc TypedExpr) (KAssoc TypedExpr)
-  
--- utils for no input
-voidValue : EditableValue
-voidValue = StringValue ""
 
+
+-- handling no input from user
 voidExpr : TypedExpr
-voidExpr = TLiteral Void voidValue
+voidExpr = TLiteral Bool Nil
+
+voidOperator : Operator
+voidOperator = Operator "__void__" Assoc.empty Assoc.empty Series
+
+voidTOperator : TypedExpr
+voidTOperator = TOperator voidOperator Assoc.empty Assoc.empty

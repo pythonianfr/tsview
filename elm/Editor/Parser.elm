@@ -1,17 +1,112 @@
 module Editor.Parser exposing (..)
 
-import AssocList as Assoc
+import Set
 import Dict
+import Bool.Extra as Bool
+import Tuple.Extra as Tuple
 import Either exposing (Either(..))
-import Lisp
+
+import String.Format
+import AssocList as Assoc
+import List.NonEmpty as NE
 import List.Extra exposing (allDifferentBy)
-import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), DeadEnd, Parser, Problem(..))
 import Parser.Extras as Parser
+
+import Lisp
 import Editor.Type as T exposing (TypedExpr, Spec, SpecType)
-import Editor.Utils exposing (valueParser)
-import String.Format
-import Tuple.Extra as Tuple
+
+
+stringParser : Parser String
+stringParser =
+    let
+        quote =
+            '"'
+
+        quoteSymbol =
+            String.fromChar quote
+    in
+    Parser.succeed identity
+        |. Parser.symbol quoteSymbol
+        |= Parser.variable
+            { start = always True
+            , inner = (/=) quote
+            , reserved = Set.empty
+            }
+        |. Parser.symbol quoteSymbol
+
+
+minusSign : Parser Bool
+minusSign =
+    Parser.oneOf
+        [ Parser.map (always True) (Parser.symbol "-")
+        , Parser.succeed False
+        ]
+
+
+numberParser : Parser number -> Parser number
+numberParser pa =
+    Parser.succeed
+        (\negative x ->
+            if negative then
+                -x
+
+            else
+                x
+        )
+        |= minusSign
+        |= pa
+
+
+boolParser : Parser Bool
+boolParser =
+    Parser.oneOf
+        [ Parser.succeed True |. Parser.keyword "#t"
+        , Parser.succeed False |. Parser.keyword "#f"
+        ]
+
+
+boolToString : Bool -> String
+boolToString x =
+    case x of
+        True ->
+            "True"
+
+        False ->
+            "False"
+
+
+valueParser : T.LiteralType -> Parser ( String, T.EditableValue )
+valueParser inputType =
+    let
+        andThen f =
+            Parser.andThen (f >> Parser.succeed)
+    in
+    case inputType of
+        T.Bool ->
+            boolParser
+                |> andThen (\x -> ( boolToString x, T.BoolValue x ))
+
+        T.Int ->
+            numberParser Parser.int
+                |> andThen (\x -> ( String.fromInt x, T.IntValue x ))
+
+        T.Number ->
+            numberParser Parser.float
+                |> andThen (\x -> ( String.fromFloat x, T.NumberValue x ))
+
+        T.String ->
+            stringParser
+                |> andThen (\x -> ( x, T.StringValue x ))
+
+        T.TimestampString ->
+            -- XXX should be a date parser ?
+            stringParser
+                |> andThen (\x -> ( x, T.TimestampValue x ))
+
+        T.SearchString ->
+            stringParser
+                |> andThen (\x -> ( x, T.StringValue x ))
 
 
 parseTypedExpr : Spec -> SpecType -> Parser TypedExpr
@@ -33,8 +128,8 @@ parseTypedExpr spec specType =
         T.Timestamp ->
             parseOperator spec
 
-        T.Varargs x ->
-            Parser.map (T.TVarargs x) (parseList spec x)
+        T.VarArgs x ->
+            Parser.map (T.TVarArgs x) (parseList spec x)
 
         T.Packed x ->
             parseOperator spec
@@ -55,7 +150,7 @@ parseList spec specType =
         )
 
 
-parseUnion : Spec -> Nonempty SpecType -> Parser ( SpecType, TypedExpr )
+parseUnion : Spec -> NE.NonEmpty SpecType -> Parser ( SpecType, TypedExpr )
 parseUnion spec =
     NE.toList
         >> List.map (\x -> Parser.map (Tuple.pair x) (parseTypedExpr spec x))
@@ -179,7 +274,7 @@ parseOperator spec =
         (Parser.spaces |. Parser.symbol ")" |. Parser.spaces)
         (Parser.oneOf
             [ Lisp.symbolparser |. Parser.spaces |> Parser.andThen getopspec
-            , Parser.succeed T.voidExpr |. Parser.spaces
+            , Parser.succeed T.voidTOperator |. Parser.spaces
             ]
         )
 

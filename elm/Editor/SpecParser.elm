@@ -3,13 +3,15 @@ module Editor.SpecParser exposing
     , parseSpecValue
     )
 
-import AssocList as Assoc
-import Editor.Type as T
-import Editor.Utils exposing (valueParser)
 import Either exposing (Either(..))
+
+import AssocList as Assoc
+import List.NonEmpty as NE
 import Json.Decode as D exposing (Decoder)
-import List.Nonempty as NE exposing (Nonempty)
 import Parser exposing ((|.), (|=), Parser)
+
+import Editor.Type as T
+import Editor.Parser exposing (valueParser)
 
 
 type alias RawOperator =
@@ -59,7 +61,7 @@ specTypeParser =
         [ Parser.map T.Editable inputTypeParser
         , Parser.succeed T.Series
             |. Parser.keyword "Series"
-        , Parser.succeed T.Varargs
+        , Parser.succeed T.VarArgs
             |. Parser.keyword "List" -- rename this to Varargs in the Python side
             |. Parser.symbol "["
             |= Parser.lazy (\_ -> specTypeParser)
@@ -177,7 +179,7 @@ parseOperator ( name, rawArgs ) =
 
 
 type alias ParsedSpec =
-    Either ( T.Spec, Nonempty String ) T.Spec
+    Either ( T.Spec, NE.NonEmpty String ) T.Spec
 
 
 parseOperators : List RawOperator -> ParsedSpec
@@ -198,15 +200,15 @@ parseOperators ops =
             Right s
 
         ( x :: xs, s ) ->
-            Left ( s, NE.Nonempty x xs )
+            Left ( s, NE.fromCons x xs )
 
 
 parseSpec : Result D.Error (List RawOperator) -> ParsedSpec
 parseSpec =
     let
-        fail : String -> ( T.Spec, Nonempty String )
+        fail : String -> ( T.Spec, NE.NonEmpty String )
         fail =
-            NE.fromElement >> Tuple.pair Assoc.empty
+            NE.singleton >> Tuple.pair Assoc.empty
     in
     Either.fromResult
         >> Either.mapLeft (D.errorToString >> fail)
