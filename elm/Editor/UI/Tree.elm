@@ -577,15 +577,22 @@ type alias Flags =
     }
 
 
+init_ :
+    Maybe T.FormulaCode ->
+    T.ReturnTypeStr ->
+    (T.SpecErrors, T.Spec) ->
+    Model
+init_ formulaCode returnTypeStr (errs, spec) =
+    { editor = Maybe.unwrap
+        (initEditor spec returnTypeStr)
+        (\code -> buildEditor spec returnTypeStr code |> updateFormula)
+        formulaCode
+    , specErrors = errs
+    }
+
 init : Flags -> Model
 init {jsonSpec, formulaCode, returnTypeStr} =
-    parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
-        { editor = Maybe.unwrap
-            (initEditor spec returnTypeStr)
-            (\code -> buildEditor spec returnTypeStr code |> updateFormula)
-            formulaCode
-        , specErrors = errs
-        }
+    parseSpecValue {reduce = True} jsonSpec |> init_ formulaCode returnTypeStr
 
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula

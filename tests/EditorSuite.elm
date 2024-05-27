@@ -4,6 +4,7 @@ module EditorSuite exposing (mainTest)
 import Test
 import Expect
 
+import Array
 import Either
 
 import Editor.Type as ET
@@ -16,6 +17,7 @@ import Editor.UI.Type exposing
     , parseEditor
     )
 import Editor.UI.Render exposing (renderEditor)
+import Editor.UI.Tree as Tree
 
 import JsonSpec exposing (spec)
 import TestUtil exposing (T)
@@ -128,10 +130,82 @@ testInitEditor =
     Test.describe "initEditor"
         <| TestUtil.buildTests render initEditorTests
 
+
+type alias UpdateArgs =
+    { formulaCode : String
+    , msgs : List Tree.Msg
+    }
+
+updateEditorTests : List (T UpdateArgs)
+updateEditorTests =
+    [ T "** operator"
+    { formulaCode = """
+(**
+    (add
+        (series "test 1")
+        (series "test 2"))
+    0.6)
+"""
+    , msgs =
+        [ Tree.EditNode
+            (Array.fromList [0,0,0,0])
+            (Tree.EditEntry (Tree.ReadInput "test A"))
+        , Tree.EditNode
+            (Array.fromList [0,0,1,0])
+            (Tree.EditEntry (Tree.ReadInput "test B"))
+        , Tree.EditNode
+            (Array.fromList [1])
+            (Tree.EditEntry (Tree.ReadInput "1.7"))
+        ]
+    }
+    """
+RArg(EDITOR): Selector[Series],
+              Operator(** => Series)
+  RArg(series): Selector[Series] isExpand=True,
+                Operator(add => Series)
+    RArg(serieslist): Selector[List[Series]] isExpand=True,
+                      CVarArgs(Series)
+      RVarItem: Selector[Series] isExpand=True,
+                Operator(series => Series)
+        RArg(name): Input[SeriesName](value="test A" userInput=test A)
+        ROptArgs: OperatorOptions isExpand=False
+          ROptArg(fill, Default=None): Union[String, Int](String),
+                                       Input[String]()
+          ROptArg(weight, Default=None): Selector[Number],
+                                         Input[Number]()
+      RVarItem: Selector[Series] isExpand=True,
+                Operator(series => Series)
+        RArg(name): Input[SeriesName](value="test B" userInput=test B)
+        ROptArgs: OperatorOptions isExpand=False
+          ROptArg(fill, Default=None): Union[String, Int](String),
+                                       Input[String]()
+          ROptArg(weight, Default=None): Selector[Number],
+                                         Input[Number]()
+      RVarEnd: AddItem
+  RArg(num): Selector[Number],
+             Input[Number](value=1.7 userInput=1.7)
+"""
+    ]
+
+renderUpdate : UpdateArgs -> String
+renderUpdate {formulaCode, msgs} =
+    List.foldl
+        (\msg model -> Tree.update msg model |> Tuple.first)
+        (Tree.init_ (Just formulaCode) "Series" (Nothing, spec))
+        msgs
+    |> \m -> renderEditor m.editor
+--    |> \s -> Debug.log s s
+
+testUpdateEditor : Test.Test
+testUpdateEditor =
+    Test.describe "updateEditor"
+        <| TestUtil.buildTests renderUpdate updateEditorTests
+
 mainTest : Test.Test
 mainTest = Test.concat
     [ testBuildEditor
     , testRenderTypedOperator
     , testParseEditor
     , testInitEditor
+    , testUpdateEditor
     ]
