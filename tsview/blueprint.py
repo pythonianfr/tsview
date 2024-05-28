@@ -635,8 +635,14 @@ def tsview(tsa):
 
     @bp.route('/formula-components/<seriesname>')
     def formula_components(seriesname):
+        from tshistory_formula.helper import replace_findseries
         assert tsa.exists(seriesname)
-        formula = tsa.formula(seriesname)
+        formula = replace_findseries(
+            tsa.engine,
+            tsa.tsh,
+            tsa.formula(seriesname),
+        )
+
         tree = fparse(formula)
         infos = [
             {
