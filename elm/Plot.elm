@@ -406,7 +406,7 @@ view model =
                              (Dict.keys series)
                              (Dict.values series)
                              "lines"
-                             defaultoptions
+                             { defaultoptions | showlegend = True }
                         )
                         model.search.selected
             in

@@ -29,7 +29,7 @@ type alias TraceOptions =
 
 
 defaultoptions =
-    { showlegend = True
+    { showlegend = False
     , line = Nothing
     , opacity = 1
     }
