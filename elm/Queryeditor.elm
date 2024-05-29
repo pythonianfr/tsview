@@ -1,6 +1,6 @@
 module Queryeditor exposing ( main )
 
-import TsView.AceEditor as AceEditor
+import AceEditor as AceEditor
 import Browser
 import Dict
 import Filter exposing
@@ -382,7 +382,7 @@ vieweditor model =
         [ HA.class "code_left"
         ,  editorHeight
         ]
-        [ AceEditor.edit AceEditor.default code True |> H.map AceEditorMsg
+        [ AceEditor.edit AceEditor.default Nothing code True |> H.map AceEditorMsg
         , case model.editing of
               Nothing -> H.span [] []
               Just lastvalidedit ->
