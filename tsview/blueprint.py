@@ -16,8 +16,6 @@ import numpy as np
 import pandas as pd
 from pml import HTML
 
-from dash import _utils
-
 from psyl.lisp import (
     parse as fparse,
     serialize,
@@ -46,13 +44,6 @@ from tsview.util import (
 )
 from tsview.menu import definition as menu_spec
 from tsview.icons import definition as icons_definition
-
-
-# monkeypatch dash utility
-def set_read_only(self, names, msg='Attribute is read-only'):
-    return
-
-_utils.AttributeDict.set_read_only = set_read_only
 
 
 def primary_names(tsa):

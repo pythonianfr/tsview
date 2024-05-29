@@ -24,9 +24,15 @@ class ElmBuild(build_ext):
 
     def run(self):
         for edit_kind, src in [
+                ('homepage', 'Homepage.elm'),
+                ('menu_stand_alone', 'StandAloneMenu.elm'),
+                ('operators', 'Operators.elm'),
+                ('qeditor', 'Queryeditor.elm'),
                 ('delete', 'Delete.elm'),
+                ('addformulas', 'Addformulas.elm'),
+                ('formulas', 'Formulas.elm'),
                 ('plot', 'Plot.elm'),
-                ('formula', Path('TsView/Formula/Main.elm')),
+                ('editor_tree', Path('Editor/UI/Tree.elm')),
                 ('tsinfo', 'Tsinfo.elm'),
                 ('tseditor', 'Tseditor.elm'),
                 ('groupinfo', 'Groupinfo.elm'),
@@ -46,10 +52,16 @@ doc = Path(__file__).parent / 'README.md'
 setup(name='tsview',
       version=__version__,
       author='Pythonian',
-      author_email='aurelien.campeas@pythonian.fr, andre.espaze@pythonian.fr, arnaud.campeas@pythonian.fr',
-      description=('Plugin to `tshistory` which provides a `view` subcommand '
-                   'to visualize time series from a repository and '
-                   'a flask blueprint'),
+      author_email=(
+          'aurelien.campeas@pythonian.fr,'
+          'andre.espaze@pythonian.fr,'
+          'arnaud.campeas@pythonian.fr'
+          'auguste.pezin@pythonian.fr'
+      ),
+      description=(
+          'Plugin to `tshistory` which provides a `view` subcommand '
+          'to visualize time series'
+      ),
       long_description=doc.read_text(),
       long_description_content_type='text/markdown',
       url='https://hg.sr.ht/~pythonian/tsview',
@@ -63,8 +75,6 @@ setup(name='tsview',
           'pytest_sa_pg',
           'tshistory >= 0.19.4',
           'plotly < 6.0',
-          'dash == 2.9.3',
-          'dash-renderer == 1.9.1',
           'tshistory_formula >= 0.15'
       ],
       package_data={'tsview': [
