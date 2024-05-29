@@ -130,6 +130,9 @@ type PlotStatus
     | Success
     | Failure
 
+type Method
+    = GET
+    | POST
 
 -- pasting data
 
@@ -191,8 +194,8 @@ componentsDecoder =
 getPoints: Model -> Cmd Msg
 getPoints model =
     if model.seriestype == I.Primary
-        then getSeries model GotEditData "supervision" model.name
-        else getSeries model GotValueData "state" model.name
+        then getSeries model GotEditData "supervision" GET model.name
+        else getSeries model GotValueData "state" GET model.name
 
 
 getFromHorizon: Model -> String
@@ -205,10 +208,11 @@ getToHorizon model =
     Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
 
 
-getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> String -> Cmd Msg
-getSeries model callback apipoint name =
+getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
+getSeries model callback apipoint method name =
     case model.queryBounds of
-        Nothing -> getdata
+        Nothing -> getOrPostData
+                    method
                     { baseurl = model.baseurl
                     , name = name
                     , idate = Nothing
@@ -224,7 +228,8 @@ getSeries model callback apipoint name =
                     , keepnans = True
                     , apipoint = apipoint
                     }
-        Just (min, max) -> getdata
+        Just (min, max) -> getOrPostData
+                            method
                             { baseurl = model.baseurl
                             , name = name
                             , idate = Nothing
@@ -240,6 +245,11 @@ getSeries model callback apipoint name =
                             }
 
 
+getOrPostData method query =
+    case method of
+        GET -> getdata query
+        POST -> postData query
+
 getComponents: Model -> Cmd Msg
 getComponents model =
     Http.get
@@ -252,12 +262,53 @@ getComponents model =
 getDataComponents: Model -> Cmd Msg
 getDataComponents model =
     Cmd.batch ( List.map
-                    ( \ comp -> getSeries
-                                    model
-                                    ( GotComponentData comp.name )
-                                    "state"
-                                    comp.name )
+                    ( getRelevantComponent model )
                     model.components )
+
+
+
+getRelevantComponent : Model -> Component -> Cmd Msg
+getRelevantComponent model component =
+    if component.ctype /= "auto"
+        then
+            getSeries
+                model
+                ( GotComponentData component.name )
+                "state"
+                GET
+                component.name
+        else
+            getSeries
+                model
+                ( GotComponentData component.name )
+                "eval_formula"
+                POST
+                component.name
+
+
+encodeBodyEvalFormula: String -> String -> String -> JE.Value
+encodeBodyEvalFormula formula from to =
+    if from == "" || to == ""
+        then  JE.object [ ("text", JE.string formula) ]
+        else
+             JE.object [ ("text", JE.string formula)
+                       , ("from_value_date", JE.string from)
+                       , ("to_value_date", JE.string to)
+                       ]
+
+postData query =
+    Http.post
+        { url = UB.crossOrigin
+                    query.baseurl
+                    [ "api", "series", query.apipoint ]
+                    []
+        , body = Http.jsonBody ( encodeBodyEvalFormula
+                                    query.name
+                                    query.fromdate
+                                    query.todate
+                               )
+        , expect = Http.expectString query.callback
+        }
 
 
 reindex : Int -> ( String, Entry ) -> ( String, Entry )
@@ -431,7 +482,7 @@ update msg model =
                     in
                     if (Array.length model.insertion_dates) /= (Array.length adates) then
                         ( newmodel
-                        , getSeries model GetLastEditedData "supervision" model.name
+                        , getSeries model GetLastEditedData "supervision" GET model.name
                         )
                     else
                         ( newmodel
@@ -999,11 +1050,16 @@ buildLink: Model -> Component -> H.Html Msg
 buildLink model comp =
     H.th
         []
-        [ H.a
-            [ HA.href ( UB.crossOrigin model.baseurl
-                            [ "tseditor" ]
-                            ( queryNav model comp.name ))]
-            [ H.text comp.name ]]
+        ( if comp.ctype /= "auto"
+            then
+                [ H.a
+                    [ HA.href ( UB.crossOrigin model.baseurl
+                                    [ "tseditor" ]
+                                    ( queryNav model comp.name ))]
+                    [ H.text comp.name ]]
+            else
+                [ H.p [] [ H.text comp.name ]]
+        )
 
 
 addComponentCells: Model -> String -> List (H.Html Msg)

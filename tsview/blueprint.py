@@ -635,14 +635,17 @@ def tsview(tsa):
 
     @bp.route('/formula-components/<seriesname>')
     def formula_components(seriesname):
-        from tshistory_formula.helper import replace_findseries
+        from tshistory_formula.helper import (
+            replace_findseries,
+            find_autos,
+        )
         assert tsa.exists(seriesname)
         formula = replace_findseries(
             tsa.engine,
             tsa.tsh,
             tsa.formula(seriesname),
         )
-
+        autos = find_autos(tsa.engine, tsa.tsh, seriesname)
         tree = fparse(formula)
         infos = [
             {
@@ -651,6 +654,14 @@ def tsview(tsa):
             }
             for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
         ]
+        for list_auto in autos.values():
+            for auto in list_auto:
+                infos.append(
+                    {
+                        'name': auto[0],
+                        'type': 'auto'
+                    }
+                )
         return json.dumps(infos)
 
     # menu
