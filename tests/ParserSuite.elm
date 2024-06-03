@@ -1,219 +1,168 @@
 module ParserSuite exposing (testParsing)
 
+import Test
 import Either
-import Expect
-import Lisp
-import Test exposing (Test, test)
-import TsView.Formula.EditionTree.Parser exposing (parseFormula)
-import TsView.Formula.EditionTree.Render exposing (renderString)
-import TsView.Formula.Spec.Parser exposing (parseSpecString)
+
+import ParserExtra exposing (parserErrorsToString)
+
+import Editor.Parser exposing (parseFormula)
+import Editor.Render exposing (renderFormula)
+
+import TestUtil exposing (T)
+import JsonSpec exposing (spec)
 
 
-type alias T =
-    { name : String
-    , input : String
-    , output : String
-    }
-
-
-jsonSpec : String
-jsonSpec =
-    """
-[
-  [
-    "series",
-    [
-      [
-        "return",
-        "Series"
-      ],
-      [
-        "name",
-        "seriesname"
-      ],
-      [
-        "fill",
-        "Default[Union[str, int]=None]"
-      ],
-      [
-        "weight",
-        "Default[Number=None]"
-      ]
-    ]
-  ],
-  [
-    "+",
-    [
-      [
-        "return",
-        "Union[Number, Series]"
-      ],
-      [
-        "a",
-        "Number"
-      ],
-      [
-        "b",
-        "Union[Number, Series]"
-      ],
-      [
-        "flag",
-        "Default[bool=False]"
-      ]
-    ]
-  ],
-  [
-    "*",
-    [
-      [
-        "return",
-        "Union[Number, Series]"
-      ],
-      [
-        "a",
-        "Number"
-      ],
-      [
-        "b",
-        "Union[Series, Number]"
-      ]
-    ]
-  ],
-  [
-    "priority",
-    [
-      [
-        "return",
-        "Series"
-      ],
-      [
-        "serieslist",
-        "List[Union[Series, Number]]"
-      ],
-      [
-        "k1",
-        "Default[Union[str, Number]=None]"
-      ],
-      [
-        "k2",
-        "Default[Union[Number, Timestamp]=None]"
-      ]
-    ]
-  ],
-  [
-    "timedelta",
-    [
-      [
-        "return",
-        "Timestamp"
-      ],
-      [
-        "date",
-        "Timestamp"
-      ],
-      [
-        "years",
-        "Default[int=0]"
-      ],
-      [
-        "months",
-        "Default[int=0]"
-      ],
-      [
-        "weeks",
-        "Default[int=0]"
-      ],
-      [
-        "days",
-        "Default[int=0]"
-      ],
-      [
-        "hours",
-        "Default[int=0]"
-      ],
-      [
-        "minutes",
-        "Default[int=0]"
-      ]
-    ]
-  ],
-  [
-    "today",
-    [
-      [
-        "return",
-        "Timestamp"
-      ],
-      [
-        "naive",
-        "Default[bool=False]"
-      ],
-      [
-        "tz",
-        "Default[str=None]"
-      ]
-    ]
-  ],
-  [
-   "**",
-   [
-     [
-       "return",
-       "Series"
-     ],
-     [
-       "series",
-       "Series"
-     ],
-     [
-       "num",
-       "Number"
-     ]
-   ]
-  ]
-]
-"""
-
-
-formulaTests : List T
+formulaTests : List (T (String, String))
 formulaTests =
-    [ T "** OK" "(** (series \"foo\") 0.5)" """
-(**
-    (series "foo")
-    0.5)
-"""
-    , T "+ OK" "( +   2.  6.7 )" "(+ 2 6.7)"
-    , T "+ series OK" "( + 2   #:flag #t  #:b (+ 1 6))" """
+    [ T "Parsing void"
+    ( "Series"
+    , """
+(   )
+    """
+    ) """
+(2, 5) =>  Expecting: Valid operator name
+    """
+
+    , T "Parsing internal void"
+    ( "Number"
+    , """
+( + 2   ()  )
+    """
+    ) """
+(2, 9) =>  Invalid: Lack of a Number mandatory argument
+    when parsing inside operator + at (2, 5)
+    """
+
+    , T "+ OK"
+    ( "Number"
+    , "( +   2.  6.7 )"
+    )
+    "(+ 2 6.7)"
+
+    , T "+ series OK"
+    ( "Number"
+    , "( + 2   #:flag #t  #:b (+ 1 6))"
+    ) """
 (+
     2
     (+ 1 6)
     #:flag #t)
 """
-    , T "+ too many args" "(+ 3 4 5)" "ExpectingSymbol ) at row:1 col:8"
-    , T "@ unsupported op" "(@ 3 4)" "ExpectingVariable at row:1 col:2"
-    , T "+ wrong args" "(+ ab 4)" "ProblemString Lack of mandatory argument at row:1 col:4"
-    , T "* Right" "(* -9.26e-08 #:b (+ 9.259e-02 -109))" """
+
+    , T "**"
+    ( "Series"
+    , """
+(** (series "foo") 0.5)
+    """
+    ) """
+(**
+    (series "foo")
+    0.5)
+"""
+
+    , T "+ too many args"
+    ( "Number"
+    , """
+(+ 3 4 5)
+    """
+    ) """
+(2, 8) =>  Expecting Token: )
+    """
+
+    , T "@ unsupported op"
+    ( "Number"
+    , """
+(@ 3 4)
+    """
+    ) """
+(2, 2) =>  Expecting: Valid operator name
+    """
+
+    , T "+ wrong args"
+    ( "Number"
+    , """
+(+ a b 4)
+    """
+    ) """
+(2, 4) =>  Invalid: Lack of a Number mandatory argument
+    when parsing inside operator + at (2, 4)
+    """
+
+    , T "* Right"
+    ( "Number"
+    , "(* -9.26e-08 #:b (+ 9.259e-02 -109))"
+    ) """
 (*
     -9.26e-8
     (+ 0.09259 -109))
 """
-    , T "priority OK" "( priority  4 3  6 7 )" "(priority 4 3 6 7)"
-    , T "priority series OK" """
-( priority  (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:flag #t))
-""" """
-(priority
+
+    , T "ipriority OK"
+    ( "Number"
+    , "( ipriority  4 3  6 7 )"
+    ) "(ipriority 4 3 6 7)"
+
+    , T "ipriority operators OK"
+    ( "Number"
+    , """
+( ipriority (* 4 9) (* 3 (+ 2 6)) ( + 7 1 #:flag #t))
+""" ) """
+(ipriority
     (* 4 9)
     (*
         3
         (+ 2 6))
     (+ 7 1 #:flag #t))
 """
-    , T "#flag #t OK" "(+  #:b 4 #:a 3  #:flag  #t)" "(+ 3 4 #:flag #t)"
-    , T "#flag duplicated" "(+  3 4  #:flag  #t #:flag #f)" "ProblemString Duplicate keyword for argument at row:1 col:30 ExpectingKeyword #:flagat row:1 col:30"
-    , T "#k1, k2 OK" " (priority  3  4 10  #:k2  7.3 #:k1  \"x\" )" """
-(priority 3 4 10 #:k1 "x" #:k2 7.3)
+
+    , T "ordering OK"
+    ( "Number"
+    , "(+ #:flag  #t #:b 4  #:a 3  )"
+    ) "(+ 3 4 #:flag #t)"
+
+    , T "#flag duplicated"
+    ( "Number"
+    , """
+(+  3 4  #:flag  #t #:flag #f)
+    """
+    ) """
+(2, 30) =>  Invalid: Duplicate keyword for argument
+    when parsing inside operator + at (2, 5)
 """
-    , T "full OK" """
+
+    , T "#k1, k2 OK"
+    ( "Number"
+    , """
+  (ipriority  3  4 10  #:k2  7.3 #:k1  "x" )
+    """
+    ) """
+(ipriority 3 4 10 #:k1 "x" #:k2 7.3)
+"""
+
+    , T "findseries"
+    ( "Series"
+    , """
+(add (findseries (by.name "pmax_avail.nuclear.be")))
+"""
+    ) """
+(add
+    (findseries
+        (by.name "pmax_avail.nuclear.be")))
+"""
+
+    , T "No operator in a list"
+    ( "Series"
+    , """
+(priority (series "a") (series "b") () ())
+    """
+    ) """
+(2, 38) =>  Expecting: Valid operator name
+    when parsing inside operator priority at (2, 11)
+    """
+
+    , T "full OK"
+    ( "Series"
+    , """
 (priority
     (+  3 (series "a.b" #:weight 3.5 )  )
     (priority
@@ -227,7 +176,8 @@ formulaTests =
     (series  #:fill  79 #:name  "gaz.de" )
     #:k1 4.7
 )
-    """ """
+    """
+    ) """
 (priority
     (+
         3
@@ -253,26 +203,13 @@ formulaTests =
     """
     ]
 
-
-testParsing : Test
+testParsing : Test.Test
 testParsing =
     let
-        parsedspec =
-            parseSpecString jsonSpec |> Either.unpack Tuple.first identity
-
-        render : String -> String
-        render input =
-            case parseFormula parsedspec input |> Either.toResult of
-                Ok parsedformula -> renderString parsedformula
-                Err err -> String.trim err
+        render : (String, String) -> String
+        render (returnTypeStr, input) =
+            parseFormula spec returnTypeStr input
+                |> parserErrorsToString
+                |> Either.unpack identity renderFormula
     in
-    List.map
-        (\x ->
-            let
-                res =
-                    Expect.equal (render x.input) (String.trim x.output)
-            in
-            test x.name (always res)
-        )
-        formulaTests
-        |> Test.concat
+    TestUtil.buildTests render formulaTests |> Test.concat
