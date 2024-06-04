@@ -81,6 +81,7 @@ type Msg
     | DebounceFormulaFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
+    | Tzaware String
 
 
 getmeta baseurl dtype event =
@@ -485,6 +486,11 @@ update msg model =
              in
              U.nocmd { model | mode = mode }
 
+        Tzaware value ->
+            let
+                newModel = { model | tzaware = value }
+            in U.nocmd <| allfilters newModel
+
 
 viewnamefilter =
     let input =
@@ -836,6 +842,7 @@ view model =
               [ H.div [] [ viewnamefilter ]
               , H.div [] [ viewformulafilter ]
               , viewmetafilter model
+              , tzawareDropdown model
               , viewkindfilter model
               , viewsourcefilter model
               , viewfilteredqty model
@@ -844,6 +851,34 @@ view model =
             model.baseurl model.mode filtered model.catalog (nbsources > 1) (selectedsources model)
         , viewerrors model
         ]
+
+
+tzawareDropdown : Model -> H.Html Msg
+tzawareDropdown model =
+    let
+        decodetzaware : String -> D.Decoder String
+        decodetzaware tzaware =
+            D.succeed tzaware
+
+    in
+    H.div
+        [ ]
+        [ H.text "Tzaware : "
+        , H.select
+            [ HE.targetValue
+                |> D.andThen decodetzaware
+                |> D.map Tzaware
+                |> HE.on "change" ]
+            (List.map (renderTzaware model.tzaware) ["any", "true", "false"])
+        ]
+
+renderTzaware : String -> String -> H.Html Msg
+renderTzaware selectedTzaware tzaware =
+    H.option
+        [ A.value tzaware
+        , A.selected (selectedTzaware == tzaware)
+        ]
+        [ H.text tzaware ]
 
 
 type alias Input =
