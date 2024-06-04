@@ -638,6 +638,66 @@ viewsourcefilter model =
     else H.span [] []
 
 
+inputsFiled : String -> (Int, (String, String)) -> H.Html Msg
+inputsFiled action metaData =
+    let
+        inputId = U.first metaData
+        key = U.first ( U.snd metaData )
+        value = U.snd ( U.snd metaData )
+        keyInput = H.input
+            [ A.attribute "type" "text"
+                , A.class "form-control-sm"
+                , A.placeholder "filter by metadata key"
+                , A.value key
+                , HE.onInput (NewKey inputId)
+            ]
+            []
+        valueInput = H.input
+            [ A.attribute "type" "text"
+                , A.class "form-control-sm"
+                , A.placeholder "filter by metadata value"
+                , A.value value
+                , HE.onInput (NewValue inputId)
+            ]
+            []
+        addentry =
+            H.button
+                [ A.attribute "type" "button"
+                , A.title "add the metadata filter rule"
+                , A.class "btn btn-primary btn-sm"
+                , HE.onClick (AddMetaItem inputId)
+                ]
+                [ H.text "add" ]
+        delete =
+            H.button
+                [ A.attribute "type" "button"
+                , A.title "remove the metadata filter rule"
+                , A.class "btn btn-warning btn-sm"
+                , HE.onClick (MetaItemToDelete inputId)
+                ]
+                [ H.text "delete" ]
+    in  H.div
+        [ A.id (String.fromInt inputId) ]
+        [ H.map (provideInput >> DebounceKeyFilter) keyInput
+        , H.span [] [ H.text " " ]
+        ,  H.map (provideInput >> DebounceValueFilter) valueInput
+        , H.span [] [ H.text " " ]
+        , if action == "add" then addentry else delete
+        ]
+
+
+viewmetafilter : Model -> H.Html Msg
+viewmetafilter model =
+    let
+        listData = List.reverse (Dict.toList model.filterbymeta)
+        header = Maybe.withDefault (1, ("", "")) (List.head listData)
+        tail = Maybe.withDefault [] (List.tail listData)
+
+        in H.div
+            [ ]
+            ((inputsFiled "add" header):: List.map (inputsFiled "delete") tail)
+
+
 viewfilteredqty model =
     let
         len =
@@ -825,6 +885,7 @@ view model =
               [ A.class "tsview-form-input" ]
               [ H.div [] [ viewnamefilter ]
               , H.div [] [ viewformulafilter ]
+              , viewmetafilter model
               , tzawareDropdown model
               , viewkindfilter model
               , viewsourcefilter model
