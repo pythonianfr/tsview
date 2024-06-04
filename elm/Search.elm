@@ -57,6 +57,8 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
+    , keyfilterdeb : Debouncer Msg
+    , valuefilterdeb : Debouncer Msg
     , tzaware : String
     }
 
@@ -79,6 +81,8 @@ type Msg
     -- debouncer
     | DebounceNameFilter (Debouncer.Msg Msg)
     | DebounceFormulaFilter (Debouncer.Msg Msg)
+    | DebounceKeyFilter (Debouncer.Msg Msg)
+    | DebounceValueFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
     | Tzaware String
@@ -315,6 +319,20 @@ updatedformulafilterbouncer =
     }
 
 
+updatedkeyfilterbouncer =
+    { mapMsg = DebounceKeyFilter
+    , getDebouncer = .keyfilterdeb
+    , setDebouncer = \deb model -> { model | keyfilterdeb = deb }
+    }
+
+
+updatedvaluefilterbouncer =
+    { mapMsg = DebounceValueFilter
+    , getDebouncer = .valuefilterdeb
+    , setDebouncer = \deb model -> { model | valuefilterdeb = deb }
+    }
+
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -475,6 +493,11 @@ update msg model =
         DebounceFormulaFilter val ->
             Debouncer.update update updatedformulafilterbouncer val model
 
+        DebounceKeyFilter val ->
+            Debouncer.update update updatedkeyfilterbouncer val model
+
+        DebounceValueFilter val ->
+            Debouncer.update update updatedvaluefilterbouncer val model
         -- Mode
 
         ToggleMode ->
@@ -913,6 +936,8 @@ main =
                    ("", "")
                    []
                    []
+                   debouncerconfig
+                   debouncerconfig
                    debouncerconfig
                    debouncerconfig
                    "any"
