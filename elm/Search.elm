@@ -57,6 +57,7 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
+    , tzaware : String
     }
 
 
@@ -184,6 +185,40 @@ kindfilter model =
     }
 
 
+tzawarefilter : Model -> Model
+tzawarefilter model =
+    if model.tzaware == "any" then
+        model
+    else
+        let
+            getElement : Maybe M.MetaVal -> String
+            getElement element =
+                case element of
+                    Just el ->
+                        M.metavaltostring el
+                    Nothing ->
+                        ""
+            tzFilter : List String -> Dict String (Dict String M.MetaVal) -> String -> List String
+            tzFilter filtredNames dict tz =
+                let
+                    dictToTuple : (String, Dict String M.MetaVal) -> (String, String)
+                    dictToTuple (key, smallDict) =
+                        (key, getElement (Dict.get "tzaware" smallDict))
+                    newList = List.map dictToTuple (Dict.toList dict)
+                    listFiltred =
+                        List.map
+                            Tuple.first
+                            (List.filter (\(_, bool) -> bool == tz) newList)
+                in List.filter
+                    (\element -> List.member element listFiltred) filtredNames
+
+        in
+        { model
+            | filteredseries = tzFilter model.filteredseries model.seriesmetadata model.tzaware
+            , filteredgroups = tzFilter model.filteredgroups model.groupsmetadata model.tzaware
+        }
+
+
 lower str =
     String.toLower str
 
@@ -261,6 +296,7 @@ allfilters model =
              >> namefilter
              >> formulafilter
              >> metafilter
+             >> tzawarefilter
 
 -- debouncing
 
@@ -844,6 +880,7 @@ main =
                    []
                    debouncerconfig
                    debouncerconfig
+                   "any"
 
            init input =
                ( newmodel input
