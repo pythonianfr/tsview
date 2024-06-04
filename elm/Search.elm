@@ -51,8 +51,7 @@ type alias Model =
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
     -- filter state/metadata
-    , metaitem : (String, String)
-    , filterbymeta : List (String, String)
+    , filterbymeta : Dict Int (String, String)
     , errors : List String
     -- debouncing
     , namefilterdeb : Debouncer Msg
@@ -74,10 +73,10 @@ type Msg
     | KindUpdated String
     | SourceUpdated String
     -- metadata filter
-    | NewValue String
-    | NewKey String
-    | AddMetaItem
-    | MetaItemToDelete (String, String)
+    | NewValue Int String
+    | NewKey Int String
+    | AddMetaItem Int
+    | MetaItemToDelete Int
     -- debouncer
     | DebounceNameFilter (Debouncer.Msg Msg)
     | DebounceFormulaFilter (Debouncer.Msg Msg)
@@ -233,8 +232,11 @@ filternothing list =
 
 
 metafilter model =
-    if List.length model.filterbymeta == 0 then model else
+    if List.length (Dict.toList model.filterbymeta) == 0 then model else
         let
+            filterbymeta = List.filter
+                (\data -> data /= ("", ""))
+                (Dict.values model.filterbymeta)
             lowerkeys metadict =
                 List.map lower <| Dict.keys metadict
 
@@ -285,7 +287,7 @@ metafilter model =
                 case Dict.get name metadata of
                     Nothing -> False
                     Just meta ->
-                        List.all (match meta) model.filterbymeta
+                        List.all (match meta) filterbymeta
         in
         case model.mode of
             Series ->
@@ -463,27 +465,45 @@ update msg model =
 
         -- metadata filtering
 
-        NewValue value ->
-            U.nocmd { model | metaitem = (U.first model.metaitem, value) }
-
-        NewKey value ->
-            U.nocmd { model | metaitem = (value, U.snd model.metaitem) }
-
-        AddMetaItem ->
-            if model.metaitem == ("", "") then U.nocmd model else
+        NewValue inputId value ->
             let
-                newmodel = { model
-                               | metaitem = ("", "")
-                               , filterbymeta = List.append model.filterbymeta [model.metaitem]
-                           }
-           in
-           U.nocmd <| allfilters newmodel
+                currentKey = U.first
+                    (Maybe.withDefault
+                        ("","")
+                        (Dict.get inputId model.filterbymeta)
+                    )
+                newDict = Dict.insert
+                    inputId
+                    (currentKey, value)
+                    model.filterbymeta
+            in U.nocmd <| allfilters { model | filterbymeta = newDict }
 
-        MetaItemToDelete (key, value) ->
-            U.nocmd <| allfilters
-                { model
-                    | filterbymeta = List.filter (\x -> x /= (key, value)) model.filterbymeta
-                }
+        NewKey inputId key ->
+            let
+                currentValue = U.snd
+                    (Maybe.withDefault
+                        ("","")
+                        (Dict.get inputId model.filterbymeta)
+                    )
+                newDict = Dict.insert
+                    inputId
+                    (key, currentValue)
+                    model.filterbymeta
+            in U.nocmd <| allfilters { model | filterbymeta = newDict }
+
+        AddMetaItem inputId ->
+            let
+                newDict = Dict.insert
+                    (inputId + 1)
+                    ("", "")
+                    model.filterbymeta
+           in U.nocmd { model | filterbymeta = newDict }
+
+        MetaItemToDelete inputId ->
+            let
+                newDict = Dict.remove inputId model.filterbymeta
+            in
+            U.nocmd <| allfilters { model | filterbymeta = newDict }
 
         -- Debouncing
 
@@ -616,65 +636,6 @@ viewsourcefilter model =
             [ A.class "font-italic" ]
             [ H.text "series sources → " ] :: (List.map checkbox sources)
     else H.span [] []
-
-
-viewmetafilter model =
-    let
-        addentry =
-            H.button
-                [ A.attribute "type" "button"
-                , A.title "add the metadata filter rule"
-                , A.class "btn btn-primary btn-sm"
-                , HE.onClick AddMetaItem
-                ]
-                [ H.text "add" ]
-        delete key value =
-            H.button
-                [ A.attribute "type" "button"
-                , A.title "remove the metadata filter rule"
-                , A.class "btn btn-warning btn-sm"
-                , HE.onClick (MetaItemToDelete (key, value))
-                ]
-                [ H.text "delete" ]
-        fields k v deleteaction keycb valuecb =
-            H.div []
-                [ H.input
-                      ([ A.attribute "type" "text"
-                       , A.class "form-control-sm"
-                       , A.placeholder "filter by metadata key"
-                       , A.value k
-                       ] ++ case keycb of
-                                Nothing -> []
-                                Just cb -> [ cb ]
-                      ) []
-                , H.span [] [ H.text " " ]
-                , H.input
-                    ([ A.attribute "type" "text"
-                     , A.class "form-control-sm"
-                     , A.placeholder "filter by metadata value"
-                     , A.value v
-                     ] ++ case valuecb of
-                              Nothing -> []
-                              Just cb -> [ cb ]
-                    ) []
-                , H.span [] [ H.text " " ]
-                , case deleteaction of
-                      Nothing -> addentry
-                      Just action -> action k v
-                ]
-    in
-    H.div
-        [ ]
-        ([ fields
-               (U.first model.metaitem)
-               (U.snd model.metaitem)
-               Nothing
-               (Just <| HE.onInput NewKey)
-               (Just <| HE.onInput NewValue)
-         ] ++ List.map
-             (\x -> fields (U.first x) (U.snd x) (Just delete) Nothing Nothing)
-             model.filterbymeta
-        )
 
 
 viewfilteredqty model =
@@ -864,7 +825,6 @@ view model =
               [ A.class "tsview-form-input" ]
               [ H.div [] [ viewnamefilter ]
               , H.div [] [ viewformulafilter ]
-              , viewmetafilter model
               , tzawareDropdown model
               , viewkindfilter model
               , viewsourcefilter model
@@ -933,8 +893,7 @@ main =
                    []
                    Nothing
                    Nothing
-                   ("", "")
-                   []
+                   Dict.empty
                    []
                    debouncerconfig
                    debouncerconfig
