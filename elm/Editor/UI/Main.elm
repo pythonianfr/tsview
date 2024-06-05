@@ -301,16 +301,18 @@ viewPlot {formulaName, plotData, plotErrMess} =
         ]
 
 view : Model -> Html Msg
-view model = H.div [ HA.style "margin" ".5em" ]
-    [ Tree.viewSpecErrors model.editionTree
-    , viewTabs model
-    , case model.tabType of
-          EditorTab -> H.div [ HA.id "plot", HA.style "display" "none" ] []
-          PlotTab -> H.div [ HA.id "plot" ] []
-    , case model.tabType of
-        EditorTab -> viewEditor model
-        PlotTab -> viewPlot model
-    ]
+view model =
+    H.div
+        [ HA.style "margin" ".5em" ]
+        [ Tree.viewSpecErrors model.editionTree
+        , viewTabs model
+        , case model.tabType of
+              EditorTab -> H.div [ HA.id "plot", HA.style "display" "none" ] []
+              PlotTab -> H.div [ HA.id "plot" ] []
+        , case model.tabType of
+              EditorTab -> viewEditor model
+              PlotTab -> viewPlot model
+        ]
 
 
 type alias Formula =
