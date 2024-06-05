@@ -303,8 +303,9 @@ viewPlot {formulaName, plotData, plotErrMess} =
 view : Model -> Html Msg
 view model =
     H.div
-        [ HA.style "margin" ".5em" ]
-        [ Tree.viewSpecErrors model.editionTree
+        [ HA.class "main-content" ]
+        [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
+        , Tree.viewSpecErrors model.editionTree
         , viewTabs model
         , case model.tabType of
               EditorTab -> H.div [ HA.id "plot", HA.style "display" "none" ] []
