@@ -487,7 +487,6 @@ viewedition model =
     in
     [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
     , H.div [] basketslist
-    , viewtree model.edited
     , vieweditor model
     , H.button
         [ HA.class "btn btn-info"
@@ -501,7 +500,6 @@ viewedition model =
 
 viewcreation model =
     [ H.h1 [] [ H.text "Baskets" ]
-    , viewtree model.edited
     , vieweditor model
     , H.button
         [ HA.class "btn btn-info"
