@@ -33,15 +33,9 @@ import Editor.UI.Tree as Tree
 import Editor.UI.CodeEditor as CodeEditor
 
 
-type TabType
-    = EditorTab
-    | PlotTab
-
-
 type Msg
     = CodeEditorMsg CodeEditor.Msg
     | EditionTreeMsg Tree.Msg
-    | SwitchTab TabType
     | UpdateName String
     | OnSave
     | SaveDone (Result String String)
@@ -52,7 +46,6 @@ type alias Model =
     { urlPrefix : String
     , codeEditor : CodeEditor.Model
     , editionTree : Tree.Model
-    , tabType : TabType
     , formulaName : Maybe String
     , lastFormulaCode : Maybe String
     , savedFormulaCode : Maybe String
@@ -82,9 +75,9 @@ saveFormula {urlPrefix} name code = Http.request
     }
 
 getPlotData : Model -> Cmd Msg
-getPlotData {urlPrefix, tabType, codeEditor} =
-    case (tabType, codeEditor.formulaCode) of
-        (PlotTab, Just code) -> Http.get
+getPlotData {urlPrefix, codeEditor} =
+    case codeEditor.formulaCode of
+        Just code -> Http.get
             { url = UB.crossOrigin
                 urlPrefix
                 [ "tsformula", "try" ]
@@ -129,10 +122,6 @@ update msg model = postUpdate msg <| case msg of
         (\m -> { model | editionTree = m })
         (Cmd.map EditionTreeMsg)
         (Tree.update x model.editionTree)
-
-    SwitchTab tabType ->
-        let newModel = { model | tabType = tabType }
-        in (newModel, getPlotData newModel)
 
     UpdateName "" ->
         { model | formulaName = Nothing } |> CX.withNoCmd
@@ -182,36 +171,6 @@ update msg model = postUpdate msg <| case msg of
         }
         |> CX.withNoCmd
 
-
-viewTabs : Model -> Html Msg
-viewTabs {tabType} = H.ul
-    [ HA.id "tabs"
-    , HA.class "nav nav-tabs"
-    , HA.attribute "role" "tablist"
-    ]
-    [ H.li
-        [ HA.class "nav-item" ]
-        [ H.a
-            [ HA.class "nav-link"
-            , HA.classList [("active", tabType == EditorTab)]
-            , HA.attribute "data-toggle" "tab"
-            , HA.attribute "role" "tab"
-            , HE.onClick (SwitchTab EditorTab)
-            ]
-            [ H.text "Editor" ]
-        ]
-    , H.li
-        [ HA.class "nav-item" ]
-        [ H.a
-            [ HA.class "nav-link"
-            , HA.classList [("active", tabType == PlotTab)]
-            , HA.attribute "data-toggle" "tab"
-            , HA.attribute "role" "tab"
-            , HE.onClick (SwitchTab PlotTab)
-            ]
-            [ H.text "Plot" ]
-      ]
-    ]
 
 canSave : Model -> Bool
 canSave model =
@@ -306,13 +265,9 @@ view model =
         [ HA.class "main-content" ]
         [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
         , Tree.viewSpecErrors model.editionTree
-        , viewTabs model
-        , case model.tabType of
-              EditorTab -> H.div [ HA.id "plot", HA.style "display" "none" ] []
-              PlotTab -> H.div [ HA.id "plot" ] []
-        , case model.tabType of
-              EditorTab -> viewEditor model
-              PlotTab -> viewPlot model
+        , H.div [ HA.id "plot" ] []
+        , viewEditor model
+        , viewPlot model
         ]
 
 
@@ -345,7 +300,6 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     { urlPrefix = urlPrefix
     , codeEditor = CodeEditor.init
     , editionTree = editionTree
-    , tabType = EditorTab
     , formulaName = Maybe.map .name formula
     , lastFormulaCode = code
     , savedFormulaCode = code
