@@ -186,7 +186,9 @@ update msg model =
         AceEditorMsg (AceEditor.Edited code) ->
             case fromlisp code of
                 Ok root ->
-                    U.nocmd { model | editing = Just root }
+                    ( { model | editing = Just root }
+                    , tryfilter model <| Just root
+                    )
                 Err _ ->
                     U.nocmd model
 
@@ -512,6 +514,7 @@ viewcreation model =
                , HA.value model.newname
                , HE.onInput NewName
                ] [ ]
+    , viewseries model
     , viewerrors model
     ]
 
