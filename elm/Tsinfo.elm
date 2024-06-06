@@ -870,7 +870,7 @@ update msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ getplot model
+                [ getplot newmodel
                 , I.getidates newmodel "series" InsertionDates
                 , saveToLocalStorage userprefs
                 ]
