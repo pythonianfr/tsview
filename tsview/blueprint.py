@@ -440,11 +440,13 @@ def tsview(tsa):
 
     @bp.route('/downloadformulas')
     def downloadformulas():
-        formulas = pd.read_sql(
+        sql = (
             'select name, internal_metadata->\'formula\' as text '
             'from tsh.registry '
-            'where internal_metadata->\'formula\' is not null',
-            tsa.engine
+            'where internal_metadata->\'formula\' is not null'
+        )
+        formulas = pd.DataFrame(
+            tsa.engine.execute(sql).fetchall()
         )
         df = formulas.sort_values(
             by=['name', 'text'],
