@@ -95,16 +95,16 @@ def definition(**extra_urls):
             'icone': 'bi bi-heart-pulse',
             'links': [
                 {
-                    'label': 'Tasks',
-                    'icone': 'bi bi-clock-history',
-                    'target': '/tasks/',
-                    'id': 'monitor-tasks'
-                },
-                {
                     'label': 'Warnings',
                     'icone': 'bi bi-exclamation-triangle',
                     'target': '/tswatch/',
                     'id': 'monitor-tswatch'
+                },
+                {
+                    'label': 'Tasks',
+                    'icone': 'bi bi-clock-history',
+                    'target': '/tasks/',
+                    'id': 'monitor-tasks'
                 },
             ]
         },
