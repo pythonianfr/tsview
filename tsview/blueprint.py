@@ -181,6 +181,7 @@ def tsview(tsa):
         return render_template(
             'homepage.html',
             flags=json.dumps([baseurl, instance, version]),
+            title = appname.title()
         )
 
     @bp.route('/tsview')
@@ -188,12 +189,14 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'timeseries-quickview'])
+        title = 'Quick view'
         return render_template(
             'tsview.html',
             homeurl=homeurl(),
             haseditor=json.dumps(False),  # NOTE: really fix me
             series=request.args.getlist("series"),
             flags_menu=flags_menu,
+            title=title,
         )
 
     class logargs(_argsdict):
@@ -234,6 +237,7 @@ def tsview(tsa):
                 edit_kind="Delete",
                 homeurl=homeurl(),
                 flags_menu=flags_menu,
+                title='Delete'
             )
 
         return 'You do not have the delete capability.'
@@ -246,6 +250,7 @@ def tsview(tsa):
                 'cache.html',
                 homeurl=homeurl(),
                 flags_menu=flags_menu,
+                title='Cache'
             )
 
     # formula editor
@@ -278,12 +283,14 @@ def tsview(tsa):
                 code=tsa.formula(name) or ''
             )
         flags_menu = json.dumps([homeurl(), 'formula-create'])
+        title = 'Form: edit'
         return render_template(
             'tsformula.html',
             homeurl=homeurl(),
             spec=spec(),
             formula=json.dumps(formula),
-            flags_menu=flags_menu
+            flags_menu=flags_menu,
+            title=title
         )
 
     @bp.route('/tsformula/pygmentize', methods=['POST'])
@@ -325,10 +332,12 @@ def tsview(tsa):
             return 'Nothing to see there.'
         home_url = homeurl() or "/"
         flags_menu = json.dumps([home_url, 'formula-documentation'])
+        title = 'Form: doc'
         return render_template(
             'operators.html',
             baseurl=home_url,
             flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/tsformula/try')
@@ -355,10 +364,12 @@ def tsview(tsa):
             return 'Nothing to see there.'
         baseurl = homeurl()
         flags_menu = json.dumps([homeurl(), 'formula-batch'])
+        title = 'Form: batch'
         return render_template(
             'addformulas.html',
             baseurl=baseurl,
             flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/updateformulas', methods=['PUT'])
@@ -468,10 +479,12 @@ def tsview(tsa):
         if not has_roles('admin', 'rw'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'basket-edit'])
+        title = 'Basket: editor'
         return render_template(
             'queryeditor.html',
             homeurl=homeurl(),
             flags_menu=flags_menu,
+            title=title,
         )
 
     # info
@@ -481,11 +494,14 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
+        name = request.args.get('name')
+        title = f'Info: {name}'
         return render_template(
             'tsinfo.html',
             homeurl=homeurl(),
-            name=request.args.get('name'),
+            name=name,
             flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/groupinfo')
@@ -493,11 +509,14 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
+        name = request.args.get('name')
+        title = f'Group: {name}'
         return render_template(
             'groupinfo.html',
             homeurl=homeurl(),
-            name=request.args.get('name'),
-            flags_menu=flags_menu
+            name=name,
+            flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/tsinfo/canwrite')
@@ -514,10 +533,12 @@ def tsview(tsa):
             return 'Nothing to see there.'
         base_url = homeurl()
         flags_menu = json.dumps([base_url, 'timeseries-catalog'])
+        title = 'Catalog'
         return render_template(
             'tssearch.html',
             homeurl=homeurl(),
             flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/tssearch/allmetadata')
@@ -624,6 +645,7 @@ def tsview(tsa):
         min = request.args.get('startdate')
         max = request.args.get('enddate')
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
+        title = f'Edit: {name}'
         return render_template(
             'tseditor.html',
             homeurl=homeurl(),
@@ -631,6 +653,7 @@ def tsview(tsa):
             min=min,
             max=max,
             flags_menu=flags_menu,
+            title=title,
         )
 
     @bp.route('/formula-components/<seriesname>')
@@ -690,11 +713,13 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'formula-catalog'])
+        title = 'Form: list'
         return render_template(
             'formulas.html',
             homeurl=homeurl(),
             name=request.args.get('name'),
             flags_menu=flags_menu,
+            title=title,
         )
 
     return bp
