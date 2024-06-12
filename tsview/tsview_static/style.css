@@ -85,6 +85,9 @@ label.option {
     padding-left: 1em;
 }
 
+.placeholder-text-hover {
+    height: 24px;
+}
 
 /* cache ui */
 .btn {

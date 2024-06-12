@@ -224,7 +224,6 @@ type alias DataFromHover =
     , data : List DataItem
     }
 
-
 type alias DataItem =
     { date : String
     , value : Float
@@ -1143,7 +1142,14 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
                 Just date -> date
     in
     if numidates < 2
-    then H.div [] []
+    then H.div
+            []
+            [ H.input
+                [ HA.attribute "type" "range"
+                , HA.class "form-control-range"
+                , HA.disabled True ]
+                []
+            ]
     else
         H.map (provideInput >> debouncerMsg) <|
             H.div []
@@ -1190,7 +1196,9 @@ viewplot model =
                 ChangedHistoryIdate
             , I.viewHistoryGraph model
             , if Array.isEmpty model.firstSeventyIdates then
-                H.div [ ][ ]
+                H.div
+                [HA.class "placeholder-text-hover" ]
+                [ ]
               else
                 H.div
                     [ ]
@@ -1202,15 +1210,14 @@ viewplot model =
                     I.viewHoverGraph
                         data
                 Nothing ->
-                    H.div [][]
+                    I.viewHoverGraph
+                         { name = ""
+                         , data = []
+                         }
             ]
     else
         H.div []
-            [ viewdatespicker
-                model.date_index
-                model.insertion_dates
-                IdatePickerChanged
-            , historyModeSwitch model
+            [ historyModeSwitch model
             , viewDatesRange
                 model.insertion_dates
                 model.date_index
