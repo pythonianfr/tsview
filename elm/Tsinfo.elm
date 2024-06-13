@@ -65,6 +65,8 @@ port dataFromHover : ( String -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
 
 
+nbRevs = 70
+
 type alias Logentry =
     { rev : Int
     , author : String
@@ -125,7 +127,7 @@ type alias Model =
     -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
-    , firstSeventyIdates : Array String
+    , firstIdates : Array String
     , historyDateIndex : Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
@@ -922,7 +924,7 @@ update msg model =
                     { model
                         | historyMode = isChecked
                         , historyPlots = Dict.empty
-                        , firstSeventyIdates = Array.empty
+                        , firstIdates = Array.empty
                         , dataFromHover = Nothing
                     }
             in
@@ -934,7 +936,7 @@ update msg model =
                         newmodel =
                             { model
                                 | historyPlots = Dict.empty
-                                , firstSeventyIdates = Array.empty
+                                , firstIdates = Array.empty
                                 , dataFromHover = Nothing
                             }
                         minDate = Maybe.withDefault "" (List.head range)
@@ -953,19 +955,19 @@ update msg model =
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
-                        firstSeventy  =
-                            if (List.length dates) > 70 then
-                                List.take 70 dates
+                        firsts  =
+                            if (List.length dates) > nbRevs then
+                                List.take nbRevs dates
                             else
                                 dates
                         newmodel =
                             { model
-                                | firstSeventyIdates = Array.fromList firstSeventy
-                                , historyDateIndex = List.length firstSeventy - 1
+                                | firstIdates = Array.fromList firsts
+                                , historyDateIndex = List.length firsts - 1
                             }
                     in
                     ( newmodel
-                    , getsomedata model minDate maxDate firstSeventy
+                    , getsomedata model minDate maxDate firsts
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -997,7 +999,7 @@ update msg model =
                     Maybe.withDefault model.historyDateIndex -- keep current
                     (String.toInt strindex)
                 newmodel =
-                    if Array.get index model.firstSeventyIdates == Nothing then
+                    if Array.get index model.firstIdates == Nothing then
                         model
                     else
                         { model
@@ -1011,7 +1013,7 @@ update msg model =
                 newmodel =
                     { model
                         | historyPlots = Dict.empty
-                        , firstSeventyIdates = Array.empty
+                        , firstIdates = Array.empty
                     }
 
             in
@@ -1208,12 +1210,12 @@ viewplot model =
                 ""
                 defaultoptions
             , viewDatesRange
-                model.firstSeventyIdates
+                model.firstIdates
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
             , I.viewHistoryGraph model
-            , if Array.isEmpty model.firstSeventyIdates then
+            , if Array.isEmpty model.firstIdates then
                 H.div
                 [HA.class "placeholder-text-hover" ]
                 [ ]
@@ -1426,7 +1428,7 @@ main =
                     , plotstatus = Loading
                     , historyPlots = Dict.empty
                     , historyMode = False
-                    , firstSeventyIdates = Array.empty
+                    , firstIdates = Array.empty
                     , historyDateIndex = 0
                     , historyDateIndexDeb = debouncerconfig
                     , dataFromHover = Nothing
