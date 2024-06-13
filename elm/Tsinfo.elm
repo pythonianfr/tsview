@@ -258,6 +258,24 @@ logdecoder =
     D.list logentrydecoder
 
 
+removeRedondants: DataFromHover -> DataFromHover
+removeRedondants dataHover =
+     { name = dataHover.name
+     , data = removeT dataHover.data Nothing }
+
+
+removeT: List DataItem -> Maybe Float -> List DataItem
+removeT data previous =
+    case data of
+        [] -> []
+        x :: xs  ->
+            case previous of
+                Nothing -> [x] ++ ( removeT xs ( Just x.value ))
+                Just prev -> if prev /= x.value
+                                then [x] ++ ( removeT xs ( Just x.value ) )
+                                else ( removeT xs ( Just x.value ) )
+
+
 getdepth : Model -> Cmd Msg
 getdepth model =
     Http.get
@@ -1005,7 +1023,7 @@ update msg model =
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
                     let
-                         newmodel = { model | dataFromHover = Just datadict }
+                         newmodel = { model | dataFromHover = Just (removeRedondants datadict) }
                     in U.nocmd newmodel
                 Err _ ->
                     U.nocmd model
