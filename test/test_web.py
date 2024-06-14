@@ -18,7 +18,7 @@ def test_log(client, tsa):
         [1, 2, 3],
         index=pd.date_range(
             utcdt(2020, 1, 1),
-            freq='D',
+            freq='d',
             periods=3
         )
     )
@@ -99,7 +99,7 @@ def test_series_metadata_and_formulas(client, tsa):
         [1, 2, 3],
         index=pd.date_range(
             pd.Timestamp('2022-1-1'),
-            freq='D',
+            freq='d',
             periods=3
         )
     )
@@ -160,7 +160,7 @@ def test_group_formulas(client, tsa):
         n_scenarios=3,
         from_date=pd.Timestamp('2022-1-1'),
         length=5,
-        freq='D',
+        freq='d',
         seed=2
     )
     tsa.group_replace(
@@ -190,7 +190,7 @@ def test_group_formulas(client, tsa):
         [1, 2, 3],
         index=pd.date_range(
             pd.Timestamp('2022-1-1'),
-            freq='D',
+            freq='d',
             periods=3
         )
     )
@@ -279,7 +279,7 @@ def test_formula_form_base(engine, client, tsa):
     with engine.begin() as cn:
         cn.execute('delete from tsh.registry')
 
-    ts = genserie('2024-1-1', 'D', 3)
+    ts = genserie('2024-1-1', 'd', 3)
     tsa.update('crude-a', ts, 'Babar')
 
     user_file = DATADIR / 'goodformula.csv'
