@@ -4,21 +4,21 @@ import Array exposing (Array)
 import Browser
 import Dict exposing (Dict)
 import Set exposing (Set)
-import Either exposing (Either(..))
 import Horizon exposing
     ( HorizonModel
     , LocalStorageData
     , Offset
-    , defaultHorizon
+    , initHorizon
     , horizons
     , loadFromLocalStorage
     , localstoragedecoder
     , saveToLocalStorage
     , updatefromlocalstorage
     , updateHorizon
-    , updateHorizonModel
+    , updateHorizonFromData
     , updateOffset
     )
+import Horizon as ModuleHorizon
 import Http
 import Html as H
 import Html.Attributes as HA
@@ -32,8 +32,6 @@ import OrderedDict as OD
 import Plotter exposing
     ( defaultoptions
     , getdata
-    , scatterplot
-    , plotargs
     )
 import Process as P
 import Url.Builder as UB
@@ -78,8 +76,7 @@ type Msg
     | GotComponents (Result Http.Error String)
     | GotComponentData String (Result Http.Error String)
     | GotMetadata (Result Http.Error String)
-    | HorizonSelected (Maybe String)
-    | UpdateOffset Offset
+    | Horizon ModuleHorizon.Msg
     | InputChanged String String
     | SaveEditedData
     | GotEditedData (Result Http.Error String)
@@ -94,6 +91,11 @@ type Msg
     | NewDates (List String)
     | CopyNameToClipboard
     | ResetClipboardClass
+
+
+convertMsg : ModuleHorizon.Msg -> Msg
+convertMsg msg =
+    Horizon msg
 
 
 maxPoints = 1000
@@ -366,7 +368,7 @@ update msg model =
                         U.nocmd { model
                                     | plotStatus = Success
                                     , initialTs = indexedval
-                                    , horizon = updateHorizonModel model.horizon indexedval
+                                    , horizon = updateHorizonFromData model.horizon indexedval
                                 }
                 Err err ->
                   doerr "got edit data decode" <| JD.errorToString err
@@ -382,7 +384,7 @@ update msg model =
                           in
                             ( { model | initialTs = timeseries
                                       , plotStatus = Success
-                                      , horizon = updateHorizonModel
+                                      , horizon = updateHorizonFromData
                                                     model.horizon
                                                     timeseries }
                             , Cmd.none )
@@ -411,34 +413,44 @@ update msg model =
 
         GotComponentData name (Err _) -> ( model, Cmd.none )
 
-        HorizonSelected horizon ->
-            let
-                userprefs =
-                    LocalStorageData
-                        horizon
-                        model.horizon.timeZone
-                        model.horizon.inferredFreq
-
-                newmodel =
-                    { model
-                        | plotStatus = Loading
-                        , horizon = updateHorizon horizon model.horizon
-                        , queryBounds = Nothing
-                        , zoomBounds = Nothing
-                    }
+        Horizon hMsg ->
+            let ( newModelHorizon, commands ) =  updateHorizon
+                                                    ( actionsHorizon model )
+                                                    hMsg
+                                                    model.horizon
             in
-            ( newmodel
-            , Cmd.batch
-                ([ Random.generate RandomNumber randomInt
-                 , saveToLocalStorage userprefs
-                 ] ++ getRelevantData newmodel)
-            )
+            ( { model | horizon = newModelHorizon }
+            , commands )
 
-        UpdateOffset (Left i) ->
-            updateoffset i
 
-        UpdateOffset (Right i) ->
-            updateoffset -i
+        --HorizonSelected horizon ->
+        --    let
+        --        userprefs =
+        --            LocalStorageData
+        --                horizon
+        --                model.horizon.timeZone
+        --                model.horizon.inferredFreq
+        --
+        --        newmodel =
+        --            { model
+        --                | plotStatus = Loading
+        --                , horizon = updateHorizon horizon model.horizon
+        --                , queryBounds = Nothing
+        --                , zoomBounds = Nothing
+        --            }
+        --    in
+        --    ( newmodel
+        --    , Cmd.batch
+        --        ([ Random.generate RandomNumber randomInt
+        --         , saveToLocalStorage userprefs
+        --         ] ++ getRelevantData newmodel)
+        --    )
+        --
+        --UpdateOffset (Left i) ->
+        --    updateoffset i
+        --
+        --UpdateOffset (Right i) ->
+        --    updateoffset -i
 
         InputChanged date rawvalue ->
             let
@@ -507,7 +519,7 @@ update msg model =
 
                         newmodel =
                             { model
-                                | horizon = updateHorizonModel model.horizon patched
+                                | horizon = updateHorizonFromData model.horizon patched
                             }
                     in
                     ( newmodel
@@ -678,6 +690,13 @@ update msg model =
 
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+
+
+actionsHorizon : Model -> HorizonModel Entry -> List (Cmd Msg)
+actionsHorizon model horizonModel =
+    let newModel = { model | horizon = horizonModel}
+    in
+    getRelevantData newModel ++ [( Random.generate RandomNumber randomInt )]
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -1155,20 +1174,12 @@ statusText plotStatus =
         "Failure"
 
 
-horizonevents =
-    { inferredFreqMsg = InferredFreq
-    , timeZoneMsg = TimeZoneSelected
-    , offsetMsg = UpdateOffset
-    , timeDeltaMsg = HorizonSelected
-    }
-
-
 view : Model -> H.Html Msg
 view model =
     H.div
         [ HA.class "main-content" ]
         [ H.span [ HA.class "action-container" ]
-              <| I.viewactionwidgets model horizonevents False "Series Editor"
+              <| I.viewactionwidgets model convertMsg False "Series Editor"
         , I.viewtitle model CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]
@@ -1208,28 +1219,16 @@ buildBounds min max =
             else Just (min, max)
 
 
-main : Program Input Model Msg
-main =
-    let
-        init input =
-            let
-                model =
-                    { baseurl = input.baseurl
+init : Input -> ( Model, Cmd Msg )
+init input =
+     ({ baseurl = input.baseurl
                     , errors = [ ]
                     , name = input.name
                     , meta = Dict.empty
                     , source = "local"
                     , seriestype = I.Primary
                     , date_index = 0
-                    , horizon =
-                          { offset = 0
-                          , horizon = Just defaultHorizon
-                          , inferredFreq = False
-                          , mindate = ""
-                          , maxdate = ""
-                          , timeSeries = Dict.empty
-                          , timeZone = "UTC"
-                          }
+                    , horizon = initHorizon
                     , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
@@ -1244,18 +1243,21 @@ main =
                     , queryBounds = buildBounds input.min input.max
                     , zoomBounds = Nothing
                     }
-            in
-            ( model
-            , Cmd.none -- The chain of command is triggerd by "FromLocalStorage" Msg
-            )
+    , Cmd.none -- The chain of command is triggerd by "FromLocalStorage" Msg
+    )
 
-    in Browser.element
+
+main : Program Input Model Msg
+main =
+    Browser.element
         { init = init
         , view = view
         , update = update
         , subscriptions =
-              \_ -> Sub.batch
-                    [ loadFromLocalStorage FromLocalStorage
-                    , dateInInterval NewDates
-                    ]
-    }
+          \_ -> Sub.batch
+                [ dateInInterval NewDates
+                , loadFromLocalStorage
+                    (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
+                ]
+        }
+

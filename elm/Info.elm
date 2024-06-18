@@ -191,7 +191,7 @@ tzawareseries model =
     (M.dget "tzaware" model.meta) == "true"
 
 
-viewactionwidgets model horizonevents editor pagetitle =
+viewactionwidgets model convertmsg editor pagetitle =
     let
         editorlabel =
             case model.seriestype of
@@ -201,7 +201,11 @@ viewactionwidgets model horizonevents editor pagetitle =
     [ H.div
           [ HA.class "page-title" ]
           [ H.text pagetitle ]
-    , horizonview model.horizon horizonevents "action-center" <| tzawareseries model
+    , horizonview
+        model.horizon
+        convertmsg
+        "action-center"
+        ( tzawareseries model )
     , H.div [ HA.class "action-right" ]
         [ H.a [ HA.href <| UB.crossOrigin model.baseurl
                     [ if editor then "tseditor" else "tsinfo" ]

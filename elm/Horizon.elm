@@ -1,8 +1,9 @@
 port module Horizon exposing
     ( HorizonModel
+    , Msg(..)
     , LocalStorageData
     , Offset
-    , defaultHorizon
+    , initHorizon
     , horizons
     , horizonview
     , saveToLocalStorage
@@ -10,7 +11,7 @@ port module Horizon exposing
     , localstoragedecoder
     , updatefromlocalstorage
     , updateHorizon
-    , updateHorizonModel
+    , updateHorizonFromData
     , updateOffset
     )
 
@@ -33,6 +34,14 @@ type alias Offset =
     Either Int Int
 
 
+type Msg =
+    FromLocalStorage String
+    | HorizonSelected (Maybe String)
+    | UpdateOffset Offset
+    | TimeZoneSelected String
+    | InferredFreq Bool
+
+
 type alias HorizonModel v =
     { offset : Int
     , horizon : Maybe String
@@ -41,6 +50,18 @@ type alias HorizonModel v =
     , maxdate : String
     , timeSeries : Dict String v
     , timeZone : String
+    , horizonChoices: OD.OrderedDict String String
+    }
+
+initHorizon =
+    { offset = 0
+    , horizon = Just defaultHorizon
+    , inferredFreq = False
+    , mindate = ""
+    , maxdate = ""
+    , timeSeries = Dict.empty
+    , timeZone = "UTC"
+    , horizonChoices = horizons
     }
 
 
@@ -48,14 +69,6 @@ type alias LocalStorageData =
     { horizon : Maybe String
     , timeZone : String
     , inferredFreq : Bool
-    }
-
-
-type alias HorizonMsg msg =
-    { inferredFreqMsg : ( Bool -> msg )
-    , timeZoneMsg : ( String -> msg )
-    , offsetMsg : ( Offset -> msg )
-    , timeDeltaMsg : ( Maybe String -> msg )
     }
 
 
@@ -125,13 +138,95 @@ horizons =  OD.fromList
     ]
 
 
+updateHorizon : ( HorizonModel v -> ( List ( Cmd msg ))) -> Msg -> HorizonModel v -> ( HorizonModel v, Cmd msg )
+updateHorizon actions msg model =
+    let previousOffset = model.offset
+    in
+    case msg of
+        HorizonSelected horizon ->
+            let
+                userprefs =
+                    LocalStorageData
+                        horizon
+                        model.timeZone
+                        model.inferredFreq
+
+                newmodel = updateInternalHorizon horizon model
+            in
+            ( newmodel
+            , Cmd.batch
+                ( [ saveToLocalStorage userprefs ] ++ (actions newmodel)
+                )
+            )
+
+        UpdateOffset (Left i) ->
+            let newmodel = { model | offset = (previousOffset + i) }
+            in
+            ( newmodel
+            , Cmd.batch ( actions newmodel ))
+
+        UpdateOffset (Right i) ->
+            let newmodel = { model | offset = (previousOffset - i) }
+            in
+            ( newmodel
+             , Cmd.batch ( actions newmodel ))
+
+        FromLocalStorage rawdata ->
+            case D.decodeString localstoragedecoder rawdata of
+                Ok datadict ->
+                    let
+                        newmodel =
+                             updatefromlocalstorage datadict model
+                    in
+                    ( newmodel
+                     , Cmd.batch ( actions newmodel ))
+
+                Err _ ->
+                    ( model
+                     , Cmd.batch ( actions model ))
+
+        TimeZoneSelected timeZone ->
+            let
+                newmodel =
+                    { model | timeZone = timeZone }
+                userprefs =
+                    LocalStorageData
+                        model.horizon
+                        timeZone
+                        model.inferredFreq
+
+            in
+            ( newmodel
+            , Cmd.batch ([ saveToLocalStorage userprefs ] ++ ( actions newmodel ))
+            --, I.getidates newmodel "series" InsertionDates  To be investigated
+            )
+
+        InferredFreq isChecked ->
+            let
+                newmodel =
+                    { model | inferredFreq = isChecked }
+
+                userprefs =
+                    LocalStorageData
+                        model.horizon
+                        model.timeZone
+                        isChecked
+            in
+            ( newmodel
+            , Cmd.batch
+                [ Cmd.batch ( actions model )
+                , saveToLocalStorage userprefs
+                ]
+            )
+
+
 updateOffset : Int -> HorizonModel v -> HorizonModel v
 updateOffset newOffset model =
     { model | offset = newOffset }
 
 
-updateHorizon : Maybe String -> HorizonModel v -> HorizonModel v
-updateHorizon horizon model =
+updateInternalHorizon : Maybe String -> HorizonModel v -> HorizonModel v
+updateInternalHorizon horizon model =
     { model
         | horizon = horizon
         , offset = 0
@@ -147,8 +242,8 @@ updatefromlocalstorage data model =
     }
 
 
-updateHorizonModel : HorizonModel v -> Dict String v -> HorizonModel v
-updateHorizonModel model val =
+updateHorizonFromData : HorizonModel v -> Dict String v -> HorizonModel v
+updateHorizonFromData model val =
     let
         tsBounds = formatBoundDates val
     in
@@ -174,8 +269,8 @@ formatBoundDates val =
     ( U.dateof minappdate, U.dateof maxappdate )
 
 
-buttonArrow : String  -> HorizonMsg msg -> String -> H.Html msg
-buttonArrow direction horizonMsg className =
+buttonArrow : (Msg -> msg) -> String  -> String -> H.Html msg
+buttonArrow convertmsg direction className =
     let
         arrow = if direction == "left" then Left else Right
     in
@@ -183,17 +278,17 @@ buttonArrow direction horizonMsg className =
         [ HA.class className ]
         [ H.i
             [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
-            , HE.onClick (horizonMsg.offsetMsg (arrow 1))
+            , HE.onClick ( convertmsg (UpdateOffset (arrow 1)))
             ] [ ]
         ]
 
 
-selectHorizon : HorizonModel v -> HorizonMsg msg -> H.Html msg
-selectHorizon model horizonMsg =
+selectHorizon : HorizonModel v -> (Msg -> msg) -> H.Html msg
+selectHorizon model convertmsg =
     H.select
         [ HE.targetValue
             |> D.andThen readHorizon
-            |> D.map horizonMsg.timeDeltaMsg
+            |> D.map ( \mb -> convertmsg (HorizonSelected mb) )
             |> HE.on "change"
         ]
         (List.map (renderhorizon model.horizon)
@@ -228,24 +323,9 @@ renderTimeZone selectedhorizon timeZone =
         [ H.text timeZone ]
 
 
-divSelectTimeZone : HorizonModel v -> HorizonMsg msg -> H.Html msg
-divSelectTimeZone model horizonMsg =
-    let
-        decodeTimeZone : String -> D.Decoder msg
-        decodeTimeZone timeZone =
-            D.succeed (horizonMsg.timeZoneMsg timeZone)
 
-    in
-    H.div
-        [ ]
-        [ H.select
-              [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
-              (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
-        ]
-
-
-inferredfreqswitch : HorizonModel v -> HorizonMsg msg -> H.Html msg
-inferredfreqswitch model horizonMsg =
+inferredfreqswitch : HorizonModel v -> (Msg -> msg) -> H.Html msg
+inferredfreqswitch model convertmsg =
     H.div
         [ HA.class "custom-control custom-switch"]
         [ H.input
@@ -253,7 +333,7 @@ inferredfreqswitch model horizonMsg =
             , HA.class "custom-control-input"
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
-            , HE.onCheck horizonMsg.inferredFreqMsg
+            , HE.onCheck ( \ b ->  convertmsg (InferredFreq b) )
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -263,12 +343,12 @@ inferredfreqswitch model horizonMsg =
         ]
 
 
-tzonedropdown : HorizonModel v -> HorizonMsg msg -> H.Html msg
-tzonedropdown model horizonMsg =
+tzonedropdown : HorizonModel v -> (Msg -> msg) -> H.Html msg
+tzonedropdown model convertmsg =
     let
         decodeTimeZone : String -> D.Decoder msg
         decodeTimeZone timeZone =
-            D.succeed (horizonMsg.timeZoneMsg timeZone)
+            D.succeed (convertmsg (TimeZoneSelected timeZone))
 
     in
     H.select
@@ -282,29 +362,29 @@ viewdate strdate =
     else strdate
 
 
-horizonview : HorizonModel v -> HorizonMsg msg -> String -> Bool -> H.Html msg
-horizonview model horizonMsg klass tzaware =
+horizonview : HorizonModel v -> (Msg -> msg) -> String -> Bool -> H.Html msg
+horizonview model convertmsg klass tzaware =
     H.div
         [ HA.class klass ]
         [ if tzaware
-          then H.div [] [ tzonedropdown model horizonMsg ]
+          then H.div [] [ tzonedropdown model convertmsg ]
           else H.span [] []
         , H.div
             []
-            [ buttonArrow "left" horizonMsg "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow convertmsg "left" "btn btn-outline-dark btn-sm" ]
         , H.div
             []
             [ H.text <| viewdate model.mindate ]
         , H.div
             []
-            [ selectHorizon model horizonMsg ]
+            [ selectHorizon model convertmsg]
         , H.div
             []
             [ H.text <| viewdate model.maxdate ]
         , H.div
             []
-            [ buttonArrow "right" horizonMsg "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow convertmsg "right" "btn btn-outline-dark btn-sm" ]
         , H.div
             []
-            [ inferredfreqswitch model horizonMsg ]
+            [ inferredfreqswitch model convertmsg  ]
         ]

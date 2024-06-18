@@ -11,30 +11,22 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
-import Either exposing (Either(..))
 import NavTabs exposing
     ( header
     , tabcontents
     , Tabs(..)
     , strseries
-    , viewdatespicker
     , DeleteEvents
     , MetaEvents
     )
 import Horizon exposing
     ( HorizonModel
-    , LocalStorageData
-    , Offset
-    , defaultHorizon
-    , horizons
-    , localstoragedecoder
+    , initHorizon
     , loadFromLocalStorage
-    , saveToLocalStorage
-    , updatefromlocalstorage
     , updateHorizon
-    , updateHorizonModel
-    , updateOffset
+    , updateHorizonFromData
     )
+import Horizon as HorizonModule
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -43,7 +35,6 @@ import Info as I
 import Info exposing (SeriesType(..))
 import Json.Decode as D
 import Json.Encode as E
-import JsonTree as JT exposing (TaggedValue(..))
 import List.Extra as List
 import List.Selection as LS
 import Maybe.Extra as Maybe
@@ -134,14 +125,6 @@ type alias Model =
     }
 
 
-type alias HorizonEvents =
-    { inferredFreqMsg : Bool -> Msg
-    , timeZoneMsg : String -> Msg
-    , offsetMsg : Offset -> Msg
-    , timeDeltaMsg : Maybe String -> Msg
-    }
-
-
 type alias RenameEvents =
     { confirmrename : Msg
     , editnewname : String -> Msg
@@ -203,11 +186,7 @@ type Msg
     | CopyNameToClipboard
     | ResetClipboardClass
     -- horizon
-    | FromLocalStorage String
-    | HorizonSelected (Maybe String)
-    | UpdateOffset Offset
-    | TimeZoneSelected String
-    | InferredFreq Bool
+    | Horizon HorizonModule.Msg
     -- history mode
     | HistoryMode Bool
     | NewDates (List String)
@@ -220,6 +199,10 @@ type Msg
     | LogsNumber String
     | SeeLogs
 
+
+convertMsg : HorizonModule.Msg -> Msg
+convertMsg msg =
+    Horizon msg
 
 type alias DataFromHover =
     { name : String
@@ -316,7 +299,7 @@ getplot model =
         Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
     , horizon =
         model.horizon.horizon |>
-          Maybe.andThen (\key-> OD.get key horizons) |>
+          Maybe.andThen (\key-> OD.get key model.horizon.horizonChoices) |>
           Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
     , tzone = model.horizon.timeZone
     , inferredFreq = model.horizon.inferredFreq
@@ -445,17 +428,6 @@ update msg model =
     let
         doerr tag error =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
-
-        updateModelOffset i =
-            let
-                offset =
-                    model.horizon.offset + i
-                newmodel =
-                    { model | horizon = updateOffset offset model.horizon }
-            in
-            ( newmodel
-            , getplot newmodel
-            )
     in
     case msg of
 
@@ -549,7 +521,7 @@ update msg model =
                     let
                         newmodel =
                             { model
-                                | horizon = updateHorizonModel model.horizon val
+                                | horizon = updateHorizonFromData model.horizon val
                                 , plotstatus = Success
                             }
                     in
@@ -833,90 +805,14 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
-        HorizonSelected horizon ->
-            let
-                userprefs =
-                    LocalStorageData
-                        horizon
-                        model.horizon.timeZone
-                        model.horizon.inferredFreq
-
-                newmodel = { model | horizon = updateHorizon horizon model.horizon }
+        Horizon hMsg ->
+            let ( newModelHorizon, commands ) =  updateHorizon
+                                                    ( actionsHorizon model )
+                                                    hMsg
+                                                    model.horizon
             in
-            ( newmodel
-            , Cmd.batch
-                [ getplot newmodel
-                , saveToLocalStorage userprefs
-                ]
-            )
-
-        UpdateOffset (Left i) ->
-            updateModelOffset i
-
-        UpdateOffset (Right i) ->
-            updateModelOffset -i
-
-        FromLocalStorage rawdata ->
-            case D.decodeString localstoragedecoder rawdata of
-                Ok datadict ->
-                    let
-                        newmodel =
-                            { model
-                                | horizon = updatefromlocalstorage datadict model.horizon
-                            }
-                    in
-                    ( newmodel
-                    , getplot newmodel
-                    )
-                Err _ ->
-                    ( model
-                    , getplot model
-                    )
-
-        TimeZoneSelected timeZone ->
-            let
-                horizon = model.horizon
-                newmodel =
-                    { model |
-                          horizon = { horizon | timeZone = timeZone }
-                    }
-                userprefs =
-                    LocalStorageData
-                        model.horizon.horizon
-                        timeZone
-                        model.horizon.inferredFreq
-
-            in
-            ( newmodel
-            , Cmd.batch
-                [ getplot newmodel
-                , I.getidates newmodel "series" InsertionDates
-                , saveToLocalStorage userprefs
-                ]
-            )
-
-        InferredFreq isChecked ->
-            let
-                horizon =
-                    model.horizon
-
-                newmodel =
-                    { model
-                        | horizon = { horizon | inferredFreq = isChecked }
-                    }
-
-                userprefs =
-                    LocalStorageData
-                        model.horizon.horizon
-                        model.horizon.timeZone
-                        isChecked
-            in
-            ( newmodel
-            , Cmd.batch
-                [ getplot newmodel
-                , saveToLocalStorage userprefs
-                ]
-            )
+            ( { model | horizon = newModelHorizon }
+            , commands )
 
         HistoryMode isChecked ->
             let
@@ -1035,6 +931,13 @@ update msg model =
 
         SeeLogs ->
             ( model, getlog model.baseurl model.name model.logsNumber )
+
+
+actionsHorizon : Model -> HorizonModel (Maybe Float) -> List (Cmd Msg)
+actionsHorizon model horizonModel =
+    let newModel = { model | horizon = horizonModel}
+    in
+    [ getplot newModel ]
 
 
 -- views
@@ -1285,12 +1188,6 @@ view model =
         head =
             header Tab tabs
 
-        horizonEvents = HorizonEvents
-            InferredFreq
-            TimeZoneSelected
-            UpdateOffset
-            HorizonSelected
-
         deleteEvents = DeleteEvents
             ConfirmDeletion
             CancelDeletion
@@ -1320,7 +1217,7 @@ view model =
             [ H.div
                 [ ]
                 [ H.span [ HA.class "tsinfo action-container" ]
-                      <| (I.viewactionwidgets model horizonEvents True "Series Info") ++
+                      <| (I.viewactionwidgets model convertMsg True "Series Info") ++
                       [ I.viewdeletion model deleteEvents
                       , I.viewrenameaction model renameEvents
                       ]
@@ -1356,6 +1253,7 @@ view model =
                       FormulaCache ->
                           H.div [] [ head, tabcontents [ viewcache model ] ]
                 , I.viewerrors model
+                , H.div [] [H.text (String.fromInt model.horizon.offset)]
                 ]
             ]
         ]
@@ -1416,15 +1314,7 @@ main =
                     , renaming = False
                     , newname = Nothing
                     , clipboardclass = "bi bi-clipboard"
-                    , horizon =
-                            { offset = 0
-                            , horizon = Just defaultHorizon
-                            , inferredFreq = False
-                            , mindate = ""
-                            , maxdate = ""
-                            , timeSeries = Dict.empty
-                            , timeZone = "UTC"
-                    }
+                    , horizon = initHorizon
                     , plotstatus = Loading
                     , historyPlots = Dict.empty
                     , historyMode = False
@@ -1449,9 +1339,9 @@ main =
         , update = update
         , subscriptions =
             \_ -> Sub.batch
-                  [ loadFromLocalStorage FromLocalStorage
-                  , dateInInterval NewDates
+                  [ dateInInterval NewDates
                   , dataFromHover NewDataFromHover
+                  , loadFromLocalStorage (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
                   ]
         }
 
