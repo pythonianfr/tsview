@@ -56,8 +56,6 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
-    , keyfilterdeb : Debouncer Msg
-    , valuefilterdeb : Debouncer Msg
     , tzaware : String
     }
 
@@ -80,8 +78,6 @@ type Msg
     -- debouncer
     | DebounceNameFilter (Debouncer.Msg Msg)
     | DebounceFormulaFilter (Debouncer.Msg Msg)
-    | DebounceKeyFilter (Debouncer.Msg Msg)
-    | DebounceValueFilter (Debouncer.Msg Msg)
     -- mode
     | ToggleMode
     | Tzaware String
@@ -232,11 +228,13 @@ filternothing list =
 
 
 metafilter model =
-    if List.length (Dict.toList model.filterbymeta) == 0 then model else
-        let
-            filterbymeta = List.filter
+    let
+        filterbymeta = List.filter
                 (\data -> data /= ("", ""))
                 (Dict.values model.filterbymeta)
+    in
+    if List.length filterbymeta == 0 then model else
+        let
             lowerkeys metadict =
                 List.map lower <| Dict.keys metadict
 
@@ -319,21 +317,6 @@ updatedformulafilterbouncer =
     , getDebouncer = .formulafilterdeb
     , setDebouncer = \deb model -> { model | formulafilterdeb = deb }
     }
-
-
-updatedkeyfilterbouncer =
-    { mapMsg = DebounceKeyFilter
-    , getDebouncer = .keyfilterdeb
-    , setDebouncer = \deb model -> { model | keyfilterdeb = deb }
-    }
-
-
-updatedvaluefilterbouncer =
-    { mapMsg = DebounceValueFilter
-    , getDebouncer = .valuefilterdeb
-    , setDebouncer = \deb model -> { model | valuefilterdeb = deb }
-    }
-
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -513,11 +496,6 @@ update msg model =
         DebounceFormulaFilter val ->
             Debouncer.update update updatedformulafilterbouncer val model
 
-        DebounceKeyFilter val ->
-            Debouncer.update update updatedkeyfilterbouncer val model
-
-        DebounceValueFilter val ->
-            Debouncer.update update updatedvaluefilterbouncer val model
         -- Mode
 
         ToggleMode ->
@@ -678,13 +656,12 @@ inputsFiled action metaData =
                 [ H.text "delete" ]
     in  H.div
         [ A.id (String.fromInt inputId) ]
-        [ H.map (provideInput >> DebounceKeyFilter) keyInput
+        [ keyInput
         , H.span [] [ H.text " " ]
-        ,  H.map (provideInput >> DebounceValueFilter) valueInput
+        , valueInput
         , H.span [] [ H.text " " ]
         , if action == "add" then addentry else delete
         ]
-
 
 viewmetafilter : Model -> H.Html Msg
 viewmetafilter model =
@@ -956,8 +933,6 @@ main =
                    Nothing
                    Dict.empty
                    []
-                   debouncerconfig
-                   debouncerconfig
                    debouncerconfig
                    debouncerconfig
                    "any"
