@@ -143,7 +143,6 @@ formatLink model formula page text =
         [ HA.href <| UB.crossOrigin model.baseurl
             [ page ]
             [ UB.string "name" formula.name ]
-        , HA.target "_blank"
         ]
         [H.text text]
 

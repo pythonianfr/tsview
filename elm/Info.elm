@@ -216,7 +216,6 @@ viewactionwidgets model convertmsg editor pagetitle =
               Formula ->
                   H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
                             [ UB.string "name" model.name ]
-                      , HA.target "_blank"
                       ]
                       [ H.text "edit formula" ]
               Primary ->

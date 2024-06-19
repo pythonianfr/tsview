@@ -328,19 +328,16 @@ viewlinks haseditor seriesName =
         [ H.text (seriesName ++ " ")
         , H.a
             [ HA.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
-            , HA.target "_blank"
             ]
             [ H.text <| "info" ]
         , H.text " "
         , H.a
             [ HA.href <| UB.relative [ "tshistory", seriesName ] []
-            , HA.target "_blank"
             ]
             [ H.text <| "history" ]
         , H.text " "
         , if haseditor then
               H.a [ HA.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
-                  , HA.target "_blank"
                   ]
                   [ H.text <| "editor" ]
           else
