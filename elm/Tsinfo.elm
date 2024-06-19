@@ -21,10 +21,12 @@ import NavTabs exposing
     )
 import Horizon exposing
     ( HorizonModel
+    , PlotStatus(..)
     , initHorizon
     , loadFromLocalStorage
     , updateHorizon
     , updateHorizonFromData
+    , setStatusPlot
     )
 import Horizon as HorizonModule
 import Html as H
@@ -64,12 +66,6 @@ type alias Logentry =
     , date : String
     , meta : M.UserMetadata
     }
-
-
-type PlotStatus
-    = Loading
-    | Success
-    | Failure
 
 
 type alias Model =
@@ -114,7 +110,6 @@ type alias Model =
     , clipboardclass : String
     -- horizon
     , horizon : HorizonModel (Maybe Float)
-    , plotstatus : PlotStatus
     -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
@@ -271,11 +266,11 @@ getdepth model =
         }
 
 
-getsource : Model -> String -> Cmd Msg
-getsource model name =
+getsource : String -> String -> Cmd Msg
+getsource baseurl name =
     Http.get
         { expect = Http.expectString GotSource
-        , url = UB.crossOrigin model.baseurl
+        , url = UB.crossOrigin baseurl
               [ "api", "series", "source" ]
               [ UB.string "name" name ]
         }
@@ -350,14 +345,14 @@ deletecache model =
         }
 
 
-getcachepolicy : Model -> Cmd Msg
-getcachepolicy model =
+getcachepolicy : String -> String -> Cmd Msg
+getcachepolicy baseUrl name =
     Http.get
         { url =
               UB.crossOrigin
-              model.baseurl
+              baseUrl
               [ "api", "cache", "series-policy" ]
-              [ UB.string "name" model.name ]
+              [ UB.string "name" name ]
         , expect = Http.expectString GotCachePolicy
         }
 
@@ -463,7 +458,7 @@ update msg model =
                     { model
                         | errors = List.append model.errors
                           [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
-                        , plotstatus = Failure
+                        , horizon = (setStatusPlot model.horizon Failure)
                     }
             in
             U.nocmd newmodel
@@ -522,7 +517,6 @@ update msg model =
                         newmodel =
                             { model
                                 | horizon = updateHorizonFromData model.horizon val
-                                , plotstatus = Success
                             }
                     in
                     U.nocmd newmodel
@@ -589,7 +583,7 @@ update msg model =
             let
                 mod = { model
                           | view_nocache = not model.view_nocache
-                          , plotstatus = Loading
+                          ,  horizon = ( setStatusPlot model.horizon Loading )
                       }
             in
             ( mod
@@ -968,7 +962,7 @@ viewtogglecached : Model -> H.Html Msg
 viewtogglecached model =
     let
         title =
-            if model.plotstatus == Loading then
+            if model.horizon.plotStatus == Loading then
                 "Loading ..."
             else if model.view_nocache then
                 "view cached"
@@ -986,7 +980,7 @@ viewtogglecached model =
               , HA.id "view-uncached"
               , HA.checked <| not model.view_nocache
               , HE.onClick ViewNocache
-              , HA.disabled (model.plotstatus == Loading)
+              , HA.disabled (model.horizon.plotStatus == Loading)
               ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -1253,7 +1247,6 @@ view model =
                       FormulaCache ->
                           H.div [] [ head, tabcontents [ viewcache model ] ]
                 , I.viewerrors model
-                , H.div [] [H.text (String.fromInt model.horizon.offset)]
                 ]
             ]
         ]
@@ -1265,75 +1258,74 @@ type alias Input =
     }
 
 
-main : Program Input  Model Msg
-main =
+init: Input -> ( Model, Cmd Msg)
+init input =
     let
         debouncerconfig =
             Debouncer.manual
                 |> settleWhenQuietFor (Just <| fromSeconds 0.015)
                 |> toDebouncer
-
-        init input =
-            let
-                model =
-                    { baseurl = input.baseurl
-                    , name = input.name
-                    , source = ""
-                    , activetab = Plot
-                    -- metadata edition
-                    , canwrite = False
-                    , editing = False
-                    -- all errors
-                    , errors = [ ]
-                    -- metadata
-                    , meta = Dict.empty
-                    , usermeta = Dict.empty
-                    , seriestype = I.Primary
-                    -- formula
-                    , formula_depth = 0
-                    , formula_maxdepth = 0
-                    , formula = Dict.empty
-                    -- cache
-                    , has_cache = False
-                    , view_nocache = False
-                    , policy = Dict.empty
-                    , deleting_cache = False
-                    -- log
-                    , log = [ ]
-                    , logsNumber = Just 10
-                    -- plot
-                    , insertion_dates = Array.empty
-                    , date_index = 0
-                    , date_index_deb = debouncerconfig
-                    -- user meta edittion
-                    , metaitem = ("", "")
-                    , editeditems = Dict.empty
-                    -- deletion
-                    , deleting = False
-                    -- renaming
-                    , renaming = False
-                    , newname = Nothing
-                    , clipboardclass = "bi bi-clipboard"
-                    , horizon = initHorizon
-                    , plotstatus = Loading
-                    , historyPlots = Dict.empty
-                    , historyMode = False
-                    , firstIdates = Array.empty
-                    , historyDateIndex = 0
-                    , historyDateIndexDeb = debouncerconfig
-                    , dataFromHover = Nothing
+    in
+       ({ baseurl = input.baseurl
+        , name = input.name
+        , source = ""
+        , activetab = Plot
+        -- metadata edition
+        , canwrite = False
+        , editing = False
+        -- all errors
+        , errors = [ ]
+        -- metadata
+        , meta = Dict.empty
+        , usermeta = Dict.empty
+        , seriestype = I.Primary
+        -- formula
+        , formula_depth = 0
+        , formula_maxdepth = 0
+        , formula = Dict.empty
+        -- cache
+        , has_cache = False
+        , view_nocache = False
+        , policy = Dict.empty
+        , deleting_cache = False
+        -- log
+        , log = [ ]
+        , logsNumber = Just 10
+        -- plot
+        , insertion_dates = Array.empty
+        , date_index = 0
+        , date_index_deb = debouncerconfig
+        -- user meta edittion
+        , metaitem = ("", "")
+        , editeditems = Dict.empty
+        -- deletion
+        , deleting = False
+        -- renaming
+        , renaming = False
+        , newname = Nothing
+        , clipboardclass = "bi bi-clipboard"
+        -- below a predefined boundary (from permalink) can be set
+        , horizon = initHorizon "" ""
+        , historyPlots = Dict.empty
+        , historyMode = False
+        , firstIdates = Array.empty
+        , historyDateIndex = 0
+        , historyDateIndexDeb = debouncerconfig
+        , dataFromHover = Nothing
                     }
-            in
-            ( model
-            , Cmd.batch
+        , Cmd.batch
                 [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
                 , M.getusermetadata input.baseurl input.name GotUserMeta "series"
-                , getsource model model.name
+                , getsource input.baseurl input.name
                 , I.getwriteperms input.baseurl GetPermissions
-                , getcachepolicy model
+                , getcachepolicy input.baseurl input.name
                 ]
             )
-    in Browser.element
+
+
+main : Program Input  Model Msg
+main =
+    Browser.element
         { init = init
         , view = view
         , update = update
@@ -1341,7 +1333,8 @@ main =
             \_ -> Sub.batch
                   [ dateInInterval NewDates
                   , dataFromHover NewDataFromHover
-                  , loadFromLocalStorage (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
+                  , loadFromLocalStorage
+                        (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
                   ]
         }
 

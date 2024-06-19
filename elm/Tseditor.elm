@@ -6,17 +6,13 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 import Horizon exposing
     ( HorizonModel
-    , LocalStorageData
-    , Offset
+    , PlotStatus(..)
     , initHorizon
     , horizons
     , loadFromLocalStorage
-    , localstoragedecoder
-    , saveToLocalStorage
-    , updatefromlocalstorage
     , updateHorizon
     , updateHorizonFromData
-    , updateOffset
+    , setStatusPlot
     )
 import Horizon as ModuleHorizon
 import Http
@@ -60,10 +56,7 @@ type alias Model =
     , initialTs : Dict String Entry
     , view_nocache : Bool
     , randomNumber : Int
-    , plotStatus : PlotStatus
     , clipboardclass : String
-    , queryBounds: Maybe (String, String)
-    , zoomBounds: Maybe (String, String)
     -- show-values for formula
     , components : List Component
     , componentsData: Dict String Series
@@ -75,7 +68,7 @@ type Msg
     | GotValueData (Result Http.Error String)
     | GotComponents (Result Http.Error String)
     | GotComponentData String (Result Http.Error String)
-    | GotMetadata (Result Http.Error String)
+    | GotMetadata (Result Http.Error String) -- first command fired
     | Horizon ModuleHorizon.Msg
     | InputChanged String String
     | SaveEditedData
@@ -85,9 +78,6 @@ type Msg
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | RandomNumber Int
-    | TimeZoneSelected String
-    | InferredFreq Bool
-    | FromLocalStorage String
     | NewDates (List String)
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -126,11 +116,6 @@ type alias PasteType =
 
 type alias Series = Dict String (Maybe Float)
 
-type PlotStatus
-    = Init
-    | Loading
-    | Success
-    | Failure
 
 type Method
     = GET
@@ -212,7 +197,7 @@ getToHorizon model =
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
 getSeries model callback apipoint method name =
-    case model.queryBounds of
+    case model.horizon.queryBounds of
         Nothing -> getOrPostData
                     method
                     { baseurl = model.baseurl
@@ -339,22 +324,6 @@ update msg model =
         doerr tag error =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
 
-        updateoffset i =
-            let
-                offset =
-                    model.horizon.offset + i
-                newmodel =
-                    { model | plotStatus = Loading
-                    , horizon = updateOffset offset model.horizon
-                    , queryBounds = Nothing
-                    , zoomBounds = Nothing
-                    }
-            in
-            ( newmodel
-            , Cmd.batch
-                ([ Random.generate RandomNumber randomInt
-                 ] ++ getRelevantData newmodel)
-            )
     in
     case msg of
         GotEditData (Ok rawdata) ->
@@ -366,15 +335,14 @@ update msg model =
                                 <| List.indexedMap reindex (Dict.toList val)
                     in
                         U.nocmd { model
-                                    | plotStatus = Success
-                                    , initialTs = indexedval
+                                    | initialTs = indexedval
                                     , horizon = updateHorizonFromData model.horizon indexedval
                                 }
                 Err err ->
                   doerr "got edit data decode" <| JD.errorToString err
 
         GotEditData (Err _) ->
-            U.nocmd { model | plotStatus = Failure }
+            U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure )}
 
         GotValueData (Ok rawdata) ->
             case JD.decodeString
@@ -383,7 +351,6 @@ update msg model =
                 Ok val -> let timeseries = decorateVanilla val
                           in
                             ( { model | initialTs = timeseries
-                                      , plotStatus = Success
                                       , horizon = updateHorizonFromData
                                                     model.horizon
                                                     timeseries }
@@ -391,7 +358,7 @@ update msg model =
                 Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotValueData (Err _) ->
-            ( { model | plotStatus = Failure } , Cmd.none)
+            ( { model | horizon = ( setStatusPlot model.horizon Failure )} , Cmd.none)
 
         GotComponents (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
@@ -415,42 +382,12 @@ update msg model =
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
-                                                    ( actionsHorizon model )
+                                                    ( actionsHorizon model hMsg  )
                                                     hMsg
                                                     model.horizon
             in
             ( { model | horizon = newModelHorizon }
             , commands )
-
-
-        --HorizonSelected horizon ->
-        --    let
-        --        userprefs =
-        --            LocalStorageData
-        --                horizon
-        --                model.horizon.timeZone
-        --                model.horizon.inferredFreq
-        --
-        --        newmodel =
-        --            { model
-        --                | plotStatus = Loading
-        --                , horizon = updateHorizon horizon model.horizon
-        --                , queryBounds = Nothing
-        --                , zoomBounds = Nothing
-        --            }
-        --    in
-        --    ( newmodel
-        --    , Cmd.batch
-        --        ([ Random.generate RandomNumber randomInt
-        --         , saveToLocalStorage userprefs
-        --         ] ++ getRelevantData newmodel)
-        --    )
-        --
-        --UpdateOffset (Left i) ->
-        --    updateoffset i
-        --
-        --UpdateOffset (Right i) ->
-        --    updateoffset -i
 
         InputChanged date rawvalue ->
             let
@@ -533,7 +470,7 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
-            ( { model | plotStatus = Loading }
+            ( { model | horizon = ( setStatusPlot model.horizon Failure )}
             , I.getidates model "series" GetLastInsertionDates
             )
 
@@ -545,7 +482,7 @@ update msg model =
             )
 
         GotEditedData (Err _) ->
-            U.nocmd { model | plotStatus = Failure }
+            U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure )}
 
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
@@ -589,67 +526,6 @@ update msg model =
         RandomNumber number ->
             U.nocmd { model | randomNumber = number }
 
-        TimeZoneSelected timeZone ->
-            let
-                horizonmodel = model.horizon
-                newmodel = { model
-                               | plotStatus = Loading
-                               , horizon = { horizonmodel | timeZone = timeZone }
-                           }
-                userprefs =
-                    LocalStorageData
-                        model.horizon.horizon
-                        timeZone
-                        model.horizon.inferredFreq
-
-            in
-            ( newmodel
-            , Cmd.batch
-                ([ I.getidates newmodel "series" InsertionDates
-                 , saveToLocalStorage userprefs
-                 ] ++  getRelevantData newmodel )
-            )
-
-        InferredFreq isChecked ->
-            let
-                horizonmodel = model.horizon
-                newmodel = { model
-                               | plotStatus = Loading
-                               , horizon = { horizonmodel | inferredFreq = isChecked }
-                           }
-                userprefs =
-                    LocalStorageData
-                        model.horizon.horizon
-                        model.horizon.timeZone
-                        isChecked
-            in
-            ( newmodel
-            , Cmd.batch
-                ([ saveToLocalStorage userprefs
-                 ] ++ getRelevantData newmodel )
-            )
-
-        FromLocalStorage rawdata ->
-            case JD.decodeString localstoragedecoder rawdata of
-                Ok datadict ->
-                    let newdatadict = case model.queryBounds of
-                                        Nothing ->  datadict
-                                        Just _ ->  { datadict | horizon = Just ""}
-                    in
-                        let
-                            newmodel =
-                                { model
-                                    | plotStatus = Loading
-                                    , horizon = updatefromlocalstorage newdatadict model.horizon }
-                        in
-                        ( newmodel
-                        , M.getsysmetadata model.baseurl model.name GotMetadata "series"
-                        )
-                Err _ ->
-                    ( model
-                    , M.getsysmetadata model.baseurl model.name GotMetadata "series"
-                    )
-
         NewDates dates ->
                  let
                     minDate = Maybe.withDefault
@@ -662,8 +538,9 @@ update msg model =
                         model.horizon
                     newmodel =
                         if minDate == "" && maxDate == "" then
-                            { model | horizon = { horizonmodel | timeSeries = model.initialTs }
-                                    , zoomBounds = Nothing}
+                            { model | horizon = { horizonmodel | timeSeries = model.initialTs
+                                                , zoomBounds = Nothing}
+                            }
                         else
                             { model
                                 | horizon =
@@ -671,8 +548,8 @@ update msg model =
                                         timeSeries = Dict.filter
                                             ((\key _ -> ((key >= minDate) && (key <= maxDate))))
                                             horizonmodel.timeSeries
+                                        , zoomBounds = Just (minDate, maxDate)
                                   }
-                                , zoomBounds = Just (minDate, maxDate)
                             }
                  in
                     ( newmodel
@@ -692,11 +569,25 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-actionsHorizon : Model -> HorizonModel Entry -> List (Cmd Msg)
-actionsHorizon model horizonModel =
+defaultActions newModel =
+    getRelevantData newModel ++ [( Random.generate RandomNumber randomInt )]
+
+actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel Entry -> List (Cmd Msg)
+actionsHorizon model msg horizonModel =
     let newModel = { model | horizon = horizonModel}
     in
-    getRelevantData newModel ++ [( Random.generate RandomNumber randomInt )]
+    case msg of
+        ModuleHorizon.FromLocalStorage _ ->
+            -- This branch starts the chain of command at initialization
+            [(M.getsysmetadata model.baseurl model.name GotMetadata "series")]
+
+        Horizon.HorizonSelected _ -> defaultActions newModel
+
+        Horizon.UpdateOffset _ ->  defaultActions newModel
+
+        Horizon.TimeZoneSelected _ -> defaultActions newModel
+
+        Horizon.InferredFreq _ -> defaultActions newModel
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -1049,12 +940,12 @@ headerShowValue model =
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
     let base = UB.string "name" name
-    in case model.zoomBounds of
+    in case model.horizon.zoomBounds of
          Just (min, max) ->  [ base
                              , UB.string "startdate" min
                              , UB.string "enddate" max
                              ]
-         Nothing ->  case model.queryBounds of
+         Nothing ->  case model.horizon.queryBounds of
                         Just (min, max) ->  [ base
                                             , UB.string "startdate" min
                                             , UB.string "enddate" max
@@ -1112,7 +1003,7 @@ viewedittable model =
     in
     H.div
         [ HA.class "tables" ]
-        [ viewsavebutton model.plotStatus filtredDict
+        [ viewsavebutton model.horizon.plotStatus filtredDict
         , editTable model
         , divSaveDataTable filtredDict
         ]
@@ -1162,9 +1053,9 @@ viewrow model ( date, entry ) =
         ]
 
 
-statusText : PlotStatus -> String
+statusText : ModuleHorizon.PlotStatus -> String
 statusText plotStatus =
-    if plotStatus == Init then
+    if plotStatus == None then
         "Init"
     else if plotStatus == Loading then
         "Loading ..."
@@ -1183,12 +1074,12 @@ view model =
         , I.viewtitle model CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]
-            [ if model.plotStatus == Init
+            [ if model.horizon.plotStatus == None
               then H.text "The graph is loading, please wait"
-              else if (Dict.isEmpty model.horizon.timeSeries) && (model.plotStatus == Success)
+              else if (Dict.isEmpty model.horizon.timeSeries) && (model.horizon.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
-                   else H.text (statusText model.plotStatus)
+                   else H.text (statusText model.horizon.plotStatus)
             ]
         , I.viewgraph
             model.name
@@ -1199,6 +1090,7 @@ view model =
         , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
+
         ]
 
 
@@ -1210,15 +1102,6 @@ type alias Input =
     }
 
 
-buildBounds: String -> String -> Maybe (String, String)
-buildBounds min max =
-    if (min == "None") || (min == "")
-        then Nothing
-        else if ( max =="None" ) || ( max == "" )
-            then Nothing
-            else Just (min, max)
-
-
 init : Input -> ( Model, Cmd Msg )
 init input =
      ({ baseurl = input.baseurl
@@ -1228,7 +1111,7 @@ init input =
                     , source = "local"
                     , seriestype = I.Primary
                     , date_index = 0
-                    , horizon = initHorizon
+                    , horizon = initHorizon input.min input.max
                     , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
@@ -1236,12 +1119,9 @@ init input =
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , view_nocache = False
-                    , plotStatus = Init
                     , clipboardclass = "bi bi-clipboard"
                     , components = []
                     , componentsData = Dict.empty
-                    , queryBounds = buildBounds input.min input.max
-                    , zoomBounds = Nothing
                     }
     , Cmd.none -- The chain of command is triggerd by "FromLocalStorage" Msg
     )

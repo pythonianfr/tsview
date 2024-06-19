@@ -2,6 +2,7 @@ port module Horizon exposing
     ( HorizonModel
     , Msg(..)
     , LocalStorageData
+    , PlotStatus(..)
     , Offset
     , initHorizon
     , horizons
@@ -13,6 +14,7 @@ port module Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , updateOffset
+    , setStatusPlot
     )
 
 import Dict exposing (Dict)
@@ -51,9 +53,26 @@ type alias HorizonModel v =
     , timeSeries : Dict String v
     , timeZone : String
     , horizonChoices: OD.OrderedDict String String
+    , plotStatus : PlotStatus
+    , queryBounds: Maybe (String, String)
+    , zoomBounds: Maybe (String, String)
     }
 
-initHorizon =
+type PlotStatus
+    = None
+    | Loading
+    | Success
+    | Failure
+
+buildBounds: String -> String -> Maybe (String, String)
+buildBounds min max =
+    if (min == "None") || (min == "")
+        then Nothing
+        else if ( max =="None" ) || ( max == "" )
+            then Nothing
+            else Just (min, max)
+
+initHorizon min max =
     { offset = 0
     , horizon = Just defaultHorizon
     , inferredFreq = False
@@ -62,6 +81,9 @@ initHorizon =
     , timeSeries = Dict.empty
     , timeZone = "UTC"
     , horizonChoices = horizons
+    , queryBounds = buildBounds min max
+    , zoomBounds = Nothing
+    , plotStatus = None
     }
 
 
@@ -138,6 +160,10 @@ horizons =  OD.fromList
     ]
 
 
+setStatusPlot: HorizonModel v -> PlotStatus ->HorizonModel v
+setStatusPlot model status=
+    { model | plotStatus = status}
+
 updateHorizon : ( HorizonModel v -> ( List ( Cmd msg ))) -> Msg -> HorizonModel v -> ( HorizonModel v, Cmd msg )
 updateHorizon actions msg model =
     let previousOffset = model.offset
@@ -153,20 +179,26 @@ updateHorizon actions msg model =
 
                 newmodel = updateInternalHorizon horizon model
             in
-            ( newmodel
+            let updatedModel =  { newmodel | queryBounds = Nothing
+                                           , zoomBounds = Nothing
+                                           , plotStatus = Loading}
+            in
+            ( updatedModel
             , Cmd.batch
-                ( [ saveToLocalStorage userprefs ] ++ (actions newmodel)
+                ( [ saveToLocalStorage userprefs ] ++ (actions updatedModel)
                 )
             )
 
         UpdateOffset (Left i) ->
-            let newmodel = { model | offset = (previousOffset + i) }
+            let newmodel = { model | offset = (previousOffset + i)
+                                   , plotStatus = Loading}
             in
             ( newmodel
             , Cmd.batch ( actions newmodel ))
 
         UpdateOffset (Right i) ->
-            let newmodel = { model | offset = (previousOffset - i) }
+            let newmodel = { model | offset = (previousOffset - i)
+                                   , plotStatus = Loading}
             in
             ( newmodel
              , Cmd.batch ( actions newmodel ))
@@ -174,9 +206,13 @@ updateHorizon actions msg model =
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
+                    let newdatadict = case model.queryBounds of
+                                    Nothing ->  datadict
+                                    Just _ ->  { datadict | horizon = Just ""}
+                    in
                     let
                         newmodel =
-                             updatefromlocalstorage datadict model
+                             updatefromlocalstorage newdatadict model
                     in
                     ( newmodel
                      , Cmd.batch ( actions newmodel ))
@@ -188,7 +224,8 @@ updateHorizon actions msg model =
         TimeZoneSelected timeZone ->
             let
                 newmodel =
-                    { model | timeZone = timeZone }
+                    { model | timeZone = timeZone
+                            , plotStatus = Loading}
                 userprefs =
                     LocalStorageData
                         model.horizon
@@ -204,7 +241,8 @@ updateHorizon actions msg model =
         InferredFreq isChecked ->
             let
                 newmodel =
-                    { model | inferredFreq = isChecked }
+                    { model | inferredFreq = isChecked
+                            , plotStatus = Loading}
 
                 userprefs =
                     LocalStorageData
@@ -251,6 +289,7 @@ updateHorizonFromData model val =
         | mindate = Tuple.first tsBounds
         , maxdate = Tuple.second tsBounds
         , timeSeries = val
+        , plotStatus = Success
     }
 
 
