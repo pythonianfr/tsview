@@ -82,7 +82,7 @@ initHorizon min max =
     , timeSeries = Dict.empty
     , timeZone = "UTC"
     , horizonChoices = horizons
-    , plotStatus = None
+    , plotStatus = Loading
     , disabled = False
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
@@ -411,11 +411,27 @@ viewdate strdate =
     else strdate
 
 
+loadingStatus: HorizonModel v -> H.Html msg
+loadingStatus model =
+    H.div
+        [ HA.class
+            ( case model.plotStatus of
+                None -> "none"
+                Loading -> "loading"
+                Success -> "success"
+                Failure -> "failure"
+            )
+        ]
+        [H.text "•"]
+
 horizonview : HorizonModel v -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
     H.div
         [ HA.class klass ]
-        [ if tzaware
+        [ H.div
+            [ HA.class "widget-loading-status" ]
+            [ loadingStatus model]
+        , if tzaware
           then H.div [] [ tzonedropdown model convertmsg ]
           else H.span [] []
         , H.div

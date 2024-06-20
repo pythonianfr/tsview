@@ -53,7 +53,20 @@ div.main-content {
 .widget-date {
     width: 10ch;
     text-align: center;
+    vertical-align:middle;
 }
+
+.widget-loading-status
+    {font-size: 30px;}
+
+.widget-loading-status .loading
+    {color: orange;}
+
+.widget-loading-status .success
+    {color: green;}
+
+.widget-loading-status .failure
+    {color: red;}
 
 form.form-inline {
     display: flex;
