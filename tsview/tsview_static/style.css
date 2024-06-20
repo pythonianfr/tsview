@@ -50,6 +50,11 @@ div.main-content {
     margin-left: .5em;
 }
 
+.widget-date {
+    width: 10ch;
+    text-align: center;
+}
+
 form.form-inline {
     display: flex;
     flex-wrap: wrap;

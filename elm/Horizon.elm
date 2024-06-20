@@ -321,11 +321,11 @@ buttonArrow convertmsg disabled direction className =
     in
     H.button
         [ HA.class className
-        , HA.disabled disabled]
+        , HA.disabled disabled
+        , HE.onClick ( convertmsg (UpdateOffset (arrow 1)))]
         [ H.i
-            [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
-            , HE.onClick ( convertmsg (UpdateOffset (arrow 1)))
-            ] [ ]
+            [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}" ]
+            [ ]
         ]
 
 
@@ -422,13 +422,13 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow convertmsg model.disabled "left" "btn btn-outline-dark btn-sm" ]
         , H.div
-            []
+            [ HA.class "widget-date" ]
             [ H.text <| viewdate model.mindate ]
         , H.div
             []
             [ selectHorizon model convertmsg]
         , H.div
-            []
+            [ HA.class "widget-date" ]
             [ H.text <| viewdate model.maxdate ]
         , H.div
             []
