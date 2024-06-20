@@ -418,6 +418,10 @@ updatedChangedHistoryIdateDebouncer =
     }
 
 
+addError: Model -> String -> String -> Model
+addError model tag error = U.adderror model (tag ++ " -> " ++ error)
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -458,7 +462,6 @@ update msg model =
                     { model
                         | errors = List.append model.errors
                           [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
-                        , horizon = (setStatusPlot model.horizon Failure)
                     }
             in
             U.nocmd newmodel
@@ -523,10 +526,23 @@ update msg model =
                 Err err ->
                     if strseries model.meta
                     then U.nocmd model
-                    else doerr "gotplotdata decode" <| D.errorToString err
+                    else
+                        U.nocmd
+                            ( addError
+                                { model | horizon = setStatusPlot
+                                                        model.horizon
+                                                        Failure }
+                                "gotplotdata decode"
+                                ( D.errorToString err ))
 
         GotPlotData (Err err) ->
-            doerr "gotplotdata error" <| U.unwraperror err
+            U.nocmd
+                ( addError
+                    { model | horizon = setStatusPlot
+                                            model.horizon
+                                            Failure }
+                    "gotplotdata decode"
+                    ( U.unwraperror err ))
 
         GotFormula (Ok rawformula) ->
             case D.decodeString I.formuladecoder rawformula of
