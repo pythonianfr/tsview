@@ -59,6 +59,7 @@ type alias Model =
     -- editor
     , editorExpanded : Bool
     , editorWidget : Widget.Model
+    , removing : Bool
     }
 
 
@@ -69,6 +70,8 @@ type Msg
     | SaveBasket
     | SavedBasket (Result Http.Error ())
     | Remove
+    | CancelRemove
+    | ConfirmRemove
     | RemovedBasket (Result Http.Error ())
     | NewName String
     | GotSeries (Result Http.Error String)
@@ -252,7 +255,13 @@ update msg model =
             doerr "savebasket http" <| U.unwraperror err
 
         Remove ->
-            ( model
+            U.nocmd { model | removing = True }
+
+        CancelRemove ->
+            U.nocmd { model | removing = False }
+
+        ConfirmRemove ->
+            ( { model | removing = False }
             , Maybe.unwrap Cmd.none (removebasket model) model.name
             )
 
@@ -511,13 +520,30 @@ viewedition model =
                   <| List.map basketoption ("" :: model.baskets)
 
         removeButton =
-            H.button
-                [ HA.type_ "button"
-                , HA.class "btn btn-info ml-2"
-                , HE.onClick Remove
-                , HA.disabled model.creating
-                ]
-                [ H.text "Remove" ]
+            if model.removing then
+                H.span [ ]
+                    [ H.button
+                        [ HA.type_ "button"
+                        , HA.class "btn btn-warning"
+                        , HE.onClick CancelRemove
+                        ]
+                        [ H.text "Cancel" ]
+                    , H.span [] [ H.text " " ]
+                    , H.button
+                        [ HA.type_ "button"
+                        , HA.class "btn btn-danger"
+                        , HE.onClick ConfirmRemove
+                        ]
+                        [ H.text "Confirm" ]
+                    ]
+            else
+                H.button
+                    [ HA.type_ "button"
+                    , HA.class "btn btn-danger ml-2"
+                    , HE.onClick Remove
+                    , HA.disabled model.creating
+                    ]
+                    [ H.text "Delete" ]
 
         saveButton =
             let
@@ -626,6 +652,7 @@ init { baseurl, jsonSpec } =
    , series = []
    , editorExpanded = False
    , editorWidget = widget
+   , removing = False
    }
    |> \model ->
        ( model
