@@ -472,9 +472,16 @@ def tsview(tsa):
 
         types = {}
         for lispname, kname in search._OPMAP.items():
-            types[lispname] = search.query.klassbyname(kname).__sig__()
+            cls = search.query.klassbyname(kname)
+            # type object 'hascachepolicy' has no attribute '__sig__'
+            if hasattr(cls, '__sig__'):
+                types[lispname] = cls.__sig__()
 
-        return jsonify(types)
+        return_first = lambda x: 0 if x[0]=='return' else 1
+        return json.dumps([
+            (op_name, sorted(op_spec.items(), key=return_first))
+            for op_name, op_spec in types.items()
+        ])
 
     @bp.route('/queryeditor')
     def queryeditor():
@@ -485,6 +492,7 @@ def tsview(tsa):
         return render_template(
             'queryeditor.html',
             homeurl=homeurl(),
+            spec=queryspec(),
             flags_menu=flags_menu,
             title=title,
         )

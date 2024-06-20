@@ -835,6 +835,12 @@ init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
 
+setFormula : Maybe T.FormulaCode -> Model -> Model
+setFormula mFormulaCode ({editor} as model) = mFormulaCode
+    |> Maybe.withDefault ""
+    |> buildEditor editor.spec editor.returnTypeStr
+    |> updateFormula
+    |> \newEditor -> { model | editor = newEditor }
 
 -- Internal application for development
 

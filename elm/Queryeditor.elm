@@ -1,6 +1,7 @@
 module Queryeditor exposing ( main )
 
-import AceEditor as AceEditor
+import Maybe.Extra as Maybe
+
 import Browser
 import Dict
 import Filter exposing
@@ -10,7 +11,7 @@ import Filter exposing
     , parse
     , serialize
     )
-import Html as H
+import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
@@ -20,7 +21,9 @@ import Lisp
 import Metadata as M
 import Url.Builder as UB
 import Util as U
+import HtmlExtra as HEX
 
+import Editor.UI.Widget as Widget
 
 
 type alias Series =
@@ -32,6 +35,12 @@ type alias Series =
     }
 
 
+type alias BasketFormula =
+    { code : String
+    , node : FilterNode
+    }
+
+
 type alias Model =
     { baseurl : String
     -- all errors
@@ -40,30 +49,34 @@ type alias Model =
     , baskets : List String
     -- current basket
     , name : Maybe String
-    , basket : Maybe String
-    , edited : Maybe FilterNode
-    , editing : Maybe FilterNode
+    , basket : Maybe BasketFormula
+    , savedBasket : Maybe BasketFormula
     -- creation
     , creating : Bool
     , newname : String
     -- results
     , series : List Series
+    -- editor
+    , editorExpanded : Bool
+    , editorWidget : Widget.Model
     }
 
 
 type Msg
     = GotBasketNames (Result Http.Error String)
-    | SelectedBasket String
-    | GotBasketDefinition (Result Http.Error String)
-    | AceEditorMsg AceEditor.Msg
-    | SaveBasket Bool
-    | SavedBasket Bool (Result Http.Error ())
-    | Create
+    | SelectedBasket (Maybe String)
+    | GotBasketDefinition String (Result Http.Error String)
+    | SaveBasket
+    | SavedBasket (Result Http.Error ())
+    | Remove
+    | RemovedBasket (Result Http.Error ())
     | NewName String
-    | CancelCreation
     | GotSeries (Result Http.Error String)
+    | DoExpand
+    | WidgetMsg Widget.Msg
 
 
+getbaskets : Model -> Cmd Msg
 getbaskets model =
     Http.get
         { expect = Http.expectString GotBasketNames
@@ -71,50 +84,52 @@ getbaskets model =
                 [ "api",  "series", "baskets" ] [ ]
         }
 
-
+getbasket : Model -> String -> Cmd Msg
 getbasket model name =
     Http.get
-        { expect = Http.expectString GotBasketDefinition
+        { expect = Http.expectString (GotBasketDefinition name)
         , url = UB.crossOrigin model.baseurl
                 [ "api",  "series", "basket-definition" ]
                 [ UB.string "name" name ]
         }
 
+removebasket : Model -> String -> Cmd Msg
+removebasket model name = Http.request
+    { method = "DELETE"
+    , body = Http.jsonBody <| JE.object
+             [ ("name", JE.string name )
+             ]
+    , headers = [ ]
+    , timeout = Nothing
+    , tracker = Nothing
+    , url = UB.crossOrigin model.baseurl [ "api",  "series", "basket" ] [ ]
+    , expect = Http.expectWhatever <| RemovedBasket
+    }
 
-savebasket model name editing creation =
-    case editing of
-        Nothing ->
-            Cmd.none
-        Just code ->
-            Http.request
-                { method = "PUT"
-                , body = Http.jsonBody <| JE.object
-                         [ ("name", JE.string name )
-                         , ("query" , JE.string <| Lisp.serialize <| serialize code )
-                         ]
-                , headers = [ ]
-                , timeout = Nothing
-                , tracker = Nothing
-                , url = UB.crossOrigin model.baseurl
-                        [ "api",  "series", "basket" ] [ ]
-                , expect = Http.expectWhatever <| SavedBasket creation
-                }
+savebasket : Model -> String -> BasketFormula -> Cmd Msg
+savebasket model name {node} = Http.request
+    { method = "PUT"
+    , body = Http.jsonBody <| JE.object
+         [ ("name", JE.string name )
+         , ("query" , JE.string <| Lisp.serialize <| serialize node )
+         ]
+    , headers = [ ]
+    , timeout = Nothing
+    , tracker = Nothing
+    , url = UB.crossOrigin model.baseurl [ "api",  "series", "basket" ] [ ]
+    , expect = Http.expectWhatever SavedBasket
+    }
 
+tryfilter : Model -> BasketFormula -> Cmd Msg
+tryfilter model {node} = Http.get
+    { expect = Http.expectString GotSeries
+    , url = UB.crossOrigin
+        model.baseurl
+        [ "api",  "series", "find" ]
+        [ UB.string "query" <| Lisp.serialize <| serialize node ]
+    }
 
-tryfilter model editing =
-    case editing of
-        Nothing ->
-            Cmd.none
-        Just code ->
-            Http.get
-                { expect = Http.expectString GotSeries
-                , url = UB.crossOrigin model.baseurl
-                        [ "api",  "series", "find" ]
-                      [ UB.string "query" <| Lisp.serialize <| serialize code ]
-                }
-
-
-
+seriesdecoder : JD.Decoder Series
 seriesdecoder =
     JD.map5 Series
         (JD.field "name" JD.string)
@@ -128,6 +143,7 @@ serieslistdecoder =
     JD.list seriesdecoder
 
 
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     let
         doerr tag error =
@@ -138,16 +154,17 @@ update msg model =
             case JD.decodeString (JD.list JD.string) rawbaskets of
                 Ok baskets ->
                     let
-                        first =
-                            List.head baskets
+                        name =
+                            Maybe.or (model.name) (List.head baskets)
                     in
                     ( { model
                           | baskets = baskets
-                          , name = first
+                          , name = name
                       }
-                    , case first of
-                          Nothing -> Cmd.none
-                          Just head -> getbasket model head
+                    , Maybe.unwrap
+                        (U.sendCmd SelectedBasket Nothing)
+                        (getbasket model)
+                        name
                     )
 
                 Err err ->
@@ -156,97 +173,101 @@ update msg model =
         GotBasketNames (Err err) ->
             doerr "getbasketnames http" <| U.unwraperror err
 
-        SelectedBasket name ->
-            ( { model | name = Just name }
-            , Cmd.batch
-                [ getbasket model name
-                , tryfilter model model.editing
-                ]
+        SelectedBasket Nothing ->
+            let
+                (wid, cmd) = Widget.setFormula Nothing model.editorWidget
+            in
+            ( { model
+                | name = Nothing
+                , creating = True
+                , basket = Nothing
+                , savedBasket = Nothing
+                , newname = ""
+                , editorExpanded = True
+                , editorWidget = wid
+                , series = []
+              }
+            , Cmd.map WidgetMsg cmd
             )
 
-        GotBasketDefinition (Ok rawbasket) ->
+        SelectedBasket (Just name) ->
+            ( { model
+                | name = Just name
+                , creating = False
+              }
+            , getbasket model name
+            )
+
+        GotBasketDefinition name (Ok rawbasket) ->
             case JD.decodeString JD.string rawbasket of
                 Ok def ->
                     case fromlisp def of
                         Ok parsed ->
+                            let
+                                basketormula =
+                                    { code = def, node = parsed }
+
+                                (wid, cmd) = Widget.setFormula
+                                    (Just basketormula.code)
+                                    model.editorWidget
+                            in
                             ( { model
-                                  | basket = Just def
-                                  , edited = Just parsed
-                                  , editing = Just parsed
+                                  | basket = Just basketormula
+                                  , savedBasket = Just basketormula
+                                  , newname = name
+                                  , editorExpanded = False
+                                  , editorWidget = wid
                               }
-                            , tryfilter model <| Just parsed
+                            , Cmd.batch
+                                [ tryfilter model basketormula
+                                , Cmd.map WidgetMsg cmd
+                                ]
                             )
                         Err err -> doerr "parse basket" err
                 Err err ->
                     doerr "getbasketdefinition decode" <| JD.errorToString err
 
-        GotBasketDefinition (Err err) ->
+        GotBasketDefinition _ (Err err) ->
             doerr "getbasketdefinition http" <| U.unwraperror err
 
-        AceEditorMsg (AceEditor.Edited code) ->
-            case fromlisp code of
-                Ok root ->
-                    ( { model | editing = Just root }
-                    , tryfilter model <| Just root
-                    )
-                Err _ ->
-                    U.nocmd model
 
-        SaveBasket creating ->
-            let
-                name =
-                    case creating of
-                        True -> model.newname
-                        _ ->  (Maybe.withDefault "" model.name)
-            in
+        SaveBasket ->
             ( model
-            , savebasket model name model.editing creating
+            , Maybe.unwrap
+                Cmd.none
+                (savebasket model model.newname)
+                model.basket
             )
 
-        SavedBasket creating (Ok _) ->
-            let
-                cmd =
-                    case creating of
-                        True ->
-                            getbaskets model
-                        _ ->
-                            Cmd.none
-                newmodel =
-                    case creating of
-                        True ->
-                            { model
-                                | basket = Just model.newname
-                                , creating = False
-                            }
-                        _ ->
-                            model
-            in
-            ( { newmodel | edited = model.editing }
-            , cmd
+        SavedBasket (Ok _) ->
+            ( { model
+                | name = Just model.newname
+                , savedBasket = model.basket
+                , creating = False
+              }
+            , getbaskets model
             )
 
-        SavedBasket _ (Err err) ->
+        SavedBasket (Err err) ->
             doerr "savebasket http" <| U.unwraperror err
 
-        Create ->
-            U.nocmd { model
-                        | creating = True
-                        , basket = Nothing
-                        , editing = Nothing
-                        , edited = Nothing
-                    }
+        Remove ->
+            ( model
+            , Maybe.unwrap Cmd.none (removebasket model) model.name
+            )
+
+        RemovedBasket (Ok _) ->
+            ( { model
+                | name = Nothing
+              }
+            , getbaskets model
+            )
+
+        RemovedBasket (Err err) ->
+            doerr "removebasket http" <| U.unwraperror err
 
         NewName name ->
             U.nocmd { model | newname = name }
-
-        CancelCreation ->
-            ( { model
-                  | creating = False
-                  , editing = Nothing
-                  , edited = Nothing
-              }
-            , getbasket model <| Maybe.withDefault "" model.name
-            )
 
         GotSeries (Ok things) ->
             case JD.decodeString serieslistdecoder things of
@@ -258,6 +279,43 @@ update msg model =
 
         GotSeries (Err err) ->
             doerr "getseries http" <| U.unwraperror err
+
+        DoExpand ->
+            U.nocmd { model | editorExpanded = not model.editorExpanded }
+
+        WidgetMsg (Widget.NewFormula Nothing) ->
+            ( { model
+                | basket = Nothing
+                , series = []
+              }
+            , Cmd.none
+            )
+
+        WidgetMsg (Widget.NewFormula (Just code)) ->
+            case fromlisp code of
+                Ok parsed ->
+                    let
+                        basketormula =
+                            { code = code, node = parsed }
+                    in
+                    ( { model | basket = Just basketormula }
+                    , tryfilter model basketormula
+                    )
+                Err err -> doerr "parse basked" err
+
+        WidgetMsg x -> Tuple.mapBoth
+            (\m -> { model | editorWidget = m })
+            (Cmd.map WidgetMsg)
+            (Widget.update x model.editorWidget)
+
+
+hasEditedFormula : Model -> Bool
+hasEditedFormula {basket, savedBasket, creating} =
+    Maybe.map2
+        (\current saved -> current.node /= saved.node)
+        basket
+        savedBasket
+        |> Maybe.withDefault (False || creating)
 
 
 strvalue: Value -> String
@@ -356,52 +414,7 @@ viewterm term  =
                 ]
 
 
-viewtree tree =
-    case tree of
-        Nothing -> H.span [] []
-        Just edited ->
-            viewterm edited
-
-
-editorHeight =
-    HA.attribute "style" "--min-height-editor: 36vh"
-
-
-vieweditor model =
-    let
-        code =
-            case model.basket of
-                Nothing -> ""
-                Just thing -> thing
-        goodname =
-            case model.creating of
-                True ->
-                    (model.newname /= "") && (not <| List.member model.newname model.baskets)
-                _ ->
-                    True
-    in
-    H.div
-        [ HA.class "code_left"
-        ,  editorHeight
-        ]
-        [ AceEditor.edit AceEditor.default Nothing code True |> H.map AceEditorMsg
-        , case model.editing of
-              Nothing -> H.span [] []
-              Just lastvalidedit ->
-                  H.div
-                      []
-                      [ H.text "Last valid state:"
-                      , viewtree model.editing
-                      , H.button
-                          [ HA.class "btn btn-primary"
-                          , HA.disabled <| (not goodname) || (model.editing == model.edited)
-                          , HE.onClick <| SaveBasket model.creating
-                          ]
-                          [ H.text "Save" ]
-                      ]
-        ]
-
-
+viewseries : Model -> Html Msg
 viewseries model =
     let
         item elt =
@@ -465,93 +478,163 @@ viewerrors model =
     H.div [] <| List.map viewitem model.errors
 
 
+viewedition : Model -> List (Html Msg)
 viewedition model =
     let
         unpacksbasket basketname =
-            JD.succeed <| SelectedBasket basketname
+            JD.succeed <| SelectedBasket <| if basketname == "" then
+                Nothing
+            else
+                Just basketname
 
         basketoption basketname =
-            H.option
-                [ HA.value basketname ]
-                [ H.text basketname ]
+            let
+                txt =
+                    if basketname == "" then
+                        U.fromCharCode 127381
+                    else
+                        basketname
+            in H.option
+                [ HA.value basketname
+                , HEX.attributeMaybe
+                    (\name -> HA.selected (name == basketname))
+                    model.name
+                ]
+                [ H.text txt ]
 
         basketslist =
-            [ H.select
+            H.select
                   [ HA.name "basket"
                   , HE.on "change" (JD.andThen unpacksbasket HE.targetValue)
-                  , HA.class "form-control"
+                  , HA.class "w-75"
                   ]
-                  <| List.map basketoption model.baskets
-            ]
+                  <| List.map basketoption ("" :: model.baskets)
 
+        removeButton =
+            H.button
+                [ HA.type_ "button"
+                , HA.class "btn btn-info ml-2"
+                , HE.onClick Remove
+                , HA.disabled model.creating
+                ]
+                [ H.text "Remove" ]
+
+        saveButton =
+            let
+                sameName = Maybe.unwrap
+                    False
+                    (\x -> x == model.newname)
+                    model.name
+
+                goodname =
+                    (model.newname /= "") &&
+                    (not <| List.member model.newname model.baskets)
+
+                testDis = not goodname || Maybe.isNothing model.basket
+
+                (disabled, txt) =
+                    if sameName then (False, "Save") else (testDis, "Save As")
+            in
+            H.button
+                [ HA.class "btn btn-primary ml-2"
+                , HA.disabled disabled
+                , HE.onClick SaveBasket
+                ]
+                [ H.text txt ]
+
+        saveEntry =
+            H.input
+                [ HA.attribute "type" "text"
+                , HA.class "w-75"
+                , HA.placeholder "new basket name"
+                , HA.value model.newname
+                , HE.onInput NewName
+                ]
+                [ ]
+
+        saveLine =
+            H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
+        triangleCode =
+            if model.editorExpanded then 9660 else 9654
     in
     [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
-    , H.div [] basketslist
-    , vieweditor model
-    , H.button
-        [ HA.class "btn btn-info"
-        , HE.onClick Create
+    , H.div
+        [ HA.class "container-fluid" ]
+        [ H.div [ HA.class "container-fluid" ] [ basketslist, removeButton ]
+        , HEX.viewIf (hasEditedFormula model) saveLine
         ]
-        [ H.text "Create" ]
-    , viewseries model
+    , H.div
+        [ HA.class "mt-4" ]
+        [ H.h5
+            [ HE.onClick DoExpand ]
+            [ H.text (U.fromCharCode triangleCode),  H.text " Basket Editor" ]
+        , HEX.viewIf
+            model.editorExpanded
+            (Widget.view model.editorWidget |> H.map WidgetMsg)
+        ]
+    , H.div
+        [ HA.class "mt-4" ]
+        [ H.h5
+            []
+            [ H.text "Basket"
+            , H.text (" " ++ model.newname)
+            , HEX.viewIf (hasEditedFormula model) (H.text " *")
+            ]
+        , HEX.viewMaybe (.node >> viewterm) model.basket
+        , viewseries model
+        ]
     , viewerrors model
     ]
 
 
-viewcreation model =
-    [ H.h1 [] [ H.text "Baskets" ]
-    , vieweditor model
-    , H.button
-        [ HA.class "btn btn-info"
-        , HE.onClick CancelCreation
-        ]
-        [ H.text "Cancel" ]
-    ,  H.input [ HA.attribute "type" "text"
-               , HA.class "form-control"
-               , HA.placeholder "new basket name"
-               , HA.value model.newname
-               , HE.onInput NewName
-               ] [ ]
-    , viewseries model
-    , viewerrors model
-    ]
 
-
+view : Model -> Html Msg
 view model =
     H.div
         [ ]
         [ H.div
             [ HA.class "main-content" ]
             [ H.div [ HA.class "baskets", HA.style "margin" ".5em" ] <|
-                if model.creating
-                then viewcreation model
-                else viewedition model
+                viewedition model
             ]]
 
 
 type alias Input =
-    { baseurl : String }
+    { baseurl : String
+    , jsonSpec : JD.Value
+    }
 
+
+init : Input -> ( Model, Cmd Msg )
+init { baseurl, jsonSpec } =
+   let
+        (widget, widgetCmd) = Widget.init
+            { urlPrefix = baseurl
+            , jsonSpec = jsonSpec
+            , formulaCode = Nothing
+            , returnTypeStr = "query"
+            }
+   in
+   { baseurl = baseurl
+   , errors = []
+   , baskets = []
+   , name = Nothing
+   , basket = Nothing
+   , savedBasket = Nothing
+   , creating = False
+   , newname = ""
+   , series = []
+   , editorExpanded = False
+   , editorWidget = widget
+   }
+   |> \model ->
+       ( model
+       , Cmd.batch [ Cmd.map WidgetMsg widgetCmd, getbaskets model ]
+       )
 
 main : Program Input Model Msg
 main =
        let
-           init input =
-               let
-                   model =
-                       { baseurl = input.baseurl
-                       , errors = []
-                       , baskets = []
-                       , name = Nothing
-                       , basket = Nothing
-                       , edited = Nothing
-                       , editing = Nothing
-                       , creating = False
-                       , newname = ""
-                       , series = []
-                       }
-               in
-               ( model, getbaskets model )
            sub model = Sub.none
        in
            Browser.element

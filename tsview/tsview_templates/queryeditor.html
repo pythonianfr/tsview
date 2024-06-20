@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='tree.css') }}"/>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='editor.css') }}"/>
         <link rel="stylesheet" href="{{ url_for('tsview.static', filename='style.css') }}"/>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='formula_elm.css') }}"/>
         <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}"
               rel="stylesheet"/>
         <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
@@ -27,7 +28,8 @@
          var app = Elm.Queryeditor.init({
              node: document.getElementById('app'),
              flags: {
-                 baseurl : "{{ homeurl }}"
+                 baseurl : "{{ homeurl }}",
+                 jsonSpec : {{ spec | safe }}
              }
          });
         </script>
