@@ -337,8 +337,14 @@ selectHorizon model convertmsg =
             |> D.map ( \mb -> convertmsg (HorizonSelected mb) )
             |> HE.on "change"
         ]
-        (List.map (renderhorizon model.horizon)
-            <| "All" :: (OD.keys horizons)
+        (List.map
+            (renderhorizon model.horizon)
+            ( "All" ::
+                List.filter
+                    ( if model.disabled
+                        then ( \ _ -> True)
+                        else ( \ name -> name /= "" ))
+                    (OD.keys horizons) )
         )
 
 
