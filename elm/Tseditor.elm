@@ -841,7 +841,7 @@ viewRelevantTable model =
 viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     H.table
-        [HA.class "table table-sm"]
+        [HA.class "table talbe-sm editor-values-table"]
           [ headerShowValue model
           , bodyShowValue model ]
 
@@ -918,7 +918,9 @@ buildRow model date =
     H.tr
         []
         ( List.append
-            [ H.td [] [ H.text date ]
+            [ H.th
+                [HA.class "editor-values-table-dates"]
+                [ H.text date ]
             , H.td [] [ H.text ( printValue
                                     ( Maybe.withDefault
                                           emptyEntry
@@ -936,9 +938,9 @@ headerShowValue model =
         []
         [ H.tr
             []
-            ( [ H.th [] []
-               , H.th
-                    []
+            ( [ H.th [ HA.class "editor-values-table-dates" ] []
+              , H.th
+                    [ HA.class "editor-values-table-series" ]
                     [ H.a
                         []
                         [ H.text model.name ]
@@ -969,7 +971,7 @@ queryNav model name =
 buildLink: Model -> Component -> H.Html Msg
 buildLink model comp =
     H.th
-        []
+        [ HA.class "editor-values-table-series" ]
         ( if comp.ctype /= "auto"
             then
                 [ H.a
@@ -1089,7 +1091,7 @@ view model =
               else if (Dict.isEmpty model.horizon.timeSeries) && (model.horizon.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
-                   else H.text (statusText model.horizon.plotStatus)
+                   else H.text ""
             ]
         , I.viewgraph
             model.name

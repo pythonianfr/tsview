@@ -133,6 +133,10 @@
   grid-template-columns: min-content auto ;
 }
 
+.grid-container div {
+  overflow: hidden;
+}
+
 .main-content {
     grid-area: main;
     z-index:0;

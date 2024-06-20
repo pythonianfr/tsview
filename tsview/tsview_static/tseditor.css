@@ -86,3 +86,24 @@
 .row-invalid {
     color: red;
 }
+
+.editor-values-table-dates {
+    font-size: 0.9em;
+    width:auto;
+    position: sticky;
+    left:0px;
+    background-color:white;
+    z-index:50;
+}
+
+.editor-values-table-series {
+    position: sticky;
+    top:0px;
+    background-color:white;
+}
+
+.editor-values-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
