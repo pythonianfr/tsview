@@ -14,7 +14,8 @@ div.main-content {
  }
 
 .action-container {
-    display: flex;
+    width: 100vw;
+    display:flex;
 }
 
 .action-left {
