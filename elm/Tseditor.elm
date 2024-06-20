@@ -13,6 +13,7 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , setStatusPlot
+    , setDisabled
     )
 import Horizon as ModuleHorizon
 import Http
@@ -317,6 +318,8 @@ decorateVanilla values =
                 , {value=value, override=False, edited=Nothing, index=1}))
             ( Dict.toList values ))
 
+addError: Model -> String -> String -> Model
+addError model tag error = U.adderror model (tag ++ " -> " ++ error)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -336,13 +339,15 @@ update msg model =
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
-                                    , horizon = updateHorizonFromData model.horizon indexedval
-                                }
+                                    , horizon = updateHorizonFromData model.horizon indexedval }
                 Err err ->
-                  doerr "got edit data decode" <| JD.errorToString err
+                  U.nocmd ( addError
+                                model
+                                "got edit data decode"
+                                ( JD.errorToString err ))
 
         GotEditData (Err _) ->
-            U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure )}
+            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
             case JD.decodeString
@@ -355,17 +360,22 @@ update msg model =
                                                     model.horizon
                                                     timeseries }
                             , Cmd.none )
-                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                Err err -> U.nocmd ( addError
+                                        { model | horizon = setStatusPlot model.horizon Failure }
+                                        "got value data decode"
+                                        ( JD.errorToString err ))
 
         GotValueData (Err _) ->
-            ( { model | horizon = ( setStatusPlot model.horizon Failure )} , Cmd.none)
+            ( { model | horizon = setStatusPlot model.horizon Failure }
+            , Cmd.none )
 
         GotComponents (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
                 Ok val -> let newmodel = { model | components = val}
                           in ( newmodel
                              , getDataComponents newmodel )
-                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                Err err -> U.nocmd
+                               { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotComponents (Err _) -> ( model, Cmd.none )
 

@@ -13,8 +13,8 @@ port module Horizon exposing
     , updatefromlocalstorage
     , updateHorizon
     , updateHorizonFromData
-    , updateOffset
     , setStatusPlot
+    , setDisabled
     )
 
 import Dict exposing (Dict)
@@ -54,6 +54,7 @@ type alias HorizonModel v =
     , timeZone : String
     , horizonChoices: OD.OrderedDict String String
     , plotStatus : PlotStatus
+    , disabled: Bool
     , queryBounds: Maybe (String, String)
     , zoomBounds: Maybe (String, String)
     }
@@ -81,9 +82,10 @@ initHorizon min max =
     , timeSeries = Dict.empty
     , timeZone = "UTC"
     , horizonChoices = horizons
+    , plotStatus = None
+    , disabled = False
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
-    , plotStatus = None
     }
 
 
@@ -161,8 +163,12 @@ horizons =  OD.fromList
 
 
 setStatusPlot: HorizonModel v -> PlotStatus ->HorizonModel v
-setStatusPlot model status=
+setStatusPlot model status =
     { model | plotStatus = status}
+
+setDisabled: HorizonModel v -> Bool ->HorizonModel v
+setDisabled model status =
+    { model | disabled = status }
 
 updateHorizon : ( HorizonModel v -> ( List ( Cmd msg ))) -> Msg -> HorizonModel v -> ( HorizonModel v, Cmd msg )
 updateHorizon actions msg model =
@@ -181,7 +187,8 @@ updateHorizon actions msg model =
             in
             let updatedModel =  { newmodel | queryBounds = Nothing
                                            , zoomBounds = Nothing
-                                           , plotStatus = Loading}
+                                           , plotStatus = Loading
+                                           , disabled = False }
             in
             ( updatedModel
             , Cmd.batch
@@ -206,13 +213,17 @@ updateHorizon actions msg model =
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
-                    let newdatadict = case model.queryBounds of
-                                    Nothing ->  datadict
-                                    Just _ ->  { datadict | horizon = Just ""}
+                    let (newdatadict, disabled)  = case model.queryBounds of
+                            Nothing ->  ( datadict, False)
+                            Just _ ->  ( { datadict | horizon = Just "" }, True )
                     in
                     let
                         newmodel =
-                             updatefromlocalstorage newdatadict model
+                            setDisabled
+                                ( updatefromlocalstorage
+                                    newdatadict
+                                    model )
+                                disabled
                     in
                     ( newmodel
                      , Cmd.batch ( actions newmodel ))
@@ -256,11 +267,6 @@ updateHorizon actions msg model =
                 , saveToLocalStorage userprefs
                 ]
             )
-
-
-updateOffset : Int -> HorizonModel v -> HorizonModel v
-updateOffset newOffset model =
-    { model | offset = newOffset }
 
 
 updateInternalHorizon : Maybe String -> HorizonModel v -> HorizonModel v
@@ -308,13 +314,14 @@ formatBoundDates val =
     ( U.dateof minappdate, U.dateof maxappdate )
 
 
-buttonArrow : (Msg -> msg) -> String  -> String -> H.Html msg
-buttonArrow convertmsg direction className =
+buttonArrow : (Msg -> msg) -> Bool -> String  -> String -> H.Html msg
+buttonArrow convertmsg disabled direction className =
     let
         arrow = if direction == "left" then Left else Right
     in
     H.button
-        [ HA.class className ]
+        [ HA.class className
+        , HA.disabled disabled]
         [ H.i
             [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}"
             , HE.onClick ( convertmsg (UpdateOffset (arrow 1)))
@@ -372,6 +379,7 @@ inferredfreqswitch model convertmsg =
             , HA.class "custom-control-input"
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
+            , HA.disabled model.disabled
             , HE.onCheck ( \ b ->  convertmsg (InferredFreq b) )
             ] [ ]
         , H.label
@@ -391,7 +399,9 @@ tzonedropdown model convertmsg =
 
     in
     H.select
-        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue) ]
+        [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
+        , HA.disabled model.disabled
+        ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
 
@@ -410,7 +420,7 @@ horizonview model convertmsg klass tzaware =
           else H.span [] []
         , H.div
             []
-            [ buttonArrow convertmsg "left" "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow convertmsg model.disabled "left" "btn btn-outline-dark btn-sm" ]
         , H.div
             []
             [ H.text <| viewdate model.mindate ]
@@ -422,7 +432,7 @@ horizonview model convertmsg klass tzaware =
             [ H.text <| viewdate model.maxdate ]
         , H.div
             []
-            [ buttonArrow convertmsg "right" "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow convertmsg model.disabled "right" "btn btn-outline-dark btn-sm" ]
         , H.div
             []
             [ inferredfreqswitch model convertmsg  ]
