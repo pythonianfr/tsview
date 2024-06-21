@@ -262,11 +262,11 @@ viewPlot {formulaName, plotData, plotErrMess} =
 view : Model -> Html Msg
 view model =
     H.div
-        [ HA.class "main-content" ]
+        [ HA.class "main-content formula_editor" ]
         [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
         , Tree.viewSpecErrors model.editionTree
-        , H.div [ HA.id "plot" ] []
         , viewEditor model
+        , H.div [ HA.id "plot" ] []
         , viewPlot model
         ]
 

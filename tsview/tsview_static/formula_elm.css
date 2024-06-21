@@ -9,6 +9,10 @@
     box-sizing: inherit;
 }
 
+.formula_editor div {
+    overflow: visible !important;
+}
+
 .main {
     display: grid;
     grid-template-columns:
