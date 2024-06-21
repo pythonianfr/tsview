@@ -12,8 +12,10 @@ import Json.Decode as JD
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
+import Json.Encode as JE
 import Json.Decode exposing (Value)
 import List.Nonempty as NE exposing (Nonempty)
+import Debouncer.Basic as Debouncer
 import Cmd.Extra as CX
 
 import ParserExtra
@@ -37,6 +39,7 @@ type Msg
     | UpdateName String
     | OnSave
     | SaveDone (Result String String)
+    | DebouncePlotData (Debouncer.Msg ())
     | GotPlotData (Result Http.Error String)
 
 
@@ -47,6 +50,7 @@ type alias Model =
     , lastFormulaCode : Maybe String
     , savedFormulaCode : Maybe String
     , saveErrMess : Maybe String
+    , debouncer : Debouncer.Debouncer () ()
     , plotData : Series
     , plotErrMess : Maybe String
     }
@@ -82,13 +86,17 @@ getPlotData {urlPrefix, lastFormulaCode} =
             , expect = Http.expectString GotPlotData
             }
 
-        _ -> Cmd.none
+        _ -> JE.object []
+            |> JE.encode 0
+            |> Ok
+            |> Util.sendCmd GotPlotData
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
     WidgetMsg (Widget.NewFormula formula) ->
         { model | lastFormulaCode = formula }
-            |> CX.withCmd Cmd.none -- XXX plot
+            |> CX.withCmd
+                (Util.sendCmd DebouncePlotData <|  Debouncer.provideInput ())
 
     WidgetMsg x -> Tuple.mapBoth
         (\m -> { model | editorWidget = m })
@@ -120,6 +128,19 @@ update msg model = case msg of
         { model
             | saveErrMess = Just s
         } |> CX.withNoCmd
+
+    DebouncePlotData debMsg ->
+        let
+            (debModel, debCmd, emitted) =
+                Debouncer.update debMsg model.debouncer
+
+            cmd = case emitted of
+                Just _ -> getPlotData model
+
+                Nothing -> Cmd.none
+        in
+        { model | debouncer = debModel }
+            |> CX.withCmd (Cmd.batch [ cmd, Cmd.map DebouncePlotData debCmd ])
 
     GotPlotData (Ok raw) -> case JD.decodeString seriesdecoder raw of
         Ok val ->
@@ -241,6 +262,8 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     , lastFormulaCode = code
     , savedFormulaCode = code
     , saveErrMess = Nothing
+    , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
+        |> Debouncer.toDebouncer
     , plotData = Dict.empty
     , plotErrMess = Nothing
     }
