@@ -179,20 +179,20 @@ canSave model =
     (model.savedFormulaCode /= model.lastFormulaCode)
 
 viewSave : Model -> Html Msg
-viewSave {formulaName, saveErrMess} = H.footer
-    []
-    [ H.button
-        [ HA.class "btn btn-primary"
-        , HA.disabled (Maybe.isNothing formulaName)
-        , HE.onClick OnSave
-        ]
-        [ H.text "Save as" ]
-    , H.input
-        [ HA.size 50
+viewSave {formulaName, saveErrMess} = H.div
+    [ HA.class "container-fluid mt-2" ]
+    [ H.input
+        [ HA.class "w-75"
         , HA.value <| Maybe.withDefault "" formulaName
         , HE.onInput UpdateName
         ]
         []
+    , H.button
+        [ HA.class "btn btn-primary ml-2"
+        , HA.disabled (Maybe.isNothing formulaName)
+        , HE.onClick OnSave
+        ]
+        [ H.text "Save As" ]
     , viewError saveErrMess
     ]
 
@@ -230,7 +230,6 @@ viewEditor model =
         [ CodeEditor.viewEdition model.codeEditor annotations
             |> H.map CodeEditorMsg
         , Tree.viewErrors model.editionTree
-        , HX.viewIf (canSave model) (viewSave model)
         , CodeEditor.viewLastValid model.codeEditor model.lastFormulaCode
             |> H.map CodeEditorMsg
         ]
@@ -265,6 +264,7 @@ view model =
         [ HA.class "main-content formula_editor" ]
         [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
         , Tree.viewSpecErrors model.editionTree
+        , HX.viewIf (canSave model) (viewSave model)
         , viewEditor model
         , H.div [ HA.id "plot" ] []
         , viewPlot model
