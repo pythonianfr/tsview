@@ -28,14 +28,12 @@ import Plotter exposing
     , plotargs
     )
 
-import Editor.Type exposing (getCode, ReturnTypeStr)
-import Editor.UI.Tree as Tree
-import Editor.UI.CodeEditor as CodeEditor
+import Editor.Type exposing (ReturnTypeStr)
+import Editor.UI.Widget as Widget
 
 
 type Msg
-    = CodeEditorMsg CodeEditor.Msg
-    | EditionTreeMsg Tree.Msg
+    = WidgetMsg Widget.Msg
     | UpdateName String
     | OnSave
     | SaveDone (Result String String)
@@ -44,8 +42,7 @@ type Msg
 
 type alias Model =
     { urlPrefix : String
-    , codeEditor : CodeEditor.Model
-    , editionTree : Tree.Model
+    , editorWidget : Widget.Model
     , formulaName : Maybe String
     , lastFormulaCode : Maybe String
     , savedFormulaCode : Maybe String
@@ -75,8 +72,8 @@ saveFormula {urlPrefix} name code = Http.request
     }
 
 getPlotData : Model -> Cmd Msg
-getPlotData {urlPrefix, codeEditor} =
-    case codeEditor.formulaCode of
+getPlotData {urlPrefix, lastFormulaCode} =
+    case lastFormulaCode of
         Just code -> Http.get
             { url = UB.crossOrigin
                 urlPrefix
@@ -87,41 +84,16 @@ getPlotData {urlPrefix, codeEditor} =
 
         _ -> Cmd.none
 
-updateLastFormula : Model -> String -> Model
-updateLastFormula model code =
-    if not (Tree.hasErrors model.editionTree) then
-        { model | lastFormulaCode = Just code }
-    else
-        model
-
-postUpdate : Msg -> (Model, Cmd Msg) -> (Model, Cmd Msg)
-postUpdate msg (model, cmd) = case msg of
-    EditionTreeMsg (Tree.Edit code) ->
-        (updateLastFormula model code, cmd)
-
-    CodeEditorMsg (CodeEditor.Render code) ->
-        (updateLastFormula model code, cmd)
-
-    _ ->
-        (model, cmd)
-
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model = postUpdate msg <| case msg of
-    CodeEditorMsg (CodeEditor.UserEdited code) ->
-        update (Tree.Edit code |> EditionTreeMsg) model
+update msg model = case msg of
+    WidgetMsg (Widget.NewFormula formula) ->
+        { model | lastFormulaCode = formula }
+            |> CX.withCmd Cmd.none -- XXX plot
 
-    CodeEditorMsg x -> Tuple.mapBoth
-        (\m -> { model | codeEditor = m })
-        (Cmd.map CodeEditorMsg)
-        (CodeEditor.update x model.codeEditor)
-
-    EditionTreeMsg (Tree.TreeEdited code) ->
-        update (CodeEditor.Render code |> CodeEditorMsg) model
-
-    EditionTreeMsg x -> Tuple.mapBoth
-        (\m -> { model | editionTree = m })
-        (Cmd.map EditionTreeMsg)
-        (Tree.update x model.editionTree)
+    WidgetMsg x -> Tuple.mapBoth
+        (\m -> { model | editorWidget = m })
+        (Cmd.map WidgetMsg)
+        (Widget.update x model.editorWidget)
 
     UpdateName "" ->
         { model | formulaName = Nothing } |> CX.withNoCmd
@@ -174,9 +146,12 @@ update msg model = postUpdate msg <| case msg of
 
 canSave : Model -> Bool
 canSave model =
-    (model.codeEditor.mode == CodeEditor.ReadOnly) &&
-    (not <| Tree.hasErrors model.editionTree) &&
-    (model.savedFormulaCode /= model.lastFormulaCode)
+    (Widget.isReadOnly model.editorWidget) &&
+    (Maybe.unwrap
+        False
+        (\current -> model.savedFormulaCode /= Just current)
+        model.lastFormulaCode
+    )
 
 viewSave : Model -> Html Msg
 viewSave {formulaName, saveErrMess} = H.div
@@ -200,43 +175,6 @@ viewError : Maybe String -> Html msg
 viewError mStr = HX.viewMaybe
     (\x -> H.span [ HA.class "error" ] [ H.text x ])
     mStr
-
-convertAnnotation :
-        Ace.AnnotationType -> ParserExtra.Annotation -> Ace.Annotation
-convertAnnotation annotationType {rowPos, colPos, errMess} =
-    { annotationType = annotationType
-    , rowPos = rowPos
-    , colPos = colPos
-    , message = errMess
-    }
-
-getAnnotations : ParserExtra.ParserErrors -> Ace.Annotations
-getAnnotations xs = flip NE.concatMap xs <| \{annotation, contextStack} ->
-    Maybe.unwrap
-        []
-        (NE.map (convertAnnotation Ace.Info) >> NE.toList)
-        contextStack
-        |> NE.Nonempty (convertAnnotation Ace.Warning annotation)
-
-viewEditor : Model -> Html Msg
-viewEditor model =
-    let
-        annotations =
-            Tree.getParserErrors model.editionTree  |> Maybe.map getAnnotations
-
-    in H.article [ HA.class "main" ]
-    [ H.div
-        [ HA.class "code_left" ]
-        [ CodeEditor.viewEdition model.codeEditor annotations
-            |> H.map CodeEditorMsg
-        , Tree.viewErrors model.editionTree
-        , CodeEditor.viewLastValid model.codeEditor model.lastFormulaCode
-            |> H.map CodeEditorMsg
-        ]
-    , H.div
-        [ HA.class "code_right" ]
-        [ H.map EditionTreeMsg (Tree.view model.editionTree) ]
-    ]
 
 viewPlot : Model -> Html Msg
 viewPlot {formulaName, plotData, plotErrMess} =
@@ -263,9 +201,9 @@ view model =
     H.div
         [ HA.class "main-content formula_editor" ]
         [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
-        , Tree.viewSpecErrors model.editionTree
+        , Widget.viewSpecErrors model.editorWidget
         , HX.viewIf (canSave model) (viewSave model)
-        , viewEditor model
+        , Widget.view model.editorWidget |> H.map WidgetMsg
         , H.div [ HA.id "plot" ] []
         , viewPlot model
         ]
@@ -288,18 +226,17 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     let
-        (editionTree, treeCmd) = Tree.init
+        (wid, cmd) = Widget.init
             { urlPrefix = urlPrefix
             , jsonSpec = jsonSpec
             , formulaCode = Maybe.map .code formula
             , returnTypeStr = returnTypeStr
             }
 
-        code = Just <| getCode editionTree.editor.currentFormula
+        code = Widget.getFormula wid
     in
     { urlPrefix = urlPrefix
-    , codeEditor = CodeEditor.init
-    , editionTree = editionTree
+    , editorWidget = wid
     , formulaName = Maybe.map .name formula
     , lastFormulaCode = code
     , savedFormulaCode = code
@@ -307,10 +244,7 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     , plotData = Dict.empty
     , plotErrMess = Nothing
     }
-    |> CX.withCmd (Cmd.batch
-        [ (Cmd.map EditionTreeMsg <| Tree.sendTreeEdited editionTree)
-        , (Cmd.map EditionTreeMsg treeCmd)
-        ])
+    |> CX.withCmd (Cmd.map WidgetMsg cmd)
 
 main : Program Flags Model Msg
 main = Browser.element

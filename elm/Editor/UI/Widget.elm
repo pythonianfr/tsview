@@ -46,6 +46,17 @@ init flags =
         , (Cmd.map EditionTreeMsg treeCmd)
         ])
 
+viewSpecErrors : Model -> Html msg
+viewSpecErrors {editionTree} = Tree.viewSpecErrors editionTree
+
+isReadOnly : Model -> Bool
+isReadOnly model = model.codeEditor.mode == CodeEditor.ReadOnly
+
+getFormula : Model -> Maybe FormulaCode
+getFormula {editionTree} =
+    Either.toMaybe editionTree.editor.currentFormula
+        |> Maybe.map Tuple.first
+
 setFormula : Maybe FormulaCode -> Model -> (Model, Cmd Msg)
 setFormula code {editionTree} =
     let
