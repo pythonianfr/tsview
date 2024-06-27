@@ -36,6 +36,7 @@
             "j-maas/elm-ordered-containers": "1.0.0",
             "jorgengranseth/elm-string-format": "1.0.1",
             "justinmimbs/date": "4.1.0",
+            "jweir/elm-iso8601": "7.0.1",
             "jzxhuang/http-extras": "2.1.0",
             "klazuka/elm-json-tree-view": "2.1.0",
             "langyu-app/elm-ancillary-nonempty-list": "1.6.0",
