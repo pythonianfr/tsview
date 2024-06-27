@@ -62,3 +62,38 @@ dateDiffSuite = T.concat
                 (D.dateDiff ["2024-01-01T01:00:00.000Z"]
                 )
     ]
+
+
+medianValueSuite : T.Test
+medianValueSuite = T.concat
+    [ T.test
+        """
+        Calculate the median of a list of date intervals.
+        In this example, the median is 17 days.
+        """ <|
+            \_ -> E.equal
+                (Just "17 days")
+                (D.medianValue
+                    ["2024-01-16"
+                    ,"2024-02-05"
+                    ,"2024-03-09"
+                    ,"2024-03-21"
+                    ,"2024-04-01"
+                    ,"2024-04-18"
+                    ,"2024-04-26"
+                    ,"2024-05-07"
+                    ,"2024-06-01"
+                    ,"2024-07-09"
+                    ,"2024-08-05"
+                    ,"2024-08-17"
+                    ,"2024-09-03"
+                    ,"2024-09-15"
+                    ,"2024-09-22"
+                    ,"2024-10-04"
+                    ,"2024-10-13"
+                    ,"2024-11-02"
+                    ,"2024-12-05"
+                    ,"2024-12-23"
+                    ]
+                )
+    ]
