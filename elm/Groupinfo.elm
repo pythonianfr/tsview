@@ -606,7 +606,7 @@ view model =
                             [ A.class "page-title" ]
                             [ text "Group Info" ]
                         , I.viewdeletion model deleteEvents ]
-                    , I.viewtitle model CopyNameToClipboard
+                    , I.viewtitle model Nothing CopyNameToClipboard
                     , viewbindings model
                     , case model.activetab of
                         Plot ->

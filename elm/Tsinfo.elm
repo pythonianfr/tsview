@@ -3,6 +3,7 @@ port module Tsinfo exposing (main)
 import Array exposing (Array)
 import Browser
 import Browser.Navigation exposing (load)
+import Dateinterval exposing (medianValue)
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
@@ -1218,7 +1219,7 @@ view model =
             NewValue
             SaveMeta
             AddMetaItem
-
+        maybeMedian = medianValue (Dict.keys model.horizon.timeSeries)
     in
     H.div
         []
@@ -1231,7 +1232,7 @@ view model =
                       [ I.viewdeletion model deleteEvents
                       , I.viewrenameaction model renameEvents
                       ]
-                , I.viewtitle model CopyNameToClipboard
+                , I.viewtitle model maybeMedian CopyNameToClipboard
                 , case model.activetab of
                       Plot ->
                           if strseries model.meta

@@ -2,6 +2,7 @@ port module Tseditor exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
 import Set exposing (Set)
 import Horizon exposing
@@ -1079,11 +1080,14 @@ statusText plotStatus =
 
 view : Model -> H.Html Msg
 view model =
+    let
+        maybeMedian = medianValue (Dict.keys model.horizon.timeSeries)
+    in
     H.div
         [ HA.class "main-content" ]
         [ H.span [ HA.class "action-container" ]
               <| I.viewactionwidgets model convertMsg False "Series Editor"
-        , I.viewtitle model CopyNameToClipboard
+        , I.viewtitle model maybeMedian CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]
             [ if model.horizon.plotStatus == None
