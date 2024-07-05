@@ -1,4 +1,5 @@
 import io
+import json
 from pathlib import Path
 import pandas as pd
 
@@ -252,27 +253,73 @@ def test_group_formulas(client, tsa):
 
 def test_spec_types(client):
     res = client.get('/queryspec')
-    assert res.json == {
-        '<': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
-        '<=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
-        '=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
-        '>': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
-        '>=': {'key': 'str', 'return': 'query', 'value': 'Union[str, Number, bool]'},
-        'by.and': {'items': 'Packed[query]', 'return': 'query'},
-        'by.everything': {'return': 'query'},
-        'by.internal-metaitem': {'key': 'str',
-                                 'return': 'query',
-                                 'value': 'Union[str, Number, bool]'},
-        'by.metaitem': {'key': 'str',
-                        'return': 'query',
-                        'value': 'Union[str, Number, bool]'},
-        'by.metakey': {'key': 'str', 'return': 'query'},
-        'by.name': {'query': 'str', 'return': 'query'},
-        'by.not': {'item': 'query', 'return': 'query'},
-        'by.or': {'items': 'Packed[query]', 'return': 'query'},
-        'by.source': {'query': 'query', 'return': 'query'},
-        'by.tzaware': {'return': 'query'}
-    }
+    assert json.loads(res.body) == [
+        ['by.everything', [
+            ['return', 'query']
+        ]],
+        ['by.and', [
+            ['return', 'query'],
+            ['items', 'Packed[query]']
+        ]],
+        ['by.or', [
+            ['return', 'query'],
+            ['items', 'Packed[query]']
+        ]],
+        ['by.not', [
+            ['return', 'query'],
+            ['item', 'query']
+        ]],
+        ['by.tzaware', [
+            ['return', 'query']
+        ]],
+        ['by.name', [
+            ['return', 'query'],
+            ['query', 'str']
+        ]],
+        ['by.metakey', [
+            ['return', 'query'],
+            ['key', 'str']
+        ]],
+        ['by.metaitem', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['by.internal-metaitem', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['by.source', [
+            ['return', 'query'],
+            ['query', 'query']
+        ]],
+        ['<', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['<=', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['>', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['>=', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]],
+        ['=', [
+            ['return', 'query'],
+            ['key', 'str'],
+            ['value', 'Union[str, Number, bool]']
+        ]]
+    ]
 
 
 def test_formula_form_base(engine, client, tsa):
