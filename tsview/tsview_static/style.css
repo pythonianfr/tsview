@@ -180,3 +180,7 @@ label.option {
 .quickview #plotly_div {
     padding-top:20px;
 }
+
+.js-plotly-plot div {
+    overflow: visible !important;
+}
