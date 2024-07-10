@@ -181,6 +181,10 @@ label.option {
     padding-top:20px;
 }
 
+.quickview .btn-primary {
+    color: white !important;
+}
+
 .js-plotly-plot div {
     overflow: visible !important;
 }
