@@ -263,7 +263,7 @@ updateHorizon actions msg model =
             in
             ( newmodel
             , Cmd.batch
-                [ Cmd.batch ( actions model )
+                [ Cmd.batch ( actions newmodel )
                 , saveToLocalStorage userprefs
                 ]
             )
