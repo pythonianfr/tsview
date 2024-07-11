@@ -55,11 +55,11 @@ medianValue listStringDates =
                 seconds = Basics.modBy 60 totalSeconds
                 milliseconds = Basics.modBy 1000 medianInt
                 converted =
-                    [ (days, String.fromInt days ++ " days")
-                    , (hours, String.fromInt hours ++ " hours")
-                    , (minutes, String.fromInt minutes ++ " minutes")
-                    , (seconds, String.fromInt seconds ++ " seconds")
-                    , (milliseconds, String.fromInt milliseconds ++ " milliseconds")
+                    [ (days, String.fromInt days ++ if days <= 1 then " day" else " days")
+                    , (hours, String.fromInt hours ++ if hours <= 1 then " hour" else " hours")
+                    , (minutes, String.fromInt minutes ++ if minutes <= 1 then " minute" else " minutes")
+                    , (seconds, String.fromInt seconds ++ if seconds <= 1 then " second" else " seconds")
+                    , (milliseconds, String.fromInt milliseconds ++ if milliseconds <= 1 then " millisecond" else " milliseconds")
                     ]
                         |> List.filter (\(time, _) -> time /= 0)
                         |> List.map (\(_, strTime) -> strTime)
