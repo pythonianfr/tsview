@@ -7,6 +7,7 @@ port module Horizon exposing
     , initHorizon
     , horizons
     , horizonview
+    , getFromToDates
     , saveToLocalStorage
     , loadFromLocalStorage
     , localstoragedecoder
@@ -161,6 +162,14 @@ horizons =  OD.fromList
       )
     ]
 
+getFromToDates: HorizonModel v  -> ( String, String)
+getFromToDates model =
+    case model.zoomBounds of
+         Just ( min, max ) ->  ( min, max )
+         Nothing ->  case model.queryBounds of
+                        Just ( min, max ) ->  ( min, max )
+                        Nothing ->  ( Maybe.unwrap "" (always model.mindate) model.horizon
+                                    , Maybe.unwrap "" (always model.maxdate) model.horizon )
 
 setStatusPlot: HorizonModel v -> PlotStatus ->HorizonModel v
 setStatusPlot model status =

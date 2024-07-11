@@ -10,6 +10,7 @@ import Horizon exposing
     , PlotStatus(..)
     , initHorizon
     , horizons
+    , getFromToDates
     , loadFromLocalStorage
     , updateHorizon
     , updateHorizonFromData
@@ -959,20 +960,11 @@ headerShowValue model =
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
     let base = UB.string "name" name
-    in case model.horizon.zoomBounds of
-         Just (min, max) ->  [ base
-                             , UB.string "startdate" min
-                             , UB.string "enddate" max
-                             ]
-         Nothing ->  case model.horizon.queryBounds of
-                        Just (min, max) ->  [ base
-                                            , UB.string "startdate" min
-                                            , UB.string "enddate" max
-                                            ]
-                        Nothing ->  [ base
-                                    , UB.string "startdate" ( getFromHorizon model )
-                                    , UB.string "enddate" ( getToHorizon model )
-                                    ]
+        ( min, max ) = getFromToDates model.horizon
+    in [ base
+       , UB.string "startdate" min
+       , UB.string "enddate" max
+       ]
 
 
 buildLink: Model -> Component -> H.Html Msg
