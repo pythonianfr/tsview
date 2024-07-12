@@ -558,7 +558,7 @@ update msg model =
                                   { horizonmodel |
                                         timeSeries = Dict.filter
                                             ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                                            horizonmodel.timeSeries
+                                            model.initialTs
                                         , zoomBounds = Just (minDate, maxDate)
                                   }
                             }
