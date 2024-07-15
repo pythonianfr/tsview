@@ -108,16 +108,17 @@ scatterplot =
     Trace "scatter"
 
 
-encodeplotargs div data title =
+encodeplotargs div data title dragMode =
     E.object
         [ ( "div", E.string div )
         , ( "data", E.list encodetrace data )
-        , ( "layout", (E.object [("title", E.string title)]) )
+        , ( "layout", (E.object [("title", E.string title)
+                                , ("dragmode", E.string dragMode)]) )
         ]
 
 
-plotargs div data title =
-    encodeplotargs div data title |> E.encode 0
+plotargs div data title dragMode =
+    encodeplotargs div data title dragMode |> E.encode 0
 
 
 -- getdata : PlotQuery query -> Cmd msg

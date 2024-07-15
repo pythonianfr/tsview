@@ -14,11 +14,10 @@
                      {% if function_type == 'info' or function_type == 'editor' %}
                      args.layout,
                      {
-                         displaylogo: false,
-                         displayModeBar: true,
-                         displaylogo: false,
-                         responsive: true,
-                         modeBarButtonsToRemove: ['sendDataToCloud']
+                        displaylogo: false,
+                        displayModeBar: true,
+                        responsive: true,
+                        modeBarButtonsToRemove: ['sendDataToCloud'],
                      }
                      {% elif function_type == 'groupinfo' or function_type == 'formula' %}
                      {showlegend: false},
@@ -31,17 +30,27 @@
                  {% if function_type == 'info' or function_type == 'editor' %}
                  document.getElementById(args.div).on(
                      'plotly_relayout', function(eventData) {
-                         var range;
-                         if (eventData['xaxis.range[0]'] !== undefined
-                             && eventData['xaxis.range[1]'] !== undefined) {
+                         let range;
+                         let panactive;
+                         panactive = false;
+                         range = ["", ""];
+                         if ('dragmode' in eventData) {
+                            if (eventData['dragmode'] == 'pan') {
+                                panactive = true;
+                            };
+                            if (eventData['dragmode'] == 'zoom') {
+                                app.ports.dateInInterval.send(range);
+                            }
+                            app.ports.panActive.send(panactive);
+                         };
+                         if ('xaxis.range[0]' in eventData
+                             && 'xaxis.range[1]'in eventData) {
                              range = [
                                  eventData['xaxis.range[0]'],
                                  eventData['xaxis.range[1]']
                              ];
-                         } else {
-                             range = ["", ""];
-                         }
-                         app.ports.dateInInterval.send(range);
+                             app.ports.dateInInterval.send(range);
+                         };
                      }
                  );
                  {% endif %}

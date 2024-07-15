@@ -407,7 +407,7 @@ view model =
                         )
                         model.search.selected
             in
-            plotargs plotDiv data ""
+            plotargs plotDiv data "" "zoom"
 
         selector =
             let

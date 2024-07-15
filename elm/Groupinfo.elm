@@ -493,7 +493,7 @@ viewplot model =
         plots = List.map plot <| Dict.toList groupdata
 
         args =
-            plotargs "plot" plots ""
+            plotargs "plot" plots "" "zoom"
     in
     div [ ]
         [ viewdatespicker

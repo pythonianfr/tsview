@@ -207,7 +207,7 @@ viewPlot {formulaName, plotData, plotErrMess} =
             (Dict.values plotData)
             "lines"
             Plotter.defaultoptions
-        args = plotargs "plot" [plot] name
+        args = plotargs "plot" [plot] name "zoom"
     in
     -- the "plot-figure" node is pre-built in the template side
     -- (html component)

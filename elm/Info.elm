@@ -625,7 +625,7 @@ viewlogentry entry =
         ]
 
 
-viewgraph name tskeys tsvalues title options =
+viewgraph name tskeys tsvalues title dragMode options =
     let
         plot =
             scatterplot
@@ -635,7 +635,7 @@ viewgraph name tskeys tsvalues title options =
                 "lines"
                 options
         args =
-            plotargs "plot" [ plot ] title
+            plotargs "plot" [ plot ] title dragMode
     in
     H.div
         [ ]
@@ -691,6 +691,7 @@ viewHistoryGraph model =
             "plot-history"
             (List.map formatLine (Dict.toList model.historyPlots))
             title
+            "zoom"
     in
     H.div
         [ ]
@@ -719,7 +720,7 @@ viewHoverGraph dictData =
                 "lines"
                 options
         hoverArgs =
-            plotargs "plot-hover" [ plot ] title
+            plotargs "plot-hover" [ plot ] title "zoom"
     in
     H.div
         [ ]

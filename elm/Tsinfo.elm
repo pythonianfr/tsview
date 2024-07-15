@@ -1122,6 +1122,7 @@ viewplot model =
                 (Dict.keys ts)
                 (Dict.values ts)
                 ""
+                "zoom"
                 defaultoptions
             , viewDatesRange
                 model.firstIdates
@@ -1157,7 +1158,7 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) "" defaultoptions
+            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) "" "zoom" defaultoptions
             ]
 
 

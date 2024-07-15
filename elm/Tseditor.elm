@@ -40,6 +40,7 @@ import Task as T
 
 port copyToClipboard : String -> Cmd msg
 port dateInInterval : (List String -> msg) -> Sub msg
+port panActive : (Bool -> msg) -> Sub msg
 
 
 type alias Model =
@@ -59,6 +60,7 @@ type alias Model =
     , view_nocache : Bool
     , randomNumber : Int
     , clipboardclass : String
+    , panActive : Bool
     -- show-values for formula
     , components : List Component
     , componentsData: Dict String Series
@@ -81,6 +83,7 @@ type Msg
     | GetLastEditedData (Result Http.Error String)
     | RandomNumber Int
     | NewDates (List String)
+    | NewDragMode Bool
     | CopyNameToClipboard
     | ResetClipboardClass
 
@@ -567,6 +570,8 @@ update msg model =
                     , Random.generate RandomNumber randomInt
                     )
 
+        NewDragMode panIsActive ->
+            U.nocmd { model | panActive = panIsActive }
 
         CopyNameToClipboard ->
             ( { model | clipboardclass = "bi bi-check2" }
@@ -1082,6 +1087,10 @@ view : Model -> H.Html Msg
 view model =
     let
         maybeMedian = medianValue (Dict.keys model.horizon.timeSeries)
+        dragMode =
+            if model.panActive
+            then "pan"
+            else "zoom"
     in
     H.div
         [ HA.class "main-content" ]
@@ -1102,6 +1111,7 @@ view model =
             (Dict.keys model.horizon.timeSeries)
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
             ""
+            dragMode
             defaultoptions
         , permaLink model
         , viewRelevantTable model
@@ -1136,6 +1146,7 @@ init input =
                     , initialTs = Dict.empty
                     , view_nocache = False
                     , clipboardclass = "bi bi-clipboard"
+                    , panActive = False
                     , components = []
                     , componentsData = Dict.empty
                     }
@@ -1152,6 +1163,7 @@ main =
         , subscriptions =
           \_ -> Sub.batch
                 [ dateInInterval NewDates
+                , panActive NewDragMode
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
                 ]
