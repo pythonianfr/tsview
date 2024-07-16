@@ -40,7 +40,8 @@ import JsonTree as JT exposing (TaggedValue(..))
 import Lisp
 import List.Extra as List
 import Plotter exposing
-    ( plotargs
+    ( defaultLayoutOptions
+    , plotargs
     , scatterplot
     )
 import Metadata as M
@@ -625,7 +626,7 @@ viewlogentry entry =
         ]
 
 
-viewgraph name tskeys tsvalues title dragMode options =
+viewgraph name tskeys tsvalues layoutOptions options =
     let
         plot =
             scatterplot
@@ -635,7 +636,7 @@ viewgraph name tskeys tsvalues title dragMode options =
                 "lines"
                 options
         args =
-            plotargs "plot" [ plot ] title dragMode
+            plotargs "plot" [ plot ] layoutOptions
     in
     H.div
         [ ]
@@ -690,8 +691,7 @@ viewHistoryGraph model =
         historyArgs = plotargs
             "plot-history"
             (List.map formatLine (Dict.toList model.historyPlots))
-            title
-            "zoom"
+            { defaultLayoutOptions | title = title }
     in
     H.div
         [ ]
@@ -720,7 +720,7 @@ viewHoverGraph dictData =
                 "lines"
                 options
         hoverArgs =
-            plotargs "plot-hover" [ plot ] title "zoom"
+            plotargs "plot-hover" [ plot ] { defaultLayoutOptions | title = title }
     in
     H.div
         [ ]

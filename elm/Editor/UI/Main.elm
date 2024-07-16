@@ -24,7 +24,8 @@ import HtmlExtra as HX
 import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
 import Plotter exposing
-    ( Series
+    ( defaultLayoutOptions
+    , Series
     , seriesdecoder
     , scatterplot
     , plotargs
@@ -207,7 +208,7 @@ viewPlot {formulaName, plotData, plotErrMess} =
             (Dict.values plotData)
             "lines"
             Plotter.defaultoptions
-        args = plotargs "plot" [plot] name "zoom"
+        args = plotargs "plot" [plot] { defaultLayoutOptions | title = name }
     in
     -- the "plot-figure" node is pre-built in the template side
     -- (html component)

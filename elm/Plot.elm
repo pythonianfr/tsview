@@ -18,6 +18,7 @@ import Json.Decode as Decode
 import KeywordSelector
 import Plotter exposing
     ( Series
+    , defaultLayoutOptions
     , defaultoptions
     , getdata
     , plotargs
@@ -407,7 +408,7 @@ view model =
                         )
                         model.search.selected
             in
-            plotargs plotDiv data "" "zoom"
+            plotargs plotDiv data defaultLayoutOptions
 
         selector =
             let

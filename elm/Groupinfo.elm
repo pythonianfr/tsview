@@ -31,7 +31,8 @@ import NavTabs as Nav exposing
      , MetaEvents
     )
 import Plotter exposing
-    ( defaultoptions
+    ( defaultLayoutOptions
+    , defaultoptions
     , getgroupplotdata
     , groupdecoder
     , scatterplot
@@ -493,7 +494,7 @@ viewplot model =
         plots = List.map plot <| Dict.toList groupdata
 
         args =
-            plotargs "plot" plots "" "zoom"
+            plotargs "plot" plots defaultLayoutOptions
     in
     div [ ]
         [ viewdatespicker

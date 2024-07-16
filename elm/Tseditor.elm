@@ -28,7 +28,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultoptions
+    ( defaultLayoutOptions
+    , defaultoptions
     , getdata
     )
 import Process as P
@@ -1110,8 +1111,7 @@ view model =
             model.name
             (Dict.keys model.horizon.timeSeries)
             (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
-            ""
-            dragMode
+            { defaultLayoutOptions | dragMode = dragMode }
             defaultoptions
         , permaLink model
         , viewRelevantTable model

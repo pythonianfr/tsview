@@ -1,5 +1,6 @@
 module Plotter exposing
     ( defaultoptions
+    , defaultLayoutOptions
     , getdata
     , getgroupplotdata
     , Group
@@ -20,6 +21,17 @@ import Url.Builder as UB
 import Bool.Extra
 
 -- series
+
+type alias LayoutOptions =
+    { title: String
+    , dragMode: String
+    }
+
+
+defaultLayoutOptions =
+    { title = ""
+    , dragMode = "zoom"
+    }
 
 type alias TraceOptions =
     { showlegend: Bool
@@ -108,17 +120,17 @@ scatterplot =
     Trace "scatter"
 
 
-encodeplotargs div data title dragMode =
+encodeplotargs div data layoutOptions =
     E.object
         [ ( "div", E.string div )
         , ( "data", E.list encodetrace data )
-        , ( "layout", (E.object [("title", E.string title)
-                                , ("dragmode", E.string dragMode)]) )
+        , ( "layout", (E.object [("title", E.string layoutOptions.title)
+                                , ("dragmode", E.string layoutOptions.dragMode)]) )
         ]
 
 
-plotargs div data title dragMode =
-    encodeplotargs div data title dragMode |> E.encode 0
+plotargs div data layoutOptions =
+    encodeplotargs div data layoutOptions |> E.encode 0
 
 
 -- getdata : PlotQuery query -> Cmd msg

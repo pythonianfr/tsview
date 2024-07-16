@@ -44,7 +44,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultoptions
+    ( defaultLayoutOptions
+    , defaultoptions
     , getdata
     , seriesdecoder
     )
@@ -1121,8 +1122,7 @@ viewplot model =
                 model.name
                 (Dict.keys ts)
                 (Dict.values ts)
-                ""
-                "zoom"
+                defaultLayoutOptions
                 defaultoptions
             , viewDatesRange
                 model.firstIdates
@@ -1158,7 +1158,7 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) "" "zoom" defaultoptions
+            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) defaultLayoutOptions defaultoptions
             ]
 
 
