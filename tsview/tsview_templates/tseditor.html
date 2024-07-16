@@ -16,7 +16,7 @@
         <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}" rel="stylesheet"/>
         <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
         {% set function_type = 'editor' %}
-        {% include "plot_figure.js.jinja" %}
+        {% include "plot_figure.js.html" %}
         <title>{{title}}</title>
     </head>
     <body>
