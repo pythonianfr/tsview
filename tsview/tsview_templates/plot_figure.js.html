@@ -36,11 +36,13 @@
                             if (eventData['dragmode'] == 'pan') {
                                 panactive = true;
                             };
-                            if (eventData['dragmode'] == 'zoom') {
-                                app.ports.dateInInterval.send(range);
-                            }
                             app.ports.panActive.send(panactive);
                          };
+                         if ('xaxis.autorange' in eventData
+                                && 'yaxis.autorange'in eventData) {
+                                    console.log(eventData);
+                                    app.ports.dateInInterval.send(range);
+                        };
                          if ('xaxis.range[0]' in eventData
                              && 'xaxis.range[1]'in eventData) {
                              range = [
