@@ -29,7 +29,10 @@ module Info exposing
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Horizon exposing (horizonview)
+import Horizon exposing
+    ( getFromToDates
+    , horizonview
+    )
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -198,6 +201,13 @@ viewactionwidgets model convertmsg editor pagetitle =
             case model.seriestype of
                 Primary ->  if editor then "edit values ⧉" else "view values ⧉"
                 Formula ->  "show values ⧉"
+        ( min, max ) = getFromToDates model.horizon
+        queryParameters =
+            if editor
+            then [ UB.string "name" model.name
+                 , UB.string "startdate" min
+                 , UB.string "enddate" max ]
+            else [ UB.string "name" model.name ]
     in
     [ H.div
           [ HA.class "page-title" ]
@@ -210,7 +220,7 @@ viewactionwidgets model convertmsg editor pagetitle =
     , H.div [ HA.class "action-right" ]
         [ H.a [ HA.href <| UB.crossOrigin model.baseurl
                     [ if editor then "tseditor" else "tsinfo" ]
-                    [ UB.string "name" model.name ]
+                    queryParameters
               ]
               [ H.text <| if editor then editorlabel else "series info" ]
         , case model.seriestype of
