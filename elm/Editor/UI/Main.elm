@@ -21,6 +21,7 @@ import Cmd.Extra as CX
 import ParserExtra
 import AceEditor as Ace
 import HtmlExtra as HX
+import UndoList as UL
 import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
 import Plotter exposing
@@ -33,6 +34,12 @@ import Plotter exposing
 
 import Editor.Type exposing (ReturnTypeStr)
 import Editor.UI.Widget as Widget
+import UndoListExtra exposing (newSafeConcise)
+
+
+type UndoMsg
+    = Undo
+    | Redo
 
 
 type Msg
@@ -42,6 +49,7 @@ type Msg
     | SaveDone (Result String String)
     | DebouncePlotData (Debouncer.Msg ())
     | GotPlotData (Result Http.Error String)
+    | UndoMsg UndoMsg
 
 
 type alias Model =
@@ -54,6 +62,19 @@ type alias Model =
     , debouncer : Debouncer.Debouncer () ()
     , plotData : Series
     , plotErrMess : Maybe String
+    }
+
+type alias SavedModel =
+    { hasPlotData : Bool
+    , savedModel : Model
+    }
+
+type alias UndoList =
+    UL.UndoList SavedModel
+
+type alias UndoModel =
+    { model : Model
+    , undoList : UndoList
     }
 
 
@@ -76,6 +97,10 @@ saveFormula {urlPrefix} name code = Http.request
     , tracker = Nothing
     }
 
+askPlotData : Cmd Msg
+askPlotData =
+    Util.sendCmd DebouncePlotData <|  Debouncer.provideInput ()
+
 getPlotData : Model -> Cmd Msg
 getPlotData {urlPrefix, lastFormulaCode} =
     case lastFormulaCode of
@@ -96,8 +121,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
     WidgetMsg (Widget.NewFormula formula) ->
         { model | lastFormulaCode = formula }
-            |> CX.withCmd
-                (Util.sendCmd DebouncePlotData <|  Debouncer.provideInput ())
+            |> CX.withCmd askPlotData
 
     WidgetMsg x -> Tuple.mapBoth
         (\m -> { model | editorWidget = m })
@@ -165,6 +189,37 @@ update msg model = case msg of
         }
         |> CX.withNoCmd
 
+    UndoMsg _ ->
+        ( model, Cmd.none )
+
+undoUpdate : Msg -> UndoModel -> (UndoModel, Cmd Msg)
+undoUpdate msg {model, undoList} =
+    let
+        (newModel, cmd) = update msg model
+
+        storeNew hasPlotData =
+            SavedModel hasPlotData { newModel | plotData = Dict.empty }
+                |> flip newSafeConcise undoList
+                |> UndoModel newModel
+                |> CX.withCmd cmd
+
+        undoRedo newUndoList =
+            let {hasPlotData, savedModel} = newUndoList.present
+            in
+            ( UndoModel savedModel newUndoList
+            , if hasPlotData then askPlotData else Cmd.none
+            )
+
+    in case msg of
+        WidgetMsg (Widget.NewFormula _) -> storeNew True
+
+        UpdateName _ -> storeNew False
+
+        UndoMsg Undo -> UL.undo undoList |> undoRedo
+
+        UndoMsg Redo -> UL.redo undoList |> undoRedo
+
+        _ -> (UndoModel newModel undoList, cmd)
 
 canSave : Model -> Bool
 canSave model =
@@ -218,11 +273,37 @@ viewPlot {formulaName, plotData, plotErrMess} =
         , viewError plotErrMess
         ]
 
-view : Model -> Html Msg
-view model =
+makeUndoButton : UndoMsg -> UndoList -> Html Msg
+makeUndoButton msg undoList =
+    let
+        (code, title, enabled) = case msg of
+            Undo -> (10226, "Undo", UL.hasPast undoList)
+
+            Redo -> (10227, "Redo", UL.hasFuture undoList)
+
+    in H.div
+        [ HA.class "p-2" ]
+        [ H.button
+            [ HA.title title
+            , HA.disabled (not enabled)
+            , HE.onClick (UndoMsg msg)
+            ]
+            [ H.text <| Util.fromCharCode code ]
+        ]
+
+view : UndoModel -> Html Msg
+view {model, undoList} =
     H.div
         [ HA.class "main-content formula_editor" ]
-        [ H.h1 [ HA.class "page-title" ] [ H.text "Formula editor" ]
+        [ H.div
+            [ HA.class "d-flex" ]
+            [ H.h1
+                [ HA.class "mr-auto p-2 page-title" ]
+                [ H.text "Formula editor" ]
+            , makeUndoButton Undo undoList
+            , makeUndoButton Redo undoList
+            ]
+
         , Widget.viewSpecErrors model.editorWidget
         , HX.viewIf (canSave model) (viewSave model)
         , Widget.view model.editorWidget |> H.map WidgetMsg
@@ -270,10 +351,16 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     }
     |> CX.withCmd (Cmd.map WidgetMsg cmd)
 
-main : Program Flags Model Msg
+initModel : Model -> UndoModel
+initModel model =
+    SavedModel False model
+        |> UL.fresh
+        |> UndoModel model
+
+main : Program Flags UndoModel Msg
 main = Browser.element
-    { init = init
-    , update = update
+    { init = init >> Tuple.mapFirst initModel
+    , update = undoUpdate
     , view = view
     , subscriptions = always Sub.none
     }

@@ -337,7 +337,7 @@ update msg model = case msg of
                 (updateNode editAction >> RE.run model.editor)
             |> O.getSome treeRoot_ |> Maybe.withDefault root)
         |> O.over editor_ updateFormula
-        |> (\m -> ( m, sendTreeEdited m))
+        |> (\m -> ( m, probeTreeEdited editAction m))
 
     Edit code ->
         let
@@ -834,6 +834,16 @@ init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
 
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
+
+probeTreeEdited : EditAction -> Model -> Cmd Msg
+probeTreeEdited editAction model = case editAction of
+    ToggleExpand -> Cmd.none
+
+    EditEntry (SelectorAction (OpenSelector _)) -> Cmd.none
+
+    EditEntry (SelectorAction (SetKeywords _)) -> Cmd.none
+
+    _ -> sendTreeEdited model
 
 setFormula : Maybe T.FormulaCode -> Model -> Model
 setFormula mFormulaCode ({editor} as model) = mFormulaCode
