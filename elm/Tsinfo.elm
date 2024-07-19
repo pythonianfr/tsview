@@ -1271,8 +1271,8 @@ view model =
             SaveMeta
             AddMetaItem
 
-        maybeMedian =
-            medianValue (Dict.keys model.horizon.timeSeries)
+        maybeMedian = Nothing
+            -- medianValue (Dict.keys model.horizon.timeSeries)
     in
     H.div
         [ ]
