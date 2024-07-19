@@ -51,17 +51,17 @@ viewdatespicker date_index insertion_dates msg  =
                 Just date -> U.cleanupdate date
     in H.div
         [ HA.class "row" ]
-        [H.div
-            [ HA.class "col" ]
-            [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date : " ]
-            , H.span [ ] [ H.text " " ]
-            , H.input [ HA.type_ "datetime-local"
+        [ H.div
+              [ HA.class "col" ]
+              [ H.label [ HA.for "idate-picker" ] [ H.text "Revision date : " ]
+              , H.span [ ] [ H.text " " ]
+              , H.input [ HA.type_ "datetime-local"
                         , HA.id "idate-picker"
                         , HA.name "idate-picker"
                         , HA.value currdate
                         , HE.onInput msg
                         ] [ ]
-            ]
+              ]
         ]
 
 
@@ -119,5 +119,6 @@ header msg tabs =
 
 tabcontents : List (H.Html msg) -> H.Html msg
 tabcontents items =
-    H.span [ HA.style "margin" ".1rem" ]
+    H.span
+        [ HA.style "margin" ".1rem" ]
         items
