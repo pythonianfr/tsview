@@ -532,22 +532,18 @@ update msg model =
                     if strseries model.meta
                     then U.nocmd model
                     else
-                        U.nocmd
-                            ( addError
-                                { model | horizon = setStatusPlot
-                                                        model.horizon
-                                                        Failure }
-                                "gotplotdata decode"
-                                ( D.errorToString err ))
+                        U.nocmd <|
+                            addError
+                            { model | horizon = setStatusPlot model.horizon Failure }
+                            "gotplotdata decode"
+                            ( D.errorToString err )
 
         GotPlotData (Err err) ->
-            U.nocmd
-                ( addError
-                    { model | horizon = setStatusPlot
-                                            model.horizon
-                                            Failure }
-                    "gotplotdata decode"
-                    ( U.unwraperror err ))
+            U.nocmd <|
+                addError
+                { model | horizon = setStatusPlot model.horizon Failure }
+                "gotplotdata decode"
+                ( U.unwraperror err )
 
         GotFormula (Ok rawformula) ->
             case D.decodeString I.formuladecoder rawformula of
