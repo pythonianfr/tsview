@@ -579,12 +579,14 @@ view model =
         head =
             Nav.header Tab tabs
 
-        deleteEvents = DeleteEvents
-                ConfirmDeletion
-                CancelDeletion
-                AskDeletion
+        deleteEvents =
+            DeleteEvents
+            ConfirmDeletion
+            CancelDeletion
+            AskDeletion
 
-        metaEvents = MetaEvents
+        metaEvents =
+            MetaEvents
             MetaEditAsked
             MetaEditCancel
             EditedValue
@@ -595,52 +597,51 @@ view model =
             AddMetaItem
 
     in
-        div
+    div [ ]
+        [ div
+          [ A.class "main-content" ]
+          [ div
             [ ]
-            [ div
-                [ A.class "main-content" ]
-                [ div
-                    [ ]
-                    [ span
-                        [ A.class "groupinfo action-container" ]
-                        [ div
-                            [ A.class "page-title" ]
-                            [ text "Group Info" ]
-                        , I.viewdeletion model deleteEvents ]
-                    , I.viewtitle model Nothing CopyNameToClipboard
-                    , viewbindings model
-                    , case model.activetab of
-                        Plot ->
-                            if Nav.strseries model.meta
-                            then div [] [ head ]
-                            else
-                            div []
-                                [ head
-                                , tabcontents
+            [ span
+                  [ A.class "groupinfo action-container" ]
+                  [ div
+                    [ A.class "page-title" ]
+                    [ text "Group Info" ]
+                  , I.viewdeletion model deleteEvents ]
+            , I.viewtitle model Nothing CopyNameToClipboard
+            , viewbindings model
+            , case model.activetab of
+                  Plot ->
+                      if Nav.strseries model.meta
+                      then div [] [ head ]
+                      else
+                          div []
+                              [ head
+                              , tabcontents
                                     [ viewplot model
                                     , I.viewformula model SwitchLevel
                                     ]
+                              ]
+
+                  UserMetadata ->
+                      div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
+
+                  Logs ->
+                      div []
+                          [ head
+                          , tabcontents
+                                [ case Dict.get model.formula_depth model.formula of
+                                      Nothing -> I.viewlog model False LogsNumber SeeLogs
+                                      Just _ -> span [] []
                                 ]
+                          ]
 
-                        UserMetadata ->
-                            div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
-
-                        Logs ->
-                            div []
-                                [ head
-                                , tabcontents
-                                    [ case Dict.get model.formula_depth model.formula of
-                                        Nothing -> I.viewlog model False LogsNumber SeeLogs
-                                        Just _ -> span [] []
-                                    ]
-                                ]
-
-                        FormulaCache ->
-                            div [] []
-                    , I.viewerrors model
-                    ]
-                ]
+                  FormulaCache ->
+                      div [] []
+            , I.viewerrors model
             ]
+          ]
+        ]
 
 
 type alias Input =
