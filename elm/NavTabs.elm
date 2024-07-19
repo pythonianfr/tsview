@@ -1,5 +1,5 @@
 module NavTabs exposing
-    (header
+    ( header
      , tabcontents
      , strseries
      , Tabs(..)

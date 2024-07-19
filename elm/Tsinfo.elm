@@ -202,10 +202,12 @@ convertMsg : HorizonModule.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
+
 type alias DataFromHover =
     { name : String
     , data : List DataItem
     }
+
 
 type alias DataItem =
     { date : String
@@ -244,19 +246,24 @@ logdecoder =
 removeRedondants: DataFromHover -> DataFromHover
 removeRedondants dataHover =
      { name = dataHover.name
-     , data = removeT dataHover.data Nothing }
+     , data = removerepeated dataHover.data Nothing
+     }
 
 
-removeT: List DataItem -> Maybe Float -> List DataItem
-removeT data previous =
+removerepeated: List DataItem -> Maybe Float -> List DataItem
+removerepeated data previous =
     case data of
         [] -> []
         x :: xs  ->
             case previous of
-                Nothing -> [x] ++ ( removeT xs ( Just x.value ))
-                Just prev -> if prev /= x.value
-                                then [x] ++ ( removeT xs ( Just x.value ) )
-                                else ( removeT xs ( Just x.value ) )
+                Nothing ->
+                    [ x ] ++ ( removerepeated xs ( Just x.value ))
+                Just prev ->
+                    if prev /= x.value
+                    then
+                        [ x ] ++ ( removerepeated xs <| Just x.value )
+                    else
+                        removerepeated xs <| Just x.value
 
 
 getdepth : Model -> Cmd Msg
@@ -400,13 +407,15 @@ getsomedata model minDate maxDate idates =
         getPlot : String -> Cmd Msg
         getPlot idate =
             Http.get
-                { url = UB.crossOrigin
-                    model.baseurl [ "api", "series", "state" ] (fullquery idate)
+                { url =
+                      UB.crossOrigin
+                      model.baseurl
+                      [ "api", "series", "state" ]
+                      (fullquery idate)
                 , expect = Http.expectString (GotVersion idate)
             }
     in
-    Cmd.batch
-        (List.map getPlot idates)
+    Cmd.batch <| List.map getPlot idates
 
 
 updatedchangedidatebouncer =
@@ -464,9 +473,9 @@ update msg model =
         GotSysMeta (Err err) ->
             let
                 newmodel =
-                    { model
-                        | errors = List.append model.errors
-                          [("gotsysmeta http" ++ " -> " ++ (U.unwraperror err))]
+                    { model | errors =
+                          List.append model.errors
+                              [ ("gotsysmeta http" ++ " -> " ++ (U.unwraperror err)) ]
                     }
             in
             U.nocmd newmodel
@@ -489,10 +498,10 @@ update msg model =
                         Err _ -> 0
             in
             ( { model | formula_maxdepth = depth }
-            , Cmd.batch (List.map
-                             (\d -> I.getformula model model.name d "series" GotFormula)
-                             <| List.range 0 depth
-                        )
+            , Cmd.batch <|
+                List.map
+                    (\d -> I.getformula model model.name d "series" GotFormula)
+                    <| List.range 0 depth
             )
 
         GotDepth (Err err) ->
@@ -506,7 +515,7 @@ update msg model =
                     doerr "gotsource decode" <| D.errorToString err
 
         GotSource (Err err) ->
-            doerr "gotsource http"  <| U.unwraperror err
+            doerr "gotsource http" <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -654,8 +663,8 @@ update msg model =
         ChangedIdate strindex ->
             let
                 index = Maybe.withDefault
-                       model.date_index -- keep current
-                       (String.toInt strindex)
+                        model.date_index -- keep current
+                        (String.toInt strindex)
                 newmodel = { model | date_index = index }
             in
             case Array.get index model.insertion_dates of
@@ -669,8 +678,9 @@ update msg model =
             let
                 comparedates d1 d2 =
                     d1 > d2
-                newarray =  Array.filter (comparedates value) <|
-                            Array.map U.cleanupdate model.insertion_dates
+                newarray =
+                    Array.filter (comparedates value) <|
+                    Array.map U.cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
                 newmodel = { model | date_index = newindex }
             in
@@ -816,14 +826,16 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
-        Horizon hMsg ->
-            let ( newModelHorizon, commands ) =  updateHorizon
-                                                    ( actionsHorizon model )
-                                                    hMsg
-                                                    model.horizon
+        Horizon hmsg ->
+            let ( newhorizonmodel, commands ) =
+                    updateHorizon
+                    ( actionsHorizon model )
+                    hmsg
+                    model.horizon
             in
-            ( { model | horizon = newModelHorizon }
-            , commands )
+            ( { model | horizon = newhorizonmodel }
+            , commands
+            )
 
         HistoryMode isChecked ->
             let
@@ -849,42 +861,46 @@ update msg model =
                 minDate = Maybe.withDefault "" (List.head range)
                 maxDate = Maybe.withDefault "" (List.last range)
             in
-                if model.historyMode then
-                    if (minDate == "") && (maxDate == "") then
-                        let
-                            newmodel =
-                                { model
-                                    | historyPlots = Dict.empty
-                                    , firstIdates = Array.empty
-                                    , dataFromHover = Nothing
-                                }
+            if model.historyMode then
+                if (minDate == "") && (maxDate == "") then
+                    let
+                        newmodel =
+                            { model
+                                | historyPlots = Dict.empty
+                                , firstIdates = Array.empty
+                                , dataFromHover = Nothing
+                            }
                         in
-                            U.nocmd newmodel
-                    else
-                        let
-                            newmodel =
-                                { model
-                                    | historyPlots = Dict.empty
-                                    , firstIdates = Array.empty
-                                    , dataFromHover = Nothing
-                                    , horizon = { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
-                                }
-                            cmd = getsomeidates newmodel
-                    in
-                        ( newmodel
-                        , cmd
-                        )
+                        U.nocmd newmodel
                 else
-                    if (minDate == "") && (maxDate == "") then
-                        U.nocmd model
-                    else
-                        let
-                            newmodel =
-                                { model
-                                    | horizon = { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
-                                }
-                        in
-                            U.nocmd newmodel
+                    let
+                        newmodel =
+                            { model
+                                | historyPlots = Dict.empty
+                                , firstIdates = Array.empty
+                                , dataFromHover = Nothing
+                                , horizon = { horizonmodel |
+                                                  zoomBounds = Just ( minDate, maxDate )
+                                            }
+                            }
+                        cmd =
+                            getsomeidates newmodel
+                    in
+                    ( newmodel
+                    , cmd
+                    )
+            else
+                if (minDate == "") && (maxDate == "") then
+                    U.nocmd model
+                else
+                    let
+                        newmodel =
+                            { model
+                                | horizon =
+                                  { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
+                            }
+                    in
+                    U.nocmd newmodel
 
         HistoryIdates (minDate, maxDate) (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -916,7 +932,7 @@ update msg model =
                     let
                         newHistoryPlots = Dict.insert idate val model.historyPlots
                     in
-                    U.nocmd {model | historyPlots = newHistoryPlots}
+                    U.nocmd { model | historyPlots = newHistoryPlots }
                 Err err ->
                     if strseries model.meta
                     then U.nocmd model
@@ -932,9 +948,10 @@ update msg model =
             let
                 index =
                     Maybe.withDefault model.historyDateIndex -- keep current
-                    (String.toInt strindex)
+                    ( String.toInt strindex )
                 newmodel =
-                    if Array.get index model.firstIdates == Nothing then
+                    if Array.get index model.firstIdates == Nothing
+                    then
                         model
                     else
                         { model
@@ -950,7 +967,6 @@ update msg model =
                         | historyPlots = Dict.empty
                         , firstIdates = Array.empty
                     }
-
             in
             ( newmodel
             , getsomeidates model
@@ -960,21 +976,24 @@ update msg model =
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
                     let
-                         newmodel = { model | dataFromHover = Just (removeRedondants datadict) }
+                        newmodel = { model | dataFromHover = Just (removeRedondants datadict) }
                     in U.nocmd newmodel
                 Err _ ->
                     U.nocmd model
 
-        LogsNumber strLogsNumber ->
-            U.nocmd { model | logsNumber = String.toInt strLogsNumber }
+        LogsNumber logcount ->
+            U.nocmd { model | logsNumber = String.toInt logcount }
 
         SeeLogs ->
-            ( model, getlog model.baseurl model.name model.logsNumber )
+            ( model
+            , getlog model.baseurl model.name model.logsNumber
+            )
 
 
 actionsHorizon : Model -> HorizonModel (Maybe Float) -> List (Cmd Msg)
 actionsHorizon model horizonModel =
-    let newModel = { model | horizon = horizonModel}
+    let
+        newModel = { model | horizon = horizonModel }
     in
     [ getplot newModel ]
 
@@ -1104,13 +1123,13 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
                 Just date -> date
     in
     if numidates < 2
-    then H.div
-            []
+    then
+        H.div []
             [ H.input
-                [ HA.attribute "type" "range"
-                , HA.class "form-control-range"
-                , HA.disabled True ]
-                []
+                  [ HA.attribute "type" "range"
+                  , HA.class "form-control-range"
+                  , HA.disabled True ]
+                  []
             ]
     else
         H.map (provideInput >> debouncerMsg) <|
@@ -1132,7 +1151,8 @@ viewplot model =
     let
         ts = model.horizon.timeSeries
     in
-    if model.historyMode then
+    if model.historyMode
+    then
         H.div []
             [ historyModeSwitch model
             , H.div
@@ -1185,7 +1205,8 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts) defaultLayoutOptions defaultoptions
+            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
+                defaultLayoutOptions defaultoptions
             ]
 
 
@@ -1218,7 +1239,6 @@ view model =
                 I.Formula ->
                     [ Plot, UserMetadata, FormulaCache ]
 
-
         tabs =
             tablist
                 |> LS.fromList
@@ -1227,18 +1247,21 @@ view model =
         head =
             header Tab tabs
 
-        deleteEvents = DeleteEvents
+        deleteEvents =
+            DeleteEvents
             ConfirmDeletion
             CancelDeletion
             AskDeletion
 
-        renameEvents = RenameEvents
+        renameEvents =
+            RenameEvents
             ConfirmRename
             EditNewName
             CancelRename
             AskRename
 
-        metaEvents = MetaEvents
+        metaEvents =
+            MetaEvents
             MetaEditAsked
             MetaEditCancel
             EditedValue
@@ -1247,13 +1270,15 @@ view model =
             NewValue
             SaveMeta
             AddMetaItem
-        maybeMedian = medianValue (Dict.keys model.horizon.timeSeries)
+
+        maybeMedian =
+            medianValue (Dict.keys model.horizon.timeSeries)
     in
     H.div
-        []
+        [ ]
         [ H.div
             [ HA.class "main-content" ]
-            [ H.div
+              [ H.div
                 [ ]
                 [ H.span [ HA.class "tsinfo action-container" ]
                       <| (I.viewactionwidgets model convertMsg True "Series Info") ++
@@ -1311,61 +1336,61 @@ init input =
                 |> settleWhenQuietFor (Just <| fromSeconds 0.015)
                 |> toDebouncer
     in
-       ({ baseurl = input.baseurl
-        , name = input.name
-        , source = ""
-        , activetab = Plot
-        -- metadata edition
-        , canwrite = False
-        , editing = False
-        -- all errors
-        , errors = [ ]
-        -- metadata
-        , meta = Dict.empty
-        , usermeta = Dict.empty
-        , seriestype = I.Primary
-        -- formula
-        , formula_depth = 0
-        , formula_maxdepth = 0
-        , formula = Dict.empty
-        -- cache
-        , has_cache = False
-        , view_nocache = False
-        , policy = Dict.empty
-        , deleting_cache = False
-        -- log
-        , log = [ ]
-        , logsNumber = Just 10
-        -- plot
-        , insertion_dates = Array.empty
-        , date_index = 0
-        , date_index_deb = debouncerconfig
-        -- user meta edittion
-        , metaitem = ("", "")
-        , editeditems = Dict.empty
-        -- deletion
-        , deleting = False
-        -- renaming
-        , renaming = False
-        , newname = Nothing
-        , clipboardclass = "bi bi-clipboard"
-        -- below a predefined boundary (from permalink) can be set
-        , horizon = initHorizon "" ""
-        , historyPlots = Dict.empty
-        , historyMode = False
-        , firstIdates = Array.empty
-        , historyDateIndex = 0
-        , historyDateIndexDeb = debouncerconfig
-        , dataFromHover = Nothing
-                    }
-        , Cmd.batch
-                [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
-                , M.getusermetadata input.baseurl input.name GotUserMeta "series"
-                , getsource input.baseurl input.name
-                , I.getwriteperms input.baseurl GetPermissions
-                , getcachepolicy input.baseurl input.name
-                ]
-            )
+    ( { baseurl = input.baseurl
+      , name = input.name
+      , source = ""
+      , activetab = Plot
+      -- metadata edition
+      , canwrite = False
+      , editing = False
+      -- all errors
+      , errors = [ ]
+      -- metadata
+      , meta = Dict.empty
+      , usermeta = Dict.empty
+      , seriestype = I.Primary
+      -- formula
+      , formula_depth = 0
+      , formula_maxdepth = 0
+      , formula = Dict.empty
+      -- cache
+      , has_cache = False
+      , view_nocache = False
+      , policy = Dict.empty
+      , deleting_cache = False
+      -- log
+      , log = [ ]
+      , logsNumber = Just 10
+      -- plot
+      , insertion_dates = Array.empty
+      , date_index = 0
+      , date_index_deb = debouncerconfig
+      -- user meta edittion
+      , metaitem = ("", "")
+      , editeditems = Dict.empty
+      -- deletion
+      , deleting = False
+      -- renaming
+      , renaming = False
+      , newname = Nothing
+      , clipboardclass = "bi bi-clipboard"
+      -- below a predefined boundary (from permalink) can be set
+      , horizon = initHorizon "" ""
+      , historyPlots = Dict.empty
+      , historyMode = False
+      , firstIdates = Array.empty
+      , historyDateIndex = 0
+      , historyDateIndexDeb = debouncerconfig
+      , dataFromHover = Nothing
+      }
+    , Cmd.batch
+        [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
+        , M.getusermetadata input.baseurl input.name GotUserMeta "series"
+        , getsource input.baseurl input.name
+        , I.getwriteperms input.baseurl GetPermissions
+        , getcachepolicy input.baseurl input.name
+        ]
+    )
 
 
 main : Program Input  Model Msg
