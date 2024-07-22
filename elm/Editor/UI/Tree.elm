@@ -126,7 +126,7 @@ decodeSelectorInput s =
 decodeSelectorInputFromUserInput : Maybe String -> SelectorInput
 decodeSelectorInputFromUserInput userInput =
     Maybe.withDefault
-        (SelectorInput Nothing "" False)
+        (SelectorInput Nothing "" True)
         (Maybe.join <| Maybe.map decodeSelectorInput userInput)
 
 parseLiteralExpr : T.LiteralType -> PE.Parser c x T.LiteralExpr
