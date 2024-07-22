@@ -56,6 +56,7 @@ type alias Model =
     { urlPrefix : String
     , editorWidget : Widget.Model
     , formulaName : Maybe String
+    , savedFormulaName : Maybe String
     , lastFormulaCode : Maybe String
     , savedFormulaCode : Maybe String
     , saveErrMess : Maybe String
@@ -145,7 +146,8 @@ update msg model = case msg of
 
     SaveDone (Ok _) ->
         { model
-            | savedFormulaCode = model.lastFormulaCode
+            | savedFormulaName = model.formulaName
+            , savedFormulaCode = model.lastFormulaCode
             , saveErrMess = Nothing
         } |> CX.withNoCmd
 
@@ -275,6 +277,16 @@ viewPlot {formulaName, plotData, plotErrMess} =
         , viewError plotErrMess
         ]
 
+viewSeriesInfo : Model -> Html msg
+viewSeriesInfo model = flip HX.viewMaybe model.savedFormulaName <| \name ->
+    let
+        href = UB.crossOrigin
+            model.urlPrefix
+            [ "tsinfo" ]
+            [ UB.string "name" name ]
+
+    in H.a [ HA.href href  ] [ H.text name ]
+
 makeUndoButton : UndoMsg -> UndoList -> Html Msg
 makeUndoButton msg undoList =
     let
@@ -302,6 +314,7 @@ view {model, undoList} =
             [ H.h1
                 [ HA.class "mr-auto p-2 page-title" ]
                 [ H.text "Formula editor" ]
+            , H.div [ HA.class "p-2" ] [ viewSeriesInfo model ]
             ]
         , H.div
             [ HA.class "d-flex" ]
@@ -340,11 +353,13 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
             , returnTypeStr = returnTypeStr
             }
 
+        formulaName = Maybe.map .name formula
         code = Widget.getFormula wid
     in
     { urlPrefix = urlPrefix
     , editorWidget = wid
-    , formulaName = Maybe.map .name formula
+    , formulaName = formulaName
+    , savedFormulaName = formulaName
     , lastFormulaCode = code
     , savedFormulaCode = code
     , saveErrMess = Nothing
