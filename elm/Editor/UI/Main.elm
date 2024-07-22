@@ -215,6 +215,8 @@ undoUpdate msg {model, undoList} =
 
         UpdateName _ -> storeNew False
 
+        SaveDone _ -> storeNew True
+
         UndoMsg Undo -> UL.undo undoList |> undoRedo
 
         UndoMsg Redo -> UL.redo undoList |> undoRedo
@@ -300,12 +302,14 @@ view {model, undoList} =
             [ H.h1
                 [ HA.class "mr-auto p-2 page-title" ]
                 [ H.text "Formula editor" ]
-            , makeUndoButton Undo undoList
-            , makeUndoButton Redo undoList
             ]
-
+        , H.div
+            [ HA.class "d-flex" ]
+            [ makeUndoButton Undo undoList
+            , makeUndoButton Redo undoList
+            , HX.viewIf (canSave model) (viewSave model)
+            ]
         , Widget.viewSpecErrors model.editorWidget
-        , HX.viewIf (canSave model) (viewSave model)
         , Widget.view model.editorWidget |> H.map WidgetMsg
         , H.div [ HA.id "plot" ] []
         , viewPlot model
