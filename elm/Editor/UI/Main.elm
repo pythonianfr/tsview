@@ -372,7 +372,7 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
 
 initModel : Model -> UndoModel
 initModel model =
-    SavedModel False model
+    SavedModel True model
         |> UL.fresh
         |> UndoModel model
 

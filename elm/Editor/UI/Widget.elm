@@ -14,7 +14,7 @@ import ParserExtra
 import AceEditor as Ace
 import Util exposing (sendCmd)
 
-import Editor.Type exposing (FormulaCode)
+import Editor.Type exposing (FormulaCode, getCode)
 import Editor.UI.Tree as Tree
 import Editor.UI.CodeEditor as CodeEditor
 
@@ -36,15 +36,16 @@ type alias Flags = Tree.Flags
 
 init : Flags -> (Model, Cmd Msg)
 init flags =
-    let (editionTree, treeCmd) = Tree.init flags
+    let
+        (editionTree, treeCmd) = Tree.init flags
+        code = getCode editionTree.editor.currentFormula
     in
     { codeEditor = CodeEditor.init
     , editionTree = editionTree
     }
-    |> CX.withCmd (Cmd.batch
-        [ (Cmd.map EditionTreeMsg <| Tree.sendTreeEdited editionTree)
-        , (Cmd.map EditionTreeMsg treeCmd)
-        ])
+    |> update (CodeEditor.Render code |> CodeEditorMsg)
+    |> Tuple.first
+    |> CX.withCmd (Cmd.map EditionTreeMsg treeCmd)
 
 viewSpecErrors : Model -> Html msg
 viewSpecErrors {editionTree} = Tree.viewSpecErrors editionTree
