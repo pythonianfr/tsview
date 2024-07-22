@@ -126,7 +126,7 @@ decodeSelectorInput s =
 decodeSelectorInputFromUserInput : Maybe String -> SelectorInput
 decodeSelectorInputFromUserInput userInput =
     Maybe.withDefault
-        (SelectorInput Nothing "" True)
+        (SelectorInput Nothing "" False)
         (Maybe.join <| Maybe.map decodeSelectorInput userInput)
 
 parseLiteralExpr : T.LiteralType -> PE.Parser c x T.LiteralExpr
@@ -488,7 +488,7 @@ renderSeriesName ({userInput} as input) = ask <| \{seriesNames, treePath} ->
         toMsg : SelectorAction -> Msg
         toMsg msg = msg |> SelectorAction |> EditEntry |> EditNode treePath
 
-    in if selectorInput.isOpen then
+    in if selectorInput.isOpen || Maybe.isNothing input.value then
         renderOpenSelector input selectorInput seriesNames toMsg
     else
         renderClosedSelector input selectorInput toMsg
