@@ -253,7 +253,7 @@ def test_group_formulas(client, tsa):
 
 def test_spec_types(client):
     res = client.get('/queryspec')
-    assert json.loads(res.body) == [
+    assert res.json == [
         ['by.everything', [
             ['return', 'query']
         ]],
@@ -318,6 +318,20 @@ def test_spec_types(client):
             ['return', 'query'],
             ['key', 'str'],
             ['value', 'Union[str, Number, bool]']
+        ]],
+        ['by.formulacontents', [
+            ['return', 'query'],
+            ['query', 'str']]
+         ],
+        ['by.formula', [
+            ['return', 'query'],
+            ['query', 'str']
+        ]],
+        ['by.cache', [
+            ['return', 'query']
+        ]],
+        ['by.cachepolicy', [
+            ['return', 'query'], ['query', 'str']
         ]]
     ]
 

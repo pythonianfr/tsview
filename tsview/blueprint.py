@@ -25,7 +25,10 @@ from rework_ui.helper import argsdict as _args
 
 from sqlhelp import select
 
-from tshistory import search
+from tshistory import (
+    search,
+    util
+)
 from tshistory.util import find_first_uriname
 
 from tshistory_formula.helper import (
@@ -470,6 +473,7 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
+        util.ensure_plugin_registration()
         types = {}
         for lispname, kname in search._OPMAP.items():
             cls = search.query.klassbyname(kname)
@@ -478,7 +482,7 @@ def tsview(tsa):
                 types[lispname] = cls.__sig__()
 
         return_first = lambda x: 0 if x[0]=='return' else 1
-        return json.dumps([
+        return jsonify([
             (op_name, sorted(op_spec.items(), key=return_first))
             for op_name, op_spec in types.items()
         ])
