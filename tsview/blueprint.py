@@ -473,6 +473,9 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
+        return jsonify(_queryspec())
+
+    def _queryspec():
         util.ensure_plugin_registration()
         types = {}
         for lispname, kname in search._OPMAP.items():
@@ -482,10 +485,10 @@ def tsview(tsa):
                 types[lispname] = cls.__sig__()
 
         return_first = lambda x: 0 if x[0]=='return' else 1
-        return jsonify([
+        return [
             (op_name, sorted(op_spec.items(), key=return_first))
             for op_name, op_spec in types.items()
-        ])
+        ]
 
     @bp.route('/queryeditor')
     def queryeditor():
@@ -496,7 +499,7 @@ def tsview(tsa):
         return render_template(
             'queryeditor.html',
             homeurl=homeurl(),
-            spec=queryspec(),
+            spec=json.dumps(_queryspec()),
             flags_menu=flags_menu,
             title=title,
         )
