@@ -48,7 +48,8 @@ view model =
         [ A.class ( if model.menu.menuModeText
                         then "grid-container-text"
                         else "grid-container-icon") ]
-        [ Men.viewMenu model.menu Menu ]
+        [ H.img [ A.class "img-logo", A.src ( model.baseUrl ++ "tsview_static/logo.jpg" ) ] []
+        , Men.viewMenu model.menu Menu ]
 
 sub model =  Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
 

@@ -141,3 +141,14 @@
     grid-area: main;
     z-index:0;
 }
+
+.img-logo {
+    width: 40px;
+    height: 35px;
+}
+
+@media (max-height: 810px) {
+    .img-logo {
+        display: none;
+    }
+}
