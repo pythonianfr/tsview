@@ -682,13 +682,12 @@ def tsview(tsa):
             find_autos,
         )
         assert tsa.exists(seriesname)
-        formula = replace_findseries(
+        tree = replace_findseries(
             tsa.engine,
             tsa.tsh,
-            tsa.formula(seriesname),
+            fparse(tsa.formula(seriesname)),
         )
         autos = find_autos(tsa.engine, tsa.tsh, seriesname)
-        tree = fparse(formula)
         infos = [
             {
                 'name': name,
