@@ -58,7 +58,7 @@ type alias Model =
     , editing : Dict String String
     , processedPasted: List String
     , rawPasted: String
-    , initialTs : Dict String Entry
+    , editedTs : Dict String Entry
     , view_nocache : Bool
     , randomNumber : Int
     , clipboardclass : String
@@ -344,7 +344,7 @@ update msg model =
                                 <| List.indexedMap reindex (Dict.toList val)
                     in
                         U.nocmd { model
-                                    | initialTs = indexedval
+                                    | editedTs = indexedval
                                     , horizon = updateHorizonFromData model.horizon indexedval }
                 Err err ->
                   U.nocmd ( addError
@@ -361,7 +361,7 @@ update msg model =
                     rawdata of
                 Ok val -> let timeseries = decorateVanilla val
                           in
-                            ( { model | initialTs = timeseries
+                            ( { model | editedTs = timeseries
                                       , horizon = updateHorizonFromData
                                                     model.horizon
                                                     timeseries }
@@ -420,10 +420,10 @@ update msg model =
                         newentry =
                             updateEntry (parseCopyPastedData validval)
                         patched =
-                            Dict.update date newentry model.horizon.timeSeries
+                            Dict.update date newentry model.editedTs
                     in
                     U.nocmd { model
-                                | horizon = { horizonmodel | timeSeries = patched }
+                                | editedTs = patched
                                 , editing = Dict.remove date model.editing
                             }
             in
@@ -468,7 +468,7 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                         patched =
-                            Dict.union model.horizon.timeSeries indexedval
+                            Dict.union model.editedTs indexedval
 
                         newmodel =
                             { model
@@ -554,19 +554,18 @@ update msg model =
                         model.horizon
                     newmodel =
                         if minDate == "" && maxDate == "" then
-                            { model | horizon = { horizonmodel | timeSeries = model.initialTs
-                                                , zoomBounds = Nothing}
+                            { model | horizon = { horizonmodel | zoomBounds = Nothing}
+                                    , editedTs = horizonmodel.timeSeries
                             }
                         else
-                            { model
-                                | horizon =
-                                  { horizonmodel |
-                                        timeSeries = Dict.filter
-                                            ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                                            ( if model.panActive then model.initialTs else horizonmodel.timeSeries )
-                                        , zoomBounds = Just (minDate, maxDate)
-                                  }
+                            { model | editedTs = Dict.filter
+                                                    ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                                                    ( if model.panActive
+                                                        then horizonmodel.timeSeries
+                                                        else model.editedTs )
+                                    , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                             }
+
                  in
                     ( newmodel
                     , Random.generate RandomNumber randomInt
@@ -646,14 +645,14 @@ getPastedDict model payload =
             Maybe.unwrap
                 0
                 (\entry -> entry.index)
-                (Dict.get (payload.index) model.horizon.timeSeries)
+                (Dict.get (payload.index) model.editedTs)
         listIndex =
             List.range firstIndex (firstIndex + (List.length newValues) - 1)
         listDates =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
-                     model.horizon.timeSeries
+                     model.editedTs
                 )
         copyPastedDict =
             Dict.fromList <| List.map2 Tuple.pair listDates newValues
@@ -662,9 +661,9 @@ getPastedDict model payload =
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update key (updateEntry value) dict)
         (\_ _ dict -> dict)
-        model.horizon.timeSeries
+        model.editedTs
         copyPastedDict
-        model.horizon.timeSeries
+        model.editedTs
 
 
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
@@ -687,7 +686,7 @@ patchEditedData model =
                 _ -> False
 
         patch =
-            model.horizon.timeSeries
+            model.editedTs
                 |> Dict.filter (\_ value -> Maybe.isJust value.edited)
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
     in
@@ -809,10 +808,10 @@ editTable model =
             [ ]
         class = HA.class "data-table"
     in
-    if Dict.isEmpty model.horizon.timeSeries
+    if Dict.isEmpty model.editedTs
     then H.div [ class ][ ]
     else
-        if Dict.size model.horizon.timeSeries > maxPoints
+        if Dict.size model.editedTs > maxPoints
         then H.div
             [ class ]
             [ H.text msgTooManyPoints
@@ -834,7 +833,7 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      <| List.map (viewrow model) (Dict.toList model.horizon.timeSeries)
+                      <| List.map (viewrow model) (Dict.toList model.editedTs)
                   ]
             , node
             ]
@@ -857,7 +856,7 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    if (List.length (Dict.toList model.horizon.timeSeries)) < maxPoints
+    if (List.length (Dict.toList model.editedTs)) < maxPoints
     then
         H.tbody
             []
@@ -884,7 +883,7 @@ datesFormula model =
     Set.fromList
         ( List.map
             (\ (date, _) -> date)
-            ( Dict.toList model.horizon.timeSeries ))
+            ( Dict.toList model.editedTs ))
 
 
 datesComponents: Model -> Set String
@@ -912,7 +911,7 @@ datesComponent model comp =
 
 filterDateComponent: Model -> String-> Bool
 filterDateComponent model date =
-    let datesReference = Dict.keys model.horizon.timeSeries
+    let datesReference = Dict.keys model.editedTs
     in
         case  List.minimum datesReference of
             Nothing -> False
@@ -935,7 +934,7 @@ buildRow model date =
                                           emptyEntry
                                           ( Dict.get
                                             date
-                                            model.horizon.timeSeries )
+                                            model.editedTs )
                                     ).value
                                 )]]
             ( addComponentCells model date ) )
@@ -1011,7 +1010,7 @@ viewedittable model =
     let
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.edited)
-            model.horizon.timeSeries
+            model.editedTs
     in
     H.div
         [ HA.class "tables" ]
@@ -1080,7 +1079,7 @@ statusText plotStatus =
 view : Model -> H.Html Msg
 view model =
     let
-        maybeMedian = medianValue (Dict.keys model.horizon.timeSeries)
+        maybeMedian = medianValue (Dict.keys model.editedTs)
         dragMode =
             if model.panActive
             then "pan"
@@ -1095,15 +1094,15 @@ view model =
             [ HA.class "status-plot" ]
             [ if model.horizon.plotStatus == None
               then H.text "The graph is loading, please wait"
-              else if (Dict.isEmpty model.horizon.timeSeries) && (model.horizon.plotStatus == Success)
+              else if (Dict.isEmpty model.editedTs) && (model.horizon.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
                    else H.text ""
             ]
         , I.viewgraph
             model.name
-            (Dict.keys model.horizon.timeSeries)
-            (List.map (\x -> x.value) (Dict.values model.horizon.timeSeries))
+            (Dict.keys model.editedTs)
+            (List.map (\x -> x.value) (Dict.values model.editedTs))
             { defaultLayoutOptions | dragMode = dragMode }
             defaultoptions
         , permaLink model
@@ -1136,7 +1135,7 @@ init input =
                     , processedPasted = [ ]
                     , randomNumber = 0
                     , rawPasted = ""
-                    , initialTs = Dict.empty
+                    , editedTs = Dict.empty
                     , view_nocache = False
                     , clipboardclass = "bi bi-clipboard"
                     , panActive = False
