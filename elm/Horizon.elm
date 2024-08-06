@@ -45,13 +45,12 @@ type Msg =
     | InferredFreq Bool
 
 
-type alias HorizonModel v =
+type alias HorizonModel =
     { offset : Int
     , horizon : Maybe String
     , inferredFreq : Bool
     , mindate : String
     , maxdate : String
-    , timeSeries : Dict String v
     , timeZone : String
     , horizonChoices: OD.OrderedDict String String
     , plotStatus : PlotStatus
@@ -80,7 +79,6 @@ initHorizon min max =
     , inferredFreq = False
     , mindate = ""
     , maxdate = ""
-    , timeSeries = Dict.empty
     , timeZone = "UTC"
     , horizonChoices = horizons
     , plotStatus = Loading
@@ -162,7 +160,7 @@ horizons =  OD.fromList
       )
     ]
 
-getFromToDates: HorizonModel v  -> ( String, String)
+getFromToDates: HorizonModel  -> ( String, String)
 getFromToDates model =
     case model.zoomBounds of
          Just ( min, max ) ->  ( min, max )
@@ -171,15 +169,15 @@ getFromToDates model =
                         Nothing ->  ( Maybe.unwrap "" (always model.mindate) model.horizon
                                     , Maybe.unwrap "" (always model.maxdate) model.horizon )
 
-setStatusPlot: HorizonModel v -> PlotStatus ->HorizonModel v
+setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
     { model | plotStatus = status}
 
-setDisabled: HorizonModel v -> Bool ->HorizonModel v
+setDisabled: HorizonModel -> Bool ->HorizonModel
 setDisabled model status =
     { model | disabled = status }
 
-updateHorizon : ( HorizonModel v -> ( List ( Cmd msg ))) -> Msg -> HorizonModel v -> ( HorizonModel v, Cmd msg )
+updateHorizon : ( HorizonModel -> ( List ( Cmd msg ))) -> Msg -> HorizonModel -> ( HorizonModel, Cmd msg )
 updateHorizon actions msg model =
     let previousOffset = model.offset
     in
@@ -278,7 +276,7 @@ updateHorizon actions msg model =
             )
 
 
-updateInternalHorizon : Maybe String -> HorizonModel v -> HorizonModel v
+updateInternalHorizon : Maybe String -> HorizonModel -> HorizonModel
 updateInternalHorizon horizon model =
     { model
         | horizon = horizon
@@ -286,7 +284,7 @@ updateInternalHorizon horizon model =
     }
 
 
-updatefromlocalstorage : LocalStorageData -> HorizonModel v -> HorizonModel v
+updatefromlocalstorage : LocalStorageData -> HorizonModel -> HorizonModel
 updatefromlocalstorage data model =
     { model
         | horizon = data.horizon
@@ -295,7 +293,7 @@ updatefromlocalstorage data model =
     }
 
 
-updateHorizonFromData : HorizonModel v -> Dict String v -> HorizonModel v
+updateHorizonFromData : HorizonModel -> Dict String v -> HorizonModel
 updateHorizonFromData model val =
     let
         tsBounds = formatBoundDates val
@@ -303,7 +301,6 @@ updateHorizonFromData model val =
     { model
         | mindate = Tuple.first tsBounds
         , maxdate = Tuple.second tsBounds
-        , timeSeries = val
         , plotStatus = Success
     }
 
@@ -338,7 +335,7 @@ buttonArrow convertmsg disabled direction className =
         ]
 
 
-selectHorizon : HorizonModel v -> (Msg -> msg) -> H.Html msg
+selectHorizon : HorizonModel -> (Msg -> msg) -> H.Html msg
 selectHorizon model convertmsg =
     H.select
         [ HE.targetValue
@@ -385,7 +382,7 @@ renderTimeZone selectedhorizon timeZone =
 
 
 
-inferredfreqswitch : HorizonModel v -> (Msg -> msg) -> H.Html msg
+inferredfreqswitch : HorizonModel -> (Msg -> msg) -> H.Html msg
 inferredfreqswitch model convertmsg =
     H.div
         [ HA.class "custom-control custom-switch"]
@@ -405,7 +402,7 @@ inferredfreqswitch model convertmsg =
         ]
 
 
-tzonedropdown : HorizonModel v -> (Msg -> msg) -> H.Html msg
+tzonedropdown : HorizonModel -> (Msg -> msg) -> H.Html msg
 tzonedropdown model convertmsg =
     let
         decodeTimeZone : String -> D.Decoder msg
@@ -426,7 +423,7 @@ viewdate strdate =
     else strdate
 
 
-loadingStatus: HorizonModel v -> H.Html msg
+loadingStatus: HorizonModel -> H.Html msg
 loadingStatus model =
     H.div
         [ HA.class
@@ -439,7 +436,7 @@ loadingStatus model =
         ]
         [H.text "•"]
 
-horizonview : HorizonModel v -> (Msg -> msg) -> String -> Bool -> H.Html msg
+horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
     H.div
         [ HA.class klass ]

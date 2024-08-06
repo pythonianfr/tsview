@@ -85,6 +85,7 @@ type alias Model =
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
     , seriestype : I.SeriesType
+    , timeseries: Dict String ( Maybe Float )
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -112,7 +113,7 @@ type alias Model =
     -- clipboard
     , clipboardclass : String
     -- horizon
-    , horizon : HorizonModel (Maybe Float)
+    , horizon : HorizonModel
     -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
@@ -534,6 +535,7 @@ update msg model =
                         newmodel =
                             { model
                                 | horizon = updateHorizonFromData model.horizon val
+                                , timeseries = val
                             }
                     in
                     U.nocmd newmodel
@@ -870,7 +872,7 @@ update msg model =
                                 , firstIdates = Array.empty
                                 , dataFromHover = Nothing
                             }
-                        in
+                    in
                         U.nocmd newmodel
                 else
                     let
@@ -990,7 +992,7 @@ update msg model =
             )
 
 
-actionsHorizon : Model -> HorizonModel (Maybe Float) -> List (Cmd Msg)
+actionsHorizon : Model -> HorizonModel -> List (Cmd Msg)
 actionsHorizon model horizonModel =
     let
         newModel = { model | horizon = horizonModel }
@@ -1149,7 +1151,7 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
 viewplot : Model -> H.Html Msg
 viewplot model =
     let
-        ts = model.horizon.timeSeries
+        ts = model.timeseries
     in
     if model.historyMode
     then
@@ -1349,6 +1351,7 @@ init input =
       , meta = Dict.empty
       , usermeta = Dict.empty
       , seriestype = I.Primary
+      , timeseries = Dict.empty
       -- formula
       , formula_depth = 0
       , formula_maxdepth = 0

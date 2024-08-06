@@ -53,11 +53,12 @@ type alias Model =
     , source : String
     , seriestype : I.SeriesType
     , date_index : Int
-    , horizon : HorizonModel Entry
+    , horizon : HorizonModel
     , insertion_dates : Array String
     , editing : Dict String String
     , processedPasted: List String
     , rawPasted: String
+    , initialTs: Dict String Entry
     , editedTs : Dict String Entry
     , view_nocache : Bool
     , randomNumber : Int
@@ -344,7 +345,8 @@ update msg model =
                                 <| List.indexedMap reindex (Dict.toList val)
                     in
                         U.nocmd { model
-                                    | editedTs = indexedval
+                                    | initialTs = indexedval
+                                    , editedTs = indexedval
                                     , horizon = updateHorizonFromData model.horizon indexedval }
                 Err err ->
                   U.nocmd ( addError
@@ -361,7 +363,8 @@ update msg model =
                     rawdata of
                 Ok val -> let timeseries = decorateVanilla val
                           in
-                            ( { model | editedTs = timeseries
+                            ( { model | initialTs = timeseries
+                                      , editedTs = timeseries
                                       , horizon = updateHorizonFromData
                                                     model.horizon
                                                     timeseries }
@@ -522,9 +525,8 @@ update msg model =
         Paste payload ->
             let
                 newtimeSeries = getPastedDict model payload
-                newHorizonModel = model.horizon
             in
-            U.nocmd { model | horizon = { newHorizonModel | timeSeries = newtimeSeries } }
+            U.nocmd { model | initialTs = newtimeSeries }
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -555,13 +557,13 @@ update msg model =
                     newmodel =
                         if minDate == "" && maxDate == "" then
                             { model | horizon = { horizonmodel | zoomBounds = Nothing}
-                                    , editedTs = horizonmodel.timeSeries
+                                    , editedTs = model.initialTs
                             }
                         else
                             { model | editedTs = Dict.filter
                                                     ((\key _ -> ((key >= minDate) && (key <= maxDate))))
                                                     ( if model.panActive
-                                                        then horizonmodel.timeSeries
+                                                        then model.initialTs
                                                         else model.editedTs )
                                     , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                             }
@@ -589,7 +591,7 @@ update msg model =
 defaultActions newModel =
     getRelevantData newModel ++ [( Random.generate RandomNumber randomInt )]
 
-actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel Entry -> List (Cmd Msg)
+actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel -> List (Cmd Msg)
 actionsHorizon model msg horizonModel =
     let newModel = { model | horizon = horizonModel}
     in
@@ -1135,6 +1137,7 @@ init input =
                     , processedPasted = [ ]
                     , randomNumber = 0
                     , rawPasted = ""
+                    , initialTs = Dict.empty
                     , editedTs = Dict.empty
                     , view_nocache = False
                     , clipboardclass = "bi bi-clipboard"
