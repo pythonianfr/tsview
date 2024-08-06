@@ -179,11 +179,13 @@ def tsview(tsa):
         baseurl = homeurl()
         appname = find_first_uriname()
         instance = "Local" if len(appname)==0 else appname.capitalize()
+        flags_menu = json.dumps([homeurl(), 'navigation-home'])
         import tshistory_refinery
         version = tshistory_refinery.__version__
         return render_template(
             'homepage.html',
             flags=json.dumps([baseurl, instance, version]),
+            flags_menu=flags_menu,
             title = appname.title()
         )
 

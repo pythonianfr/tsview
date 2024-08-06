@@ -8,6 +8,7 @@ import Html exposing
     , Attribute
     )
 import Menu as Men
+import Icons exposing (getIcons)
 
 type alias Model =
     { baseUrl: String
@@ -36,7 +37,7 @@ init (baseUrl, selected) =
     ( initModel baseUrl selected
     , Cmd.batch
         [ Men.getMenu baseUrl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-        , Men.getIcons baseUrl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
+        , getIcons baseUrl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
        ]
    )
 

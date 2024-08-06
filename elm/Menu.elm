@@ -3,7 +3,6 @@ port module Menu exposing
     , Msg(..)
     , buildCmd
     , getMenu
-    , getIcons
     , initmenu
     , loadMenuData
     , viewMenu
@@ -11,13 +10,6 @@ port module Menu exposing
     )
 import Http
 import Dict exposing (Dict)
-import Svg exposing (svg, path)
-import Svg.Attributes exposing
-    ( d
-    , fill
-    , fillRule
-    , viewBox
-    )
 import Html as H
 import Html exposing
     ( Html
@@ -27,6 +19,7 @@ import Html.Attributes as A
 import Html.Events as HE
 import Json.Decode as JD
 import Json.Decode exposing (Decoder)
+import Icons exposing (Icon, buildSvg)
 
 
 port saveMenuData : MenuData -> Cmd msg
@@ -60,14 +53,6 @@ type alias Link =
     , icone: String
     , target: String
     , id: String
-    }
-
-
-type alias Icon = List Path
-
-type alias Path =
-    { d: String
-    , fillRule: Maybe String
     }
 
 
@@ -115,29 +100,6 @@ getMenu baseUrl msgBuilder =
         { url = baseUrl ++ "menu"
         , expect = Http.expectJson msgBuilder menuDecoder
         }
-
-
-getIcons: String -> ((Result Http.Error (Dict String Icon)) -> msg) -> Cmd msg
-getIcons baseUrl msgBuilder =
-    Http.get
-        { url = baseUrl ++ "icons"
-        , expect = Http.expectJson msgBuilder iconesDecoder
-        }
-
-
-iconesDecoder: Decoder (Dict String Icon)
-iconesDecoder = JD.dict decodeIcone
-
-
-decodeIcone: Decoder Icon
-decodeIcone = JD.list decodePath
-
-
-decodePath: Decoder Path
-decodePath =
-    JD.map2 Path
-        ( JD.field "d" JD.string )
-        ( JD.maybe (JD.field "fillRule" JD.string ) )
 
 
 menuDataDecoder: Decoder MenuData
@@ -257,26 +219,6 @@ classSelect label selected =
             if select == label
                 then A.class "selected"
                 else A.class ""
-
-
-buildSvg: Dict String Icon -> String -> Html msg
-buildSvg icones iconeName =
-    let
-        icone =
-            Maybe.withDefault [] <| Dict.get iconeName icones
-    in
-    svg
-        [ viewBox "0 0 16 16"
-        , fill "currentColor"
-        ]
-        <| List.map  (\ipath -> buildSvgPath ipath) icone
-
-
-buildSvgPath: Path -> Html msg
-buildSvgPath ipath =
-    case ipath.fillRule of
-        Nothing -> path [ d ipath.d ] []
-        Just rule -> path [ fillRule rule, d ipath.d ] []
 
 
 displaSwitchButton: Dict String Icon -> Bool -> Html msg

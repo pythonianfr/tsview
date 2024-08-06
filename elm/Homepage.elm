@@ -5,17 +5,10 @@ import Catalog as Cat exposing (Msg(..))
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
-import Menu as Men
 import Set exposing (Set)
-import Svg exposing (path, svg)
-import Svg.Attributes
-    exposing
-        ( d
-        , fill
-        , fillRule
-        , viewBox
-        )
+import Http
 
+import Icons exposing (Icon, buildSvg, getIcons)
 
 type Status
     = Processing
@@ -31,13 +24,13 @@ type alias Model =
     , version : String
     , status : MultiStatus
     , catalog : Cat.Model
-    , menu : Men.Model
+    , icones : Dict String Icon
     }
 
 
 type Msg
     = GotCatalog Cat.Msg
-    | Menu Men.Msg
+    | GotIcons (Result Http.Error (Dict String Icon))
 
 
 nocmd model =
@@ -49,36 +42,8 @@ update msg model =
     case msg of
         GotCatalog catmsg ->
             nocmd { model | catalog = Cat.update catmsg model.catalog }
-
-        Menu menumsg ->
-            ( { model | menu = Men.updateModel menumsg model.menu }
-            , Men.buildCmd menumsg model.menu )
-
-
-buildSvg icones iconeName =
-    let
-        icone =
-            Maybe.withDefault
-                []
-                (Dict.get iconeName icones)
-    in
-    svg
-        [ viewBox "0 0 16 16"
-        , fill "currentColor"
-        ]
-        (List.map
-            (\ipath -> buildSvgPath ipath)
-            icone
-        )
-
-
-buildSvgPath ipath =
-    case ipath.fillRule of
-        Nothing ->
-            path [ d ipath.d ] []
-
-        Just rule ->
-            path [ fillRule rule, d ipath.d ] []
+        GotIcons (Ok content) -> nocmd { model | icones = content }
+        GotIcons (Err error) -> nocmd model
 
 getSeriesNumberOf model seriestype =
     String.fromInt
@@ -153,7 +118,7 @@ buildGetStartedDiv : Model -> H.Html Msg
 buildGetStartedDiv model =
     let
         icons =
-            model.menu.icones
+            model.icones
     in
     H.div
         [ HA.id "homepage-getstarted" ]
@@ -284,19 +249,9 @@ buildGetStartedDiv model =
 view : Model -> H.Html Msg
 view model =
     H.div
-        [ HA.class
-            (if model.menu.menuModeText then
-                "grid-container-text"
-
-             else
-                "grid-container-icon"
-            )
-        ]
-        [ Men.viewMenu model.menu Menu
-        , H.div
-            [ HA.class "main-content"
-            , HA.style "margin" ".5em"
-            ]
+        [ ]
+        [ H.div
+            [ HA.class "main-content" ]
             [ H.div [ HA.class "homepage-content" ]
                 [ H.div
                     [ HA.id "homepage-home" ]
@@ -319,7 +274,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+    Sub.none
 
 
 initModel baseurl instance version =
@@ -328,7 +283,7 @@ initModel baseurl instance version =
     , version = version
     , status = { catalog = Processing }
     , catalog = Cat.empty
-    , menu = Men.initmenu "navigation-home"
+    , icones = Dict.empty
     }
 
 
@@ -337,9 +292,7 @@ init ( baseurl, instance, version ) =
     ( initModel baseurl instance version
     , Cmd.batch
         [ Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
-        , Men.getMenu baseurl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-        , Men.getIcons baseurl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ))
-        ]
+        , getIcons baseurl ( \ returnHttp ->  GotIcons returnHttp )]
     )
 
 
