@@ -25,6 +25,18 @@ import Plotter exposing
     , scatterplot
     , seriesdecoder
     )
+import Horizon as ModuleHorizon
+import Horizon exposing
+    ( HorizonModel
+    , PlotStatus(..)
+    , initHorizon
+    , horizonview
+    , horizons
+    , getFromToDates
+    , loadFromLocalStorage
+    , updateHorizon
+    , updateHorizonFromData
+    , setStatusPlot )
 import SeriesSelector
 import Task exposing (Task)
 import Time exposing (Month(..))
@@ -37,6 +49,7 @@ type alias Model =
     , catalog: Catalog.Model
     , haseditor : Bool
     , search : SeriesSelector.Model
+    , horizon : HorizonModel
     , selecting : Bool
     , loadedseries : Dict String Series
     , now : Date
@@ -59,8 +72,12 @@ type Msg
     | GotToday Date
     | FvdatePickerChanged String
     | TvdatePickerChanged String
+    | Horizon ModuleHorizon.Msg
 
 
+convertMsg : ModuleHorizon.Msg -> Msg
+convertMsg msg =
+    Horizon msg
 
 zerotime = "00:00:00.000Z"
 
@@ -302,6 +319,22 @@ update msg model =
             , Cmd.batch <| fetchseries newmodel True
             )
 
+        Horizon hMsg ->
+            let ( newModelHorizon, commands ) =  updateHorizon
+                                                    ( actionsHorizon model )
+                                                    hMsg
+                                                    model.horizon
+            in
+            ( { model | horizon = newModelHorizon }
+            , commands )
+
+
+actionsHorizon : Model -> HorizonModel -> List (Cmd Msg)
+actionsHorizon model horizonModel =
+    let
+        newModel = { model | horizon = horizonModel }
+    in
+    [ Cmd.none ]
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -467,7 +500,9 @@ view model =
         [ ]
         [ H.div
                 [ HA.class "main-content" ]
-                [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
+                [ H.span [ HA.class "action-container" ]
+                    [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
+                    , horizonview model.horizon convertMsg "action-center" True ]
                 , H.div
                     [ HA.class "quickview" ]
                     [ H.header [ ] [ selector ]
@@ -500,6 +535,7 @@ main =
                     flags.selected
                 model =
                     { baseurl = flags.baseurl
+                    , horizon = initHorizon "" ""
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])
