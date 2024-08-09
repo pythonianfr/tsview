@@ -114,7 +114,7 @@ getidates model dtype callback =
               model.baseurl
               [ "api", dtype, "insertion_dates" ]
               [ UB.string "name" model.name
-              , UB.int "nocache" <| U.bool2int model.view_nocache
+              , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
               ]
         , expect = Http.expectString callback
         }

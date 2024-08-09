@@ -608,6 +608,8 @@ actionsHorizon model msg horizonModel =
 
         Horizon.InferredFreq _ -> defaultActions newModel
 
+        Horizon.ViewNoCache -> defaultActions newModel
+
 
 getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =

@@ -43,6 +43,8 @@ type Msg =
     | UpdateOffset Offset
     | TimeZoneSelected String
     | InferredFreq Bool
+    | ViewNoCache
+
 
 
 type alias HorizonModel =
@@ -52,6 +54,8 @@ type alias HorizonModel =
     , mindate : String
     , maxdate : String
     , timeZone : String
+    , hasCache: Bool
+    , viewNoCache: Bool
     , horizonChoices: OD.OrderedDict String String
     , plotStatus : PlotStatus
     , disabled: Bool
@@ -80,6 +84,8 @@ initHorizon min max =
     , mindate = ""
     , maxdate = ""
     , timeZone = "UTC"
+    , hasCache = True
+    , viewNoCache = False
     , horizonChoices = horizons
     , plotStatus = Loading
     , disabled = False
@@ -275,6 +281,17 @@ updateHorizon actions msg model =
                 ]
             )
 
+        ViewNoCache ->
+            let
+                newmodel = { model
+                          | viewNoCache = not model.viewNoCache
+                          , plotStatus = Loading
+                      }
+            in
+            ( newmodel
+            , Cmd.batch ( actions newmodel )
+            )
+
 
 updateInternalHorizon : Maybe String -> HorizonModel -> HorizonModel
 updateInternalHorizon horizon model =
@@ -391,7 +408,7 @@ inferredfreqswitch model convertmsg =
             , HA.class "custom-control-input"
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
-            , HA.disabled model.disabled
+            , HA.disabled ( model.disabled || ( model.plotStatus == Loading ))
             , HE.onCheck ( \ b ->  convertmsg (InferredFreq b) )
             ] [ ]
         , H.label
@@ -412,7 +429,7 @@ tzonedropdown model convertmsg =
     in
     H.select
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
-        , HA.disabled model.disabled
+        , HA.disabled ( model.disabled || ( model.plotStatus == Loading ))
         ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
@@ -435,6 +452,29 @@ loadingStatus model =
             )
         ]
         [H.text "•"]
+
+cacheswitch: HorizonModel -> (Msg -> msg) -> H.Html msg
+cacheswitch model convertmsg =
+    if model.hasCache
+    then
+    H.div
+        [ HA.class "custom-control custom-switch"]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "cacheSwitch"
+            , HA.checked ( not model.viewNoCache )
+            , HA.disabled ( model.disabled
+                            || (model.plotStatus == Loading))
+            , HE.onClick ( convertmsg ViewNoCache )
+            ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "cacheSwitch"
+            ]
+            [ H.text "cache" ]
+        ]
+    else H.div [] []
 
 horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
@@ -464,4 +504,7 @@ horizonview model convertmsg klass tzaware =
         , H.div
             []
             [ inferredfreqswitch model convertmsg  ]
+        , H.div
+            []
+            [ cacheswitch model convertmsg  ]
         ]

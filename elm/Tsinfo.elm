@@ -91,8 +91,6 @@ type alias Model =
     , formula_maxdepth : Int
     , formula : Dict Int String
     -- cache
-    , has_cache : Bool
-    , view_nocache : Bool
     , policy : M.StdMetadata
     , deleting_cache : Bool
     -- log
@@ -159,7 +157,6 @@ type Msg
     | CacheConfirmDeletion
     | CacheDeleted (Result Http.Error String)
     | GotCachePolicy (Result Http.Error String)
-    | ViewNocache
     -- metadata edition
     | MetaEditAsked
     | MetaEditCancel
@@ -298,7 +295,7 @@ getplot model =
     , name = model.name
     , idate = idate
     , callback = GotPlotData
-    , nocache = (U.bool2int model.view_nocache)
+    , nocache = (U.bool2int model.horizon.viewNoCache)
     , fromdate =
         Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
     , todate =
@@ -379,7 +376,7 @@ getsomeidates model =
                 model.baseurl
                 [ "api", "series", "insertion_dates" ]
                 [ UB.string "name" model.name
-                , UB.int "nocache" <| U.bool2int model.view_nocache
+                , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
                 , UB.string "from_value_date" minDate
                 , UB.string "to_value_date" maxDate
                 ]
@@ -578,7 +575,12 @@ update msg model =
         -- cache
 
         HasCache (Ok rawhascache) ->
-            U.nocmd { model | has_cache = String.startsWith "true" rawhascache }
+            let model_horizon = model.horizon
+            in
+                U.nocmd { model | horizon =
+                            { model_horizon | hasCache = String.startsWith
+                                                            "true"
+                                                            rawhascache }}
 
         HasCache (Err error) ->
             doerr "hascache http" <| U.unwraperror error
@@ -595,7 +597,10 @@ update msg model =
             U.nocmd { model | deleting_cache = False }
 
         CacheDeleted (Ok _) ->
-            let newmodel = { model | view_nocache = False } in
+            let model_horizon = model.horizon in
+            let newmodel = { model | horizon =
+                            { model_horizon | viewNoCache = False }}
+            in
             ( newmodel
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel
@@ -606,20 +611,6 @@ update msg model =
 
         CacheDeleted (Err error) ->
             doerr "cachedeleted http" <| U.unwraperror error
-
-        ViewNocache ->
-            let
-                mod = { model
-                          | view_nocache = not model.view_nocache
-                          ,  horizon = ( setStatusPlot model.horizon Loading )
-                      }
-            in
-            ( mod
-            , Cmd.batch
-                [ I.getidates mod "series" InsertionDates
-                , getplot mod
-                ]
-            )
 
         GotCachePolicy (Ok rawpol) ->
             case rawpol of
@@ -1030,7 +1021,7 @@ viewtogglecached model =
         title =
             if model.horizon.plotStatus == Loading then
                 "Loading ..."
-            else if model.view_nocache then
+            else if model.horizon.viewNoCache then
                 "view cached"
             else
                 "view uncached"
@@ -1044,8 +1035,7 @@ viewtogglecached model =
               [ HA.attribute "type" "checkbox"
               , HA.class "custom-control-input"
               , HA.id "view-uncached"
-              , HA.checked <| not model.view_nocache
-              , HE.onClick ViewNocache
+              , HA.checked <| not model.horizon.viewNoCache
               , HA.disabled (model.horizon.plotStatus == Loading)
               ] [ ]
         , H.label
@@ -1070,7 +1060,7 @@ viewcache model =
                 ]
 
         deleteaction =
-            if model.has_cache then
+            if model.horizon.hasCache then
                 if model.deleting_cache then
                     H.span [ ]
                         [ H.button
@@ -1105,7 +1095,7 @@ viewcache model =
                       , H.span [] [ H.text " " ]
                       , deleteaction
                       ]
-                , if model.has_cache then
+                , if model.horizon.hasCache then
                       H.span [] []
                   else
                       H.div [] [ H.text "There is no cache yet." ]
@@ -1297,7 +1287,7 @@ view model =
                               , tabcontents
                                     [ viewplot model
                                     , I.viewformula model SwitchLevel
-                                    , if model.has_cache
+                                    , if model.horizon.hasCache
                                       then viewtogglecached model
                                       else H.span [] []
                                     ]
@@ -1357,8 +1347,6 @@ init input =
       , formula_maxdepth = 0
       , formula = Dict.empty
       -- cache
-      , has_cache = False
-      , view_nocache = False
       , policy = Dict.empty
       , deleting_cache = False
       -- log

@@ -209,7 +209,7 @@ update msg model =
                                 | meta = stdmeta
                                 , usermeta = usermeta
                             }
-                        next = I.getidates model "group" InsertionDates
+                        next = getidates model "group" InsertionDates
                         cmd =
                             Cmd.batch
                                 [ I.getformula model model.name 0 "group" GotFormula, next ]
@@ -445,6 +445,18 @@ update msg model =
         SeeLogs ->
             U.nocmd model
 
+
+getidates model dtype callback =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", dtype, "insertion_dates" ]
+              [ UB.string "name" model.name
+              , UB.int "nocache" <| 1
+              ]
+        , expect = Http.expectString callback
+        }
 
 -- views
 
