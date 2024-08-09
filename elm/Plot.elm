@@ -37,6 +37,8 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , setStatusPlot )
+import Maybe.Extra as Maybe
+import OrderedDict as OD
 import SeriesSelector
 import Task exposing (Task)
 import Time exposing (Month(..))
@@ -128,8 +130,16 @@ selectmaybedate model op date1 date2 =
                 Just d2 ->
                     op d1 d2
 
+getFromHorizon: Model -> String
+getFromHorizon model =
+    Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
 
-fetchseries model restrict =
+
+getToHorizon: Model -> String
+getToHorizon model =
+    Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+
+fetchseries model restrict reload =
     let
         selected =
             model.search.selected
@@ -144,17 +154,24 @@ fetchseries model restrict =
              , name = name
              , idate = Nothing
              , callback = GotPlotData name
-             , nocache = 0
-             , fromdate = (if restrict then (serializedate model.mindate) else "")
-             , todate = (if restrict then (serializedate model.maxdate) else "")
-             , horizon = Nothing
-             , tzone = "UTC"
-             , inferredFreq = False
+             , nocache = (U.bool2int model.horizon.viewNoCache)
+             , fromdate = getFromHorizon model
+             , todate = getToHorizon model
+             , horizon = model.horizon.horizon
+                            |> Maybe.andThen
+                                (\key-> OD.get key horizons)
+                                    |> Maybe.map
+                          (String.replace "{offset}"
+                                (String.fromInt model.horizon.offset))
+             , tzone = model.horizon.timeZone
+             , inferredFreq = model.horizon.inferredFreq
              , keepnans = False
              , apipoint = "state"
              }
         )
-        missing
+        ( if not reload
+            then missing
+            else selected )
 
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
@@ -232,7 +249,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , Cmd.batch <| fetchseries newmodel False
+            , Cmd.batch <| fetchseries newmodel False False
             )
 
         SearchSeries x ->
@@ -259,28 +276,14 @@ update msg model =
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
-                        dates =
-                            Dict.keys val
-                        mindate =
-                            asmaybedate False <|
-                                case dates of
-                                    head::_ -> head
-                                    []  -> "1900-1-1"
-                        maxdate =
-                            asmaybedate True
-                                <| Maybe.withDefault "2100-1-1" <| List.maximum dates
-
                         loaded =
                             Dict.insert name val model.loadedseries
 
                         newmodel =
                             { model
                                 | loadedseries = loaded
-                                , mindate =
-                                  Just <| selectmaybedate model Date.min model.mindate mindate
-                                , maxdate =
-                                  Just <| selectmaybedate model Date.max model.maxdate maxdate
-                            }
+                                , horizon = updateHorizonFromData model.horizon val }
+
                     in
                     U.nocmd newmodel
 
@@ -304,7 +307,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , Cmd.batch <| fetchseries newmodel True
+            , Cmd.batch <| fetchseries newmodel True False
             )
 
         TvdatePickerChanged value ->
@@ -316,7 +319,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , Cmd.batch <| fetchseries newmodel True
+            , Cmd.batch <| fetchseries newmodel True False
             )
 
         Horizon hMsg ->
@@ -334,7 +337,7 @@ actionsHorizon model horizonModel =
     let
         newModel = { model | horizon = horizonModel }
     in
-    [ Cmd.none ]
+        fetchseries newModel True True
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -558,7 +561,7 @@ main =
                           GotCatalog
                           (Catalog.get model.baseurl "series" 1 Catalog.ReceivedSeries)
                      , Date.today |> Task.perform GotToday
-                     ] ++ fetchseries model False
+                     ] ++ fetchseries model False False
                )
 
     in
