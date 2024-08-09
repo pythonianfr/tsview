@@ -31,6 +31,14 @@
                  haseditor: haseditor
              }
          });
+          app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+             localStorage.setItem("horizon", JSON.stringify(dataInCache))
+         });
+         incache = localStorage.getItem("horizon")
+         if (incache === null) {
+             incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
+         }
+         app.ports.loadFromLocalStorage.send(incache);
         </script>
         {% set function_type = 'view' %}
         {% include "plot_figure.js.html" %}

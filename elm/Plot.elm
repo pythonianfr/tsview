@@ -518,8 +518,13 @@ sub: Model -> Sub Msg
 sub model =
     -- this is a cheap (cadenced) debouncer for the search ui
     if model.selecting then
-        Time.every 1000 (always MakeSearch)
-    else Sub.none
+    Sub.batch [ Time.every 1000 (always MakeSearch)
+              , loadFromLocalStorage
+                    (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
+              ]
+
+    else loadFromLocalStorage
+            (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
 
 
 main : Program
