@@ -292,7 +292,7 @@ def test_spec_types(client):
         ]],
         ['by.source', [
             ['return', 'query'],
-            ['query', 'query']
+            ['source', 'str']
         ]],
         ['<', [
             ['return', 'query'],
