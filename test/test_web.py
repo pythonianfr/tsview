@@ -253,86 +253,33 @@ def test_group_formulas(client, tsa):
 
 def test_spec_types(client):
     res = client.get('/queryspec')
-    assert res.json == [
-        ['by.everything', [
-            ['return', 'query']
-        ]],
-        ['by.and', [
-            ['return', 'query'],
-            ['items', 'Packed[query]']
-        ]],
-        ['by.or', [
-            ['return', 'query'],
-            ['items', 'Packed[query]']
-        ]],
-        ['by.not', [
-            ['return', 'query'],
-            ['item', 'query']
-        ]],
-        ['by.tzaware', [
-            ['return', 'query']
-        ]],
-        ['by.name', [
-            ['return', 'query'],
-            ['query', 'str']
-        ]],
-        ['by.metakey', [
-            ['return', 'query'],
-            ['key', 'str']
-        ]],
-        ['by.metaitem', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['by.internal-metaitem', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['by.source', [
-            ['return', 'query'],
-            ['source', 'str']
-        ]],
-        ['<', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['<=', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['>', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['>=', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['=', [
-            ['return', 'query'],
-            ['key', 'str'],
-            ['value', 'Union[str, Number, bool]']
-        ]],
-        ['by.formulacontents', [
-            ['return', 'query'],
-            ['query', 'str']]
-         ],
-        ['by.formula', [
-            ['return', 'query'],
-            ['query', 'str']
-        ]],
-        ['by.cache', [
-            ['return', 'query']
-        ]],
-        ['by.cachepolicy', [
-            ['return', 'query'], ['query', 'str']
-        ]]
+    assert sorted(res.json) == [
+        ['<',
+         [['return', 'query'], ['key', 'str'],['value', 'Union[str, Number, bool]']]],
+        ['<=',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['=',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['>',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['>=',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['by.and', [['return', 'query'], ['items', 'Packed[query]']]],
+        ['by.cache', [['return', 'query']]],
+        ['by.cachepolicy', [['return', 'query'], ['query', 'str']]],
+        ['by.everything', [['return', 'query']]],
+        ['by.formula', [['return', 'query'], ['query', 'str']]],
+        ['by.formulacontents', [['return', 'query'], ['query', 'str']]],
+        ['by.internal-metaitem',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['by.metaitem',
+         [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
+        ['by.metakey', [['return', 'query'], ['key', 'str']]],
+        ['by.name', [['return', 'query'], ['query', 'str']]],
+        ['by.not', [['return', 'query'], ['item', 'query']]],
+        ['by.or', [['return', 'query'], ['items', 'Packed[query]']]],
+        ['by.source', [['return', 'query'], ['source', 'str']]],
+        ['by.tzaware', [['return', 'query']]]
     ]
 
 
