@@ -1,7 +1,9 @@
 import io
 import json
 from pathlib import Path
+
 import pandas as pd
+import pytest
 
 from tshistory.testutil import (
     genserie,
@@ -377,3 +379,34 @@ def test_formula_form_base(engine, client, tsa):
         'status': 'invalid',
         'warnings': {'existing': ['prio1']}
     }
+
+    # special characters
+    tsa.register_formula('formula_with_comma',
+                         '(/ (add(findseries (by.name "gas") #:fill "ffill, bfill")))')
+
+
+    response = client.get('/downloadformulas')
+    assert response.status_code == 200
+
+    assert response.text == (
+        'name,text\n'
+        'arith1,(add (* 10 (series "gas-a")) (series "gas-b") (naive (constant 42.0 (date "2010-1-1") (now) "D" (date "1900-1-1")) "CET"))\n'
+        'arith2,(add (series "gas-c") (series "prio1") (naive (constant 42.5 (date "1900-1-1") (date "2039-12-31") "D" (date "1900-1-1")) "CET"))\n'
+        'formula_with_comma,\'(/ (add (findseries (by.name "gas") #:fill "ffill, bfill")))\'\n'
+        'prio1,(priority (series "crude-a") (series "crude-b") (series "crude-c"))\n'
+    )
+
+    # We reinsert the donwloaded formulaes and check that no error is raised
+    response = client.put(
+        '/updateformulas',
+        {'reallydoit': True},
+        upload_files=[
+            ('new_formula.csv',
+             'formulareinserted.csv',
+             response.text.encode(),
+             'text/csv')
+        ]
+    )
+    # show the error when "," are in the name or in the formula
+    assert 'pandas.errors.ParserError: Error tokenizing data. C error: Expected 2 fields in line 4, saw 3' in json.loads(response.text)['crash']
+
