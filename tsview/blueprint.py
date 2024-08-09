@@ -1,4 +1,5 @@
 import io
+import csv
 import json
 import traceback
 from collections import defaultdict
@@ -389,7 +390,12 @@ def tsview(tsa):
             content = request.files.to_dict()['new_formula.csv'].stream.read().decode("utf-8")
             stdout.write(content)
             stdout.seek(0)
-            df_formula = pd.read_csv(stdout, dtype={'name': str, 'text': str}, sep=',')
+            df_formula = pd.read_csv(
+                stdout,
+                dtype={'name': str, 'text': str},
+                sep=',',
+                escapechar="/"
+            )
             if ('name' not in df_formula.columns) or ('text' not in df_formula.columns):
                 return jsonify({
                     'status' : 'invalid',
@@ -461,7 +467,9 @@ def tsview(tsa):
         response = make_response(
             df.to_csv(
                 index=False,
-                quotechar="'"
+                quoting=csv.QUOTE_NONE,
+                quotechar="'",
+                escapechar="/"
             ), 200
         )
         response.headers['Content-Type'] = 'text/json'
