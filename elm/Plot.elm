@@ -54,9 +54,6 @@ type alias Model =
     , horizon : HorizonModel
     , selecting : Bool
     , loadedseries : Dict String Series
-    , now : Date
-    , mindate : Maybe Date
-    , maxdate : Maybe Date
     , errors : List String
     }
 
@@ -71,9 +68,6 @@ type Msg
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
-    | GotToday Date
-    | FvdatePickerChanged String
-    | TvdatePickerChanged String
     | Horizon ModuleHorizon.Msg
 
 
@@ -81,54 +75,6 @@ convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
-zerotime = "00:00:00.000Z"
-
-
-timepart rest =
-    case rest of
-        [ time ] -> time
-        _ -> zerotime
-
-
-maybedate dateresult =
-    case dateresult of
-        Err _ -> Nothing
-        Ok d -> Just d
-
-
-asmaybedate bump strdate =
-    case String.split "T" strdate of
-        date::time ->
-            let realdate = maybedate (fromIsoString date)
-            in if (timepart time) == zerotime
-               then realdate
-            else if bump then
-                     -- if there is a time residue, we bump to the next day
-                     -- to make sure the max date includes all points
-                     Maybe.map (\d -> Date.add Date.Days 1 d) realdate
-                 else realdate
-
-        [] -> Nothing
-
-
-serializedate date =
-    case date of
-        Nothing -> ""
-        Just d -> toIsoString d
-
-
-selectmaybedate model op date1 date2 =
-    -- apply an operator (min/max) on maybe dates
-    case date1 of
-        Nothing ->
-            case date2 of
-                Nothing -> model.now
-                Just d2 -> d2
-        Just d1 ->
-            case date2 of
-                Nothing -> d1
-                Just d2 ->
-                    op d1 d2
 
 getFromHorizon: Model -> String
 getFromHorizon model =
@@ -139,7 +85,7 @@ getToHorizon: Model -> String
 getToHorizon model =
     Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
 
-fetchseries model restrict reload =
+fetchseries model reload =
     let
         selected =
             model.search.selected
@@ -249,7 +195,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , Cmd.batch <| fetchseries newmodel False False
+            , Cmd.batch <| fetchseries newmodel False
             )
 
         SearchSeries x ->
@@ -293,34 +239,7 @@ update msg model =
         GotPlotData name (Err err) ->
             doerr "gotplotdata error" <| U.unwraperror err
 
-        -- dates
-
-        GotToday now ->
-            U.nocmd { model | now = now }
-
-        FvdatePickerChanged value ->
-            let
-                newmodel =
-                    { model
-                        | mindate = maybedate <| fromIsoString value
-                        , loadedseries = Dict.empty
-                    }
-            in
-            ( newmodel
-            , Cmd.batch <| fetchseries newmodel True False
-            )
-
-        TvdatePickerChanged value ->
-            let
-                newmodel =
-                    { model
-                        | maxdate = maybedate <| fromIsoString value
-                        , loadedseries = Dict.empty
-                    }
-            in
-            ( newmodel
-            , Cmd.batch <| fetchseries newmodel True False
-            )
+        -- horizon
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
@@ -337,7 +256,7 @@ actionsHorizon model horizonModel =
     let
         newModel = { model | horizon = horizonModel }
     in
-        fetchseries newModel True True
+        fetchseries newModel True
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -379,46 +298,6 @@ viewlinks haseditor seriesName =
                   [ H.text <| "editor" ]
           else
               H.text ""
-        ]
-
-
-viewdatepicker model =
-    H.div
-        [ ]
-        [ H.span
-              [ ]
-              [ H.text " " ]
-        , H.label
-            [ HA.for "fvd-picker" ]
-            [ H.text "from value date" ]
-        , H.span
-            [ ]
-            [ H.text " " ]
-        , H.input
-            [ HA.type_ "date"
-            , HA.id "fvd-picker"
-            , HA.name "fvd-picker"
-            , HA.value (serializedate model.mindate)
-            , HE.onInput FvdatePickerChanged
-            ]
-            [ ]
-        , H.span
-            [ ]
-            [ H.text " " ]
-        , H.label
-            [ HA.for "tvd-picker" ]
-            [ H.text "to value date" ]
-        , H.span
-            [ ]
-            [ H.text " " ]
-        , H.input
-            [ HA.type_ "date"
-            , HA.id "tvd-picker"
-            , HA.name "tvd-picker"
-            , HA.value (serializedate model.maxdate)
-            , HE.onInput TvdatePickerChanged
-            ]
-            [ ]
         ]
 
 
@@ -510,7 +389,6 @@ view model =
                     [ HA.class "quickview" ]
                     [ H.header [ ] [ selector ]
                     , H.div [ HA.id plotDiv ] []
-                    , viewdatepicker model
                     , plotFigure [ HA.attribute "args" args ] []
                     , H.footer [] [ urls ]
                     ]
@@ -549,9 +427,6 @@ main =
                     , search = (SeriesSelector.new [] "" [] selected [] [])
                     , selecting = (List.isEmpty selected)
                     , loadedseries = Dict.empty
-                    , now =  (Date.fromCalendarDate 1900 Jan 1)
-                    , mindate = Nothing
-                    , maxdate = Nothing
                     , errors = []
                     }
 
@@ -560,8 +435,7 @@ main =
                       Cmd.map
                           GotCatalog
                           (Catalog.get model.baseurl "series" 1 Catalog.ReceivedSeries)
-                     , Date.today |> Task.perform GotToday
-                     ] ++ fetchseries model False False
+                     ] ++ fetchseries model False
                )
 
     in
