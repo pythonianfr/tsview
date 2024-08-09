@@ -60,7 +60,6 @@ type alias Model =
     , rawPasted: String
     , initialTs: Dict String Entry
     , editedTs : Dict String Entry
-    , view_nocache : Bool
     , randomNumber : Int
     , clipboardclass : String
     , panActive : Bool
@@ -76,6 +75,7 @@ type Msg
     | GotComponents (Result Http.Error String)
     | GotComponentData String (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
+    | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | InputChanged String String
     | SaveEditedData
@@ -212,7 +212,7 @@ getSeries model callback apipoint method name =
                     , name = name
                     , idate = Nothing
                     , callback = callback
-                    , nocache = (U.bool2int model.view_nocache)
+                    , nocache = (U.bool2int model.horizon.viewNoCache)
                     , fromdate = getFromHorizon model
                     , todate = getToHorizon model
                     , horizon = model.horizon.horizon |> Maybe.andThen
@@ -229,7 +229,7 @@ getSeries model callback apipoint method name =
                             , name = name
                             , idate = Nothing
                             , callback = callback
-                            , nocache = (U.bool2int model.view_nocache)
+                            , nocache = (U.bool2int model.horizon.viewNoCache)
                             , fromdate = min
                             , todate = max
                             , horizon = Nothing
@@ -515,12 +515,24 @@ update msg model =
                        ( newmodel
                        , Cmd.batch ( [ Random.generate RandomNumber randomInt
                                      , I.getidates newmodel "series" InsertionDates
+                                     , getHasCache newmodel
                                      ] ++ (getRelevantData newmodel)))
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
+
+        HasCache (Ok rawhascache) ->
+            let model_horizon = model.horizon
+            in
+                U.nocmd { model | horizon =
+                            { model_horizon | hasCache = String.startsWith
+                                                            "true"
+                                                            rawhascache }}
+
+        HasCache (Err error) ->
+            doerr "hascache http" <| U.unwraperror error
 
         Paste payload ->
             let
@@ -609,6 +621,18 @@ actionsHorizon model msg horizonModel =
         Horizon.InferredFreq _ -> defaultActions newModel
 
         Horizon.ViewNoCache -> defaultActions newModel
+
+
+getHasCache : Model -> Cmd Msg
+getHasCache model =
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "cache", "series-has-cache" ]
+              [ UB.string "name" model.name ]
+        , expect = Http.expectString HasCache
+        }
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -1141,7 +1165,6 @@ init input =
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , editedTs = Dict.empty
-                    , view_nocache = False
                     , clipboardclass = "bi bi-clipboard"
                     , panActive = False
                     , components = []
