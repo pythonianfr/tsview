@@ -1014,38 +1014,6 @@ viewcachepolicy model =
                          ]
         ]
 
-
-viewtogglecached : Model -> H.Html Msg
-viewtogglecached model =
-    let
-        title =
-            if model.horizon.plotStatus == Loading then
-                "Loading ..."
-            else if model.horizon.viewNoCache then
-                "view cached"
-            else
-                "view uncached"
-
-    in
-    H.div
-        [ HA.class "custom-control custom-switch"
-        , HA.title title
-        ]
-        [ H.input
-              [ HA.attribute "type" "checkbox"
-              , HA.class "custom-control-input"
-              , HA.id "view-uncached"
-              , HA.checked <| not model.horizon.viewNoCache
-              , HA.disabled (model.horizon.plotStatus == Loading)
-              ] [ ]
-        , H.label
-            [ HA.class "custom-control-label"
-            , HA.for "view-uncached"
-            ]
-            [ H.text title ]
-        ]
-
-
 viewcache : Model -> H.Html Msg
 viewcache model =
     let
@@ -1287,9 +1255,6 @@ view model =
                               , tabcontents
                                     [ viewplot model
                                     , I.viewformula model SwitchLevel
-                                    , if model.horizon.hasCache
-                                      then viewtogglecached model
-                                      else H.span [] []
                                     ]
                               ]
 
