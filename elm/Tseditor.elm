@@ -700,6 +700,7 @@ patchEditedData model =
                  , ("series", encodeEditedData patch )
                  , ("supervision", JE.bool True )
                  , ("tzone", JE.string model.horizon.timeZone)
+                 , ("keepnans", JE.bool True)
                  ]
         , headers = [ ]
         , timeout = Nothing
