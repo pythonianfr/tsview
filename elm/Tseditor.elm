@@ -486,7 +486,7 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
-            ( { model | horizon = ( setStatusPlot model.horizon Failure )}
+            ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , I.getidates model "series" GetLastInsertionDates
             )
 
