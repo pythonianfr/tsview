@@ -1,4 +1,4 @@
-module Plot exposing (main)
+port module Plot exposing (main)
 
 import Browser
 import Date exposing
@@ -16,6 +16,7 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import KeywordSelector
+import List.Extra as List
 import Plotter exposing
     ( Series
     , defaultLayoutOptions
@@ -45,6 +46,7 @@ import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
 
+port dateInInterval : ( List String -> msg ) -> Sub msg
 
 type alias Model =
     { baseurl : String
@@ -78,6 +80,7 @@ type Msg
     | SourceChange String Bool
     -- dates
     | Horizon ModuleHorizon.Msg
+    | NewDates ( List String )
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -289,6 +292,19 @@ update msg model =
                       , loadedseries = resetSeries model.loadedseries}
             , commands )
 
+        -- zoom
+        NewDates range ->
+            let
+                minDate = Maybe.withDefault "" (List.head range)
+                maxDate = Maybe.withDefault "" (List.last range)
+                horizonmodel = model.horizon
+            in ({ model | horizon =
+                    { horizonmodel | zoomBounds = Just ( minDate, maxDate )
+                    }
+                }
+               , Cmd.none )
+
+
 
 actionsHorizon : Model -> HorizonModel -> List (Cmd Msg)
 actionsHorizon model horizonModel =
@@ -475,13 +491,16 @@ sub model =
     -- this is a cheap (cadenced) debouncer for the search ui
     if model.selecting then
     Sub.batch [ Time.every 1000 (always MakeSearch)
-              , loadFromLocalStorage
-                    (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
+              , realsubs
               ]
 
-    else loadFromLocalStorage
-            (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
+    else realsubs
 
+realsubs =
+    Sub.batch
+    [ loadFromLocalStorage
+        (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
+    , dateInInterval NewDates]
 
 main : Program
        { baseurl : String
