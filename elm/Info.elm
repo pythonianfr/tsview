@@ -21,7 +21,6 @@ module Info exposing
     , viewlog
     , viewmeta
     , viewrenameaction
-    , viewseealso
     , viewtitle
     , viewusermeta
     )
@@ -574,49 +573,6 @@ layoutFormula model formula =
                                         , ("integration", viewintegrationnames model)
                                     ]
     in H.span [] <| viewparsed <| Lisp.parse formula
-
-
-
-viewseealso model =
-    let
-        editorlabel =
-            case model.seriestype of
-                Primary ->  "edit values ⧉"
-                Formula ->  "show values ⧉"
-    in
-    H.div [ ]
-        [ H.div [ ]
-              [ H.span [ ] [ H.text " ⇒ " ]
-              , H.a [ HA.href <| UB.crossOrigin
-                          model.baseurl
-                          [ "tshistory", model.name ] [ ]
-                    , HA.target "_blank"
-                    ] [ H.text "browse history ⧉" ]
-              ]
-        , H.div [ ]
-            [ H.span [ ] [ H.text " ⇒ " ]
-            , H.a [ HA.href <| UB.crossOrigin
-                        model.baseurl
-                        [ "tseditor" ]
-                        [ UB.string "name" model.name ]
-                  , HA.target "_blank"
-                  ] [ H.text editorlabel ]
-            ]
-        , case model.seriestype of
-              Formula ->
-                  H.div [ ]
-                      [ H.span [ ] [ H.text " ⇒ " ]
-                      , H.a [ HA.href <| UB.crossOrigin
-                                  model.baseurl
-                                  [ "tsformula" ]
-                                  [ UB.string "name" model.name ]
-                            , HA.target "_blank"
-                            ] [ H.text "edit formula" ]
-                      ]
-
-              Primary ->
-                  H.span [ ] [ ]
-        ]
 
 
 metadicttostring d =
