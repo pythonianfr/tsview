@@ -305,8 +305,10 @@ makeUndoButton msg undoList =
             [ H.text <| Util.fromCharCode code ]
         ]
 
-view : UndoModel -> Html Msg
-view {model, undoList} =
+--view : UndoModel -> Html Msg
+--view {model, undoList} =
+view : Model -> Html Msg
+view model =
     H.div
         [ HA.class "main-content formula_editor" ]
         [ H.div
@@ -318,9 +320,9 @@ view {model, undoList} =
             ]
         , H.div
             [ HA.class "d-flex" ]
-            [ makeUndoButton Undo undoList
-            , makeUndoButton Redo undoList
-            , HX.viewIf (canSave model) (viewSave model)
+            --[ makeUndoButton Undo undoList
+            --, makeUndoButton Redo undoList
+            [ HX.viewIf (canSave model) (viewSave model)
             ]
         , Widget.viewSpecErrors model.editorWidget
         , Widget.view model.editorWidget |> H.map WidgetMsg
@@ -376,10 +378,12 @@ initModel model =
         |> UL.fresh
         |> UndoModel model
 
-main : Program Flags UndoModel Msg
+-- main : Program Flags UndoModel Msg
+main : Program Flags Model Msg
 main = Browser.element
-    { init = init >> Tuple.mapFirst initModel
-    , update = undoUpdate
+    { init = init -- >> Tuple.mapFirst initModel
+    -- , update = undoUpdate
+    , update = update
     , view = view
     , subscriptions = always Sub.none
     }
