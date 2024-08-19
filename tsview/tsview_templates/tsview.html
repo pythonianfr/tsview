@@ -30,7 +30,9 @@
              flags: {
                  baseurl : baseurl,
                  selected : {{ series | safe }},
-                 haseditor: haseditor
+                 haseditor: haseditor,
+                 min: "{{ min }}",
+                 max: "{{ max }}",
              }
          });
           app.ports.saveToLocalStorage.subscribe(function (dataInCache) {

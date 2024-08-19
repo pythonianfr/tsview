@@ -107,31 +107,52 @@ findmissing model =
 
 fetchseries: Model -> Bool -> List ( Cmd Msg )
 fetchseries model reload =
-    List.map
-        (\name -> getdata
-             { baseurl = model.baseurl
-             , name = name
-             , idate = Nothing
-             , callback = GotPlotData name
-             , nocache = (U.bool2int model.horizon.viewNoCache)
-             , fromdate = getFromHorizon model
-             , todate = getToHorizon model
-             , horizon = model.horizon.horizon
-                            |> Maybe.andThen
-                                (\key-> OD.get key horizons)
-                                    |> Maybe.map
-                          (String.replace "{offset}"
-                                (String.fromInt model.horizon.offset))
-             , tzone = model.horizon.timeZone
-             , inferredFreq = model.horizon.inferredFreq
-             , keepnans = False
-             , apipoint = "state"
-             }
-        )
-        ( if not reload
-            then findmissing model
-            else model.search.selected )
-
+    case model.horizon.queryBounds of
+        Nothing ->
+            List.map
+                (\name -> getdata
+                     { baseurl = model.baseurl
+                     , name = name
+                     , idate = Nothing
+                     , callback = GotPlotData name
+                     , nocache = (U.bool2int model.horizon.viewNoCache)
+                     , fromdate = getFromHorizon model
+                     , todate = getToHorizon model
+                     , horizon = model.horizon.horizon
+                                    |> Maybe.andThen
+                                        (\key-> OD.get key horizons)
+                                            |> Maybe.map
+                                  (String.replace "{offset}"
+                                        (String.fromInt model.horizon.offset))
+                     , tzone = model.horizon.timeZone
+                     , inferredFreq = model.horizon.inferredFreq
+                     , keepnans = False
+                     , apipoint = "state"
+                     }
+                )
+                ( if not reload
+                    then findmissing model
+                    else model.search.selected )
+        Just (min, max) ->
+            List.map
+                (\name -> getdata
+                     { baseurl = model.baseurl
+                     , name = name
+                     , idate = Nothing
+                     , callback = GotPlotData name
+                     , nocache = (U.bool2int model.horizon.viewNoCache)
+                     , fromdate = min
+                     , todate = max
+                     , horizon = Nothing
+                     , tzone = model.horizon.timeZone
+                     , inferredFreq = model.horizon.inferredFreq
+                     , keepnans = False
+                     , apipoint = "state"
+                     }
+                )
+                ( if not reload
+                    then findmissing model
+                    else model.search.selected )
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
 plotFigure =
@@ -506,6 +527,8 @@ main : Program
        { baseurl : String
        , selected : List String
        , haseditor : Bool
+       , min: String
+       , max : String
        } Model Msg
 main =
     let
@@ -515,7 +538,7 @@ main =
                     flags.selected
                 model =
                     { baseurl = flags.baseurl
-                    , horizon = initHorizon "" ""
+                    , horizon = initHorizon flags.min flags.max
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])

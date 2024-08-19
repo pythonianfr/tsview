@@ -195,12 +195,16 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'timeseries-quickview'])
+        min = request.args.get('startdate')
+        max = request.args.get('enddate')
         title = 'Quick view'
         return render_template(
             'tsview.html',
             homeurl=homeurl(),
             haseditor=json.dumps(False),  # NOTE: really fix me
             series=request.args.getlist("series"),
+            min=min,
+            max=max,
             flags_menu=flags_menu,
             title=title,
         )
