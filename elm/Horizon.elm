@@ -14,6 +14,7 @@ port module Horizon exposing
     , updatefromlocalstorage
     , updateHorizon
     , updateHorizonFromData
+    , extendHorizonFromData
     , setStatusPlot
     , setDisabled
     )
@@ -200,6 +201,8 @@ updateHorizon actions msg model =
             in
             let updatedModel =  { newmodel | queryBounds = Nothing
                                            , zoomBounds = Nothing
+                                           , mindate = ""
+                                           , maxdate = ""
                                            , plotStatus = Loading
                                            , disabled = False }
             in
@@ -211,6 +214,8 @@ updateHorizon actions msg model =
 
         UpdateOffset (Left i) ->
             let newmodel = { model | offset = (previousOffset + i)
+                                   , mindate = ""
+                                   , maxdate = ""
                                    , plotStatus = Loading}
             in
             ( newmodel
@@ -218,6 +223,8 @@ updateHorizon actions msg model =
 
         UpdateOffset (Right i) ->
             let newmodel = { model | offset = (previousOffset - i)
+                                   , mindate = ""
+                                   , maxdate = ""
                                    , plotStatus = Loading}
             in
             ( newmodel
@@ -266,6 +273,8 @@ updateHorizon actions msg model =
             let
                 newmodel =
                     { model | inferredFreq = isChecked
+                            , mindate = ""
+                            , maxdate = ""
                             , plotStatus = Loading}
 
                 userprefs =
@@ -285,6 +294,8 @@ updateHorizon actions msg model =
             let
                 newmodel = { model
                           | viewNoCache = not model.viewNoCache
+                          , mindate = ""
+                          , maxdate = ""
                           , plotStatus = Loading
                       }
             in
@@ -320,6 +331,29 @@ updateHorizonFromData model val =
         , maxdate = Tuple.second tsBounds
         , plotStatus = Success
     }
+
+
+extendHorizonFromData : HorizonModel -> Dict String v -> HorizonModel
+extendHorizonFromData model val =
+    if List.length ( Dict.keys val ) == 0
+    then model
+    else
+        if String.length model.maxdate == 0
+            then updateHorizonFromData model val
+            else
+                let
+                    tsBounds = formatBoundDates val
+                in
+                { model
+                    | mindate = min
+                                    ( Tuple.first tsBounds )
+                                    model.mindate
+                    , maxdate = max
+                                    (Tuple.second tsBounds )
+                                    model.maxdate
+                    , plotStatus = Success
+                }
+
 
 
 formatBoundDates : Dict String v -> (String, String)

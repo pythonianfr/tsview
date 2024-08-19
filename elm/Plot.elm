@@ -35,7 +35,7 @@ import Horizon exposing
     , getFromToDates
     , loadFromLocalStorage
     , updateHorizon
-    , updateHorizonFromData
+    , extendHorizonFromData
     , setStatusPlot )
 import Maybe.Extra as Maybe
 import OrderedDict as OD
@@ -249,7 +249,7 @@ update msg model =
                                  }
                                 model.loadedseries
 
-                        horizonmodel = updateHorizonFromData model.horizon val
+                        horizonmodel = extendHorizonFromData model.horizon val
                         newmodel =
                             { model
                                 | loadedseries = loaded
