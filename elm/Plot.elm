@@ -53,10 +53,19 @@ type alias Model =
     , search : SeriesSelector.Model
     , horizon : HorizonModel
     , selecting : Bool
-    , loadedseries : Dict String Series
+    , loadedseries : Dict String SeriesAndInfos
     , errors : List String
     }
 
+type alias SeriesAndInfos =
+    { series: Series
+    , cache: Bool
+    , status : PlotStatus
+    }
+
+failedinfo = { series = Dict.empty
+             , cache = False
+             , status = Failure}
 
 type Msg
     = GotCatalog Catalog.Msg
@@ -85,15 +94,14 @@ getToHorizon: Model -> String
 getToHorizon model =
     Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
 
-fetchseries model reload =
+findmissing model =
     let
-        selected =
-            model.search.selected
+        selected = model.search.selected
         ismissing series =
             not <| Dict.member series model.loadedseries
-        missing =
-            List.filter ismissing selected
-    in
+    in List.filter ismissing selected
+
+fetchseries model reload =
     List.map
         (\name -> getdata
              { baseurl = model.baseurl
@@ -116,8 +124,8 @@ fetchseries model reload =
              }
         )
         ( if not reload
-            then missing
-            else selected )
+            then findmissing model
+            else model.search.selected )
 
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
@@ -190,11 +198,19 @@ update msg model =
                 newmodel =
                     { model
                         | search = SeriesSelector.updateselected
-                          model.search
-                          (toggleItem x model.search.selected)
+                                    model.search
+                                    (toggleItem x model.search.selected)
                     }
+
+                updatedloadedseries = Dict.insert
+                                        x
+                                        { series = Dict.empty
+                                        , cache = False
+                                        , status = Loading }
+                                        model.loadedseries
+
             in
-            ( newmodel
+            ( { newmodel | loadedseries = updatedloadedseries}
             , Cmd.batch <| fetchseries newmodel False
             )
 
@@ -223,12 +239,19 @@ update msg model =
                 Ok val ->
                     let
                         loaded =
-                            Dict.insert name val model.loadedseries
+                            Dict.insert
+                                name
+                                { series = val
+                                 , status = Success
+                                 , cache = False
+                                 }
+                                model.loadedseries
 
+                        horizonmodel = updateHorizonFromData model.horizon val
                         newmodel =
                             { model
                                 | loadedseries = loaded
-                                , horizon = updateHorizonFromData model.horizon val }
+                                , horizon =  { horizonmodel | plotStatus = multiStatus loaded }}
 
                     in
                     U.nocmd newmodel
@@ -237,7 +260,16 @@ update msg model =
                     doerr "gotplotdata decode" <| Decode.errorToString err
 
         GotPlotData name (Err err) ->
-            doerr "gotplotdata error" <| U.unwraperror err
+            let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
+                updatedinfos = Dict.insert
+                                name
+                                failedinfo
+                                newmodel.loadedseries
+                horizonmodel = model.horizon
+            in ( { newmodel | horizon =
+                                { horizonmodel | plotStatus = multiStatus
+                                                                updatedinfos }}
+               , Cmd.none )
 
         -- horizon
 
@@ -257,6 +289,19 @@ actionsHorizon model horizonModel =
         newModel = { model | horizon = horizonModel }
     in
         fetchseries newModel True
+
+multiStatus: Dict String SeriesAndInfos -> PlotStatus
+multiStatus infos =
+    let status = List.map
+                    (\ elt -> (Tuple.second elt).status)
+                    ( Dict.toList infos )
+    in
+    if List.any (\ elt -> elt == Failure ) status then Failure
+    else
+    if List.all (\ elt -> elt == Success ) status then Success
+    else
+    Loading
+
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
@@ -310,9 +355,9 @@ view model =
                 data =
                     List.map
                         (\name ->
-                             let series =
-                                     Maybe.withDefault
-                                     Dict.empty <|Dict.get name model.loadedseries
+                             let series = case Dict.get name model.loadedseries of
+                                            Nothing -> Dict.empty
+                                            Just infos -> infos.series
                              in
                              scatterplot
                              name
