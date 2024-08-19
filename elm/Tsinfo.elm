@@ -3,7 +3,6 @@ port module Tsinfo exposing (main)
 import Array exposing (Array)
 import Browser
 import Browser.Navigation exposing (load)
-import Dateinterval exposing (medianValue)
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
