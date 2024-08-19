@@ -442,7 +442,7 @@ inferredfreqswitch model convertmsg =
             , HA.class "custom-control-input"
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
-            , HA.disabled ( model.disabled || ( model.plotStatus == Loading ))
+            , HA.disabled ( model.plotStatus == Loading )
             , HE.onCheck ( \ b ->  convertmsg (InferredFreq b) )
             ] [ ]
         , H.label
@@ -463,7 +463,7 @@ tzonedropdown model convertmsg =
     in
     H.select
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
-        , HA.disabled ( model.disabled || ( model.plotStatus == Loading ))
+        , HA.disabled ( model.plotStatus == Loading )
         ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
@@ -498,8 +498,7 @@ cacheswitch model convertmsg =
             , HA.class "custom-control-input"
             , HA.id "cacheSwitch"
             , HA.checked ( not model.viewNoCache )
-            , HA.disabled ( model.disabled
-                            || (model.plotStatus == Loading))
+            , HA.disabled (model.plotStatus == Loading)
             , HE.onClick ( convertmsg ViewNoCache )
             ] [ ]
         , H.label
