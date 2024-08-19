@@ -357,10 +357,6 @@ viewlinks haseditor seriesName =
             ]
             [ H.text <| "info" ]
         , H.text " "
-        , H.a
-            [ HA.href <| UB.relative [ "tshistory", seriesName ] []
-            ]
-            [ H.text <| "history" ]
         , H.text " "
         , if haseditor then
               H.a [ HA.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
