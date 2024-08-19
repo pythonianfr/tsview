@@ -521,7 +521,11 @@ horizonview model convertmsg klass tzaware =
           else H.span [] []
         , H.div
             []
-            [ buttonArrow convertmsg model.disabled "left" "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow
+                convertmsg
+                ( model.disabled || Maybe.withDefault "All" model.horizon == "All" )
+                "left"
+                "btn btn-outline-dark btn-sm" ]
         , H.div
             [ HA.class "widget-date" ]
             [ H.text <| viewdate model.mindate ]
@@ -533,7 +537,11 @@ horizonview model convertmsg klass tzaware =
             [ H.text <| viewdate model.maxdate ]
         , H.div
             []
-            [ buttonArrow convertmsg model.disabled "right" "btn btn-outline-dark btn-sm" ]
+            [ buttonArrow
+                convertmsg
+                ( model.disabled || Maybe.withDefault "All" model.horizon == "All" )
+                "right"
+                "btn btn-outline-dark btn-sm" ]
         , H.div
             []
             [ inferredfreqswitch model convertmsg  ]
