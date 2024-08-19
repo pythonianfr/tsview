@@ -419,19 +419,6 @@ view model =
 
         urls =
             let
-                permalink =
-                    let
-                        url =
-                            UB.relative
-                                [ "tsview" ]
-                                <| List.map
-                                    (\x -> UB.string "series" x)
-                                    model.search.selected
-                    in
-                    H.a
-                        [ HA.href url ]
-                        [ H.text "Permalink" ]
-
                 links =
                     List.map
                         (viewlinks model.haseditor)
@@ -440,9 +427,9 @@ view model =
             in
                 H.ul
                     [ ]
-                    <| List.map
+                    ( List.map
                         (\x -> H.li [ ] [ x ])
-                        (permalink :: links)
+                        (permalink model :: links) )
     in
     H.div
         [ ]
@@ -459,6 +446,28 @@ view model =
                     , H.footer [] [ urls ]
                     ]
                 ]]
+
+
+permalink: Model -> H.Html Msg
+permalink model =
+    let
+        (min, max) = getFromToDates model.horizon
+        names = List.map
+                    (\name -> UB.string "series" name)
+                    model.search.selected
+    in
+    H.a
+    [ HA.href ( UB.relative
+                ["tsview"]
+                ( if ( min /= "" )
+                    then
+                        names ++ [ UB.string "startdate" min
+                                 , UB.string "enddate" max
+                                 ]
+                    else
+                        names ))
+    ]
+    [ H.text "Permalink" ]
 
 
 sub: Model -> Sub Msg
