@@ -1,12 +1,7 @@
 port module Plot exposing (main)
 
 import Browser
-import Date exposing
-    ( Date
-    , add
-    , fromIsoString
-    , toIsoString
-    )
+
 import Dict exposing (Dict)
 import Html
 import Html as H
