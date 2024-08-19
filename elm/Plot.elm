@@ -101,6 +101,8 @@ findmissing model =
             not <| Dict.member series model.loadedseries
     in List.filter ismissing selected
 
+
+fetchseries: Model -> Bool -> List ( Cmd Msg )
 fetchseries model reload =
     List.map
         (\name -> getdata
@@ -279,7 +281,8 @@ update msg model =
                                                     hMsg
                                                     model.horizon
             in
-            ( { model | horizon = newModelHorizon }
+            ( { model | horizon = newModelHorizon
+                      , loadedseries = resetSeries model.loadedseries}
             , commands )
 
 
@@ -289,6 +292,24 @@ actionsHorizon model horizonModel =
         newModel = { model | horizon = horizonModel }
     in
         fetchseries newModel True
+
+
+resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
+resetSeries loaded =
+    Dict.fromList
+        ( List.map
+            (\ name -> (name,  { series = Dict.empty
+                                , cache = readCache name loaded
+                                , status = Loading }))
+            ( Dict.keys loaded ) )
+
+
+readCache: String -> Dict String SeriesAndInfos -> Bool
+readCache name loaded =
+    case ( Dict.get name loaded ) of
+        Just info -> info.cache
+        Nothing -> False
+
 
 multiStatus: Dict String SeriesAndInfos -> PlotStatus
 multiStatus infos =
