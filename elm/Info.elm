@@ -202,7 +202,7 @@ viewactionwidgets model convertmsg editor pagetitle =
                 Formula ->  "show values ⧉"
         ( min, max ) = getFromToDates model.horizon
         queryParameters =
-            if editor
+            if editor && min /= ""
             then [ UB.string "name" model.name
                  , UB.string "startdate" min
                  , UB.string "enddate" max ]
