@@ -15,7 +15,6 @@ import Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , setStatusPlot
-    , setDisabled
     )
 import Horizon as ModuleHorizon
 import Http
