@@ -203,13 +203,17 @@ update msg model =
                                     model.search
                                     (toggleItem x model.search.selected)
                     }
-
-                updatedloadedseries = Dict.insert
-                                        x
-                                        { series = Dict.empty
-                                        , cache = False
-                                        , status = Loading }
-                                        model.loadedseries
+                updatedloadedseries = if ( List.member
+                                             x
+                                             ( Dict.keys model.loadedseries ) )
+                                      then Dict.remove x  model.loadedseries
+                                      else
+                                           Dict.insert
+                                               x
+                                               { series = Dict.empty
+                                               , cache = False
+                                               , status = Loading }
+                                               model.loadedseries
 
             in
             ( { newmodel | loadedseries = updatedloadedseries}
