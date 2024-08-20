@@ -938,14 +938,11 @@ datesComponent model comp =
 
 filterDateComponent: Model -> String-> Bool
 filterDateComponent model date =
-    let datesReference = Dict.keys model.editedTs
+    let ( min, max ) = getFromToDates model.horizon
     in
-        case  List.minimum datesReference of
-            Nothing -> False
-            Just min -> case List.maximum datesReference of
-                Nothing -> False
-                Just max ->
-                    (date >= min) && (date <= max)
+        if min == ""
+            then True
+            else (date >= min) && (date <= max)
 
 
 buildRow : Model -> String -> H.Html Msg
