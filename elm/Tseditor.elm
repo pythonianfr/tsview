@@ -537,7 +537,7 @@ update msg model =
             let
                 newtimeSeries = getPastedDict model payload
             in
-            U.nocmd { model | initialTs = newtimeSeries }
+            U.nocmd { model | editedTs = newtimeSeries }
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
