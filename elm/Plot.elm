@@ -233,9 +233,13 @@ update msg model =
                                                , cache = False
                                                , status = Loading }
                                                model.loadedseries
-
+                horizonmodel = model.horizon
             in
-            ( { newmodel | loadedseries = updatedloadedseries}
+            ( { newmodel | loadedseries = updatedloadedseries
+                         , horizon =
+                         { horizonmodel | plotStatus = multiStatus
+                                                            updatedloadedseries }
+              }
             , Cmd.batch <| fetchseries newmodel False
             )
 
