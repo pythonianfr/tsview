@@ -78,7 +78,7 @@ buildBounds min max =
             then Nothing
             else Just (min, max)
 
-initHorizon min max =
+initHorizon min max status =
     { offset = 0
     , horizon = Just defaultHorizon
     , inferredFreq = False
@@ -88,7 +88,7 @@ initHorizon min max =
     , hasCache = True
     , viewNoCache = False
     , horizonChoices = horizons
-    , plotStatus = None
+    , plotStatus = status
     , disabled = False
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing

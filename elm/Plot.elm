@@ -533,7 +533,7 @@ main =
                     flags.selected
                 model =
                     { baseurl = flags.baseurl
-                    , horizon = initHorizon flags.min flags.max
+                    , horizon = initHorizon flags.min flags.max None
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])

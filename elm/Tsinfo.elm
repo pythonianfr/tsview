@@ -1330,7 +1330,7 @@ init input =
       , newname = Nothing
       , clipboardclass = "bi bi-clipboard"
       -- below a predefined boundary (from permalink) can be set
-      , horizon = initHorizon "" ""
+      , horizon = initHorizon "" "" Loading
       , historyPlots = Dict.empty
       , historyMode = False
       , firstIdates = Array.empty
