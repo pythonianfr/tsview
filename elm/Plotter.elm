@@ -16,6 +16,7 @@ import Http
 import Json.Decode as D
 import Json.Encode as E
 import Json.Encode.Extra as E
+import List.Extra as List
 import Maybe.Extra as Maybe
 import Url.Builder as UB
 import Bool.Extra
@@ -25,12 +26,14 @@ import Bool.Extra
 type alias LayoutOptions =
     { title: String
     , dragMode: String
+    , xaxis: Maybe { range: List String }
     }
 
 
 defaultLayoutOptions =
     { title = ""
     , dragMode = "zoom"
+    , xaxis = Nothing
     }
 
 type alias TraceOptions =
@@ -120,15 +123,24 @@ scatterplot =
     Trace "scatter"
 
 
+encodeplotargs: String -> List Trace -> LayoutOptions -> E.Value
 encodeplotargs div data layoutOptions =
     E.object
         [ ( "div", E.string div )
         , ( "data", E.list encodetrace data )
-        , ( "layout", (E.object [("title", E.string layoutOptions.title)
-                                , ("dragmode", E.string layoutOptions.dragMode)]) )
+        , ( "layout", (E.object ( [ ("title", E.string layoutOptions.title)
+                                , ("dragmode", E.string layoutOptions.dragMode)
+                                ] ++
+            case layoutOptions.xaxis of
+                Nothing -> []
+                Just range -> [ ("xaxis", E.object [ ("range"
+                              , E.list E.string [ Maybe.withDefault "" (List.head range.range)
+                                                , Maybe.withDefault "" (List.last range.range)])])]
+        )))
         ]
 
 
+plotargs: String -> List Trace -> LayoutOptions -> String
 plotargs div data layoutOptions =
     encodeplotargs div data layoutOptions |> E.encode 0
 
