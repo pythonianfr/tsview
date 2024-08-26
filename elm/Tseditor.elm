@@ -324,8 +324,19 @@ decorateVanilla values =
                 , {value=value, override=False, edited=Nothing, index=1}))
             ( Dict.toList values ))
 
+
 addError: Model -> String -> String -> Model
 addError model tag error = U.adderror model (tag ++ " -> " ++ error)
+
+
+restrictOnZoom: Dict String Entry -> Maybe (String, String) -> Dict String Entry
+restrictOnZoom ts zoomBounds =
+     case zoomBounds of
+         Nothing -> ts
+         Just ( min, max ) -> Dict.filter
+                                ((\key _ -> (( key >= min ) && ( key <= max ))))
+                                ts
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -345,8 +356,13 @@ update msg model =
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
-                                    , editedTs = indexedval
-                                    , horizon = updateHorizonFromData model.horizon indexedval }
+                                    , editedTs = restrictOnZoom
+                                                    indexedval
+                                                    model.horizon.zoomBounds
+                                    , horizon = updateHorizonFromData
+                                                    model.horizon
+                                                    indexedval
+                                }
                 Err err ->
                   U.nocmd ( addError
                                 model
@@ -363,10 +379,13 @@ update msg model =
                 Ok val -> let timeseries = decorateVanilla val
                           in
                             ( { model | initialTs = timeseries
-                                      , editedTs = timeseries
+                                      , editedTs = restrictOnZoom
+                                                        timeseries
+                                                        model.horizon.zoomBounds
                                       , horizon = updateHorizonFromData
                                                     model.horizon
-                                                    timeseries }
+                                                    timeseries
+                              }
                             , Cmd.none )
                 Err err -> U.nocmd ( addError
                                         { model | horizon = setStatusPlot model.horizon Failure }
