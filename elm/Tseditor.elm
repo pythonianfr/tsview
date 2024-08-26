@@ -944,24 +944,22 @@ datesComponents model =
 
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
-    Set.fromList
-        ( List.filter
-            ( filterDateComponent model )
-            ( Dict.keys
+    let allDates = ( Dict.keys
                     ( Maybe.withDefault
                             Dict.empty
                             ( Dict.get
                                 comp.name
-                                model.componentsData ))))
-
-
-filterDateComponent: Model -> String-> Bool
-filterDateComponent model date =
-    let ( min, max ) = getFromToDates model.horizon
+                                model.componentsData )))
+        ( min, max ) = getFromToDates model.horizon
     in
-        if min == ""
-            then True
-            else (date >= min) && (date <= max)
+    if min == ""
+    then
+        Set.fromList allDates
+    else
+        Set.fromList
+            ( List.filter
+                (\ date -> (date >= min) && (date <= max))
+                allDates )
 
 
 buildRow : Model -> String -> H.Html Msg
