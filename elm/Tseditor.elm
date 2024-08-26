@@ -84,7 +84,7 @@ type Msg
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | RandomNumber Int
-    | NewDates (List String)
+    | DatesFromZoom (List String)
     | NewDragMode Bool
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -574,7 +574,7 @@ update msg model =
         RandomNumber number ->
             U.nocmd { model | randomNumber = number }
 
-        NewDates dates ->
+        DatesFromZoom dates ->
                  let
                     minDate = Maybe.withDefault
                         ""
@@ -1195,7 +1195,7 @@ main =
         , update = update
         , subscriptions =
           \_ -> Sub.batch
-                [ dateInInterval NewDates
+                [ dateInInterval DatesFromZoom
                 , panActive NewDragMode
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))

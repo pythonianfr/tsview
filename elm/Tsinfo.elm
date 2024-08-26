@@ -184,7 +184,7 @@ type Msg
     | Horizon HorizonModule.Msg
     -- history mode
     | HistoryMode Bool
-    | NewDates (List String)
+    | DatesFromZoom (List String)
     | HistoryIdates (String, String) (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
@@ -846,7 +846,7 @@ update msg model =
                 else
                     U.nocmd newmodel
 
-        NewDates range ->
+        DatesFromZoom range ->
             let
                 horizonmodel =
                     model.horizon
@@ -1356,7 +1356,7 @@ main =
         , update = update
         , subscriptions =
             \_ -> Sub.batch
-                  [ dateInInterval NewDates
+                  [ dateInInterval DatesFromZoom
                   , dataFromHover NewDataFromHover
                   , loadFromLocalStorage
                         (\ s -> convertMsg (HorizonModule.FromLocalStorage s))

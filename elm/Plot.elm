@@ -75,7 +75,7 @@ type Msg
     | SourceChange String Bool
     -- dates
     | Horizon ModuleHorizon.Msg
-    | NewDates ( List String )
+    | DatesFromZoom ( List String )
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -313,7 +313,7 @@ update msg model =
             , commands )
 
         -- zoom
-        NewDates range ->
+        DatesFromZoom range ->
             let
                 minDate = Maybe.withDefault "" (List.head range)
                 maxDate = Maybe.withDefault "" (List.last range)
@@ -520,7 +520,7 @@ realsubs =
     Sub.batch
     [ loadFromLocalStorage
         (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
-    , dateInInterval NewDates]
+    , dateInInterval DatesFromZoom]
 
 main : Program
        { baseurl : String
