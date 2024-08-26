@@ -59,6 +59,8 @@ type alias Model =
     , rawPasted: String
     , initialTs: Dict String Entry
     , zoomedTs : Dict String Entry
+    , initialFormula : Dict String (Maybe Float)
+    , zoomedFormula : Dict String (Maybe Float)
     , randomNumber : Int
     , clipboardclass : String
     , panActive : Bool
@@ -329,7 +331,7 @@ addError: Model -> String -> String -> Model
 addError model tag error = U.adderror model (tag ++ " -> " ++ error)
 
 
-restrictOnZoom: Dict String Entry -> Maybe (String, String) -> Dict String Entry
+restrictOnZoom: Dict String a -> Maybe (String, String) -> Dict String a
 restrictOnZoom ts zoomBounds =
      case zoomBounds of
          Nothing -> ts
@@ -376,15 +378,13 @@ update msg model =
             case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val -> let timeseries = decorateVanilla val
-                          in
-                            ( { model | initialTs = timeseries
-                                      , zoomedTs = restrictOnZoom
-                                                        timeseries
+                Ok val -> ( { model | initialFormula = val
+                                    , zoomedFormula = restrictOnZoom
+                                                        val
                                                         model.horizon.zoomBounds
                                       , horizon = updateHorizonFromData
                                                     model.horizon
-                                                    timeseries
+                                                    val
                               }
                             , Cmd.none )
                 Err err -> U.nocmd ( addError
@@ -588,6 +588,7 @@ update msg model =
                         if minDate == "" && maxDate == "" then
                             { model | horizon = { horizonmodel | zoomBounds = Nothing}
                                     , zoomedTs = model.initialTs
+                                    , zoomedFormula = model.initialFormula
                             }
                         else
                             { model | zoomedTs = Dict.filter
@@ -595,6 +596,11 @@ update msg model =
                                                     ( if model.panActive
                                                         then model.initialTs
                                                         else model.zoomedTs )
+                                    , zoomedFormula = Dict.filter
+                                                    ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                                                    ( if model.panActive
+                                                        then model.initialFormula
+                                                        else model.zoomedFormula )
                                     , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                             }
 
@@ -902,7 +908,7 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    if (List.length (Dict.toList model.zoomedTs)) < maxPoints
+    if (List.length (Dict.toList model.zoomedFormula)) < maxPoints
     then
         H.tbody
             []
@@ -972,12 +978,12 @@ buildRow model date =
                 [ H.text date ]
             , H.td [] [ H.text ( printValue
                                     ( Maybe.withDefault
-                                          emptyEntry
+                                          Nothing
                                           ( Dict.get
                                             date
-                                            model.zoomedTs )
-                                    ).value
-                                )]]
+                                            model.zoomedFormula )
+                                    ))
+                        ]]
             ( addComponentCells model date ) )
 
 
@@ -1117,10 +1123,29 @@ statusText plotStatus =
         "Failure"
 
 
+isEmpty: Model -> Bool
+isEmpty model =
+    if model.seriestype == I.Primary
+    then Dict.isEmpty model.zoomedTs
+    else Dict.isEmpty model.zoomedFormula
+
+
+getTs: Model -> ( List String, List ( Maybe Float ))
+getTs model =
+    if model.seriestype == I.Primary
+    then
+        (( Dict.keys model.zoomedTs )
+        , ( List.map (\x -> x.value) (Dict.values model.zoomedTs )))
+    else
+        (( Dict.keys model.zoomedFormula )
+        , ( Dict.values model.zoomedFormula ))
+
+
 view : Model -> H.Html Msg
 view model =
     let
         maybeMedian = medianValue (Dict.keys model.zoomedTs)
+        ( dates, values ) = getTs model
         dragMode =
             if model.panActive
             then "pan"
@@ -1135,15 +1160,15 @@ view model =
             [ HA.class "status-plot" ]
             [ if model.horizon.plotStatus == None
               then H.text "The graph is loading, please wait"
-              else if (Dict.isEmpty model.zoomedTs) && (model.horizon.plotStatus == Success)
+              else if isEmpty model && (model.horizon.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
                    else H.text ""
             ]
         , I.viewgraph
             model.name
-            (Dict.keys model.zoomedTs)
-            (List.map (\x -> x.value) (Dict.values model.zoomedTs))
+            dates
+            values
             { defaultLayoutOptions | dragMode = dragMode }
             defaultoptions
         , permaLink model
@@ -1178,6 +1203,8 @@ init input =
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , zoomedTs = Dict.empty
+                    , initialFormula = Dict.empty
+                    , zoomedFormula = Dict.empty
                     , clipboardclass = "bi bi-clipboard"
                     , panActive = False
                     , components = []
