@@ -58,7 +58,7 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , initialTs: Dict String Entry
-    , editedTs : Dict String Entry
+    , zoomedTs : Dict String Entry
     , randomNumber : Int
     , clipboardclass : String
     , panActive : Bool
@@ -356,7 +356,7 @@ update msg model =
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
-                                    , editedTs = restrictOnZoom
+                                    , zoomedTs = restrictOnZoom
                                                     indexedval
                                                     model.horizon.zoomBounds
                                     , horizon = updateHorizonFromData
@@ -379,7 +379,7 @@ update msg model =
                 Ok val -> let timeseries = decorateVanilla val
                           in
                             ( { model | initialTs = timeseries
-                                      , editedTs = restrictOnZoom
+                                      , zoomedTs = restrictOnZoom
                                                         timeseries
                                                         model.horizon.zoomBounds
                                       , horizon = updateHorizonFromData
@@ -441,10 +441,10 @@ update msg model =
                         newentry =
                             updateEntry (parseCopyPastedData validval)
                         patched =
-                            Dict.update date newentry model.editedTs
+                            Dict.update date newentry model.zoomedTs
                     in
                     U.nocmd { model
-                                | editedTs = patched
+                                | zoomedTs = patched
                                 , editing = Dict.remove date model.editing
                             }
             in
@@ -489,7 +489,7 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                         patched =
-                            Dict.union model.editedTs indexedval
+                            Dict.union model.zoomedTs indexedval
 
                         newmodel =
                             { model
@@ -556,7 +556,7 @@ update msg model =
             let
                 newtimeSeries = getPastedDict model payload
             in
-            U.nocmd { model | editedTs = newtimeSeries }
+            U.nocmd { model | zoomedTs = newtimeSeries }
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -587,14 +587,14 @@ update msg model =
                     newmodel =
                         if minDate == "" && maxDate == "" then
                             { model | horizon = { horizonmodel | zoomBounds = Nothing}
-                                    , editedTs = model.initialTs
+                                    , zoomedTs = model.initialTs
                             }
                         else
-                            { model | editedTs = Dict.filter
+                            { model | zoomedTs = Dict.filter
                                                     ((\key _ -> ((key >= minDate) && (key <= maxDate))))
                                                     ( if model.panActive
                                                         then model.initialTs
-                                                        else model.editedTs )
+                                                        else model.zoomedTs )
                                     , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                             }
 
@@ -691,14 +691,14 @@ getPastedDict model payload =
             Maybe.unwrap
                 0
                 (\entry -> entry.index)
-                (Dict.get (payload.index) model.editedTs)
+                (Dict.get (payload.index) model.zoomedTs)
         listIndex =
             List.range firstIndex (firstIndex + (List.length newValues) - 1)
         listDates =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
-                     model.editedTs
+                     model.zoomedTs
                 )
         copyPastedDict =
             Dict.fromList <| List.map2 Tuple.pair listDates newValues
@@ -707,9 +707,9 @@ getPastedDict model payload =
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update key (updateEntry value) dict)
         (\_ _ dict -> dict)
-        model.editedTs
+        model.zoomedTs
         copyPastedDict
-        model.editedTs
+        model.zoomedTs
 
 
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
@@ -732,7 +732,7 @@ patchEditedData model =
                 _ -> False
 
         patch =
-            model.editedTs
+            model.zoomedTs
                 |> Dict.filter (\_ value -> Maybe.isJust value.edited)
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
     in
@@ -854,10 +854,10 @@ editTable model =
             [ ]
         class = HA.class "data-table"
     in
-    if Dict.isEmpty model.editedTs
+    if Dict.isEmpty model.zoomedTs
     then H.div [ class ][ ]
     else
-        if Dict.size model.editedTs > maxPoints
+        if Dict.size model.zoomedTs > maxPoints
         then H.div
             [ class ]
             [ H.text msgTooManyPoints
@@ -879,7 +879,7 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      <| List.map (viewrow model) (Dict.toList model.editedTs)
+                      <| List.map (viewrow model) (Dict.toList model.zoomedTs)
                   ]
             , node
             ]
@@ -902,7 +902,7 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    if (List.length (Dict.toList model.editedTs)) < maxPoints
+    if (List.length (Dict.toList model.zoomedTs)) < maxPoints
     then
         H.tbody
             []
@@ -929,7 +929,7 @@ datesFormula model =
     Set.fromList
         ( List.map
             (\ (date, _) -> date)
-            ( Dict.toList model.editedTs ))
+            ( Dict.toList model.zoomedTs ))
 
 
 datesComponents: Model -> Set String
@@ -975,7 +975,7 @@ buildRow model date =
                                           emptyEntry
                                           ( Dict.get
                                             date
-                                            model.editedTs )
+                                            model.zoomedTs )
                                     ).value
                                 )]]
             ( addComponentCells model date ) )
@@ -1051,7 +1051,7 @@ viewedittable model =
     let
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.edited)
-            model.editedTs
+            model.zoomedTs
     in
     H.div
         [ HA.class "tables" ]
@@ -1120,7 +1120,7 @@ statusText plotStatus =
 view : Model -> H.Html Msg
 view model =
     let
-        maybeMedian = medianValue (Dict.keys model.editedTs)
+        maybeMedian = medianValue (Dict.keys model.zoomedTs)
         dragMode =
             if model.panActive
             then "pan"
@@ -1135,15 +1135,15 @@ view model =
             [ HA.class "status-plot" ]
             [ if model.horizon.plotStatus == None
               then H.text "The graph is loading, please wait"
-              else if (Dict.isEmpty model.editedTs) && (model.horizon.plotStatus == Success)
+              else if (Dict.isEmpty model.zoomedTs) && (model.horizon.plotStatus == Success)
                    then H.text """It seems there is no data to display in this
                                 interval, select another one."""
                    else H.text ""
             ]
         , I.viewgraph
             model.name
-            (Dict.keys model.editedTs)
-            (List.map (\x -> x.value) (Dict.values model.editedTs))
+            (Dict.keys model.zoomedTs)
+            (List.map (\x -> x.value) (Dict.values model.zoomedTs))
             { defaultLayoutOptions | dragMode = dragMode }
             defaultoptions
         , permaLink model
@@ -1177,7 +1177,7 @@ init input =
                     , randomNumber = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
-                    , editedTs = Dict.empty
+                    , zoomedTs = Dict.empty
                     , clipboardclass = "bi bi-clipboard"
                     , panActive = False
                     , components = []
