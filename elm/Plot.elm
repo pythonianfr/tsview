@@ -82,16 +82,6 @@ convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
-
-getFromHorizon: Model -> String
-getFromHorizon model =
-    Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
-
-
-getToHorizon: Model -> String
-getToHorizon model =
-    Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
-
 findmissing model =
     let
         selected = model.search.selected
@@ -102,6 +92,10 @@ findmissing model =
 
 fetchseries: Model -> Bool -> List ( Cmd Msg )
 fetchseries model reload =
+    let ( fromdate, todate ) = Maybe.withDefault
+                                    ( "", "" )
+                                    model.horizon.horizonBounds
+    in
     case model.horizon.queryBounds of
         Nothing ->
             List.map
@@ -111,8 +105,8 @@ fetchseries model reload =
                      , idate = Nothing
                      , callback = GotPlotData name
                      , nocache = (U.bool2int model.horizon.viewNoCache)
-                     , fromdate = getFromHorizon model
-                     , todate = getToHorizon model
+                     , fromdate = fromdate
+                     , todate = todate
                      , horizon = model.horizon.horizon
                                     |> Maybe.andThen
                                         (\key-> OD.get key horizons)
@@ -487,21 +481,18 @@ view model =
 permalink: Model -> H.Html Msg
 permalink model =
     let
-        (min, max) = getFromToDates model.horizon
         names = List.map
                     (\name -> UB.string "series" name)
                     model.search.selected
+        addParams = case getFromToDates model.horizon of
+                        Nothing -> []
+                        Just ( min, max ) -> [ UB.string "startdate" min
+                                             , UB.string "enddate" max]
     in
     H.a
     [ HA.href ( UB.relative
                 ["tsview"]
-                ( if ( min /= "" )
-                    then
-                        names ++ [ UB.string "startdate" min
-                                 , UB.string "enddate" max
-                                 ]
-                    else
-                        names ))
+                ( names ++ addParams ))
     ]
     [ H.text "Permalink" ]
 

@@ -288,6 +288,7 @@ getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
+        ( fromdate, todate ) = Maybe.withDefault ( "", "" ) model.horizon.horizonBounds
     in
     getdata
     { baseurl = model.baseurl
@@ -295,10 +296,8 @@ getplot model =
     , idate = idate
     , callback = GotPlotData
     , nocache = (U.bool2int model.horizon.viewNoCache)
-    , fromdate =
-        Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
-    , todate =
-        Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
+    , fromdate = fromdate
+    , todate = todate
     , horizon =
         model.horizon.horizon |>
           Maybe.andThen (\key-> OD.get key model.horizon.horizonChoices) |>
@@ -367,7 +366,7 @@ getcachepolicy baseUrl name =
 getsomeidates : Model -> Cmd Msg
 getsomeidates model =
     -- merge with Info.getidates ?
-    let ( minDate, maxDate ) = getFromToDates model.horizon
+    let ( min, max ) = Maybe.withDefault ("", "") model.horizon.horizonBounds
     in
         Http.get
             { url =
@@ -376,10 +375,9 @@ getsomeidates model =
                 [ "api", "series", "insertion_dates" ]
                 [ UB.string "name" model.name
                 , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
-                , UB.string "from_value_date" minDate
-                , UB.string "to_value_date" maxDate
-                ]
-            , expect = Http.expectString (HistoryIdates (minDate, maxDate))
+                , UB.string "from_value_date" min
+                , UB.string "to_value_date" max ]
+                , expect = Http.expectString (HistoryIdates (min, max))
             }
 
 

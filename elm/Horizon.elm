@@ -52,14 +52,13 @@ type alias HorizonModel =
     { offset : Int
     , horizon : Maybe String
     , inferredFreq : Bool
-    , mindate : String
-    , maxdate : String
     , timeZone : String
     , hasCache: Bool
     , viewNoCache: Bool
     , horizonChoices: OD.OrderedDict String String
     , plotStatus : PlotStatus
     , disabled: Bool
+    , horizonBounds: Maybe (String, String)
     , queryBounds: Maybe (String, String)
     , zoomBounds: Maybe (String, String)
     }
@@ -69,6 +68,10 @@ type PlotStatus
     | Loading
     | Success
     | Failure
+
+type FromOrTo
+    = From
+    | To
 
 buildBounds: String -> String -> Maybe (String, String)
 buildBounds min max =
@@ -82,14 +85,13 @@ initHorizon min max status =
     { offset = 0
     , horizon = Just defaultHorizon
     , inferredFreq = False
-    , mindate = ""
-    , maxdate = ""
     , timeZone = "UTC"
     , hasCache = True
     , viewNoCache = False
     , horizonChoices = horizons
     , plotStatus = status
     , disabled = False
+    , horizonBounds = Nothing
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
     }
@@ -167,14 +169,16 @@ horizons =  OD.fromList
       )
     ]
 
-getFromToDates: HorizonModel  -> ( String, String)
+getFromToDates: HorizonModel  -> Maybe ( String, String)
 getFromToDates model =
     case model.zoomBounds of
-         Just ( min, max ) ->  ( min, max )
+         Just ( min, max ) ->  Just ( min, max )
          Nothing ->  case model.queryBounds of
-                        Just ( min, max ) ->  ( min, max )
-                        Nothing ->  ( Maybe.unwrap "" (always model.mindate) model.horizon
-                                    , Maybe.unwrap "" (always model.maxdate) model.horizon )
+                        Just ( min, max ) ->  Just ( min, max )
+                        Nothing ->  case model.horizonBounds of
+                            Just ( min, max ) -> Just ( min, max )
+                            Nothing -> Nothing
+
 
 setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
@@ -201,8 +205,7 @@ updateHorizon actions msg model =
             in
             let updatedModel =  { newmodel | queryBounds = Nothing
                                            , zoomBounds = Nothing
-                                           , mindate = ""
-                                           , maxdate = ""
+                                           , horizonBounds = Nothing
                                            , plotStatus = Loading
                                            , disabled = False }
             in
@@ -214,8 +217,7 @@ updateHorizon actions msg model =
 
         UpdateOffset (Left i) ->
             let newmodel = { model | offset = (previousOffset + i)
-                                   , mindate = ""
-                                   , maxdate = ""
+                                   , horizonBounds = Nothing
                                    , plotStatus = Loading}
             in
             ( newmodel
@@ -223,8 +225,7 @@ updateHorizon actions msg model =
 
         UpdateOffset (Right i) ->
             let newmodel = { model | offset = (previousOffset - i)
-                                   , mindate = ""
-                                   , maxdate = ""
+                                   , horizonBounds = Nothing
                                    , plotStatus = Loading}
             in
             ( newmodel
@@ -273,8 +274,7 @@ updateHorizon actions msg model =
             let
                 newmodel =
                     { model | inferredFreq = isChecked
-                            , mindate = ""
-                            , maxdate = ""
+                            , horizonBounds = Nothing
                             , plotStatus = Loading}
 
                 userprefs =
@@ -294,8 +294,7 @@ updateHorizon actions msg model =
             let
                 newmodel = { model
                           | viewNoCache = not model.viewNoCache
-                          , mindate = ""
-                          , maxdate = ""
+                          , horizonBounds = Nothing
                           , plotStatus = Loading
                       }
             in
@@ -327,8 +326,7 @@ updateHorizonFromData model val =
         tsBounds = formatBoundDates val
     in
     { model
-        | mindate = Tuple.first tsBounds
-        , maxdate = Tuple.second tsBounds
+        | horizonBounds = Just tsBounds
         , plotStatus = Success
     }
 
@@ -338,22 +336,20 @@ extendHorizonFromData model val =
     if List.length ( Dict.keys val ) == 0
     then model
     else
-        if String.length model.maxdate == 0
-            then updateHorizonFromData model val
-            else
-                let
-                    tsBounds = formatBoundDates val
+        case model.horizonBounds of
+            Nothing -> updateHorizonFromData model val
+            Just ( minDate, maxDate ) -> let tsBounds = formatBoundDates val
                 in
                 { model
-                    | mindate = min
-                                    ( Tuple.first tsBounds )
-                                    model.mindate
-                    , maxdate = max
-                                    (Tuple.second tsBounds )
-                                    model.maxdate
+                    | horizonBounds = Just ( min
+                                               ( Tuple.first tsBounds )
+                                               minDate
+                                           , max
+                                               (Tuple.second tsBounds )
+                                               maxDate
+                                           )
                     , plotStatus = Success
                 }
-
 
 
 formatBoundDates : Dict String v -> (String, String)
@@ -468,11 +464,14 @@ tzonedropdown model convertmsg =
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
 
-viewdate strdate =
-    if String.length strdate == 0
-    then "yyyy-mm-dd"
-    else strdate
-
+viewdate: FromOrTo -> Maybe ( String, String ) -> String
+viewdate direction horizonBounds =
+    case horizonBounds of
+        Nothing -> "yyyy-mm-dd"
+        Just  ( min, max ) ->
+            case direction of
+                From -> min
+                To -> max
 
 loadingStatus: HorizonModel -> H.Html msg
 loadingStatus model =
@@ -528,13 +527,13 @@ horizonview model convertmsg klass tzaware =
                 "btn btn-outline-dark btn-sm" ]
         , H.div
             [ HA.class "widget-date" ]
-            [ H.text <| viewdate model.mindate ]
+            [ H.text <| viewdate From model.horizonBounds ]
         , H.div
             []
             [ selectHorizon model convertmsg]
         , H.div
             [ HA.class "widget-date" ]
-            [ H.text <| viewdate model.maxdate ]
+            [ H.text <| viewdate To model.horizonBounds ]
         , H.div
             []
             [ buttonArrow

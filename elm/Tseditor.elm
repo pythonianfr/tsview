@@ -194,18 +194,10 @@ getPoints model =
         else getSeries model GotValueData "state" GET model.name
 
 
-getFromHorizon: Model -> String
-getFromHorizon model =
-    Maybe.unwrap "" (always model.horizon.mindate) model.horizon.horizon
-
-
-getToHorizon: Model -> String
-getToHorizon model =
-    Maybe.unwrap "" (always model.horizon.maxdate) model.horizon.horizon
-
-
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
 getSeries model callback apipoint method name =
+    let ( from, to ) = Maybe.withDefault ("", "") model.horizon.horizonBounds
+    in
     case model.horizon.queryBounds of
         Nothing -> getOrPostData
                     method
@@ -214,8 +206,8 @@ getSeries model callback apipoint method name =
                     , idate = Nothing
                     , callback = callback
                     , nocache = (U.bool2int model.horizon.viewNoCache)
-                    , fromdate = getFromHorizon model
-                    , todate = getToHorizon model
+                    , fromdate = from
+                    , todate = to
                     , horizon = model.horizon.horizon |> Maybe.andThen
                                 (\key-> OD.get key horizons) |> Maybe.map
                           (String.replace "{offset}" (String.fromInt model.horizon.offset))
@@ -956,16 +948,14 @@ datesComponent model comp =
                             ( Dict.get
                                 comp.name
                                 model.componentsData )))
-        ( min, max ) = getFromToDates model.horizon
+        bounds = getFromToDates model.horizon
     in
-    if min == ""
-    then
-        Set.fromList allDates
-    else
-        Set.fromList
-            ( List.filter
-                (\ date -> (date >= min) && (date <= max))
-                allDates )
+    case bounds of
+        Nothing -> Set.fromList allDates
+        Just ( min, max ) -> Set.fromList
+                                ( List.filter
+                                (\ date -> (date >= min) && (date <= max))
+                                allDates )
 
 
 buildRow : Model -> String -> H.Html Msg
@@ -1007,7 +997,9 @@ headerShowValue model =
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
     let base = UB.string "name" name
-        ( min, max ) = getFromToDates model.horizon
+        ( min, max ) = Maybe.withDefault
+                        ("", "")
+                        ( getFromToDates model.horizon )
     in [ base
        , UB.string "startdate" min
        , UB.string "enddate" max

@@ -200,13 +200,15 @@ viewactionwidgets model convertmsg editor pagetitle =
             case model.seriestype of
                 Primary ->  if editor then "edit values ⧉" else "view values ⧉"
                 Formula ->  "show values ⧉"
-        ( min, max ) = getFromToDates model.horizon
+        bounds = getFromToDates model.horizon
         queryParameters =
-            if editor && min /= ""
-            then [ UB.string "name" model.name
-                 , UB.string "startdate" min
-                 , UB.string "enddate" max ]
-            else [ UB.string "name" model.name ]
+            case bounds of
+                Nothing -> [ UB.string "name" model.name ]
+                Just ( min, max ) -> if editor
+                    then  [ UB.string "name" model.name
+                          , UB.string "startdate" min
+                          , UB.string "enddate" max ]
+                    else [ UB.string "name" model.name ]
     in
     [ H.div
           [ HA.class "page-title" ]
