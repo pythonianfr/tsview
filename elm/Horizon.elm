@@ -217,6 +217,7 @@ updateHorizon actions msg model =
 
         UpdateOffset (Left i) ->
             let newmodel = { model | offset = (previousOffset + i)
+                                   , zoomBounds = Nothing
                                    , horizonBounds = Nothing
                                    , plotStatus = Loading}
             in
@@ -225,6 +226,7 @@ updateHorizon actions msg model =
 
         UpdateOffset (Right i) ->
             let newmodel = { model | offset = (previousOffset - i)
+                                   , zoomBounds = Nothing
                                    , horizonBounds = Nothing
                                    , plotStatus = Loading}
             in

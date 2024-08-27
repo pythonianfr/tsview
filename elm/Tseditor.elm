@@ -350,7 +350,6 @@ update msg model =
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
-                                    , zoomedTs = Nothing
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
@@ -369,8 +368,7 @@ update msg model =
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
                 Ok val -> ( { model | initialFormula = val
-                                    , zoomedFormula = Nothing
-                                      , horizon = updateHorizonFromData
+                                    , horizon = updateHorizonFromData
                                                     model.horizon
                                                     val
                               }
@@ -411,7 +409,9 @@ update msg model =
                                                     hMsg
                                                     model.horizon
             in
-            ( { model | horizon = newModelHorizon }
+            ( { model | horizon = newModelHorizon
+                      , zoomedTs = Nothing
+                      , zoomedFormula = Nothing}
             , commands )
 
         InputChanged date rawvalue ->
