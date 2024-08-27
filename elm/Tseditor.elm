@@ -521,7 +521,6 @@ update msg model =
                    in
                        ( newmodel
                        , Cmd.batch ( [ Random.generate RandomNumber randomInt
-                                     , I.getidates newmodel "series" InsertionDates
                                      , getHasCache newmodel
                                      ] ++ (getRelevantData newmodel)))
                 Err err ->
@@ -695,7 +694,9 @@ getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
     if model.seriestype == I.Primary
         then
-            [ getPoints model]
+            [ getPoints model
+            , I.getidates model "series" InsertionDates
+            ]
         else
             [ getPoints model
             , getComponents model
