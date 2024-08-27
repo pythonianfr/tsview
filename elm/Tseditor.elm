@@ -75,6 +75,7 @@ type Msg
     | GotComponents (Result Http.Error String)
     | GotComponentData String (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
+    | GotSource (Result Http.Error String)
     | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | InputChanged String String
@@ -270,6 +271,16 @@ getRelevantComponent model component =
                 "eval_formula"
                 POST
                 component.name
+
+
+getsource : String -> String -> Cmd Msg
+getsource baseurl name =
+    Http.get
+        { expect = Http.expectString GotSource
+        , url = UB.crossOrigin baseurl
+              [ "api", "series", "source" ]
+              [ UB.string "name" name ]
+        }
 
 
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
@@ -526,6 +537,16 @@ update msg model =
 
         GotMetadata (Err err) ->
             doerr "gotmeta http" <| U.unwraperror err
+
+        GotSource (Ok rawsource) ->
+            case JD.decodeString JD.string rawsource of
+                Ok source ->
+                    U.nocmd { model | source = source }
+                Err err ->
+                    doerr "gotsource decode" <| JD.errorToString err
+
+        GotSource (Err err) ->
+            doerr "gotsource http" <| U.unwraperror err
 
         HasCache (Ok rawhascache) ->
             let model_horizon = model.horizon
@@ -1213,7 +1234,7 @@ init input =
                     , errors = [ ]
                     , name = input.name
                     , meta = Dict.empty
-                    , source = "local"
+                    , source = ""
                     , seriestype = I.Primary
                     , date_index = 0
                     , horizon = initHorizon input.min input.max Loading
@@ -1231,7 +1252,7 @@ init input =
                     , components = []
                     , componentsData = Dict.empty
                     }
-    , Cmd.none -- The chain of command is triggerd by "FromLocalStorage" Msg
+    , getsource input.baseurl input.name -- The chain of command is triggerd by "FromLocalStorage" Msg
     )
 
 
