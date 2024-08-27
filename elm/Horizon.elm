@@ -325,10 +325,12 @@ updatefromlocalstorage data model =
 updateHorizonFromData : HorizonModel -> Dict String v -> HorizonModel
 updateHorizonFromData model val =
     let
-        tsBounds = formatBoundDates val
+        ( min, max ) = formatBoundDates val
     in
     { model
-        | horizonBounds = Just tsBounds
+        | horizonBounds = if min /= ""
+                            then Just ( min, max )
+                            else Nothing
         , plotStatus = Success
     }
 
