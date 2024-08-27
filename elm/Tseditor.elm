@@ -36,7 +36,6 @@ import Process as P
 import Url.Builder as UB
 import Util as U
 import Json.Encode as JE
-import Random
 import Task as T
 
 port copyToClipboard : String -> Cmd msg
@@ -61,7 +60,7 @@ type alias Model =
     , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
     , zoomedFormula : Maybe ( Dict String (Maybe Float) )
-    , randomNumber : Int
+    , monotonicCount : Int
     , clipboardclass : String
     , panActive : Bool
     -- show-values for formula
@@ -85,7 +84,6 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
-    | RandomNumber Int
     | DatesFromZoom (List String)
     | NewDragMode Bool
     | CopyNameToClipboard
@@ -371,6 +369,7 @@ update msg model =
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     val
+                                    , monotonicCount = model.monotonicCount + 1
                               }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
@@ -501,10 +500,9 @@ update msg model =
             )
 
         GotEditedData (Ok _) ->
-            ( model
+            ( { model | monotonicCount = model.monotonicCount + 1 }
             , Cmd.batch
-                  ([ Random.generate RandomNumber randomInt
-                   ] ++ getRelevantData model)
+                  ( getRelevantData model)
             )
 
         GotEditedData (Err _) ->
@@ -517,11 +515,11 @@ update msg model =
                                           , seriestype = if Dict.member "formula" allmeta
                                                             then I.Formula
                                                             else  I.Primary
+                                          , monotonicCount = model.monotonicCount + 1
                                   }
                    in
                        ( newmodel
-                       , Cmd.batch ( [ Random.generate RandomNumber randomInt
-                                     , getHasCache newmodel
+                       , Cmd.batch ( [ getHasCache newmodel
                                      ] ++ (getRelevantData newmodel)))
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
@@ -559,9 +557,6 @@ update msg model =
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        RandomNumber number ->
-            U.nocmd { model | randomNumber = number }
-
         DatesFromZoom dates ->
                  let
                     ( minDate, maxDate ) = extractZommDates  dates
@@ -572,6 +567,7 @@ update msg model =
                             { model | horizon = { horizonmodel | zoomBounds = Nothing}
                                     , zoomedTs = Nothing
                                     , zoomedFormula = Nothing
+                                    , monotonicCount = model.monotonicCount + 1
                             }
                         else
                             { model | zoomedTs = Just ( newZoom
@@ -588,12 +584,11 @@ update msg model =
                                                                 model.zoomedFormula
                                                                 model.panActive )
                                     , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
+                                    , monotonicCount = model.monotonicCount + 1
                             }
 
                  in
-                    ( newmodel
-                    , Random.generate RandomNumber randomInt
-                    )
+                    ( newmodel , Cmd.none )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -611,7 +606,7 @@ update msg model =
 
 
 defaultActions newModel =
-    getRelevantData newModel ++ [( Random.generate RandomNumber randomInt )]
+    getRelevantData newModel
 
 actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel -> List (Cmd Msg)
 actionsHorizon model msg horizonModel =
@@ -699,11 +694,6 @@ getRelevantData model =
             ]
         else
             [ getPoints model ]
-
-
-randomInt : Random.Generator Int
-randomInt =
-  Random.int 0 999999999
 
 
 parseCopyPastedData : String -> Maybe String
@@ -886,7 +876,7 @@ editTable model =
         node = H.node "eval-js"
             [ HA.attribute
                   "myjs"
-                  ("applyCopyPaste(" ++ String.fromInt model.randomNumber ++ ");")
+                  ("applyCopyPaste(" ++ String.fromInt model.monotonicCount ++ ");")
             ]
             [ ]
         class = HA.class "data-table"
@@ -1230,7 +1220,7 @@ init input =
                     , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
-                    , randomNumber = 0
+                    , monotonicCount = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
