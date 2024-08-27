@@ -372,7 +372,7 @@ update msg model =
                                                     model.horizon
                                                     val
                               }
-                            , Cmd.none )
+                           , getComponents model )
                 Err err -> U.nocmd ( addError
                                         { model | horizon = setStatusPlot model.horizon Failure }
                                         "got value data decode"
@@ -698,9 +698,7 @@ getRelevantData model =
             , I.getidates model "series" InsertionDates
             ]
         else
-            [ getPoints model
-            , getComponents model
-            ]
+            [ getPoints model ]
 
 
 randomInt : Random.Generator Int
