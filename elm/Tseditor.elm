@@ -58,9 +58,9 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , initialTs: Dict String Entry
-    , zoomedTs : Dict String Entry
+    , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
-    , zoomedFormula : Dict String (Maybe Float)
+    , zoomedFormula : Maybe ( Dict String (Maybe Float) )
     , randomNumber : Int
     , clipboardclass : String
     , panActive : Bool
@@ -323,13 +323,13 @@ addError: Model -> String -> String -> Model
 addError model tag error = U.adderror model (tag ++ " -> " ++ error)
 
 
-restrictOnZoom: Dict String a -> Maybe (String, String) -> Dict String a
+restrictOnZoom: Dict String a -> Maybe (String, String) -> Maybe ( Dict String a )
 restrictOnZoom ts zoomBounds =
      case zoomBounds of
-         Nothing -> ts
-         Just ( min, max ) -> Dict.filter
-                                ((\key _ -> (( key >= min ) && ( key <= max ))))
-                                ts
+         Nothing -> Nothing
+         Just ( min, max ) -> Just ( Dict.filter
+                                    ((\key _ -> (( key >= min ) && ( key <= max ))))
+                                    ts )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -350,9 +350,7 @@ update msg model =
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
-                                    , zoomedTs = restrictOnZoom
-                                                    indexedval
-                                                    model.horizon.zoomBounds
+                                    , zoomedTs = Nothing
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
@@ -371,9 +369,7 @@ update msg model =
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
                 Ok val -> ( { model | initialFormula = val
-                                    , zoomedFormula = restrictOnZoom
-                                                        val
-                                                        model.horizon.zoomBounds
+                                    , zoomedFormula = Nothing
                                       , horizon = updateHorizonFromData
                                                     model.horizon
                                                     val
@@ -433,12 +429,13 @@ update msg model =
                         newentry =
                             updateEntry (parseCopyPastedData validval)
                         patched =
-                            Dict.update date newentry model.zoomedTs
+                            Dict.update date newentry ( getActiveTs model )
                     in
-                    U.nocmd { model
-                                | zoomedTs = patched
-                                , editing = Dict.remove date model.editing
-                            }
+                    let patchedModel = setOnActiveTs model patched
+                    in
+                    U.nocmd { patchedModel | editing = Dict.remove
+                                                        date
+                                                        model.editing }
             in
             case floatvalue of
                 Just _ ->
@@ -481,7 +478,7 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                         patched =
-                            Dict.union model.zoomedTs indexedval
+                            Dict.union (getActiveTs model) indexedval
 
                         newmodel =
                             { model
@@ -548,7 +545,7 @@ update msg model =
             let
                 newtimeSeries = getPastedDict model payload
             in
-            U.nocmd { model | zoomedTs = newtimeSeries }
+            U.nocmd ( setOnActiveTs model newtimeSeries )
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -568,31 +565,29 @@ update msg model =
 
         DatesFromZoom dates ->
                  let
-                    minDate = Maybe.withDefault
-                        ""
-                        (Maybe.map (String.replace " " "T") (List.head dates))
-                    maxDate = Maybe.withDefault
-                        ""
-                        (Maybe.map (String.replace " " "T") (List.last dates))
+                    ( minDate, maxDate ) = extractZommDates  dates
                     horizonmodel =
                         model.horizon
                     newmodel =
                         if minDate == "" && maxDate == "" then
                             { model | horizon = { horizonmodel | zoomBounds = Nothing}
-                                    , zoomedTs = model.initialTs
-                                    , zoomedFormula = model.initialFormula
+                                    , zoomedTs = Nothing
+                                    , zoomedFormula = Nothing
                             }
                         else
-                            { model | zoomedTs = Dict.filter
-                                                    ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                                                    ( if model.panActive
-                                                        then model.initialTs
-                                                        else model.zoomedTs )
-                                    , zoomedFormula = Dict.filter
-                                                    ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                                                    ( if model.panActive
-                                                        then model.initialFormula
-                                                        else model.zoomedFormula )
+                            { model | zoomedTs = Just ( newZoom
+                                                            minDate
+                                                            maxDate
+                                                            model.initialTs
+                                                            model.zoomedTs
+                                                            model.panActive )
+
+                                    , zoomedFormula = Just ( newZoom
+                                                                minDate
+                                                                maxDate
+                                                                model.initialFormula
+                                                                model.zoomedFormula
+                                                                model.panActive )
                                     , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                             }
 
@@ -637,6 +632,51 @@ actionsHorizon model msg horizonModel =
         Horizon.InferredFreq _ -> defaultActions newModel
 
         Horizon.ViewNoCache -> defaultActions newModel
+
+
+extractZommDates : List String -> ( String, String )
+extractZommDates dates =
+     ( Maybe.withDefault
+            ""
+            ( Maybe.map (String.replace " " "T") (List.head dates))
+     , Maybe.withDefault
+            ""
+            (Maybe.map (String.replace " " "T") (List.last dates)) )
+
+
+newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
+newZoom minDate maxDate initial zoom pan =
+    case zoom of
+        Nothing -> ( Dict.filter
+                        ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                        initial )
+        Just zoomTs ->
+            ( Dict.filter
+                ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+                ( if pan
+                    then initial
+                    else zoomTs) )
+
+
+getActiveTs: Model -> Dict String Entry
+getActiveTs model =
+    case model.zoomedTs of
+        Nothing -> model.initialTs
+        Just zoom -> zoom
+
+
+setOnActiveTs: Model -> Dict String Entry -> Model
+setOnActiveTs model patch =
+    case model.zoomedTs  of
+        Nothing -> { model | initialTs = patch}
+        Just _ -> { model | zoomedTs = Just patch}
+
+
+getActiveFormula: Model -> Dict String ( Maybe Float)
+getActiveFormula model =
+    case model.zoomedFormula of
+        Nothing -> model.initialFormula
+        Just zoom -> zoom
 
 
 getHasCache : Model -> Cmd Msg
@@ -689,14 +729,14 @@ getPastedDict model payload =
             Maybe.unwrap
                 0
                 (\entry -> entry.index)
-                (Dict.get (payload.index) model.zoomedTs)
+                (Dict.get (payload.index) ( getActiveTs model ))
         listIndex =
             List.range firstIndex (firstIndex + (List.length newValues) - 1)
         listDates =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
-                     model.zoomedTs
+                     ( getActiveTs model )
                 )
         copyPastedDict =
             Dict.fromList <| List.map2 Tuple.pair listDates newValues
@@ -705,9 +745,9 @@ getPastedDict model payload =
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update key (updateEntry value) dict)
         (\_ _ dict -> dict)
-        model.zoomedTs
+        ( getActiveTs model )
         copyPastedDict
-        model.zoomedTs
+        ( getActiveTs model )
 
 
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
@@ -730,7 +770,7 @@ patchEditedData model =
                 _ -> False
 
         patch =
-            model.zoomedTs
+            ( getActiveTs model )
                 |> Dict.filter (\_ value -> Maybe.isJust value.edited)
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
     in
@@ -852,10 +892,10 @@ editTable model =
             [ ]
         class = HA.class "data-table"
     in
-    if Dict.isEmpty model.zoomedTs
+    if Dict.isEmpty ( getActiveTs model )
     then H.div [ class ][ ]
     else
-        if Dict.size model.zoomedTs > maxPoints
+        if Dict.size ( getActiveTs model ) > maxPoints
         then H.div
             [ class ]
             [ H.text msgTooManyPoints
@@ -877,7 +917,7 @@ editTable model =
                               ]
                         ]
                   , H.tbody [ ]
-                      <| List.map (viewrow model) (Dict.toList model.zoomedTs)
+                      <| List.map (viewrow model) (Dict.toList ( getActiveTs model ))
                   ]
             , node
             ]
@@ -900,7 +940,7 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    if (List.length (Dict.toList model.zoomedFormula)) < maxPoints
+    if (List.length (Dict.toList ( getActiveFormula model ))) < maxPoints
     then
         H.tbody
             []
@@ -927,7 +967,7 @@ datesFormula model =
     Set.fromList
         ( List.map
             (\ (date, _) -> date)
-            ( Dict.toList model.zoomedTs ))
+            ( Dict.toList ( getActiveTs model ) ))
 
 
 datesComponents: Model -> Set String
@@ -971,7 +1011,7 @@ buildRow model date =
                                           Nothing
                                           ( Dict.get
                                             date
-                                            model.zoomedFormula )
+                                            ( getActiveFormula model ) )
                                     ))
                         ]]
             ( addComponentCells model date ) )
@@ -1049,7 +1089,7 @@ viewedittable model =
     let
         filtredDict = Dict.filter
             (\_ entry -> Maybe.isJust entry.edited)
-            model.zoomedTs
+            ( getActiveTs model )
     in
     H.div
         [ HA.class "tables" ]
@@ -1118,25 +1158,25 @@ statusText plotStatus =
 isEmpty: Model -> Bool
 isEmpty model =
     if model.seriestype == I.Primary
-    then Dict.isEmpty model.zoomedTs
-    else Dict.isEmpty model.zoomedFormula
+    then Dict.isEmpty ( getActiveTs model )
+    else Dict.isEmpty ( getActiveFormula model )
 
 
 getTs: Model -> ( List String, List ( Maybe Float ))
 getTs model =
     if model.seriestype == I.Primary
     then
-        (( Dict.keys model.zoomedTs )
-        , ( List.map (\x -> x.value) (Dict.values model.zoomedTs )))
+        (( Dict.keys ( getActiveTs model ) )
+        , ( List.map (\x -> x.value) (Dict.values ( getActiveTs model ) )))
     else
-        (( Dict.keys model.zoomedFormula )
-        , ( Dict.values model.zoomedFormula ))
+        (( Dict.keys ( getActiveFormula model ) )
+        , ( Dict.values ( getActiveFormula model ) ))
 
 
 view : Model -> H.Html Msg
 view model =
     let
-        maybeMedian = medianValue (Dict.keys model.zoomedTs)
+        maybeMedian = medianValue (Dict.keys ( getActiveTs model ))
         ( dates, values ) = getTs model
         dragMode =
             if model.panActive
@@ -1194,9 +1234,9 @@ init input =
                     , randomNumber = 0
                     , rawPasted = ""
                     , initialTs = Dict.empty
-                    , zoomedTs = Dict.empty
+                    , zoomedTs = Nothing
                     , initialFormula = Dict.empty
-                    , zoomedFormula = Dict.empty
+                    , zoomedFormula = Nothing
                     , clipboardclass = "bi bi-clipboard"
                     , panActive = False
                     , components = []
