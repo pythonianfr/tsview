@@ -15,6 +15,7 @@ port module Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , extendHorizonFromData
+    , extractZoomDates
     , setStatusPlot
     , setDisabled
     )
@@ -25,6 +26,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
+import List.Extra as List
 import Maybe.Extra as Maybe
 import OrderedDict as OD
 import Util as U
@@ -175,9 +177,11 @@ getFromToDates model =
          Just ( min, max ) ->  Just ( min, max )
          Nothing ->  case model.queryBounds of
                         Just ( min, max ) ->  Just ( min, max )
-                        Nothing ->  case model.horizonBounds of
-                            Just ( min, max ) -> Just ( min, max )
+                        Nothing ->  case model.horizon of
                             Nothing -> Nothing
+                            Just _ -> case model.horizonBounds of
+                                        Just ( min, max ) -> Just ( min, max )
+                                        Nothing -> Nothing
 
 
 setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
@@ -423,6 +427,20 @@ readHorizon key =
             Nothing
 
 
+extractZoomDates : List String -> Maybe ( String, String )
+extractZoomDates dates =
+    if String.join "" dates == ""
+    then Nothing
+    else
+    let min = ( Maybe.map (String.replace " " "T") (List.head dates))
+        max = ( Maybe.map (String.replace " " "T") (List.last dates))
+    in
+        case min of
+            Nothing -> Nothing
+            Just minDate -> case max of
+                Nothing -> Nothing
+                Just maxDate -> Just ( minDate, maxDate )
+
 renderTimeZone : String -> String -> H.Html msg
 renderTimeZone selectedhorizon timeZone =
     H.option
@@ -526,7 +544,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled || Maybe.withDefault "All" model.horizon == "All" )
+                ( model.disabled ||  model.horizon == Nothing )
                 "left"
                 "btn btn-outline-dark btn-sm" ]
         , H.div
@@ -542,7 +560,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled || Maybe.withDefault "All" model.horizon == "All" )
+                ( model.disabled || model.horizon == Nothing )
                 "right"
                 "btn btn-outline-dark btn-sm" ]
         , H.div

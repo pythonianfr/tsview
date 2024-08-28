@@ -27,6 +27,7 @@ import Horizon exposing
     , loadFromLocalStorage
     , updateHorizon
     , updateHorizonFromData
+    , extractZoomDates
     , setStatusPlot
     )
 import Horizon as HorizonModule
@@ -846,51 +847,42 @@ update msg model =
 
         DatesFromZoom range ->
             let
-                horizonmodel =
-                    model.horizon
-                minDate = Maybe.withDefault "" (List.head range)
-                maxDate = Maybe.withDefault "" (List.last range)
+                horizonmodel = model.horizon
+                bounds = extractZoomDates range
             in
-            if model.historyMode then
-                if (minDate == "") && (maxDate == "") then
-                    let
-                        newmodel =
-                            { model
-                                | historyPlots = Dict.empty
-                                , firstIdates = Array.empty
-                                , dataFromHover = Nothing
-                            }
-                    in
-                        U.nocmd newmodel
-                else
-                    let
-                        newmodel =
-                            { model
-                                | historyPlots = Dict.empty
-                                , firstIdates = Array.empty
-                                , dataFromHover = Nothing
-                                , horizon = { horizonmodel |
-                                                  zoomBounds = Just ( minDate, maxDate )
-                                            }
-                            }
-                        cmd =
-                            getsomeidates newmodel
-                    in
-                    ( newmodel
-                    , cmd
-                    )
+            if model.historyMode
+            then
+                case bounds of
+                    Nothing -> U.nocmd { model
+                                            | historyPlots = Dict.empty
+                                            , firstIdates = Array.empty
+                                            , dataFromHover = Nothing
+                                            , horizon = { horizonmodel |
+                                                                zoomBounds = Nothing
+                                                            }
+                                        }
+                    Just ( minDate, maxDate ) ->
+                        let newmodel =  { model
+                                            | historyPlots = Dict.empty
+                                            , firstIdates = Array.empty
+                                            , dataFromHover = Nothing
+                                            , horizon = { horizonmodel |
+                                                            zoomBounds = Just ( minDate, maxDate )
+                                                        }
+                                        }
+                        in ( newmodel, getsomeidates newmodel )
+
             else
-                if (minDate == "") && (maxDate == "") then
-                    U.nocmd model
-                else
-                    let
-                        newmodel =
-                            { model
+                 case bounds of
+                    Nothing -> U.nocmd { model | horizon = { horizonmodel |
+                                                                zoomBounds = Nothing
+                                                            }
+                                        }
+                    Just ( minDate, maxDate ) ->
+                        U.nocmd { model
                                 | horizon =
                                   { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
                             }
-                    in
-                    U.nocmd newmodel
 
         HistoryIdates (minDate, maxDate) (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of

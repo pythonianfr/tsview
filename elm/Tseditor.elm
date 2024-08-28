@@ -14,6 +14,7 @@ import Horizon exposing
     , loadFromLocalStorage
     , updateHorizon
     , updateHorizonFromData
+    , extractZoomDates
     , setStatusPlot
     )
 import Horizon as ModuleHorizon
@@ -23,7 +24,6 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
 import Json.Decode as JD
-import List.Extra as List
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -580,33 +580,31 @@ update msg model =
 
         DatesFromZoom dates ->
                  let
-                    ( minDate, maxDate ) = extractZommDates  dates
+                    zoomDates = extractZoomDates dates
                     horizonmodel =
                         model.horizon
                     newmodel =
-                        if minDate == "" && maxDate == "" then
-                            { model | horizon = { horizonmodel | zoomBounds = Nothing}
-                                    , zoomedTs = Nothing
-                                    , zoomedFormula = Nothing
-                                    , monotonicCount = model.monotonicCount + 1
-                            }
-                        else
-                            { model | zoomedTs = Just ( newZoom
-                                                            minDate
-                                                            maxDate
-                                                            model.initialTs
-                                                            model.zoomedTs
-                                                            model.panActive )
-
-                                    , zoomedFormula = Just ( newZoom
-                                                                minDate
-                                                                maxDate
-                                                                model.initialFormula
-                                                                model.zoomedFormula
-                                                                model.panActive )
-                                    , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
-                                    , monotonicCount = model.monotonicCount + 1
-                            }
+                        case zoomDates of
+                            Nothing -> { model | horizon = { horizonmodel | zoomBounds = Nothing}
+                                               , zoomedTs = Nothing
+                                               , zoomedFormula = Nothing
+                                               , monotonicCount = model.monotonicCount + 1
+                                        }
+                            Just (minDate, maxDate) -> { model | zoomedTs = Just ( newZoom
+                                                                                        minDate
+                                                                                        maxDate
+                                                                                        model.initialTs
+                                                                                        model.zoomedTs
+                                                                                        model.panActive )
+                                                                , zoomedFormula = Just ( newZoom
+                                                                                            minDate
+                                                                                            maxDate
+                                                                                            model.initialFormula
+                                                                                            model.zoomedFormula
+                                                                                            model.panActive )
+                                                                , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
+                                                                , monotonicCount = model.monotonicCount + 1
+                                                        }
 
                  in
                     ( newmodel , Cmd.none )
@@ -647,16 +645,6 @@ actionsHorizon model msg horizonModel =
         Horizon.InferredFreq _ -> defaultActions newModel
 
         Horizon.ViewNoCache -> defaultActions newModel
-
-
-extractZommDates : List String -> ( String, String )
-extractZommDates dates =
-     ( Maybe.withDefault
-            ""
-            ( Maybe.map (String.replace " " "T") (List.head dates))
-     , Maybe.withDefault
-            ""
-            (Maybe.map (String.replace " " "T") (List.last dates)) )
 
 
 newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
@@ -1046,14 +1034,15 @@ headerShowValue model =
 
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
-    let base = UB.string "name" name
-        ( min, max ) = Maybe.withDefault
-                        ("", "")
-                        ( getFromToDates model.horizon )
-    in [ base
-       , UB.string "startdate" min
-       , UB.string "enddate" max
-       ]
+    let bounds = getFromToDates model.horizon
+        base = UB.string "name" name
+    in
+    case bounds of
+        Nothing -> [ base ]
+        Just ( min, max )-> [ base
+                            , UB.string "startdate" min
+                            , UB.string "enddate" max
+                            ]
 
 
 buildLink: Model -> Component -> H.Html Msg
