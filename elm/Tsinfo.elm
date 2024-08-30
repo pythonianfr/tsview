@@ -186,7 +186,7 @@ type Msg
     -- history mode
     | HistoryMode Bool
     | DatesFromZoom (List String)
-    | HistoryIdates (String, String) (Result Http.Error String)
+    | HistoryIdates ( Maybe (String, String) ) (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
@@ -366,40 +366,43 @@ getcachepolicy baseUrl name =
 
 getsomeidates : Model -> Cmd Msg
 getsomeidates model =
-    -- merge with Info.getidates ?
-    let ( min, max ) = Maybe.withDefault ("", "") model.horizon.horizonBounds
+    let bounds = getFromToDates model.horizon
+    in
+    let
+        baseQuery =  [ UB.string "name" model.name
+                     , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache ]
+        boundQuery = case bounds of
+                        Nothing -> []
+                        Just ( min, max ) -> [ UB.string "from_value_date" min
+                                             , UB.string "to_value_date" max ]
     in
         Http.get
             { url =
                 UB.crossOrigin
                 model.baseurl
                 [ "api", "series", "insertion_dates" ]
-                [ UB.string "name" model.name
-                , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
-                , UB.string "from_value_date" min
-                , UB.string "to_value_date" max ]
-                , expect = Http.expectString (HistoryIdates (min, max))
+                ( baseQuery ++ boundQuery )
+                , expect = Http.expectString ( HistoryIdates bounds )
             }
 
 
-getVersions : Model -> String -> String -> List String -> Cmd Msg
-getVersions model minDate maxDate idates =
+getVersions : Model -> Maybe (String, String) -> List String -> Cmd Msg
+getVersions model bounds idates =
     -- merge with getplot ?
     let
-        stringToMaybe : String -> String -> Maybe UB.QueryParameter
-        stringToMaybe name value =
-            if value == "" then Nothing else Just (UB.string name value)
-
-        fullquery : String -> List UB.QueryParameter
-        fullquery idate = Maybe.values <|
-            [ stringToMaybe "name" model.name
-            , stringToMaybe "insertion_date" idate
-            , stringToMaybe "inferred_freq" (if model.horizon.inferredFreq then "true" else "false")
-            , stringToMaybe "tzone" model.horizon.timeZone
-            , stringToMaybe "from_value_date" minDate
-            , stringToMaybe "to_value_date" maxDate
-            , Just ( UB.int "nocache" ( U.bool2int model.horizon.viewNoCache ))
+        baseQuery: String -> List UB.QueryParameter
+        baseQuery idate =
+            [ UB.string "name" model.name
+            , UB.string "insertion_date" idate
+            , UB.int "inferred_freq" ( U.bool2int model.horizon.inferredFreq )
+            , UB.string "tzone" model.horizon.timeZone
+            , UB.int "nocache" ( U.bool2int model.horizon.viewNoCache )
             ]
+
+        boundQuery = case bounds of
+                        Nothing -> []
+                        Just ( min, max ) -> [ UB.string "from_value_date" min
+                                             , UB.string "to_value_date" max ]
 
         getVersion : String -> Cmd Msg
         getVersion idate =
@@ -408,7 +411,7 @@ getVersions model minDate maxDate idates =
                       UB.crossOrigin
                       model.baseurl
                       [ "api", "series", "state" ]
-                      (fullquery idate)
+                      ( (baseQuery idate) ++ boundQuery )
                 , expect = Http.expectString (GotVersion idate)
             }
     in
@@ -843,12 +846,8 @@ update msg model =
                         , dataFromHover = Nothing
                     }
             in
-                if isChecked then
-                    ( newmodel
-                    , getsomeidates model
-                    )
-                else
-                    U.nocmd newmodel
+                U.nocmd newmodel
+
 
         DatesFromZoom range ->
             let
@@ -889,15 +888,11 @@ update msg model =
                                   { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
                             }
 
-        HistoryIdates (minDate, maxDate) (Ok rawdates) ->
+        HistoryIdates bounds (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
-                        firsts  =
-                            if (List.length dates) > nbRevs then
-                                List.take nbRevs dates
-                            else
-                                dates
+                        firsts  = firstDates dates
                         newmodel =
                             { model
                                 | firstIdates = Array.fromList firsts
@@ -905,7 +900,7 @@ update msg model =
                             }
                     in
                     ( newmodel
-                    , getVersions model minDate maxDate firsts
+                    , getVersions model bounds firsts
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -948,16 +943,26 @@ update msg model =
             in U.nocmd newmodel
 
         ViewAllHistory ->
-            let
-                newmodel =
-                    { model
-                        | historyPlots = Dict.empty
-                        , firstIdates = Array.empty
-                    }
-            in
-            ( newmodel
-            , getsomeidates model
-            )
+            case model.horizon.horizon of
+                Just _ -> ( { model | historyPlots = Dict.empty
+                                    , firstIdates = Array.empty
+                            }
+                            , getsomeidates model
+                            )
+                Nothing -> let firsts =  ( firstDates
+                                            ( Array.toList model.insertion_dates ))
+                            in
+                            let newmodel = { model
+                                            | firstIdates = Array.fromList firsts
+                                            , historyDateIndex = ( List.length firsts ) - 1
+                                           }
+                           in ( newmodel
+                              , getVersions
+                                    newmodel
+                                    Nothing
+                                    firsts
+                              )
+
 
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
@@ -989,6 +994,12 @@ actionsHorizon model msg horizonModel =
     else
         [ getplot newModel ]
 
+firstDates dates =
+     if (List.length dates) > nbRevs
+     then
+        List.take nbRevs dates
+     else
+        dates
 
 -- views
 
