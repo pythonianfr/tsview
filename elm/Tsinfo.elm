@@ -61,8 +61,6 @@ port dataFromHover : ( String -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
 
 
-nbRevs = 70
-
 type alias Logentry =
     { rev : Int
     , author : String
@@ -115,8 +113,11 @@ type alias Model =
     -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
+    , historyIdates : Array String
     , lastIdates : Array String
     , historyDateIndex : Int
+    , nbRevisions: Int
+    , maxNbRevisions: Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
     }
@@ -844,6 +845,7 @@ update msg model =
                         , historyPlots = Dict.empty
                         , lastIdates = Array.empty
                         , dataFromHover = Nothing
+                        , nbRevisions = 0
                     }
             in
                 U.nocmd newmodel
@@ -892,11 +894,14 @@ update msg model =
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
-                        lasts  = lastDates dates
+                        nbRevisions = List.length dates
+                        lasts  = lastDates model.maxNbRevisions dates
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
+                                , historyIdates = Array.fromList dates
                                 , historyDateIndex = List.length lasts - 1
+                                , nbRevisions = nbRevisions
                             }
                     in
                     ( newmodel
@@ -950,10 +955,13 @@ update msg model =
                             , getsomeidates model
                             )
                 Nothing -> let lasts =  ( lastDates
+                                            model.maxNbRevisions
                                             ( Array.toList model.insertion_dates ))
                             in
                             let newmodel = { model
                                             | lastIdates = Array.fromList lasts
+                                            , historyIdates = model.insertion_dates
+                                            , nbRevisions = Array.length model.insertion_dates
                                             , historyDateIndex = ( List.length lasts ) - 1
                                            }
                            in ( newmodel
@@ -994,11 +1002,11 @@ actionsHorizon model msg horizonModel =
     else
         [ getplot newModel ]
 
-lastDates dates =
-     if (List.length dates) > nbRevs
+lastDates max dates =
+     if (List.length dates) > max
      then
         List.reverse
-            ( List.take nbRevs
+            ( List.take max
                 ( List.reverse dates ))
      else
         dates
@@ -1136,6 +1144,11 @@ viewplot model =
                     , HE.onClick ViewAllHistory
                     ]
                     [ H.text "view all history" ]
+                , H.text ("   "
+                         ++ (String.fromInt model.nbRevisions)
+                         ++ " revisions. Only showing the last "
+                         ++ (String.fromInt model.maxNbRevisions)
+                         )
                 ]
             , I.viewgraph
                 model.name
@@ -1346,8 +1359,11 @@ init input =
       , horizon = initHorizon "" "" Loading
       , historyPlots = Dict.empty
       , historyMode = False
+      , historyIdates = Array.empty
       , lastIdates = Array.empty
       , historyDateIndex = 0
+      , nbRevisions = 0
+      , maxNbRevisions = 70
       , historyDateIndexDeb = debouncerconfig
       , dataFromHover = Nothing
       }
