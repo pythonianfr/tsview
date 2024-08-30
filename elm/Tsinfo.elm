@@ -382,8 +382,8 @@ getsomeidates model =
             }
 
 
-getsomedata : Model -> String -> String -> List String -> Cmd Msg
-getsomedata model minDate maxDate idates =
+getVersions : Model -> String -> String -> List String -> Cmd Msg
+getVersions model minDate maxDate idates =
     -- merge with getplot ?
     let
         stringToMaybe : String -> String -> Maybe UB.QueryParameter
@@ -398,10 +398,11 @@ getsomedata model minDate maxDate idates =
             , stringToMaybe "tzone" model.horizon.timeZone
             , stringToMaybe "from_value_date" minDate
             , stringToMaybe "to_value_date" maxDate
+            , Just ( UB.int "nocache" ( U.bool2int model.horizon.viewNoCache ))
             ]
 
-        getPlot : String -> Cmd Msg
-        getPlot idate =
+        getVersion : String -> Cmd Msg
+        getVersion idate =
             Http.get
                 { url =
                       UB.crossOrigin
@@ -411,7 +412,7 @@ getsomedata model minDate maxDate idates =
                 , expect = Http.expectString (GotVersion idate)
             }
     in
-    Cmd.batch <| List.map getPlot idates
+    Cmd.batch <| List.map getVersion idates
 
 
 updatedchangedidatebouncer =
@@ -900,7 +901,7 @@ update msg model =
                             }
                     in
                     ( newmodel
-                    , getsomedata model minDate maxDate firsts
+                    , getVersions model minDate maxDate firsts
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
