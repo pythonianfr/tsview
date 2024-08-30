@@ -115,7 +115,7 @@ type alias Model =
     -- history mode
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
-    , firstIdates : Array String
+    , lastIdates : Array String
     , historyDateIndex : Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
@@ -842,7 +842,7 @@ update msg model =
                     { model
                         | historyMode = isChecked
                         , historyPlots = Dict.empty
-                        , firstIdates = Array.empty
+                        , lastIdates = Array.empty
                         , dataFromHover = Nothing
                     }
             in
@@ -859,7 +859,7 @@ update msg model =
                 case bounds of
                     Nothing -> U.nocmd { model
                                             | historyPlots = Dict.empty
-                                            , firstIdates = Array.empty
+                                            , lastIdates = Array.empty
                                             , dataFromHover = Nothing
                                             , horizon = { horizonmodel |
                                                                 zoomBounds = Nothing
@@ -868,7 +868,7 @@ update msg model =
                     Just ( minDate, maxDate ) ->
                         let newmodel =  { model
                                             | historyPlots = Dict.empty
-                                            , firstIdates = Array.empty
+                                            , lastIdates = Array.empty
                                             , dataFromHover = Nothing
                                             , horizon = { horizonmodel |
                                                             zoomBounds = Just ( minDate, maxDate )
@@ -892,15 +892,15 @@ update msg model =
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
-                        firsts  = firstDates dates
+                        lasts  = lastDates dates
                         newmodel =
                             { model
-                                | firstIdates = Array.fromList firsts
-                                , historyDateIndex = List.length firsts - 1
+                                | lastIdates = Array.fromList lasts
+                                , historyDateIndex = List.length lasts - 1
                             }
                     in
                     ( newmodel
-                    , getVersions model bounds firsts
+                    , getVersions model bounds lasts
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -932,7 +932,7 @@ update msg model =
                     Maybe.withDefault model.historyDateIndex -- keep current
                     ( String.toInt strindex )
                 newmodel =
-                    if Array.get index model.firstIdates == Nothing
+                    if Array.get index model.lastIdates == Nothing
                     then
                         model
                     else
@@ -945,22 +945,22 @@ update msg model =
         ViewAllHistory ->
             case model.horizon.horizon of
                 Just _ -> ( { model | historyPlots = Dict.empty
-                                    , firstIdates = Array.empty
+                                    , lastIdates = Array.empty
                             }
                             , getsomeidates model
                             )
-                Nothing -> let firsts =  ( firstDates
+                Nothing -> let lasts =  ( lastDates
                                             ( Array.toList model.insertion_dates ))
                             in
                             let newmodel = { model
-                                            | firstIdates = Array.fromList firsts
-                                            , historyDateIndex = ( List.length firsts ) - 1
+                                            | lastIdates = Array.fromList lasts
+                                            , historyDateIndex = ( List.length lasts ) - 1
                                            }
                            in ( newmodel
                               , getVersions
                                     newmodel
                                     Nothing
-                                    firsts
+                                    lasts
                               )
 
 
@@ -994,10 +994,12 @@ actionsHorizon model msg horizonModel =
     else
         [ getplot newModel ]
 
-firstDates dates =
+lastDates dates =
      if (List.length dates) > nbRevs
      then
-        List.take nbRevs dates
+        List.reverse
+            ( List.take nbRevs
+                ( List.reverse dates ))
      else
         dates
 
@@ -1142,12 +1144,12 @@ viewplot model =
                 defaultLayoutOptions
                 defaultoptions
             , viewDatesRange
-                model.firstIdates
+                model.lastIdates
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
             , I.viewHistoryGraph model
-            , if Array.isEmpty model.firstIdates then
+            , if Array.isEmpty model.lastIdates then
                 H.div
                 [HA.class "placeholder-text-hover" ]
                 [ ]
@@ -1344,7 +1346,7 @@ init input =
       , horizon = initHorizon "" "" Loading
       , historyPlots = Dict.empty
       , historyMode = False
-      , firstIdates = Array.empty
+      , lastIdates = Array.empty
       , historyDateIndex = 0
       , historyDateIndexDeb = debouncerconfig
       , dataFromHover = Nothing

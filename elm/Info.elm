@@ -616,10 +616,10 @@ viewgraph name tskeys tsvalues layoutOptions options =
 viewHistoryGraph model =
     let
         currentIdate = Maybe.withDefault
-            "" (Array.get model.historyDateIndex model.firstIdates)
+            "" (Array.get model.historyDateIndex model.lastIdates)
         lastIdate = Maybe.withDefault
             ""
-            (List.last (Array.toList model.firstIdates))
+            (List.last (Array.toList model.lastIdates))
 
         options idate =
             { line = Just
