@@ -819,9 +819,13 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
         Horizon hmsg ->
+            let newmodel = if hmsg == HorizonModule.ViewNoCache
+                           then { model | insertion_dates = Array.empty }
+                           else model
+            in
             let ( newhorizonmodel, commands ) =
                     updateHorizon
-                    ( actionsHorizon model )
+                    ( actionsHorizon newmodel hmsg )
                     hmsg
                     model.horizon
             in
@@ -973,12 +977,17 @@ update msg model =
             )
 
 
-actionsHorizon : Model -> HorizonModel -> List (Cmd Msg)
-actionsHorizon model horizonModel =
+actionsHorizon : Model -> HorizonModule.Msg -> HorizonModel -> List (Cmd Msg)
+actionsHorizon model msg horizonModel =
     let
         newModel = { model | horizon = horizonModel }
     in
-    [ getplot newModel ]
+    if msg == HorizonModule.ViewNoCache
+    then
+        [ I.getidates newModel "series" InsertionDates
+        , getplot newModel ]
+    else
+        [ getplot newModel ]
 
 
 -- views
