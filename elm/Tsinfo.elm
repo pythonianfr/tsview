@@ -117,7 +117,8 @@ type alias Model =
     , lastIdates : Array String
     , historyDateIndex : Int
     , nbRevisions: Int
-    , maxNbRevisions: Int
+    , maxNbRevisions: Maybe Int
+    , previousMax: Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
     }
@@ -192,6 +193,8 @@ type Msg
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
     | ViewAllHistory
+    | ChangeMaxRevs String
+    | UpdateMax
     | NewDataFromHover String
     | LogsNumber String
     | SeeLogs
@@ -895,7 +898,7 @@ update msg model =
                 Ok dates ->
                     let
                         nbRevisions = List.length dates
-                        lasts  = lastDates model.maxNbRevisions dates
+                        lasts  = lastDates ( Maybe.withDefault 70 model.maxNbRevisions ) dates
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
@@ -955,7 +958,7 @@ update msg model =
                             , getsomeidates model
                             )
                 Nothing -> let lasts =  ( lastDates
-                                            model.maxNbRevisions
+                                            ( Maybe.withDefault 70 model.maxNbRevisions )
                                             ( Array.toList model.insertion_dates ))
                             in
                             let newmodel = { model
@@ -971,7 +974,21 @@ update msg model =
                                     lasts
                               )
 
+        ChangeMaxRevs newMax ->
+            case String.toInt newMax of
+                Nothing -> ( { model | maxNbRevisions = Nothing }, Cmd.none )
+                Just max -> let newmodel = { model | maxNbRevisions = Just max }
+                            in ( newmodel, Cmd.none )
 
+        UpdateMax -> case model.maxNbRevisions of
+                        Nothing -> ( model, Cmd.none )
+                        Just max -> let newmodel =  { model
+                                                        | historyPlots = Dict.empty
+                                                        , lastIdates = Array.empty
+                                                        , dataFromHover = Nothing
+                                                        , previousMax = max
+                                                     }
+                                    in ( newmodel , getsomeidates model )
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
@@ -1125,6 +1142,10 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
                   ] [ ]
             ]
 
+extractMax max =
+    case max of
+        Nothing -> ""
+        Just nb -> String.fromInt nb
 
 viewplot : Model -> H.Html Msg
 viewplot model =
@@ -1147,8 +1168,22 @@ viewplot model =
                 , H.text ("   "
                          ++ (String.fromInt model.nbRevisions)
                          ++ " revisions. Only showing the last "
-                         ++ (String.fromInt model.maxNbRevisions)
                          )
+                , H.input
+                    [ HA.value ( extractMax model.maxNbRevisions )
+                    , HA.class "form-control-sm"
+                    , HA.attribute "type" "text"
+                    , HA.style "width" "4em"
+                    , HE.onInput ChangeMaxRevs ]
+                    [ ]
+                , H.button
+                    [ HA.class "btn btn-primary btn-sm"
+                    , HA.attribute "type" "button"
+                    , HE.onClick UpdateMax
+                    , HA.hidden (( model.maxNbRevisions == Just model.previousMax )
+                                 || ( model.maxNbRevisions == Nothing ))
+                    ]
+                    [H.text "Submit" ]
                 ]
             , I.viewgraph
                 model.name
@@ -1363,7 +1398,8 @@ init input =
       , lastIdates = Array.empty
       , historyDateIndex = 0
       , nbRevisions = 0
-      , maxNbRevisions = 70
+      , maxNbRevisions = Just 70
+      , previousMax = 70
       , historyDateIndexDeb = debouncerconfig
       , dataFromHover = Nothing
       }
