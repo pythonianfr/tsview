@@ -859,7 +859,12 @@ update msg model =
                         , nbRevisions = 0
                     }
             in
-                U.nocmd newmodel
+                if isChecked
+                    then case model.horizon.zoomBounds of
+                        Nothing -> U.nocmd newmodel
+                        Just _ -> ( newmodel
+                                  ,  getsomeidates newmodel )
+                    else U.nocmd newmodel
 
 
         DatesFromZoom range ->
