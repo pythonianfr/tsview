@@ -60,6 +60,8 @@ port dateInInterval : ( List String -> msg ) -> Sub msg
 port dataFromHover : ( String -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
 
+defaultRevMaxPrimary = 70
+defaultRevMaxFormula = 10
 
 type alias Logentry =
     { rev : Int
@@ -460,6 +462,12 @@ update msg model =
                             { model
                                 | meta = allmeta
                                 , seriestype = if isformula then I.Formula else I.Primary
+                                , maxNbRevisions = if isformula
+                                                    then Just defaultRevMaxFormula
+                                                    else Just defaultRevMaxPrimary
+                                , previousMax = if isformula
+                                                    then defaultRevMaxFormula
+                                                    else defaultRevMaxPrimary
                             }
                         cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
                               ++ if isformula
@@ -898,7 +906,7 @@ update msg model =
                 Ok dates ->
                     let
                         nbRevisions = List.length dates
-                        lasts  = lastDates ( Maybe.withDefault 70 model.maxNbRevisions ) dates
+                        lasts  = lastDates ( Maybe.withDefault 0 model.maxNbRevisions ) dates
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
@@ -958,7 +966,7 @@ update msg model =
                             , getsomeidates model
                             )
                 Nothing -> let lasts =  ( lastDates
-                                            ( Maybe.withDefault 70 model.maxNbRevisions )
+                                            ( Maybe.withDefault 0 model.maxNbRevisions )
                                             ( Array.toList model.insertion_dates ))
                             in
                             let newmodel = { model
@@ -1146,6 +1154,7 @@ extractMax max =
     case max of
         Nothing -> ""
         Just nb -> String.fromInt nb
+
 
 viewplot : Model -> H.Html Msg
 viewplot model =
@@ -1398,8 +1407,8 @@ init input =
       , lastIdates = Array.empty
       , historyDateIndex = 0
       , nbRevisions = 0
-      , maxNbRevisions = Just 70
-      , previousMax = 70
+      , maxNbRevisions = Just 0
+      , previousMax = 0
       , historyDateIndexDeb = debouncerconfig
       , dataFromHover = Nothing
       }
