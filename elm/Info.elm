@@ -200,9 +200,8 @@ viewactionwidgets model convertmsg editor pagetitle =
             case model.seriestype of
                 Primary ->  if editor then "edit values ⧉" else "view values ⧉"
                 Formula ->  "show values ⧉"
-        bounds = getFromToDates model.horizon
         queryParameters =
-            case bounds of
+            case model.horizon.zoomBounds of
                 Nothing -> [ UB.string "name" model.name ]
                 Just ( min, max ) -> if editor
                     then  [ UB.string "name" model.name
