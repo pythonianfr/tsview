@@ -392,9 +392,10 @@ getsomeidates model =
             }
 
 
-getVersions : Model -> Maybe (String, String) -> List String -> Cmd Msg
-getVersions model bounds idates =
-    -- merge with getplot ?
+getVersions : Model -> List String -> Cmd Msg
+getVersions model idates =
+    let bounds = getFromToDates model.horizon
+    in
     let
         baseQuery: String -> List UB.QueryParameter
         baseQuery idate =
@@ -911,7 +912,7 @@ update msg model =
                 Ok dates ->
                     let
                         nbRevisions = List.length dates
-                        lasts  = lastDates ( Maybe.withDefault 0 model.maxNbRevisions ) dates
+                        lasts  = lastDates model dates
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
@@ -921,7 +922,7 @@ update msg model =
                             }
                     in
                     ( newmodel
-                    , getVersions model bounds lasts
+                    , getVersions model lasts
                     )
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
@@ -964,28 +965,12 @@ update msg model =
             in U.nocmd newmodel
 
         ViewAllHistory ->
-            case model.horizon.horizon of
-                Just _ -> ( { model | historyPlots = Dict.empty
-                                    , lastIdates = Array.empty
-                            }
-                            , getsomeidates model
-                            )
-                Nothing -> let lasts =  ( lastDates
-                                            ( Maybe.withDefault 0 model.maxNbRevisions )
-                                            ( Array.toList model.insertion_dates ))
-                            in
-                            let newmodel = { model
-                                            | lastIdates = Array.fromList lasts
-                                            , historyIdates = model.insertion_dates
-                                            , nbRevisions = Array.length model.insertion_dates
-                                            , historyDateIndex = ( List.length lasts ) - 1
-                                           }
-                           in ( newmodel
-                              , getVersions
-                                    newmodel
-                                    Nothing
-                                    lasts
-                              )
+            ( { model | historyPlots = Dict.empty
+                      , lastIdates = Array.empty
+              }
+            , getsomeidates model
+            )
+
 
         ChangeMaxRevs newMax ->
             case String.toInt newMax of
@@ -997,11 +982,13 @@ update msg model =
                         Nothing -> ( model, Cmd.none )
                         Just max -> let newmodel =  { model
                                                         | historyPlots = Dict.empty
-                                                        , lastIdates = Array.empty
                                                         , dataFromHover = Nothing
                                                         , previousMax = max
                                                      }
-                                    in ( newmodel , getsomeidates model )
+                                        lasts = lastDates
+                                                    model
+                                                    ( Array.toList model.historyIdates )
+                                    in ( newmodel , getVersions model lasts )
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
@@ -1032,7 +1019,11 @@ actionsHorizon model msg horizonModel =
     else
         [ getplot newModel ]
 
-lastDates max dates =
+
+lastDates:  Model -> List String -> List String
+lastDates model dates =
+     let max = Maybe.withDefault 0 model.maxNbRevisions
+     in
      if (List.length dates) > max
      then
         List.reverse
