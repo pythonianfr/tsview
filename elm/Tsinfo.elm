@@ -1146,6 +1146,30 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
                   ] [ ]
             ]
 
+
+formatIDate: String -> String
+formatIDate date =
+    String.replace
+        "T"
+        " "
+        ( String.left
+            14
+            ( String.dropLeft 2 date ))
+
+
+viewWidgetIdates: Model -> H.Html Msg
+viewWidgetIdates model =
+    let idate = Maybe.withDefault
+                    ""
+                    ( Array.get
+                        model.historyDateIndex
+                        model.lastIdates )
+    in
+    H.div
+        [ HA.class "action-center" ]
+        [ H.text ( formatIDate idate )]
+
+
 extractMax max =
     case max of
         Nothing -> ""
@@ -1201,6 +1225,8 @@ viewplot model =
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
+            , viewWidgetIdates
+                model
             , I.viewHistoryGraph model
             , if Array.isEmpty model.lastIdates then
                 H.div

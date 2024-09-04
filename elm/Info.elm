@@ -649,16 +649,10 @@ viewHistoryGraph model =
             , options = options idate
             }
 
-        title =
-            if currentIdate /= "" then
-                (String.replace "{title}" currentIdate "Insertion date : {title}")
-            else
-               currentIdate
-
         historyArgs = plotargs
             "plot-history"
             (List.map formatLine (Dict.toList model.historyPlots))
-            { defaultLayoutOptions | title = title }
+            defaultLayoutOptions
     in
     H.div
         [ ]
