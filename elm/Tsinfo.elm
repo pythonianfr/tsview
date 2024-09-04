@@ -194,6 +194,7 @@ type Msg
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
+    | IterIDate Direction
     | ViewAllHistory
     | ChangeMaxRevs String
     | UpdateMax
@@ -206,6 +207,9 @@ convertMsg : HorizonModule.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
+type Direction =
+    Prev
+    | Next
 
 type alias DataFromHover =
     { name : String
@@ -682,6 +686,13 @@ update msg model =
                     , getplot newmodel
                     )
 
+        IterIDate direction ->
+            case direction of
+                Prev -> U.nocmd { model |
+                    historyDateIndex = ( model.historyDateIndex - 1 )}
+                Next -> U.nocmd { model |
+                    historyDateIndex = ( model.historyDateIndex + 1 )}
+
         IdatePickerChanged value ->
             let
                 comparedates d1 d2 =
@@ -1157,6 +1168,13 @@ formatIDate date =
             ( String.dropLeft 2 date ))
 
 
+maybeDate: Model -> Int -> ( String, Bool )
+maybeDate model idx =
+    case (Array.get idx model.lastIdates) of
+        Just date -> ( date, True)
+        Nothing -> ( "", False )
+
+
 viewWidgetIdates: Model -> H.Html Msg
 viewWidgetIdates model =
     let idate = Maybe.withDefault
@@ -1164,10 +1182,34 @@ viewWidgetIdates model =
                     ( Array.get
                         model.historyDateIndex
                         model.lastIdates )
+        ( previous, pactive ) = maybeDate
+                                    model
+                                    ( model.historyDateIndex - 1 )
+        ( next, nactive ) = maybeDate
+                                model
+                                ( model.historyDateIndex + 1 )
     in
     H.div
-        [ HA.class "action-center" ]
-        [ H.text ( formatIDate idate )]
+        [ HA.class "widget-idates" ]
+        [ H.div
+            ([ HA.class "idate-adjacent"
+             , HA.title "previous date"
+             ] ++ ( if pactive then [ HA.class "idate-exists"
+                                    , HE.onClick ( IterIDate Prev ) ]
+                               else [] )
+            )
+            [ H.text ( formatIDate previous ) ]
+        , H.div
+            [ HA.class "idate-history" ]
+            [ H.text ( formatIDate idate ) ]
+        , H.div
+            ([ HA.class "idate-adjacent button"
+             , HA.title "next date"
+             ] ++ ( if nactive then [ HA.class "idate-exists"
+                                    , HE.onClick ( IterIDate Next ) ]
+                                else [] ))
+            [ H.text ( formatIDate next ) ]
+        ]
 
 
 extractMax max =
