@@ -211,6 +211,11 @@ type Direction =
     Prev
     | Next
 
+type Position =
+    Left
+    | Center
+    | Right
+
 type alias DataFromHover =
     { name : String
     , data : List DataItem
@@ -1158,15 +1163,21 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
             ]
 
 
-formatIDate: String -> String
-formatIDate date =
-    String.replace
-        "T"
-        " "
-        ( String.left
-            14
-            ( String.dropLeft 2 date ))
-
+formatIDate: String -> Position -> Bool -> String
+formatIDate date position actif =
+    if not actif
+        then ""
+        else
+            let fdate = String.replace
+                            "T"
+                            " "
+                            ( String.left
+                                14
+                                ( String.dropLeft 2 date ))
+            in case position of
+                Center -> fdate
+                Left -> "<< " ++ fdate
+                Right -> fdate ++ " >>"
 
 maybeDate: Model -> Int -> ( String, Bool )
 maybeDate model idx =
@@ -1198,17 +1209,17 @@ viewWidgetIdates model =
                                     , HE.onClick ( IterIDate Prev ) ]
                                else [] )
             )
-            [ H.text ( formatIDate previous ) ]
+            [ H.text (formatIDate previous Left pactive)]
         , H.div
             [ HA.class "idate-history" ]
-            [ H.text ( formatIDate idate ) ]
+            [ H.text ( formatIDate idate Center True)]
         , H.div
             ([ HA.class "idate-adjacent button"
              , HA.title "next date"
              ] ++ ( if nactive then [ HA.class "idate-exists"
                                     , HE.onClick ( IterIDate Next ) ]
                                 else [] ))
-            [ H.text ( formatIDate next ) ]
+            [ H.text ( formatIDate next Right nactive ) ]
         ]
 
 
