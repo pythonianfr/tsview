@@ -912,7 +912,7 @@ update msg model =
                 Ok dates ->
                     let
                         nbRevisions = List.length dates
-                        lasts  = lastDates model dates
+                        lasts  = lastDates dates ( Maybe.withDefault 0 model.maxNbRevisions )
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
@@ -980,14 +980,16 @@ update msg model =
 
         UpdateMax -> case model.maxNbRevisions of
                         Nothing -> ( model, Cmd.none )
-                        Just max -> let newmodel =  { model
+                        Just max -> let lasts = lastDates
+                                            ( Array.toList model.historyIdates )
+                                            ( Maybe.withDefault 0 model.maxNbRevisions )
+                                    in
+                                    let newmodel =  { model
                                                         | historyPlots = Dict.empty
                                                         , dataFromHover = Nothing
                                                         , previousMax = max
+                                                        , lastIdates = Array.fromList lasts
                                                      }
-                                        lasts = lastDates
-                                                    model
-                                                    ( Array.toList model.historyIdates )
                                     in ( newmodel , getVersions model lasts )
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
@@ -1020,10 +1022,8 @@ actionsHorizon model msg horizonModel =
         [ getplot newModel ]
 
 
-lastDates:  Model -> List String -> List String
-lastDates model dates =
-     let max = Maybe.withDefault 0 model.maxNbRevisions
-     in
+lastDates: List String -> Int -> List String
+lastDates dates max =
      if (List.length dates) > max
      then
         List.reverse
