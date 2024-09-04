@@ -68,6 +68,36 @@ div.main-content {
 .widget-loading-status .failure
     {color: red;}
 
+.widget-idates {
+    padding: 10px;
+    display: flex;
+    flex: auto;
+    justify-content: center;
+    align-items: center;
+}
+
+.widget-idates div {
+    width: 13ch;
+}
+
+.widget-idates .idate-history {
+    user-select: none;
+    text-align: center;
+}
+
+.widget-idates .idate-adjacent {
+    user-select: none;
+    cursor: pointer;
+    color:  #a6a6a6;
+    text-align: center;
+
+}
+
+.widget-idates .idate-adjacent:hover {
+    color:  #007bff;
+}
+
+
 form.form-inline {
     display: flex;
     flex-wrap: wrap;
