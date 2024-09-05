@@ -486,14 +486,21 @@ tzonedropdown model convertmsg =
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
 
 
-viewdate: FromOrTo -> Maybe ( String, String ) -> String
-viewdate direction horizonBounds =
-    case horizonBounds of
-        Nothing -> "yyyy-mm-dd"
-        Just  ( min, max ) ->
-            case direction of
-                From -> min
-                To -> max
+viewdate: HorizonModel -> ( String, String, Bool )
+viewdate model =
+    let bounds = case model.zoomBounds of
+                    Just ( min, max ) ->  Just ( min, max , True )
+                    Nothing ->  case model.queryBounds of
+                        Just ( min, max ) ->  Just ( min, max , True )
+                        Nothing ->  case model.horizonBounds of
+                                Just ( min, max ) -> Just ( min, max , False )
+                                Nothing -> Nothing
+    in
+    case bounds of
+        Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
+        Just ( min, max , fromZoom) ->
+            ( U.dateof min, U.dateof max, fromZoom )
+
 
 loadingStatus: HorizonModel -> H.Html msg
 loadingStatus model =
@@ -532,6 +539,10 @@ cacheswitch model convertmsg =
 
 horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
+    let ( min, max, fromZoom ) = viewdate model
+    in
+    let classZoom = ( if fromZoom then " from-zoom" else "" )
+    in
     H.div
         [ HA.class klass ]
         [ H.div
@@ -548,14 +559,14 @@ horizonview model convertmsg klass tzaware =
                 "left"
                 "btn btn-outline-dark btn-sm" ]
         , H.div
-            [ HA.class "widget-date" ]
-            [ H.text <| viewdate From model.horizonBounds ]
+            [ HA.class ( "widget-date" ++ classZoom )]
+            [ H.text <| min ]
         , H.div
             []
             [ selectHorizon model convertmsg]
         , H.div
-            [ HA.class "widget-date" ]
-            [ H.text <| viewdate To model.horizonBounds ]
+            [ HA.class ( "widget-date" ++ classZoom )]
+            [ H.text <| max ]
         , H.div
             []
             [ buttonArrow
