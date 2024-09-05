@@ -1008,6 +1008,7 @@ update msg model =
                                                         , dataFromHover = Nothing
                                                         , previousMax = max
                                                         , lastIdates = Array.fromList lasts
+                                                        , historyDateIndex = min (max - 1) ( List.length lasts - 1)
                                                      }
                                     in ( newmodel , getVersions model lasts )
         NewDataFromHover data ->
