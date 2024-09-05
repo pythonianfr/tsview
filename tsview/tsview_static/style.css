@@ -56,6 +56,11 @@ div.main-content {
     vertical-align:middle;
 }
 
+.widget-date.from-zoom {
+    color: grey;
+    font-style: italic;
+}
+
 .widget-loading-status
     {font-size: 30px;}
 
