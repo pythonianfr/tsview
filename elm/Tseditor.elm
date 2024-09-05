@@ -357,8 +357,16 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                     in
+                    let zoomTs = case model.horizon.zoomBounds of
+                                    Nothing -> Nothing
+                                    Just ( min, max ) -> Just  (
+                                        Dict.filter
+                                            (( \k _ -> (( k >= min ) && ( k <= max ))))
+                                            indexedval )
+                    in
                         U.nocmd { model
                                     | initialTs = indexedval
+                                    , zoomedTs = zoomTs
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
