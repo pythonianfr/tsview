@@ -45,7 +45,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultLayoutOptions
+    ( extractXaxis
+    , defaultLayoutOptions
     , defaultoptions
     , getdata
     , seriesdecoder
@@ -1237,6 +1238,9 @@ viewplot : Model -> H.Html Msg
 viewplot model =
     let
         ts = model.timeseries
+        defaultLayout = { defaultLayoutOptions |
+                            xaxis = extractXaxis
+                                        model.horizon.zoomBounds }
     in
     if model.historyMode
     then
@@ -1275,7 +1279,7 @@ viewplot model =
                 model.name
                 (Dict.keys ts)
                 (Dict.values ts)
-                defaultLayoutOptions
+                defaultLayout
                 defaultoptions
             , viewDatesRange
                 model.lastIdates
@@ -1313,8 +1317,12 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph model.name (Dict.keys ts) (Dict.values ts)
-                defaultLayoutOptions defaultoptions
+            , I.viewgraph
+                model.name
+                (Dict.keys ts)
+                (Dict.values ts)
+                defaultLayout
+                defaultoptions
             ]
 
 

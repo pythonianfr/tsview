@@ -1,5 +1,6 @@
 module Plotter exposing
-    ( defaultoptions
+    ( extractXaxis
+    , defaultoptions
     , defaultLayoutOptions
     , getdata
     , getgroupplotdata
@@ -35,6 +36,12 @@ defaultLayoutOptions =
     , dragMode = "zoom"
     , xaxis = Nothing
     }
+
+extractXaxis : Maybe ( String,  String ) -> Maybe { range: List String }
+extractXaxis bounds =
+    case bounds of
+        Nothing -> Nothing
+        Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
 
 type alias TraceOptions =
     { showlegend: Bool
