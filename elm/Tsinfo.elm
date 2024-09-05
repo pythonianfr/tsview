@@ -861,7 +861,10 @@ update msg model =
                     hmsg
                     model.horizon
             in
-            ( { model | horizon = newhorizonmodel }
+            ( { model | horizon = newhorizonmodel
+                      , historyPlots = Dict.empty
+                      , dataFromHover = Nothing
+              }
             , commands
             )
 
