@@ -588,10 +588,16 @@ viewlogentry entry =
     H.tr [ ]
         [ H.th [ HA.scope "row" ] [ H.text (String.fromInt entry.rev) ]
         , H.td [ ] [ H.text entry.author ]
-        , H.td [ ] [ H.text entry.date ]
+        , H.td [ ] [ H.text ( cleanMs entry.date )]
         , H.td [ ] [ H.text <| metadicttostring entry.meta ]
         ]
 
+cleanMs: String -> String
+cleanMs strDate =
+    String.replace
+        "T"
+        " "
+        ( String.left 19 strDate ) ++ " " ++ ( String.right 6 strDate )
 
 viewgraph name tskeys tsvalues layoutOptions options =
     let
