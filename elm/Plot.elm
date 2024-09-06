@@ -298,13 +298,22 @@ update msg model =
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
-                                                    ( actionsHorizon model )
                                                     hMsg
                                                     model.horizon
             in
-            ( { model | horizon = newModelHorizon
-                      , loadedseries = resetSeries model.loadedseries}
-            , commands )
+            let resetModel = { model | horizon = newModelHorizon
+                                     , loadedseries = resetSeries model.loadedseries}
+            in
+            case hMsg of
+                ModuleHorizon.Internal _ -> ({ model | horizon = newModelHorizon }
+                                            , Cmd.none )
+                ModuleHorizon.Frame _ -> ( resetModel
+                                         , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
+                ModuleHorizon.Data _ -> ( resetModel
+                                        , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
+                ModuleHorizon.FromLocalStorage _ -> ( resetModel
+                                                    , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
+
 
         -- zoom
         DatesFromZoom range ->
@@ -317,15 +326,6 @@ update msg model =
                     }
                 }
                , Cmd.none )
-
-
-
-actionsHorizon : Model -> HorizonModel -> List (Cmd Msg)
-actionsHorizon model horizonModel =
-    let
-        newModel = { model | horizon = horizonModel }
-    in
-        fetchseries newModel True
 
 
 resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos

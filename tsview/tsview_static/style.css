@@ -54,11 +54,23 @@ div.main-content {
     width: 10ch;
     text-align: center;
     vertical-align:middle;
+    cursor: pointer;
 }
 
 .widget-date.from-zoom {
     color: grey;
     font-style: italic;
+}
+
+.horizon-trinity {
+    display: flex;
+}
+
+.horizon-trinity.write .widget-date {
+    width: 12ch;
+}
+
+.horizon-trinity .edit-buttons {
 }
 
 .widget-loading-status

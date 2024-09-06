@@ -423,14 +423,30 @@ update msg model =
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
-                                                    ( actionsHorizon model hMsg  )
                                                     hMsg
                                                     model.horizon
             in
-            ( { model | horizon = newModelHorizon
-                      , zoomedTs = Nothing
-                      , zoomedFormula = Nothing}
-            , commands )
+            let newModel =  {model | horizon = newModelHorizon
+                                   , zoomedTs = Nothing
+                                   , zoomedFormula = Nothing}
+           in
+            case hMsg of
+                ModuleHorizon.Internal _ -> ( {model | horizon = newModelHorizon }
+                                            , Cmd.none )
+                ModuleHorizon.Frame _ -> ( newModel
+                                         , Cmd.batch ( [commands] ++ defaultActions newModel ))
+                ModuleHorizon.Data _ -> ( newModel
+                                        , Cmd.batch ( [commands] ++ defaultActions newModel ))
+                -- This branch starts the chain of command at initialization
+                ModuleHorizon.FromLocalStorage _ -> ( newModel
+                                                    , Cmd.batch (
+                                                        [ commands ]
+                                                        ++ [(M.getsysmetadata
+                                                                model.baseurl
+                                                                model.name
+                                                                GotMetadata
+                                                                "series")]))
+
 
         InputChanged date rawvalue ->
             let
@@ -499,7 +515,7 @@ update msg model =
                             Dict.union (getActiveTs model) indexedval
 
                         newmodel =
-                            { model
+                             { model
                                 | horizon = updateHorizonFromData model.horizon patched
                             }
                     in
@@ -635,6 +651,7 @@ update msg model =
 defaultActions newModel =
     getRelevantData newModel
 
+
 actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel -> List (Cmd Msg)
 actionsHorizon model msg horizonModel =
     let newModel = { model | horizon = horizonModel}
@@ -644,15 +661,11 @@ actionsHorizon model msg horizonModel =
             -- This branch starts the chain of command at initialization
             [(M.getsysmetadata model.baseurl model.name GotMetadata "series")]
 
-        Horizon.HorizonSelected _ -> defaultActions newModel
+        ModuleHorizon.Frame op -> defaultActions newModel
 
-        Horizon.UpdateOffset _ ->  defaultActions newModel
+        ModuleHorizon.Data op -> defaultActions newModel
 
-        Horizon.TimeZoneSelected _ -> defaultActions newModel
-
-        Horizon.InferredFreq _ -> defaultActions newModel
-
-        Horizon.ViewNoCache -> defaultActions newModel
+        ModuleHorizon.Internal op -> [ Cmd.none ]
 
 
 newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e

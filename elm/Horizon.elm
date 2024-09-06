@@ -1,6 +1,8 @@
 port module Horizon exposing
     ( HorizonModel
     , Msg(..)
+    , Move(..)
+    , Option(..)
     , LocalStorageData
     , PlotStatus(..)
     , Offset
@@ -41,13 +43,27 @@ type alias Offset =
 
 
 type Msg =
-    FromLocalStorage String
-    | HorizonSelected (Maybe String)
+     FromLocalStorage String
+     | Frame Move
+     | Data Option
+     | Internal Operation
+
+
+type Move =
+    HorizonSelected (Maybe String)
     | UpdateOffset Offset
-    | TimeZoneSelected String
+    | EditDateValidate
+
+
+type Option =
+    TimeZoneSelected String
     | InferredFreq Bool
     | ViewNoCache
 
+
+type Operation =
+    ToggleEdit
+    | Edit FromOrTo String
 
 
 type alias HorizonModel =
@@ -63,6 +79,10 @@ type alias HorizonModel =
     , horizonBounds: Maybe (String, String)
     , queryBounds: Maybe (String, String)
     , zoomBounds: Maybe (String, String)
+    , editBounds : Bool
+    , editedBounds : { from: Maybe String
+                     , to: Maybe String }
+    , debug: Bool
     }
 
 type PlotStatus
@@ -96,6 +116,9 @@ initHorizon min max status =
     , horizonBounds = Nothing
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
+    , editBounds = False
+    , editedBounds = { from = Nothing, to = Nothing }
+    , debug = False
     }
 
 
@@ -184,6 +207,21 @@ getFromToDates model =
                                         Nothing -> Nothing
 
 
+viewdate: HorizonModel -> ( String, String, Bool )
+viewdate model =
+    let bounds = case model.zoomBounds of
+                    Just ( min, max ) ->  Just ( min, max , True )
+                    Nothing ->  case model.queryBounds of
+                        Just ( min, max ) ->  Just ( min, max , True )
+                        Nothing ->  case model.horizonBounds of
+                                Just ( min, max ) -> Just ( min, max , False )
+                                Nothing -> Nothing
+    in
+    case bounds of
+        Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
+        Just ( min, max , fromZoom) ->
+            ( U.dateof min, U.dateof max, fromZoom )
+
 setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
     { model | plotStatus = status}
@@ -192,51 +230,11 @@ setDisabled: HorizonModel -> Bool ->HorizonModel
 setDisabled model status =
     { model | disabled = status }
 
-updateHorizon : ( HorizonModel -> ( List ( Cmd msg ))) -> Msg -> HorizonModel -> ( HorizonModel, Cmd msg )
-updateHorizon actions msg model =
+updateHorizon : Msg -> HorizonModel -> ( HorizonModel, Cmd msg )
+updateHorizon msg model =
     let previousOffset = model.offset
     in
     case msg of
-        HorizonSelected horizon ->
-            let
-                userprefs =
-                    LocalStorageData
-                        horizon
-                        model.timeZone
-                        model.inferredFreq
-
-                newmodel = updateInternalHorizon horizon model
-            in
-            let updatedModel =  { newmodel | queryBounds = Nothing
-                                           , zoomBounds = Nothing
-                                           , horizonBounds = Nothing
-                                           , plotStatus = Loading
-                                           , disabled = False }
-            in
-            ( updatedModel
-            , Cmd.batch
-                ( [ saveToLocalStorage userprefs ] ++ (actions updatedModel)
-                )
-            )
-
-        UpdateOffset (Left i) ->
-            let newmodel = { model | offset = (previousOffset + i)
-                                   , zoomBounds = Nothing
-                                   , horizonBounds = Nothing
-                                   , plotStatus = Loading}
-            in
-            ( newmodel
-            , Cmd.batch ( actions newmodel ))
-
-        UpdateOffset (Right i) ->
-            let newmodel = { model | offset = (previousOffset - i)
-                                   , zoomBounds = Nothing
-                                   , horizonBounds = Nothing
-                                   , plotStatus = Loading}
-            in
-            ( newmodel
-             , Cmd.batch ( actions newmodel ))
-
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
@@ -253,61 +251,135 @@ updateHorizon actions msg model =
                                 disabled
                     in
                     ( newmodel
-                     , Cmd.batch ( actions newmodel ))
+                     , Cmd.none )
 
                 Err _ ->
                     ( model
-                     , Cmd.batch ( actions model ))
+                     , Cmd.none )
 
-        TimeZoneSelected timeZone ->
-            let
-                newmodel =
-                    { model | timeZone = timeZone
-                            , plotStatus = Loading}
-                userprefs =
-                    LocalStorageData
-                        model.horizon
-                        timeZone
-                        model.inferredFreq
-
+        Frame op ->
+            let frameModel = { model | queryBounds = Nothing
+                                     , zoomBounds = Nothing
+                                     , horizonBounds = Nothing
+                                     , plotStatus = Loading}
             in
-            ( newmodel
-            , Cmd.batch ([ saveToLocalStorage userprefs ] ++ ( actions newmodel ))
-            --, I.getidates newmodel "series" InsertionDates  To be investigated
-            )
+            case op of
+            HorizonSelected horizon ->
+                let
+                    userprefs =
+                        LocalStorageData
+                            horizon
+                            frameModel.timeZone
+                            frameModel.inferredFreq
 
-        InferredFreq isChecked ->
-            let
-                newmodel =
-                    { model | inferredFreq = isChecked
-                            , horizonBounds = Nothing
-                            , plotStatus = Loading}
-
-                userprefs =
-                    LocalStorageData
-                        model.horizon
-                        model.timeZone
-                        isChecked
-            in
-            ( newmodel
-            , Cmd.batch
-                [ Cmd.batch ( actions newmodel )
+                    updatedModel = updateInternalHorizon horizon frameModel
+                in
+                let  newModel =  { updatedModel | disabled = False }
+                in
+                ( newModel
                 , saveToLocalStorage userprefs
-                ]
-            )
+                )
 
-        ViewNoCache ->
-            let
-                newmodel = { model
-                          | viewNoCache = not model.viewNoCache
-                          , horizonBounds = Nothing
-                          , plotStatus = Loading
-                      }
+            UpdateOffset (Left i) ->
+                let newmodel = { frameModel | offset = (previousOffset + i )}
+                in
+                ( newmodel
+                , Cmd.none )
+
+            UpdateOffset (Right i) ->
+                let newmodel = { frameModel | offset = (previousOffset - i) }
+                in
+                ( newmodel
+                 , Cmd.none )
+
+            EditDateValidate ->
+                let
+                    newmodel = { frameModel | queryBounds = Just ( Maybe.withDefault
+                                                                ""
+                                                                model.editedBounds.from
+                                                            , Maybe.withDefault
+                                                                ""
+                                                                model.editedBounds.to
+                                                            )
+                                            , editBounds = False
+                                            , editedBounds = { from = Nothing, to = Nothing }
+                                            , horizon = Just ""
+                                            , disabled = True
+                                }
+                  in
+                    ( newmodel
+                    , Cmd.none )
+
+        Data op ->
+            let dataModel = { model |  plotStatus = Loading }
             in
-            ( newmodel
-            , Cmd.batch ( actions newmodel )
-            )
+            case op of
+            TimeZoneSelected timeZone ->
+                let
+                    newmodel =
+                        { dataModel | timeZone = timeZone }
+                    userprefs =
+                        LocalStorageData
+                            dataModel.horizon
+                            timeZone
+                            dataModel.inferredFreq
 
+                in
+                ( newmodel
+                , saveToLocalStorage userprefs
+                )
+
+            InferredFreq isChecked ->
+                let
+                    newmodel =
+                        { dataModel | inferredFreq = isChecked
+                                    , horizonBounds = Nothing }
+                    userprefs =
+                        LocalStorageData
+                            model.horizon
+                            model.timeZone
+                            isChecked
+                in
+                ( newmodel
+                , saveToLocalStorage userprefs )
+
+            ViewNoCache ->
+                let
+                    newmodel = { dataModel
+                               | viewNoCache = not model.viewNoCache
+                               , horizonBounds = Nothing }
+                in
+                ( newmodel
+                , Cmd.none )
+
+        Internal op ->
+            case op of
+            ToggleEdit ->
+                let newmodel = { model | editBounds = not model.editBounds }
+                in
+                if newmodel.editBounds
+                then
+                    let ( from, to, _ ) = viewdate model
+                    in
+                    ({ newmodel | editedBounds = { from = Just from, to = Just to } }
+                    , Cmd.none )
+                else
+                    ( { newmodel | editedBounds = { from= Nothing, to = Nothing }}
+                    , Cmd.none )
+
+            Edit fromOrTo value ->
+                let previous  = model.editedBounds
+                in
+                    let newEdited = case fromOrTo of
+                                        From -> { from = Just value, to = previous.to }
+                                        To -> { from = previous.from, to = Just value }
+                    in
+                        ({ model | editedBounds = newEdited }, Cmd.none)
+
+
+cropDate: String -> String
+cropDate date =
+    String.left 10 date
 
 updateInternalHorizon : Maybe String -> HorizonModel -> HorizonModel
 updateInternalHorizon horizon model =
@@ -383,7 +455,7 @@ buttonArrow convertmsg disabled direction className =
     H.button
         [ HA.class className
         , HA.disabled disabled
-        , HE.onClick ( convertmsg (UpdateOffset (arrow 1)))]
+        , HE.onClick ( convertmsg ( Frame (UpdateOffset ( arrow 1 ))))]
         [ H.i
             [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}" ]
             [ ]
@@ -395,7 +467,7 @@ selectHorizon model convertmsg =
     H.select
         [ HE.targetValue
             |> D.andThen readHorizon
-            |> D.map ( \mb -> convertmsg (HorizonSelected mb) )
+            |> D.map ( \mb -> convertmsg ( Frame ( HorizonSelected mb )) )
             |> HE.on "change"
         ]
         (List.map
@@ -461,7 +533,7 @@ inferredfreqswitch model convertmsg =
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
             , HA.disabled ( model.plotStatus == Loading )
-            , HE.onCheck ( \ b ->  convertmsg (InferredFreq b) )
+            , HE.onCheck ( \ b ->  convertmsg (Data ( InferredFreq b )))
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -476,7 +548,7 @@ tzonedropdown model convertmsg =
     let
         decodeTimeZone : String -> D.Decoder msg
         decodeTimeZone timeZone =
-            D.succeed (convertmsg (TimeZoneSelected timeZone))
+            D.succeed (convertmsg (Data (TimeZoneSelected timeZone)))
 
     in
     H.select
@@ -484,22 +556,6 @@ tzonedropdown model convertmsg =
         , HA.disabled ( model.plotStatus == Loading )
         ]
         (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
-
-
-viewdate: HorizonModel -> ( String, String, Bool )
-viewdate model =
-    let bounds = case model.zoomBounds of
-                    Just ( min, max ) ->  Just ( min, max , True )
-                    Nothing ->  case model.queryBounds of
-                        Just ( min, max ) ->  Just ( min, max , True )
-                        Nothing ->  case model.horizonBounds of
-                                Just ( min, max ) -> Just ( min, max , False )
-                                Nothing -> Nothing
-    in
-    case bounds of
-        Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
-        Just ( min, max , fromZoom) ->
-            ( U.dateof min, U.dateof max, fromZoom )
 
 
 loadingStatus: HorizonModel -> H.Html msg
@@ -527,7 +583,7 @@ cacheswitch model convertmsg =
             , HA.id "cacheSwitch"
             , HA.checked ( not model.viewNoCache )
             , HA.disabled (model.plotStatus == Loading)
-            , HE.onClick ( convertmsg ViewNoCache )
+            , HE.onClick ( convertmsg ( Data ViewNoCache ))
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -536,6 +592,34 @@ cacheswitch model convertmsg =
             [ H.text "cache" ]
         ]
     else H.div [] []
+
+
+showBounds: Maybe (String, String) -> String -> String
+showBounds bounds label =
+    case bounds of
+        Nothing -> label ++ "nothing"
+        Just (a, b) -> label ++a ++ " - " ++ b
+
+
+showEdited: { from: Maybe String, to: Maybe String} -> String -> String
+showEdited edited label =
+    label ++
+    ( Maybe.withDefault "nothing" edited.from )
+    ++ " - " ++( Maybe.withDefault "nothing" edited.to )
+
+debugInfo: HorizonModel -> H.Html msg
+debugInfo model =
+    if model.debug
+    then
+        H.ul
+            []
+            [ H.li [] [ H.text ( showBounds model.horizonBounds "horizon : " )]
+            , H.li [] [ H.text ( showBounds model.queryBounds "query : " )]
+            , H.li [] [ H.text ( showBounds model.zoomBounds "zoom : " )]
+            , H.li [] [ H.text ( showEdited model.editedBounds "edited : " )]
+            ]
+    else
+        H.div [] []
 
 horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
@@ -558,15 +642,52 @@ horizonview model convertmsg klass tzaware =
                 ( model.disabled ||  model.horizon == Nothing )
                 "left"
                 "btn btn-outline-dark btn-sm" ]
-        , H.div
-            [ HA.class ( "widget-date" ++ classZoom )]
-            [ H.text <| min ]
-        , H.div
-            []
-            [ selectHorizon model convertmsg]
-        , H.div
-            [ HA.class ( "widget-date" ++ classZoom )]
-            [ H.text <| max ]
+        , if not model.editBounds
+          then H.div [ HA.class "horizon-trinity read"]
+                  [ H.div
+                    [ HA.class ( "widget-date" ++ classZoom )
+                    , HE.onClick ( convertmsg (Internal ToggleEdit ))]
+                    [ H.text <| min ]
+                , H.div
+                    []
+                    [ selectHorizon model convertmsg]
+                , H.div
+                    [ HA.class ( "widget-date" ++ classZoom )
+                    , HE.onClick ( convertmsg ( Internal ToggleEdit ))]
+                    [ H.text <| max ]
+                ]
+
+          else H.div [ HA.class "horizon-trinity write" ]
+              [ H.input
+                    [ HA.class ( "widget-date" ++ classZoom )
+                    , HA.placeholder "yyyy-mm-dd"
+                    , HA.type_ "date"
+                    , HA.value ( Maybe.withDefault
+                                    ""
+                                    model.editedBounds.from )
+                    , HE.onInput  (\ s -> convertmsg (Internal (Edit From  s )))
+                    ]
+                    []
+                , H.div
+                    [ HA.class "edit-buttons" ]
+                    [ H.button
+                        [ HE.onClick ( convertmsg (Frame EditDateValidate ))]
+                        [ H.text "✓" ]
+                    , H.button
+                        [ HE.onClick ( convertmsg (Internal ToggleEdit ))]
+                        [ H.text "x" ]
+                    ]
+                , H.input
+                    [ HA.class ( "widget-date" ++ classZoom )
+                    , HA.placeholder "yyyy-mm-dd"
+                    , HA.type_ "date"
+                    , HA.value ( Maybe.withDefault
+                                    ""
+                                    model.editedBounds.to )
+                    , HE.onInput (\ s -> convertmsg ( Internal (Edit To  s )))
+                    ]
+                    []
+                ]
         , H.div
             []
             [ buttonArrow
@@ -580,4 +701,5 @@ horizonview model convertmsg klass tzaware =
         , H.div
             []
             [ cacheswitch model convertmsg  ]
+        , debugInfo model
         ]

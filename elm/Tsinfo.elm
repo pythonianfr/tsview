@@ -852,22 +852,35 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
         Horizon hmsg ->
-            let newmodel = if hmsg == HorizonModule.ViewNoCache
-                           then { model | insertion_dates = Array.empty }
-                           else model
-            in
             let ( newhorizonmodel, commands ) =
                     updateHorizon
-                    ( actionsHorizon newmodel hmsg )
                     hmsg
                     model.horizon
             in
-            ( { model | horizon = newhorizonmodel
-                      , historyPlots = Dict.empty
-                      , dataFromHover = Nothing
-              }
-            , commands
-            )
+            let newmodel = { model | horizon =  newhorizonmodel}
+            in
+            let resetmodel  = { newmodel | historyPlots = Dict.empty
+                                         , dataFromHover = Nothing }
+            in
+            case hmsg of
+                HorizonModule.Data op ->
+                    case op of
+                        HorizonModule.ViewNoCache ->
+                            ( { resetmodel | insertion_dates = Array.empty }
+                            , Cmd.batch ( [commands]
+                                        ++ [ getplot newmodel ]
+                                        ++ [ I.getidates newmodel "series" InsertionDates ]))
+                        HorizonModule.InferredFreq _ -> ( resetmodel
+                                                        , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                        HorizonModule.TimeZoneSelected _ -> ( resetmodel
+                                                            , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+
+                HorizonModule.Frame _ -> ( resetmodel
+                                         , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                HorizonModule.Internal _ -> ( newmodel
+                                            , Cmd.none )
+                HorizonModule.FromLocalStorage _ -> ( newmodel
+                                                    , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
 
         HistoryMode isChecked ->
             let
@@ -1035,12 +1048,12 @@ actionsHorizon model msg horizonModel =
     let
         newModel = { model | horizon = horizonModel }
     in
-    if msg == HorizonModule.ViewNoCache
-    then
+    --if msg == HorizonModule.ViewNoCache
+    --then
         [ I.getidates newModel "series" InsertionDates
         , getplot newModel ]
-    else
-        [ getplot newModel ]
+    --else
+    --    [ getplot newModel ]
 
 
 lastDates: List String -> Int -> List String
