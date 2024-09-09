@@ -32,6 +32,7 @@ import Horizon exposing
     , loadFromLocalStorage
     , updateHorizon
     , extendHorizonFromData
+    , extractZoomDates
     , setStatusPlot )
 import Maybe.Extra as Maybe
 import OrderedDict as OD
@@ -318,11 +319,10 @@ update msg model =
         -- zoom
         DatesFromZoom range ->
             let
-                minDate = Maybe.withDefault "" (List.head range)
-                maxDate = Maybe.withDefault "" (List.last range)
+                zoomDates = extractZoomDates range
                 horizonmodel = model.horizon
             in ({ model | horizon =
-                    { horizonmodel | zoomBounds = Just ( minDate, maxDate )
+                    { horizonmodel | zoomBounds = zoomDates
                     }
                 }
                , Cmd.none )
