@@ -32,6 +32,7 @@ import Horizon exposing
     , loadFromLocalStorage
     , updateHorizon
     , extendHorizonFromData
+    , extractXaxis
     , extractZoomDates
     , setStatusPlot )
 import Maybe.Extra as Maybe

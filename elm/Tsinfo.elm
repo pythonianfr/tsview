@@ -22,6 +22,7 @@ import NavTabs exposing
 import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
+    , extractXaxis
     , getFromToDates
     , initHorizon
     , loadFromLocalStorage
@@ -45,8 +46,7 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( extractXaxis
-    , defaultLayoutOptions
+    ( defaultLayoutOptions
     , defaultoptions
     , getdata
     , seriesdecoder

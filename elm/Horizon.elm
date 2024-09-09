@@ -17,6 +17,7 @@ port module Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , extendHorizonFromData
+    , extractXaxis
     , extractZoomDates
     , setStatusPlot
     , setDisabled
@@ -497,6 +498,13 @@ readHorizon key =
             Just key
         else
             Nothing
+
+
+extractXaxis : Maybe ( String,  String ) -> Maybe { range: List String }
+extractXaxis bounds =
+    case bounds of
+        Nothing -> Nothing
+        Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
 
 
 extractZoomDates : List String -> Maybe ( String, String )
