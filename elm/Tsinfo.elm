@@ -1467,6 +1467,8 @@ view model =
 type alias Input =
     { baseurl : String
     , name : String
+    , min: String
+    , max: String
     }
 
 
@@ -1515,8 +1517,7 @@ init input =
       , renaming = False
       , newname = Nothing
       , clipboardclass = "bi bi-clipboard"
-      -- below a predefined boundary (from permalink) can be set
-      , horizon = initHorizon "" "" Loading
+      , horizon = initHorizon input.min input.max Loading
       , historyPlots = Dict.empty
       , historyMode = False
       , historyIdates = Array.empty
