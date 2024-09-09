@@ -70,7 +70,18 @@ div.main-content {
     width: 12ch;
 }
 
-.horizon-trinity .edit-buttons {
+.horizon-trinity .edit-buttons button {
+    width: 3ch;
+    background-color: white;
+    font-weight: bold;
+}
+
+.edit-buttons .yes {
+    color: green;
+}
+
+.edit-buttons .no {
+    color: red;
 }
 
 .widget-loading-status

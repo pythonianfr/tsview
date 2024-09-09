@@ -671,10 +671,12 @@ horizonview model convertmsg klass tzaware =
                 , H.div
                     [ HA.class "edit-buttons" ]
                     [ H.button
-                        [ HE.onClick ( convertmsg (Frame EditDateValidate ))]
+                        [ HE.onClick ( convertmsg (Frame EditDateValidate ))
+                        , HA.class "yes" ]
                         [ H.text "✓" ]
                     , H.button
-                        [ HE.onClick ( convertmsg (Internal ToggleEdit ))]
+                        [ HE.onClick ( convertmsg (Internal ToggleEdit ))
+                        , HA.class "no" ]
                         [ H.text "x" ]
                     ]
                 , H.input
