@@ -945,16 +945,9 @@ update msg model =
                         in ( newmodel, getsomeidates newmodel )
 
             else
-                 case bounds of
-                    Nothing -> U.nocmd { model | horizon = { horizonmodel |
-                                                                zoomBounds = Nothing
-                                                            }
-                                        }
-                    Just ( minDate, maxDate ) ->
-                        U.nocmd { model
-                                | horizon =
-                                  { horizonmodel | zoomBounds = Just ( minDate, maxDate ) }
-                            }
+                U.nocmd { model | horizon =
+                            { horizonmodel | zoomBounds = bounds }}
+
 
         HistoryIdates bounds (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
