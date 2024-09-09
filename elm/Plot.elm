@@ -397,7 +397,7 @@ viewlinks haseditor seriesName =
 view : Model -> H.Html Msg
 view model =
     let
-        plotDiv = "plotly_div"
+        plotDiv = "plot_div"
         args =
             let
                 data =
@@ -416,7 +416,9 @@ view model =
                         )
                         model.search.selected
             in
-            plotargs plotDiv data defaultLayoutOptions
+            plotargs plotDiv data  { defaultLayoutOptions |
+                                        xaxis = extractXaxis
+                                                    model.horizon.zoomBounds }
 
         selector =
             let
