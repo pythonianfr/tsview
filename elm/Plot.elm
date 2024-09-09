@@ -93,10 +93,6 @@ findmissing model =
 
 fetchseries: Model -> Bool -> List ( Cmd Msg )
 fetchseries model reload =
-    let ( fromdate, todate ) = Maybe.withDefault
-                                    ( "", "" )
-                                    model.horizon.horizonBounds
-    in
     case model.horizon.queryBounds of
         Nothing ->
             List.map
