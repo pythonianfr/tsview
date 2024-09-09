@@ -106,8 +106,8 @@ fetchseries model reload =
                      , idate = Nothing
                      , callback = GotPlotData name
                      , nocache = (U.bool2int model.horizon.viewNoCache)
-                     , fromdate = fromdate
-                     , todate = todate
+                     , fromdate = ""
+                     , todate = ""
                      , horizon = model.horizon.horizon
                                     |> Maybe.andThen
                                         (\key-> OD.get key horizons)

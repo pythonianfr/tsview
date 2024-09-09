@@ -305,25 +305,41 @@ getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
-        ( fromdate, todate ) = Maybe.withDefault ( "", "" ) model.horizon.horizonBounds
     in
-    getdata
-    { baseurl = model.baseurl
-    , name = model.name
-    , idate = idate
-    , callback = GotPlotData
-    , nocache = (U.bool2int model.horizon.viewNoCache)
-    , fromdate = fromdate
-    , todate = todate
-    , horizon =
-        model.horizon.horizon |>
-          Maybe.andThen (\key-> OD.get key model.horizon.horizonChoices) |>
-          Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
-    , tzone = model.horizon.timeZone
-    , inferredFreq = model.horizon.inferredFreq
-    , keepnans = False
-    , apipoint = "state"
-    }
+    case model.horizon.queryBounds of
+        Nothing -> getdata
+                    { baseurl = model.baseurl
+                    , name = model.name
+                    , idate = idate
+                    , callback = GotPlotData
+                    , nocache = (U.bool2int model.horizon.viewNoCache)
+                    , fromdate = ""
+                    , todate = ""
+                    , horizon =
+                        model.horizon.horizon |>
+                          Maybe.andThen (\key-> OD.get key model.horizon.horizonChoices) |>
+                          Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
+                    , tzone = model.horizon.timeZone
+                    , inferredFreq = model.horizon.inferredFreq
+                    , keepnans = False
+                    , apipoint = "state"
+                    }
+        Just (from, to) -> getdata
+                    { baseurl = model.baseurl
+                    , name = model.name
+                    , idate = idate
+                    , callback = GotPlotData
+                    , nocache = (U.bool2int model.horizon.viewNoCache)
+                    , fromdate = from
+                    , todate = to
+                    , horizon = Nothing
+                    , tzone = model.horizon.timeZone
+                    , inferredFreq = model.horizon.inferredFreq
+                    , keepnans = False
+                    , apipoint = "state"
+                }
+
+
 
 
 getlog : String -> String-> Maybe Int -> Cmd Msg
