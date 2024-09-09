@@ -195,8 +195,6 @@ getPoints model =
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
 getSeries model callback apipoint method name =
-    let ( from, to ) = Maybe.withDefault ("", "") model.horizon.horizonBounds
-    in
     case model.horizon.queryBounds of
         Nothing -> getOrPostData
                     method
@@ -205,8 +203,8 @@ getSeries model callback apipoint method name =
                     , idate = Nothing
                     , callback = callback
                     , nocache = (U.bool2int model.horizon.viewNoCache)
-                    , fromdate = from
-                    , todate = to
+                    , fromdate = ""
+                    , todate = ""
                     , horizon = model.horizon.horizon |> Maybe.andThen
                                 (\key-> OD.get key horizons) |> Maybe.map
                           (String.replace "{offset}" (String.fromInt model.horizon.offset))
