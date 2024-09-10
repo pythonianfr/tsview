@@ -60,6 +60,7 @@ import Util as U
 port dateInInterval : ( List String -> msg ) -> Sub msg
 port dataFromHover : ( String -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
+port panActive : (Bool -> msg) -> Sub msg
 
 defaultRevMaxPrimary = 70
 defaultRevMaxFormula = 10
@@ -101,6 +102,7 @@ type alias Model =
     , insertion_dates : Array String
     , date_index : Int
     , date_index_deb : Debouncer Msg
+    , panActive: Bool
     -- user meta edition
     , metaitem : (String, String)
     , editeditems : Dict String String
@@ -191,6 +193,7 @@ type Msg
     -- history mode
     | HistoryMode Bool
     | DatesFromZoom (List String)
+    | NewDragMode Bool
     | HistoryIdates ( Maybe (String, String) ) (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
@@ -948,6 +951,9 @@ update msg model =
                 U.nocmd { model | horizon =
                             { horizonmodel | zoomBounds = bounds }}
 
+        NewDragMode panIsActive ->
+            U.nocmd { model | panActive = panIsActive }
+
 
         HistoryIdates bounds (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -1262,7 +1268,10 @@ viewplot model =
         ts = model.timeseries
         defaultLayout = { defaultLayoutOptions |
                             xaxis = extractXaxis
-                                        model.horizon.zoomBounds }
+                                        model.horizon.zoomBounds
+                            , dragMode = Just ( if model.panActive
+                                                             then "pan"
+                                                             else "zoom" )}
     in
     if model.historyMode
     then
@@ -1501,6 +1510,7 @@ init input =
       , insertion_dates = Array.empty
       , date_index = 0
       , date_index_deb = debouncerconfig
+      , panActive = False
       -- user meta edittion
       , metaitem = ("", "")
       , editeditems = Dict.empty
@@ -1542,6 +1552,7 @@ main =
             \_ -> Sub.batch
                   [ dateInInterval DatesFromZoom
                   , dataFromHover NewDataFromHover
+                  , panActive NewDragMode
                   , loadFromLocalStorage
                         (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
                   ]
