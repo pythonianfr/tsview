@@ -1219,7 +1219,7 @@ view model =
             model.name
             dates
             values
-            { defaultLayoutOptions | dragMode = dragMode }
+            { defaultLayoutOptions | dragMode = Just dragMode }
             defaultoptions
         , permaLink model
         , viewRelevantTable model

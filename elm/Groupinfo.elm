@@ -32,11 +32,12 @@ import NavTabs as Nav exposing
     )
 import Plotter exposing
     ( defaultLayoutOptions
+    , defaultConfigOptions
     , defaultoptions
     , getgroupplotdata
     , groupdecoder
     , scatterplot
-    , plotargs
+    , serializedPlotArgs
     , Group
     )
 import Process as P
@@ -506,7 +507,11 @@ viewplot model =
         plots = List.map plot <| Dict.toList groupdata
 
         args =
-            plotargs "plot" plots defaultLayoutOptions
+            serializedPlotArgs
+                "plot"
+                plots
+                defaultLayoutOptions
+                defaultConfigOptions
     in
     div [ ]
         [ viewdatespicker

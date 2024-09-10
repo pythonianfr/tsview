@@ -43,7 +43,8 @@ import Lisp
 import List.Extra as List
 import Plotter exposing
     ( defaultLayoutOptions
-    , plotargs
+    , defaultConfigOptions
+    , serializedPlotArgs
     , scatterplot
     )
 import Metadata as M
@@ -609,7 +610,11 @@ viewgraph name tskeys tsvalues layoutOptions options =
                 "lines"
                 options
         args =
-            plotargs "plot" [ plot ] layoutOptions
+            serializedPlotArgs
+                "plot"
+                [ plot ]
+                layoutOptions
+                defaultConfigOptions
     in
     H.div
         [ ]
@@ -655,10 +660,11 @@ viewHistoryGraph model =
             , options = options idate
             }
 
-        historyArgs = plotargs
-            "plot-history"
-            (List.map formatLine (Dict.toList model.historyPlots))
-            defaultLayoutOptions
+        historyArgs = serializedPlotArgs
+                        "plot-history"
+                        (List.map formatLine (Dict.toList model.historyPlots))
+                        defaultLayoutOptions
+                        defaultConfigOptions
     in
     H.div
         [ ]
@@ -687,7 +693,11 @@ viewHoverGraph dictData =
                 "lines"
                 options
         hoverArgs =
-            plotargs "plot-hover" [ plot ] { defaultLayoutOptions | title = title }
+            serializedPlotArgs
+                "plot-hover"
+                [ plot ]
+                { defaultLayoutOptions | title = Just title }
+                defaultConfigOptions
     in
     H.div
         [ ]

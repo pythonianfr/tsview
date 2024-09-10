@@ -26,10 +26,11 @@ import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
 import Plotter exposing
     ( defaultLayoutOptions
+    , defaultConfigOptions
     , Series
     , seriesdecoder
     , scatterplot
-    , plotargs
+    , serializedPlotArgs
     )
 
 import Editor.Type exposing (ReturnTypeStr)
@@ -267,7 +268,11 @@ viewPlot {formulaName, plotData, plotErrMess} =
             (Dict.values plotData)
             "lines"
             Plotter.defaultoptions
-        args = plotargs "plot" [plot] { defaultLayoutOptions | title = name }
+        args = serializedPlotArgs
+                "plot"
+                [plot]
+                { defaultLayoutOptions | title = Just name }
+                defaultConfigOptions
     in
     -- the "plot-figure" node is pre-built in the template side
     -- (html component)

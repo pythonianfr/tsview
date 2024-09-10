@@ -15,9 +15,10 @@ import List.Extra as List
 import Plotter exposing
     ( Series
     , defaultLayoutOptions
+    , defaultConfigOptions
     , defaultoptions
     , getdata
-    , plotargs
+    , serializedPlotArgs
     , scatterplot
     , seriesdecoder
     )
@@ -416,9 +417,13 @@ view model =
                         )
                         model.search.selected
             in
-            plotargs plotDiv data  { defaultLayoutOptions |
-                                        xaxis = extractXaxis
-                                                    model.horizon.zoomBounds }
+            serializedPlotArgs
+                plotDiv
+                data
+                { defaultLayoutOptions | xaxis = extractXaxis
+                                                    model.horizon.zoomBounds
+                                        , height = Just 700}
+                defaultConfigOptions
 
         selector =
             let

@@ -1,12 +1,13 @@
 module Plotter exposing
     ( defaultoptions
     , defaultLayoutOptions
+    , defaultConfigOptions
     , getdata
     , getgroupplotdata
     , Group
     , groupdecoder
     , scatterplot
-    , plotargs
+    , serializedPlotArgs
     , seriesdecoder
     , Series
     )
@@ -21,21 +22,40 @@ import Maybe.Extra as Maybe
 import Url.Builder as UB
 import Bool.Extra
 
--- series
 
 type alias LayoutOptions =
-    { title: String
-    , dragMode: String
+    { title: Maybe String
+    , dragMode: Maybe String
     , xaxis: Maybe { range: List String }
+    , height: Maybe Int
     }
 
 
+defaultLayoutOptions: LayoutOptions
 defaultLayoutOptions =
-    { title = ""
-    , dragMode = "zoom"
+    { title = Nothing
+    , dragMode = Nothing
     , xaxis = Nothing
+    , height = Nothing
     }
 
+
+type alias ConfiOptions =
+    { displaylogo: Bool
+    , displayModeBar: Bool
+    , modeBarButtonsToRemove: List String
+    , responsive: Bool
+    , showlegend: Bool}
+
+
+defaultConfigOptions: ConfiOptions
+defaultConfigOptions =
+    { displaylogo = False
+    , displayModeBar = True
+    , modeBarButtonsToRemove = [ "sendDataToCloud" ]
+    , responsive= True
+    , showlegend = False
+    }
 
 type alias TraceOptions =
     { showlegend: Bool
@@ -124,26 +144,49 @@ scatterplot =
     Trace "scatter"
 
 
-encodeplotargs: String -> List Trace -> LayoutOptions -> E.Value
-encodeplotargs div data layoutOptions =
-    E.object
-        [ ( "div", E.string div )
-        , ( "data", E.list encodetrace data )
-        , ( "layout", (E.object ( [ ("title", E.string layoutOptions.title)
-                                , ("dragmode", E.string layoutOptions.dragMode)
-                                ] ++
-            case layoutOptions.xaxis of
+encodeLayout : LayoutOptions -> E.Value
+encodeLayout layoutOptions =
+    (E.object ( List.concat [
+            case layoutOptions.title of
+                Nothing -> []
+                Just title -> [( "title", E.string title )]
+
+            , case layoutOptions.xaxis of
                 Nothing -> []
                 Just range -> [ ("xaxis", E.object [ ("range"
                               , E.list E.string [ Maybe.withDefault "" (List.head range.range)
                                                 , Maybe.withDefault "" (List.last range.range)])])]
-        )))
+            , case layoutOptions.dragMode of
+                Nothing -> []
+                Just drag -> [("dragmode", E.string drag )]
+            , case layoutOptions.height of
+                Nothing -> []
+                Just height -> [ ( "height", E.int height ) ]
+            ] ))
+
+encodeConfig: ConfiOptions -> E.Value
+encodeConfig configOptions =
+   (E.object ( List.concat [
+                [ ( "displaylogo", E.bool configOptions.displaylogo )
+                , ( "displayModeBar", E.bool configOptions.displayModeBar )
+                , ( "modeBarButtonsToRemove", E.list E.string configOptions.modeBarButtonsToRemove )
+                , ( "responsive", E.bool configOptions.responsive )
+                , ( "showlegend", E.bool configOptions.showlegend )]]))
+
+
+encodeplotargs: String -> List Trace -> LayoutOptions -> ConfiOptions ->E.Value
+encodeplotargs div data layoutOptions configOptions =
+    E.object
+        [ ( "div", E.string div )
+        , ( "data", E.list encodetrace data )
+        , ( "layout", encodeLayout layoutOptions)
+        , ("config", encodeConfig configOptions)
         ]
 
 
-plotargs: String -> List Trace -> LayoutOptions -> String
-plotargs div data layoutOptions =
-    encodeplotargs div data layoutOptions |> E.encode 0
+serializedPlotArgs: String -> List Trace -> LayoutOptions -> ConfiOptions -> String
+serializedPlotArgs div data layoutOptions configOptions =
+    encodeplotargs div data layoutOptions configOptions |> E.encode 0
 
 
 -- getdata : PlotQuery query -> Cmd msg
