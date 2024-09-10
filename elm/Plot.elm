@@ -46,6 +46,9 @@ import Util as U
 
 port dateInInterval : ( List String -> msg ) -> Sub msg
 
+port panActive : (Bool -> msg) -> Sub msg
+
+
 type alias Model =
     { baseurl : String
     , catalog: Catalog.Model
@@ -55,6 +58,7 @@ type alias Model =
     , selecting : Bool
     , loadedseries : Dict String SeriesAndInfos
     , errors : List String
+    , panActive: Bool
     }
 
 type alias SeriesAndInfos =
@@ -79,6 +83,7 @@ type Msg
     -- dates
     | Horizon ModuleHorizon.Msg
     | DatesFromZoom ( List String )
+    | NewDragMode Bool
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -325,6 +330,9 @@ update msg model =
                 }
                , Cmd.none )
 
+        NewDragMode panIsActive ->
+            U.nocmd { model | panActive = panIsActive }
+
 
 resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
 resetSeries loaded =
@@ -422,7 +430,11 @@ view model =
                 data
                 { defaultLayoutOptions | xaxis = extractXaxis
                                                     model.horizon.zoomBounds
-                                        , height = Just 700}
+                                        , height = Just 700
+                                        , dragMode = Just ( if model.panActive
+                                                             then "pan"
+                                                             else "zoom" )
+                }
                 defaultConfigOptions
 
         selector =
@@ -515,7 +527,9 @@ realsubs =
     Sub.batch
     [ loadFromLocalStorage
         (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
-    , dateInInterval DatesFromZoom]
+    , dateInInterval DatesFromZoom
+    , panActive NewDragMode
+    ]
 
 main : Program
        { baseurl : String
@@ -539,6 +553,7 @@ main =
                     , selecting = (List.isEmpty selected)
                     , loadedseries = Dict.empty
                     , errors = []
+                    , panActive = False
                     }
 
             in ( model
