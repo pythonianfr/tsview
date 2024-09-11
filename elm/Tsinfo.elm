@@ -126,6 +126,7 @@ type alias Model =
     , previousMax: Int
     , historyDateIndexDeb : Debouncer Msg
     , dataFromHover : Maybe DataFromHover
+    , debug : Bool
     }
 
 
@@ -1330,6 +1331,9 @@ viewplot model =
                     [ H.text """Place the mouse on the graph above to see
                              the versions of one application date: """
                     ]
+            , if model.debug
+                then H.div [] [ showHoverData model ]
+                else H.div [] [  ]
             , case model.dataFromHover of
                 Just data ->
                     I.viewHoverGraph
@@ -1374,6 +1378,13 @@ historyModeSwitch model =
             ]
             [ H.text "History mode" ]
         ]
+
+
+showHoverData: Model -> H.Html Msg
+showHoverData model =
+     case model.dataFromHover of
+         Nothing -> H.text "Hover-data : Nothing"
+         Just data -> H.text ( "Hover-data, name : " ++ data.name )
 
 
 view : Model -> H.Html Msg
@@ -1531,6 +1542,7 @@ init input =
       , previousMax = 0
       , historyDateIndexDeb = debouncerconfig
       , dataFromHover = Nothing
+      , debug = False
       }
     , Cmd.batch
         [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
