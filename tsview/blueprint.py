@@ -48,7 +48,7 @@ from tsview.util import (
 )
 from tsview.menu import definition as menu_spec
 from tsview.icons import definition as icons_definition
-
+from tsview.api import Horizon
 
 def primary_names(tsa):
     cat = list(tsa.catalog(
@@ -756,5 +756,24 @@ def tsview(tsa):
             flags_menu=flags_menu,
             title=title,
         )
+
+    # horizon
+
+    @bp.route('/horizon-choices')
+    def horizon_choices():
+        engine = tsa.engine
+        api = Horizon(engine)
+        return json.dumps(api.get_choices())
+
+    @bp.route('/new-dates/<label>/<date_ref>/<step>')
+    def new_dates(label, date_ref, step):
+        engine = tsa.engine
+        api = Horizon(engine)
+        result = api.eval_bounds(
+            label,
+            date_ref,
+            int(step)
+        )
+        return json.dumps(result)
 
     return bp
