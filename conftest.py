@@ -8,7 +8,9 @@ from sqlalchemy import create_engine
 from tshistory import api
 from tshistory.http.util import nosecurity
 from tshistory_refinery import schema, tsio
+
 from tsview import app
+from tsview.schema import TsviewSchema
 
 
 DATADIR = Path(__file__).parent / 'test/data'
@@ -23,6 +25,7 @@ def engine(request):
     )
     e = create_engine(DBURI)
     schema.refinery_schema().create(e, reset=True, rework=True)
+    TsviewSchema().create(e, reset=True)
     return e
 
 
