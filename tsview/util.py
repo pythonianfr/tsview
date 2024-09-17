@@ -7,9 +7,12 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 from plotly import utils
+from sqlalchemy import create_engine
 
 from psyl.lisp import parse, pretty
 
+from tsview.schema import TsviewSchema
+from tsview.api import Horizon
 
 # formula helper
 
@@ -197,3 +200,29 @@ def plot_to_htmldiv(data, layout=None, divid=None):
             id=divid,
             script=script,
         )
+
+
+# migration
+def initialize_horizon(db_uri, force=False):
+    engine = create_engine(db_uri)
+    TsviewSchema().create(engine, reset=force)
+    api = Horizon(engine)
+    def_1 = {
+        'fromdate': '(shifted (today ) #:days -15)',
+        'todate': '(shifted (today ) #:days 7)',
+        'label': '-15d-+7d',
+    }
+    def_2 = {
+        'fromdate': '(shifted (today ) #:days -93)',
+        'todate': '(shifted (today ) #:days 31)',
+        'label': '3months',
+    }
+    def_3 = {
+        'fromdate': '(shifted (today ) #:days -366)',
+        'todate': '(shifted (today ) #:days 31)',
+        'label': '1year',
+    }
+
+    api.update(def_1)
+    api.update(def_2)
+    api.update(def_3)

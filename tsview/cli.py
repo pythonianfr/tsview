@@ -4,12 +4,14 @@ import socket
 import webbrowser
 
 import click
+from sqlalchemy import create_engine
 
 from tshistory import api
 from tshistory.util import find_dburi
 from tshistory_formula.tsio import timeseries
 
 from tsview.app import kickoff
+from tsview.util import initialize_horizon
 
 
 def host():
@@ -47,3 +49,10 @@ def view(db_uri, debug=False):
 
     webbrowser.open('http://{ipaddr}:{port}/tsview'.format(ipaddr=ipaddr, port=port))
     input()
+
+
+@click.command('init-horizon')
+@click.argument('db-uri')
+@click.option('--force', is_flag=True, default=False)
+def init_horizon(db_uri, force=False):
+    initialize_horizon(db_uri, force)

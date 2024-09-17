@@ -80,9 +80,15 @@ setup(name='tsview',
           'tsview_static/*',
           'tsview_templates/*'
       ]},
-      entry_points={'tshistory.subcommands': [
-          'view=tsview.cli:view'
-      ]},
+      entry_points={
+          'tshistory.subcommands': [
+              'view=tsview.cli:view',
+              'view-init=tsview.cli:init_horizon',
+          ],
+          'tshistory.migrate.Migrator': [
+              'migrator=tsview.migrate:Migrator'
+          ],
+      },
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
