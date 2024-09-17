@@ -1,5 +1,7 @@
-from sqlalchemy import create_engine
 import pandas as pd
+from psyl import lisp
+
+from tsview.moment import _MOMENT_ENV
 
 
 class Horizon():
@@ -67,3 +69,47 @@ class Horizon():
                 for row in result
             ]
             return named
+
+    def _replace_today(self, formula_bounds, ref_date):
+        return formula_bounds.replace('today', f'date "{ref_date}"' )
+
+    def eval_bounds(self, label, ref_date, step=0):
+        """
+        - label is the user defined name of the horizon
+            i.e. "3 weeks", "1 year", etc...
+        - ref_date is a date (initialized at today) sent
+            by the client (in string format)
+        - step is a integer that slides the frame
+            - 1 is a slide on the left
+            + 1 is a slide on the right
+        """
+        bounds = self._get_bounds(label)
+        from_value_date = lisp.evaluate(
+            self._replace_today(
+                bounds[0],
+                ref_date,
+            )
+            , env=_MOMENT_ENV
+        )
+        to_value_date = lisp.evaluate(
+            self._replace_today(
+                bounds[1],
+                ref_date,
+            )
+            , env=_MOMENT_ENV
+        )
+        if step != 0:
+            interval = to_value_date - from_value_date
+            ref_date = pd.Timestamp(ref_date) + interval * step
+            ref_date = str(ref_date)
+            from_value_date = from_value_date + interval * step
+            to_value_date = to_value_date + interval * step
+        else:
+            # homogenize format
+            ref_date=str(pd.Timestamp(ref_date))
+
+        return {
+            'fromdate': str(from_value_date),
+            'todate': str(to_value_date),
+            'ref-date': ref_date
+        }
