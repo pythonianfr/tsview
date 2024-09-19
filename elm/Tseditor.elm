@@ -1221,6 +1221,7 @@ view model =
             values
             { defaultLayoutOptions | dragMode = Just dragMode }
             defaultoptions
+            model.horizon.inferredFreq
         , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)

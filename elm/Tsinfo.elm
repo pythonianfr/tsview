@@ -1313,6 +1313,7 @@ viewplot model =
                 (Dict.values ts)
                 defaultLayout
                 defaultoptions
+                model.horizon.inferredFreq
             , viewDatesRange
                 model.lastIdates
                 model.historyDateIndex
@@ -1358,6 +1359,7 @@ viewplot model =
                 (Dict.values ts)
                 defaultLayout
                 defaultoptions
+                model.horizon.inferredFreq
             ]
 
 

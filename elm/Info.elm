@@ -600,14 +600,14 @@ cleanMs strDate =
         " "
         ( String.left 19 strDate ) ++ " " ++ ( String.right 6 strDate )
 
-viewgraph name tskeys tsvalues layoutOptions options =
+viewgraph name tskeys tsvalues layoutOptions options inferredFreq =
     let
         plot =
             scatterplot
                 name
                 tskeys
                 tsvalues
-                "lines"
+                (if inferredFreq then "lines+markers" else "lines")
                 options
         args =
             serializedPlotArgs

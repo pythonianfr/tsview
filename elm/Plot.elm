@@ -420,7 +420,7 @@ view model =
                              name
                              (Dict.keys series)
                              (Dict.values series)
-                             "lines"
+                             (if model.horizon.inferredFreq then "lines+markers" else "lines")
                              { defaultoptions | showlegend = True }
                         )
                         model.search.selected
