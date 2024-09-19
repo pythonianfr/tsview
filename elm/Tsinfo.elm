@@ -55,7 +55,8 @@ import Process as P
 import Task as T
 import Url.Builder as UB
 import Util as U
-
+import Time
+import Date
 
 port dateInInterval : ( List String -> msg ) -> Sub msg
 port dataFromHover : ( String -> msg ) -> Sub msg
@@ -901,6 +902,8 @@ update msg model =
                                             , Cmd.none )
                 HorizonModule.FromLocalStorage _ -> ( newmodel
                                                     , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                HorizonModule.DateNow _ -> ( newmodel
+                                            , Cmd.none )
 
         HistoryMode isChecked ->
             let
@@ -1552,6 +1555,8 @@ init input =
         , getsource input.baseurl input.name
         , I.getwriteperms input.baseurl GetPermissions
         , getcachepolicy input.baseurl input.name
+        -- calculate current date:
+        , T.perform (\ t -> convertMsg (HorizonModule.DateNow t)) Date.today
         ]
     )
 

@@ -23,6 +23,7 @@ port module Horizon exposing
     , setDisabled
     )
 
+import Date
 import Dict exposing (Dict)
 import Either exposing (Either(..))
 import Html as H
@@ -34,7 +35,6 @@ import Maybe.Extra as Maybe
 import OrderedDict as OD
 import Util as U
 
-
 port saveToLocalStorage : LocalStorageData -> Cmd msg
 port loadFromLocalStorage : (String -> msg) -> Sub msg
 
@@ -45,6 +45,7 @@ type alias Offset =
 
 type Msg =
      FromLocalStorage String
+     | DateNow Date.Date
      | Frame Move
      | Data Option
      | Internal Operation
@@ -70,6 +71,7 @@ type Operation =
 type alias HorizonModel =
     { offset : Int
     , horizon : Maybe String
+    , dateRef: String
     , inferredFreq : Bool
     , timeZone : String
     , hasCache: Bool
@@ -107,6 +109,7 @@ buildBounds min max =
 initHorizon min max status =
     { offset = 0
     , horizon = Just defaultHorizon
+    , dateRef = "yyyy-mm-dd"
     , inferredFreq = False
     , timeZone = "UTC"
     , hasCache = True
@@ -231,6 +234,8 @@ setDisabled: HorizonModel -> Bool ->HorizonModel
 setDisabled model status =
     { model | disabled = status }
 
+
+
 updateHorizon : Msg -> HorizonModel -> ( HorizonModel, Cmd msg )
 updateHorizon msg model =
     let previousOffset = model.offset
@@ -257,6 +262,9 @@ updateHorizon msg model =
                 Err _ ->
                     ( model
                      , Cmd.none )
+        DateNow date ->
+            ({ model | dateRef = Date.toIsoString date }
+            , Cmd.none )
 
         Frame op ->
             let frameModel = { model | queryBounds = Nothing
@@ -621,7 +629,8 @@ debugInfo model =
     then
         H.ul
             []
-            [ H.li [] [ H.text ( showBounds model.horizonBounds "horizon : " )]
+            [ H.li [] [ H.text ( "Date-Ref : " ++ model.dateRef )]
+            , H.li [] [ H.text ( showBounds model.horizonBounds "horizon : " )]
             , H.li [] [ H.text ( showBounds model.queryBounds "query : " )]
             , H.li [] [ H.text ( showBounds model.zoomBounds "zoom : " )]
             , H.li [] [ H.text ( showEdited model.editedBounds "edited : " )]
