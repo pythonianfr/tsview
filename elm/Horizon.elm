@@ -212,7 +212,9 @@ viewdate model =
                         Just ( min, max ) ->  Just ( min, max , True )
                         Nothing ->  case model.horizonBounds of
                                 Just ( min, max ) -> Just ( min, max , False )
-                                Nothing -> Nothing
+                                Nothing -> case model.dataBounds of
+                                    Just ( min, max ) -> Just ( min, max , False )
+                                    Nothing -> Nothing
     in
     case bounds of
         Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
