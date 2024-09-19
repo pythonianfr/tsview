@@ -78,10 +78,16 @@ type alias Bounds =
     , dateRef: String
     }
 
+type Horizon =
+    All
+    | Disabled
+    | Label String
+
+
 type alias HorizonModel =
     { baseUrl: String
     , offset : Int
-    , horizon : Maybe String
+    , horizon : Horizon
     , dateRef: String
     , inferredFreq : Bool
     , timeZone : String
@@ -122,7 +128,7 @@ initHorizon: String -> String -> String -> PlotStatus -> HorizonModel
 initHorizon baseUrl min max status =
     { baseUrl = baseUrl
     , offset = 0
-    , horizon = Just defaultHorizon
+    , horizon = All
     , dateRef = "yyyy-mm-dd"
     , inferredFreq = False
     , timeZone = "UTC"
@@ -147,6 +153,31 @@ type alias LocalStorageData =
     , inferredFreq : Bool
     }
 
+type alias EnrichFromStorage =
+    { horizon: Horizon
+    , timeZone: String
+    , inferredFreq: Bool
+    }
+
+toHorizonType: LocalStorageData -> EnrichFromStorage
+toHorizonType fromStorage =
+    { horizon = case fromStorage.horizon of
+                    Nothing -> All
+                    Just horizon -> Label horizon
+    , timeZone = fromStorage.timeZone
+    , inferredFreq = fromStorage.inferredFreq
+    }
+
+toLocalFormat: EnrichFromStorage -> LocalStorageData
+toLocalFormat toStorage =
+    { horizon = case toStorage.horizon of
+                    All -> Nothing
+                    Disabled -> Nothing
+                    Label horizon -> Just horizon
+    , timeZone = toStorage.timeZone
+    , inferredFreq = toStorage.inferredFreq
+    }
+
 
 localstoragedecoder : D.Decoder LocalStorageData
 localstoragedecoder =
@@ -156,10 +187,6 @@ localstoragedecoder =
         (D.field "inferredFreq" D.bool)
 
 
-defaultHorizon : String
-defaultHorizon =
-    "2 weeks"
-
 
 getFromToDates: HorizonModel  -> Maybe ( String, String)
 getFromToDates model =
@@ -167,11 +194,10 @@ getFromToDates model =
          Just ( min, max ) ->  Just ( min, max )
          Nothing ->  case model.queryBounds of
                         Just ( min, max ) ->  Just ( min, max )
-                        Nothing ->  case model.horizon of
-                            Nothing -> Nothing
-                            Just _ -> case model.horizonBounds of
+                        Nothing ->  case model.horizonBounds of
                                         Just ( min, max ) -> Just ( min, max )
                                         Nothing -> Nothing
+
 
 
 viewdate: HorizonModel -> ( String, String, Bool )
@@ -199,14 +225,19 @@ setDisabled model status =
 
 getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
 getBounds model convertMsg step =
-    Http.get
-        { expect = Http.expectString (\ s -> convertMsg ( GotBounds s ))
-        , url = UB.crossOrigin model.baseUrl
-              [ "new-dates"
-              , Maybe.withDefault "All" model.horizon, model.dateRef
-              , ( String.fromInt step ) ]
-              []
-        }
+    case model.horizon of
+        Disabled -> Cmd.none
+        All -> Cmd.none
+        Label horizon ->
+            Http.get
+                { expect = Http.expectString (\ s -> convertMsg ( GotBounds s ))
+                , url = UB.crossOrigin model.baseUrl
+                      [ "new-dates"
+                      , horizon
+                      , model.dateRef
+                      , ( String.fromInt step ) ]
+                      []
+                }
 
 getChoices: HorizonModel -> ( Msg -> msg ) -> Cmd msg
 getChoices model convertMsg =
@@ -236,9 +267,11 @@ updateHorizon msg convertMsg model =
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
+                    let enrichdatadict = toHorizonType datadict
+                    in
                     let (newdatadict, disabled)  = case model.queryBounds of
-                            Nothing ->  ( datadict, False)
-                            Just _ ->  ( { datadict | horizon = Just "" }, True )
+                            Nothing ->  ( enrichdatadict, False)
+                            Just _ ->  ( { enrichdatadict | horizon = Disabled }, True )
                     in
                     let
                         newmodel =
@@ -338,7 +371,7 @@ updateHorizon msg convertMsg model =
                                                             )
                                             , editBounds = False
                                             , editedBounds = { from = Nothing, to = Nothing }
-                                            , horizon = Just ""
+                                            , horizon = Disabled
                                             , disabled = True
                                 }
                   in
@@ -354,14 +387,14 @@ updateHorizon msg convertMsg model =
                     newmodel =
                         { dataModel | timeZone = timeZone }
                     userprefs =
-                        LocalStorageData
+                        EnrichFromStorage
                             dataModel.horizon
                             timeZone
                             dataModel.inferredFreq
 
                 in
                 ( newmodel
-                , saveToLocalStorage userprefs
+                , saveToLocalStorage ( toLocalFormat userprefs )
                 )
 
             InferredFreq isChecked ->
@@ -370,13 +403,13 @@ updateHorizon msg convertMsg model =
                         { dataModel | inferredFreq = isChecked
                                     , horizonBounds = Nothing }
                     userprefs =
-                        LocalStorageData
+                        EnrichFromStorage
                             model.horizon
                             model.timeZone
                             isChecked
                 in
                 ( newmodel
-                , saveToLocalStorage userprefs )
+                , saveToLocalStorage ( toLocalFormat userprefs ) )
 
             ViewNoCache ->
                 let
@@ -419,12 +452,14 @@ cropDate date =
 updateInternalHorizon : Maybe String -> HorizonModel -> HorizonModel
 updateInternalHorizon horizon model =
     { model
-        | horizon = horizon
+        | horizon = case horizon of
+                        Nothing -> All
+                        Just hor -> Label hor
         , offset = 0
     }
 
 
-updatefromlocalstorage : LocalStorageData -> HorizonModel -> HorizonModel
+updatefromlocalstorage : EnrichFromStorage -> HorizonModel -> HorizonModel
 updatefromlocalstorage data model =
     { model
         | horizon = data.horizon
@@ -515,20 +550,20 @@ selectHorizon model convertmsg =
         ]
         (List.map
             (renderhorizon model.horizon)
-            ( "All" ::
-                List.filter
-                    ( if model.disabled
-                        then ( \ _ -> True)
-                        else ( \ name -> name /= "" ))
-                    model.horizonChoices )
+            ( ["All"]
+               ++ model.horizonChoices
+               ++ if model.disabled then [""] else [] )
         )
 
 
-renderhorizon : Maybe String -> String -> H.Html msg
+renderhorizon : Horizon -> String -> H.Html msg
 renderhorizon selectedhorizon horizon =
     H.option
         [ HA.value horizon
-        , HA.selected <| Maybe.unwrap False ((==) horizon) selectedhorizon
+        , case selectedhorizon of
+            All -> HA.selected ( horizon == "All" )
+            Disabled ->  HA.selected ( horizon == "" )
+            Label lab ->  HA.selected ( horizon == lab )
         ]
         [ H.text horizon ]
 
@@ -682,7 +717,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled ||  model.horizon == Nothing )
+                ( model.disabled ||  model.horizon == All )
                 -1
                 "btn btn-outline-dark btn-sm" ]
         , if not model.editBounds
@@ -737,7 +772,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled || model.horizon == Nothing )
+                ( model.disabled || model.horizon == All )
                 1
                 "btn btn-outline-dark btn-sm" ]
         , H.div
