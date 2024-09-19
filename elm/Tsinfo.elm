@@ -311,38 +311,27 @@ getplot model =
         idate =
             Array.get model.date_index model.insertion_dates
     in
-    case model.horizon.queryBounds of
-        Nothing -> getdata
-                    { baseurl = model.baseurl
-                    , name = model.name
-                    , idate = idate
-                    , callback = GotPlotData
-                    , nocache = (U.bool2int model.horizon.viewNoCache)
-                    , fromdate = ""
-                    , todate = ""
-                    , horizon =
-                        model.horizon.horizon |>
-                          Maybe.andThen (\key-> OD.get key model.horizon.horizonChoices) |>
-                          Maybe.map (String.replace "{offset}" (String.fromInt model.horizon.offset))
-                    , tzone = model.horizon.timeZone
-                    , inferredFreq = model.horizon.inferredFreq
-                    , keepnans = False
-                    , apipoint = "state"
-                    }
-        Just (from, to) -> getdata
-                    { baseurl = model.baseurl
-                    , name = model.name
-                    , idate = idate
-                    , callback = GotPlotData
-                    , nocache = (U.bool2int model.horizon.viewNoCache)
-                    , fromdate = from
-                    , todate = to
-                    , horizon = Nothing
-                    , tzone = model.horizon.timeZone
-                    , inferredFreq = model.horizon.inferredFreq
-                    , keepnans = False
-                    , apipoint = "state"
-                }
+    let (start, end) = case model.horizon.queryBounds of
+                        Just (from, to) -> (from, to)
+                        Nothing -> case model.horizon.horizonBounds of
+                            Just (from, to) -> (from, to)
+                            Nothing -> ("", "")
+
+    in
+     getdata
+        { baseurl = model.baseurl
+        , name = model.name
+        , idate = idate
+        , callback = GotPlotData
+        , nocache = (U.bool2int model.horizon.viewNoCache)
+        , fromdate = start
+        , todate = end
+        , horizon = Nothing
+        , tzone = model.horizon.timeZone
+        , inferredFreq = model.horizon.inferredFreq
+        , keepnans = False
+        , apipoint = "state"
+    }
 
 
 
@@ -876,19 +865,22 @@ update msg model =
             let ( newhorizonmodel, commands ) =
                     updateHorizon
                     hmsg
+                    convertMsg
                     model.horizon
             in
-            let newmodel = { model | horizon =  newhorizonmodel}
+            let newmodel = { model | horizon =  newhorizonmodel }
             in
             let resetmodel  = { newmodel | historyPlots = Dict.empty
-                                         , dataFromHover = Nothing }
+                                         , dataFromHover = Nothing
+                                         , horizon = newhorizonmodel
+                              }
             in
             case hmsg of
                 HorizonModule.Data op ->
                     case op of
                         HorizonModule.ViewNoCache ->
                             ( { resetmodel | insertion_dates = Array.empty }
-                            , Cmd.batch ( [commands]
+                            , Cmd.batch ( [ commands ]
                                         ++ [ getplot newmodel ]
                                         ++ [ I.getidates newmodel "series" InsertionDates ]))
                         HorizonModule.InferredFreq _ -> ( resetmodel
@@ -897,13 +889,17 @@ update msg model =
                                                             , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
 
                 HorizonModule.Frame _ -> ( resetmodel
-                                         , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                                         , Cmd.batch ( [commands] ))
                 HorizonModule.Internal _ -> ( newmodel
                                             , Cmd.none )
                 HorizonModule.FromLocalStorage _ -> ( newmodel
-                                                    , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                                                    , Cmd.batch ( [commands] ))
                 HorizonModule.DateNow _ -> ( newmodel
-                                            , Cmd.none )
+                                            , Cmd.batch ( [commands] ) )
+                HorizonModule.GotBounds _ -> ( newmodel
+                                            , Cmd.batch ( [commands, getplot newmodel] ) )
+                HorizonModule.GotChoices _ -> ( newmodel
+                                            , Cmd.batch ( [commands] ) )
 
         HistoryMode isChecked ->
             let
@@ -1060,19 +1056,6 @@ update msg model =
             ( model
             , getlog model.baseurl model.name model.logsNumber
             )
-
-
-actionsHorizon : Model -> HorizonModule.Msg -> HorizonModel -> List (Cmd Msg)
-actionsHorizon model msg horizonModel =
-    let
-        newModel = { model | horizon = horizonModel }
-    in
-    --if msg == HorizonModule.ViewNoCache
-    --then
-        [ I.getidates newModel "series" InsertionDates
-        , getplot newModel ]
-    --else
-    --    [ getplot newModel ]
 
 
 lastDates: List String -> Int -> List String
@@ -1536,7 +1519,11 @@ init input =
       , renaming = False
       , newname = Nothing
       , clipboardclass = "bi bi-clipboard"
-      , horizon = initHorizon input.min input.max Loading
+      , horizon = initHorizon
+                    input.baseurl
+                    input.min
+                    input.max
+                    Loading
       , historyPlots = Dict.empty
       , historyMode = False
       , historyIdates = Array.empty

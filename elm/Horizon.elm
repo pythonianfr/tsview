@@ -7,7 +7,6 @@ port module Horizon exposing
     , PlotStatus(..)
     , Offset
     , initHorizon
-    , horizons
     , horizonview
     , getFromToDates
     , saveToLocalStorage
@@ -29,11 +28,14 @@ import Either exposing (Either(..))
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
+import Http
 import Json.Decode as D
 import List.Extra as List
 import Maybe.Extra as Maybe
 import OrderedDict as OD
 import Util as U
+import Url.Builder as UB
+import Task
 
 port saveToLocalStorage : LocalStorageData -> Cmd msg
 port loadFromLocalStorage : (String -> msg) -> Sub msg
@@ -46,6 +48,8 @@ type alias Offset =
 type Msg =
      FromLocalStorage String
      | DateNow Date.Date
+     | GotBounds ( Result Http.Error String)
+     | GotChoices ( Result Http.Error String)
      | Frame Move
      | Data Option
      | Internal Operation
@@ -53,7 +57,7 @@ type Msg =
 
 type Move =
     HorizonSelected (Maybe String)
-    | UpdateOffset Offset
+    | Slide Int
     | EditDateValidate
 
 
@@ -68,18 +72,26 @@ type Operation =
     | Edit FromOrTo String
 
 
+type alias Bounds =
+    { from: String
+    , to: String
+    , dateRef: String
+    }
+
 type alias HorizonModel =
-    { offset : Int
+    { baseUrl: String
+    , offset : Int
     , horizon : Maybe String
     , dateRef: String
     , inferredFreq : Bool
     , timeZone : String
     , hasCache: Bool
     , viewNoCache: Bool
-    , horizonChoices: OD.OrderedDict String String
+    , horizonChoices: List String
     , plotStatus : PlotStatus
     , disabled: Bool
     , horizonBounds: Maybe (String, String)
+    , dataBounds: Maybe (String, String)
     , queryBounds: Maybe (String, String)
     , zoomBounds: Maybe (String, String)
     , editBounds : Bool
@@ -106,18 +118,21 @@ buildBounds min max =
             then Nothing
             else Just (min, max)
 
-initHorizon min max status =
-    { offset = 0
+initHorizon: String -> String -> String -> PlotStatus -> HorizonModel
+initHorizon baseUrl min max status =
+    { baseUrl = baseUrl
+    , offset = 0
     , horizon = Just defaultHorizon
     , dateRef = "yyyy-mm-dd"
     , inferredFreq = False
     , timeZone = "UTC"
     , hasCache = True
     , viewNoCache = False
-    , horizonChoices = horizons
+    , horizonChoices = []
     , plotStatus = status
     , disabled = False
     , horizonBounds = Nothing
+    , dataBounds = Nothing
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
     , editBounds = False
@@ -145,58 +160,6 @@ defaultHorizon : String
 defaultHorizon =
     "2 weeks"
 
-
-horizons : OD.OrderedDict String String
-horizons =  OD.fromList
-    [ ( "1 week"
-      , """(horizon
-         #:date (now)
-         #:past (delta #:days -7)
-         #:future (delta #:days 7)
-         #:offset {offset})
-         """
-      )
-     , ( "2 weeks"
-       , """(horizon
-          #:date (now)
-          #:past (delta #:days -14)
-          #:future (delta #:days 14)
-          #:offset {offset})
-          """
-       )
-    , ( "1 month"
-      , """
-         (horizon #:date (now)
-         #:past (delta #:months -1)
-         #:future (delta #:months 1)
-         #:offset {offset})
-         """
-      )
-    , ( "3 months"
-      , """
-         (horizon #:date (now)
-         #:past (delta #:months -3)
-         #:future (delta #:months 3)
-         #:offset {offset})
-         """
-      )
-    , ( "1 year"
-      , """
-         (horizon #:date (now)
-         #:past (delta #:years -1)
-         #:future (delta #:years 1)
-         #:offset {offset})
-         """
-      )
-    , ( ""
-      , """
-         (horizon #:date (now)
-         #:past (delta #:days -1)
-         #:future (delta #:days 1)
-         #:offset {offset})
-         """
-      )
-    ]
 
 getFromToDates: HorizonModel  -> Maybe ( String, String)
 getFromToDates model =
@@ -234,10 +197,39 @@ setDisabled: HorizonModel -> Bool ->HorizonModel
 setDisabled model status =
     { model | disabled = status }
 
+getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
+getBounds model convertMsg step =
+    Http.get
+        { expect = Http.expectString (\ s -> convertMsg ( GotBounds s ))
+        , url = UB.crossOrigin model.baseUrl
+              [ "new-dates"
+              , Maybe.withDefault "All" model.horizon, model.dateRef
+              , ( String.fromInt step ) ]
+              []
+        }
 
+getChoices: HorizonModel -> ( Msg -> msg ) -> Cmd msg
+getChoices model convertMsg =
+    Http.get
+        { expect = Http.expectString (\ s -> convertMsg ( GotChoices s ))
+        , url = UB.crossOrigin model.baseUrl
+              [ "horizon-choices" ]
+              []
+        }
 
-updateHorizon : Msg -> HorizonModel -> ( HorizonModel, Cmd msg )
-updateHorizon msg model =
+decodeBounds: D.Decoder Bounds
+decodeBounds =
+    D.map3 Bounds
+        (D.field "from" D.string)
+        (D.field "to" D.string)
+        (D.field "ref-date" D.string)
+
+decodeChoices: D.Decoder ( List String )
+decodeChoices =
+    D.list D.string
+
+updateHorizon : Msg -> ( Msg -> msg ) -> HorizonModel -> ( HorizonModel, Cmd msg )
+updateHorizon msg convertMsg model =
     let previousOffset = model.offset
     in
     case msg of
@@ -257,14 +249,53 @@ updateHorizon msg model =
                                 disabled
                     in
                     ( newmodel
-                     , Cmd.none )
+                     , Task.perform (\ t -> convertMsg (DateNow t))  Date.today )
 
                 Err _ ->
                     ( model
                      , Cmd.none )
+
         DateNow date ->
-            ({ model | dateRef = Date.toIsoString date }
-            , Cmd.none )
+            let newmodel = { model | dateRef = Date.toIsoString date }
+            in
+            ( newmodel
+            , Cmd.batch [
+                getBounds
+                    model
+                    convertMsg
+                    0
+                , getChoices
+                    model
+                    convertMsg
+                ]
+            )
+
+        GotBounds (Ok raw) ->
+            case D.decodeString decodeBounds raw of
+                Err _ -> ({ model | plotStatus = Failure }
+                        , Cmd.none)
+
+                Ok bounds -> ({ model | dateRef = bounds.dateRef
+                                      , horizonBounds = Just ( bounds.from
+                                                              , bounds.to )
+                               }
+                           , Cmd.none )
+
+        GotBounds (Err emsg) ->
+            ({ model | plotStatus = Failure }
+            , Cmd.none)
+
+        GotChoices (Ok raw) ->
+            case D.decodeString decodeChoices raw of
+                Err _ -> ({ model | plotStatus = Failure }
+                         , Cmd.none)
+                Ok choices -> ({ model | horizonChoices = choices }
+                              , Cmd.none)
+
+
+        GotChoices (Err emsg) ->
+            ({ model | plotStatus = Failure }
+            , Cmd.none)
 
         Frame op ->
             let frameModel = { model | queryBounds = Nothing
@@ -286,20 +317,15 @@ updateHorizon msg model =
                 let  newModel =  { updatedModel | disabled = False }
                 in
                 ( newModel
-                , saveToLocalStorage userprefs
+                , Cmd.batch [
+                    saveToLocalStorage userprefs
+                    , getBounds newModel convertMsg 0
+                    ]
                 )
 
-            UpdateOffset (Left i) ->
-                let newmodel = { frameModel | offset = (previousOffset + i )}
-                in
-                ( newmodel
-                , Cmd.none )
-
-            UpdateOffset (Right i) ->
-                let newmodel = { frameModel | offset = (previousOffset - i) }
-                in
-                ( newmodel
-                 , Cmd.none )
+            Slide i ->
+                ( frameModel
+                , getBounds model convertMsg i )
 
             EditDateValidate ->
                 let
@@ -413,7 +439,7 @@ updateHorizonFromData model val =
         ( min, max ) = formatBoundDates val
     in
     { model
-        | horizonBounds = if min /= ""
+        | dataBounds = if min /= ""
                             then Just ( min, max )
                             else Nothing
         , plotStatus = Success
@@ -425,12 +451,12 @@ extendHorizonFromData model val =
     if List.length ( Dict.keys val ) == 0
     then model
     else
-        case model.horizonBounds of
+        case model.dataBounds of
             Nothing -> updateHorizonFromData model val
             Just ( minDate, maxDate ) -> let tsBounds = formatBoundDates val
                 in
                 { model
-                    | horizonBounds = Just ( min
+                    | dataBounds = Just ( min
                                                ( Tuple.first tsBounds )
                                                minDate
                                            , max
@@ -456,26 +482,34 @@ formatBoundDates val =
     ( U.dateof minappdate, U.dateof maxappdate )
 
 
-buttonArrow : (Msg -> msg) -> Bool -> String  -> String -> H.Html msg
-buttonArrow convertmsg disabled direction className =
-    let
-        arrow = if direction == "left" then Left else Right
-    in
+buttonArrow : (Msg -> msg) -> Bool -> Int -> String -> H.Html msg
+buttonArrow convertmsg disabled step className =
+   let direction = if step <= 0 then "left" else "right"
+   in
     H.button
         [ HA.class className
         , HA.disabled disabled
-        , HE.onClick ( convertmsg ( Frame (UpdateOffset ( arrow 1 ))))]
+        , HE.onClick ( convertmsg ( Frame (Slide step)))]
         [ H.i
             [ HA.class <| String.replace "{arrow}" direction "bi bi-arrow-{arrow}" ]
             [ ]
         ]
 
+readHorizon : HorizonModel -> String -> D.Decoder (Maybe String)
+readHorizon model key =
+    D.succeed <|
+        if List.member key model.horizonChoices then
+            Just key
+        else
+            Nothing
+
 
 selectHorizon : HorizonModel -> (Msg -> msg) -> H.Html msg
 selectHorizon model convertmsg =
     H.select
-        [ HE.targetValue
-            |> D.andThen readHorizon
+        [
+        HE.targetValue
+            |> D.andThen ( readHorizon model )
             |> D.map ( \mb -> convertmsg ( Frame ( HorizonSelected mb )) )
             |> HE.on "change"
         ]
@@ -486,7 +520,7 @@ selectHorizon model convertmsg =
                     ( if model.disabled
                         then ( \ _ -> True)
                         else ( \ name -> name /= "" ))
-                    (OD.keys horizons) )
+                    model.horizonChoices )
         )
 
 
@@ -497,15 +531,6 @@ renderhorizon selectedhorizon horizon =
         , HA.selected <| Maybe.unwrap False ((==) horizon) selectedhorizon
         ]
         [ H.text horizon ]
-
-
-readHorizon : String -> D.Decoder (Maybe String)
-readHorizon key =
-    D.succeed <|
-        if List.member key (OD.keys horizons) then
-            Just key
-        else
-            Nothing
 
 
 extractXaxis : Maybe ( String,  String ) -> Maybe { range: List String }
@@ -631,6 +656,7 @@ debugInfo model =
             []
             [ H.li [] [ H.text ( "Date-Ref : " ++ model.dateRef )]
             , H.li [] [ H.text ( showBounds model.horizonBounds "horizon : " )]
+            , H.li [] [ H.text ( showBounds model.dataBounds "data : " )]
             , H.li [] [ H.text ( showBounds model.queryBounds "query : " )]
             , H.li [] [ H.text ( showBounds model.zoomBounds "zoom : " )]
             , H.li [] [ H.text ( showEdited model.editedBounds "edited : " )]
@@ -657,21 +683,21 @@ horizonview model convertmsg klass tzaware =
             [ buttonArrow
                 convertmsg
                 ( model.disabled ||  model.horizon == Nothing )
-                "left"
+                -1
                 "btn btn-outline-dark btn-sm" ]
         , if not model.editBounds
           then H.div [ HA.class "horizon-trinity read"]
                   [ H.div
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HE.onClick ( convertmsg (Internal ToggleEdit ))]
-                    [ H.text <| min ]
+                    [ H.text <| cropDate min ]
                 , H.div
                     []
                     [ selectHorizon model convertmsg]
                 , H.div
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HE.onClick ( convertmsg ( Internal ToggleEdit ))]
-                    [ H.text <| max ]
+                    [ H.text <| cropDate max ]
                 ]
 
           else H.div [ HA.class "horizon-trinity write" ]
@@ -712,7 +738,7 @@ horizonview model convertmsg klass tzaware =
             [ buttonArrow
                 convertmsg
                 ( model.disabled || model.horizon == Nothing )
-                "right"
+                1
                 "btn btn-outline-dark btn-sm" ]
         , H.div
             []
