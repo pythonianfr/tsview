@@ -24,6 +24,7 @@ import Horizon exposing
     , PlotStatus(..)
     , extractXaxis
     , getFromToDates
+    , getFetchBounds
     , initHorizon
     , loadFromLocalStorage
     , updateHorizon
@@ -310,13 +311,7 @@ getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
-    in
-    let (start, end) = case model.horizon.queryBounds of
-                        Just (from, to) -> (from, to)
-                        Nothing -> case model.horizon.horizonBounds of
-                            Just (from, to) -> (from, to)
-                            Nothing -> ("", "")
-
+        ( start, end ) = getFetchBounds model.horizon
     in
      getdata
         { baseurl = model.baseurl

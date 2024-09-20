@@ -10,6 +10,7 @@ port module Horizon exposing
     , initHorizon
     , horizonview
     , getFromToDates
+    , getFetchBounds
     , saveToLocalStorage
     , loadFromLocalStorage
     , localstoragedecoder
@@ -197,6 +198,14 @@ localstoragedecoder =
         (D.field "timeZone" D.string)
         (D.field "inferredFreq" D.bool)
 
+
+getFetchBounds: HorizonModel -> (String, String)
+getFetchBounds model =
+    case model.queryBounds of
+        Just (from, to) -> (from, to)
+        Nothing -> case model.horizonBounds of
+            Just (from, to) -> (from, to)
+            Nothing -> ("", "")
 
 
 getFromToDates: HorizonModel  -> Maybe ( String, String)
