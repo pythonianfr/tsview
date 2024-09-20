@@ -204,8 +204,8 @@ getFromToDates model =
 
 
 
-viewdate: HorizonModel -> ( String, String, Bool )
-viewdate model =
+viewdateT: HorizonModel -> Maybe ( String, String, Bool )
+viewdateT model =
     let bounds = case model.zoomBounds of
                     Just ( min, max ) ->  Just ( min, max , True )
                     Nothing ->  case model.queryBounds of
@@ -217,9 +217,17 @@ viewdate model =
                                     Nothing -> Nothing
     in
     case bounds of
-        Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
+        Nothing -> Nothing
         Just ( min, max , fromZoom) ->
-            ( U.dateof min, U.dateof max, fromZoom )
+            Just ( U.dateof min, U.dateof max, fromZoom )
+
+viewdate: HorizonModel -> ( String, String, Bool )
+viewdate model =
+    let result = viewdateT model
+    in
+    case result of
+        Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
+        Just (from, to, fromZoom ) -> (cropDate from, cropDate to, fromZoom)
 
 setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
@@ -757,14 +765,14 @@ horizonview model convertmsg klass tzaware =
                   [ H.div
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HE.onClick ( convertmsg (Internal ToggleEdit ))]
-                    [ H.text <| cropDate min ]
+                    [ H.text min ]
                 , H.div
                     []
                     [ selectHorizon model convertmsg]
                 , H.div
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HE.onClick ( convertmsg ( Internal ToggleEdit ))]
-                    [ H.text <| cropDate max ]
+                    [ H.text max ]
                 ]
 
           else H.div [ HA.class "horizon-trinity write" ]
