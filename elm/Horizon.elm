@@ -1,8 +1,9 @@
 port module Horizon exposing
     ( HorizonModel
     , Msg(..)
-    , Move(..)
-    , Option(..)
+    , FrameMove(..)
+    , OptionType(..)
+    , FetchTrigger(..)
     , LocalStorageData
     , PlotStatus(..)
     , Offset
@@ -47,33 +48,39 @@ type alias Offset =
 
 type Msg =
      FromLocalStorage String
-     | DateNow Date.Date When
-     | GotBounds ( Result Http.Error String)
-     | GotChoices ( Result Http.Error String)
-     | GetDirectData ( Maybe ( String, String ))
-     | Frame Move
-     | Data Option
-     | Internal Operation
+     | Frame FrameMove
+     | Fetch FetchTrigger
+     | Internal InternalOperation
 
-type When =
-    Start
-    | Reset
 
-type Move =
+type FrameMove =
     HorizonSelected (Maybe String)
     | Slide Int
     | EditDateValidate
 
 
-type Option =
+type OptionType =
     TimeZoneSelected String
     | InferredFreq Bool
     | ViewNoCache
 
 
-type Operation =
+type FetchTrigger =
+     GotBounds ( Result Http.Error String)
+     | GetDirectData ( Maybe ( String, String ))
+     | Option OptionType
+
+
+type InternalOperation =
     ToggleEdit
     | Edit FromOrTo String
+    | DateNow Date.Date When
+    | GotChoices ( Result Http.Error String)
+
+
+type When =
+    Start
+    | Reset
 
 
 type alias Bounds =
@@ -241,11 +248,11 @@ getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
 getBounds model convertMsg step =
     case model.horizon of
         Disabled -> Cmd.none
-        All -> Task.succeed (convertMsg ( GetDirectData Nothing))
+        All -> Task.succeed (convertMsg ( Fetch ( GetDirectData Nothing )))
                     |> Task.perform identity
         Label horizon ->
             Http.get
-                { expect = Http.expectString (\ s -> convertMsg ( GotBounds s ))
+                { expect = Http.expectString (\ s -> convertMsg (Fetch ( GotBounds s )))
                 , url = UB.crossOrigin model.baseUrl
                       [ "new-dates"
                       , horizon
@@ -257,7 +264,7 @@ getBounds model convertMsg step =
 getChoices: HorizonModel -> ( Msg -> msg ) -> Cmd msg
 getChoices model convertMsg =
     Http.get
-        { expect = Http.expectString (\ s -> convertMsg ( GotChoices s ))
+        { expect = Http.expectString (\ s -> convertMsg (Internal ( GotChoices s )))
         , url = UB.crossOrigin model.baseUrl
               [ "horizon-choices" ]
               []
@@ -299,65 +306,20 @@ updateHorizon msg convertMsg model =
                     ( newmodel
                      , case newmodel.queryBounds of
                          Nothing -> Task.perform
-                                        (\ t -> convertMsg (DateNow t Start))  Date.today
+                                        (\ t -> convertMsg (Internal ( DateNow t Start )))  Date.today
                          Just bounds -> Cmd.batch [
                                     getChoices model convertMsg
                                     , Task.perform
-                                        (\ t -> convertMsg (DateNow t Reset))  Date.today
+                                        (\ t -> convertMsg ( Internal ( DateNow t Reset )))  Date.today
                                     , Task.perform
                                         identity
                                         (Task.succeed
-                                            (convertMsg ( GetDirectData ( Just bounds ))))
+                                            (convertMsg ( Fetch ( GetDirectData ( Just bounds )))))
                                     ]
                     )
                 Err _ ->
                     ( model
                      , Cmd.none )
-
-        DateNow date when ->
-            let newmodel = { model | dateRef = Date.toIsoString date }
-            in
-            ( newmodel
-            , case when of
-                Start ->
-                    Cmd.batch [
-                        getBounds
-                            newmodel
-                            convertMsg
-                            0
-                        , getChoices
-                            newmodel
-                            convertMsg
-                        ]
-                Reset -> Cmd.none
-            )
-
-        GotBounds (Ok raw) ->
-            case D.decodeString decodeBounds raw of
-                Err _ -> ({ model | plotStatus = Failure }
-                        , Cmd.none)
-
-                Ok bounds -> ({ model | dateRef = bounds.dateRef
-                                      , horizonBounds = Just ( bounds.from
-                                                              , bounds.to )
-                               }
-                           , Cmd.none )
-
-        GotBounds (Err emsg) ->
-            ({ model | plotStatus = Failure }
-            , Cmd.none)
-
-        GotChoices (Ok raw) ->
-            case D.decodeString decodeChoices raw of
-                Err _ -> ({ model | plotStatus = Failure }
-                         , Cmd.none)
-                Ok choices -> ({ model | horizonChoices = choices }
-                              , Cmd.none)
-
-
-        GotChoices (Err emsg) ->
-            ({ model | plotStatus = Failure }
-            , Cmd.none)
 
         Frame op ->
             let frameModel = { model | queryBounds = Nothing
@@ -405,60 +367,11 @@ updateHorizon msg convertMsg model =
                                 }
                   in
                     ( newmodel
-                    , Task.succeed (convertMsg ( GetDirectData newmodel.queryBounds ))
+                    , Task.succeed (convertMsg ( Fetch ( GetDirectData newmodel.queryBounds )))
                         |> Task.perform identity )
 
-        Data op ->
-            let dataModel = { model |  plotStatus = Loading }
-            in
-            case op of
-            TimeZoneSelected timeZone ->
-                let
-                    newmodel =
-                        { dataModel | timeZone = timeZone }
-                    userprefs =
-                        EnrichFromStorage
-                            dataModel.horizon
-                            timeZone
-                            dataModel.inferredFreq
 
-                in
-                ( newmodel
-                , saveToLocalStorage ( toLocalFormat userprefs )
-                )
 
-            InferredFreq isChecked ->
-                let
-                    newmodel =
-                        { dataModel | inferredFreq = isChecked
-                                    , horizonBounds = Nothing }
-                    userprefs =
-                        EnrichFromStorage
-                            model.horizon
-                            model.timeZone
-                            isChecked
-                in
-                ( newmodel
-                , saveToLocalStorage ( toLocalFormat userprefs ) )
-
-            ViewNoCache ->
-                let
-                    newmodel = { dataModel
-                               | viewNoCache = not model.viewNoCache
-                               , horizonBounds = Nothing }
-                in
-                ( newmodel
-                , Cmd.none )
-
-        GetDirectData queryBounds ->
-            let allModel = { model | queryBounds = queryBounds
-                                   , zoomBounds = Nothing
-                                   , horizonBounds = Nothing
-                                   , plotStatus = Loading }
-            in
-                ( allModel
-                , Task.perform (\ t -> convertMsg (DateNow t Reset)) Date.today
-                )
 
         Internal op ->
             case op of
@@ -483,6 +396,103 @@ updateHorizon msg convertMsg model =
                                         To -> { from = previous.from, to = Just value }
                     in
                         ({ model | editedBounds = newEdited }, Cmd.none)
+
+            GotChoices (Ok raw) ->
+                case D.decodeString decodeChoices raw of
+                    Err _ -> ({ model | plotStatus = Failure }
+                             , Cmd.none)
+                    Ok choices -> ({ model | horizonChoices = choices }
+                                  , Cmd.none)
+
+            GotChoices (Err emsg) ->
+                ({ model | plotStatus = Failure }
+                , Cmd.none)
+
+            DateNow date when ->
+                let newmodel = { model | dateRef = Date.toIsoString date }
+                in
+                ( newmodel
+                , case when of
+                    Start ->
+                        Cmd.batch [
+                            getBounds
+                                newmodel
+                                convertMsg
+                                0
+                            , getChoices
+                                newmodel
+                                convertMsg
+                            ]
+                    Reset -> Cmd.none
+                )
+
+        Fetch fetch ->
+            case fetch of
+            GotBounds (Ok raw) ->
+                case D.decodeString decodeBounds raw of
+                    Err _ -> ({ model | plotStatus = Failure }
+                            , Cmd.none)
+
+                    Ok bounds -> ({ model | dateRef = bounds.dateRef
+                                          , horizonBounds = Just ( bounds.from
+                                                                  , bounds.to )
+                                   }
+                               , Cmd.none )
+            GotBounds (Err emsg) ->
+                ({ model | plotStatus = Failure }
+                , Cmd.none)
+
+            GetDirectData queryBounds ->
+                let allModel = { model | queryBounds = queryBounds
+                                       , zoomBounds = Nothing
+                                       , horizonBounds = Nothing
+                                       , plotStatus = Loading }
+                in
+                    ( allModel
+                    , Task.perform (\ t -> convertMsg (Internal ( DateNow t Reset ))) Date.today
+                    )
+
+            Option op ->
+                let dataModel = { model |  plotStatus = Loading }
+                in
+                case op of
+                TimeZoneSelected timeZone ->
+                    let
+                        newmodel =
+                            { dataModel | timeZone = timeZone }
+                        userprefs =
+                            EnrichFromStorage
+                                dataModel.horizon
+                                timeZone
+                                dataModel.inferredFreq
+
+                    in
+                    ( newmodel
+                    , saveToLocalStorage ( toLocalFormat userprefs )
+                    )
+
+                InferredFreq isChecked ->
+                    let
+                        newmodel =
+                            { dataModel | inferredFreq = isChecked
+                                        , horizonBounds = Nothing }
+                        userprefs =
+                            EnrichFromStorage
+                                model.horizon
+                                model.timeZone
+                                isChecked
+                    in
+                    ( newmodel
+                    , saveToLocalStorage ( toLocalFormat userprefs ) )
+
+                ViewNoCache ->
+                    let
+                        newmodel = { dataModel
+                                   | viewNoCache = not model.viewNoCache
+                                   , horizonBounds = Nothing }
+                    in
+                    ( newmodel
+                    , Cmd.none )
 
 
 cropDate: String -> String
@@ -649,7 +659,7 @@ inferredfreqswitch model convertmsg =
             , HA.id "flexSwitchCheckDefault"
             , HA.checked model.inferredFreq
             , HA.disabled ( model.plotStatus == Loading )
-            , HE.onCheck ( \ b ->  convertmsg (Data ( InferredFreq b )))
+            , HE.onCheck ( \ b ->  convertmsg (Fetch (Option ( InferredFreq b ))))
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -664,7 +674,7 @@ tzonedropdown model convertmsg =
     let
         decodeTimeZone : String -> D.Decoder msg
         decodeTimeZone timeZone =
-            D.succeed (convertmsg (Data (TimeZoneSelected timeZone)))
+            D.succeed (convertmsg (Fetch (Option (TimeZoneSelected timeZone))))
 
     in
     H.select
@@ -699,7 +709,7 @@ cacheswitch model convertmsg =
             , HA.id "cacheSwitch"
             , HA.checked ( not model.viewNoCache )
             , HA.disabled (model.plotStatus == Loading)
-            , HE.onClick ( convertmsg ( Data ViewNoCache ))
+            , HE.onClick ( convertmsg (Fetch ( Option ViewNoCache )))
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"

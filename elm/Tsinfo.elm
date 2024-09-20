@@ -867,39 +867,44 @@ update msg model =
                     model.horizon
             in
             let newmodel = { model | horizon =  newhorizonmodel }
+                default = ( newmodel, commands )
             in
             let resetmodel  = { newmodel | historyPlots = Dict.empty
                                          , dataFromHover = Nothing
-                                         , horizon = newhorizonmodel
                               }
             in
             case hmsg of
-                HorizonModule.Data op ->
-                    case op of
-                        HorizonModule.ViewNoCache ->
-                            ( { resetmodel | insertion_dates = Array.empty }
-                            , Cmd.batch ( [ commands ]
-                                        ++ [ getplot newmodel ]
-                                        ++ [ I.getidates newmodel "series" InsertionDates ]))
-                        HorizonModule.InferredFreq _ -> ( resetmodel
-                                                        , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
-                        HorizonModule.TimeZoneSelected _ -> ( resetmodel
-                                                            , Cmd.batch ( [commands] ++ [ getplot newmodel ] ))
+                HorizonModule.Fetch fetch ->
+                    case fetch of
+                    HorizonModule.GotBounds _ ->
+                        ( newmodel
+                        , Cmd.batch ([ commands
+                                      , getplot newmodel] ) )
+
+                    HorizonModule.GetDirectData _ ->
+                        ( resetmodel
+                        , Cmd.batch ([ commands
+                                      , getplot newmodel] ) )
+
+                    HorizonModule.Option op ->
+                        case op of
+                            HorizonModule.ViewNoCache ->
+                                ( { resetmodel | insertion_dates = Array.empty }
+                                , Cmd.batch ([ commands
+                                             , getplot newmodel
+                                             , I.getidates newmodel "series" InsertionDates ]))
+                            HorizonModule.InferredFreq _ -> ( resetmodel
+                                                            , Cmd.batch ([ commands
+                                                                         , getplot newmodel ]))
+                            HorizonModule.TimeZoneSelected _ -> ( resetmodel
+                                                                , Cmd.batch ([ commands
+                                                                             , getplot newmodel ]))
 
                 HorizonModule.Frame _ -> ( resetmodel
-                                         , Cmd.batch ( [commands] ))
-                HorizonModule.Internal _ -> ( newmodel
-                                            , Cmd.none )
-                HorizonModule.FromLocalStorage _ -> ( newmodel
-                                                    , Cmd.batch ( [commands] ))
-                HorizonModule.DateNow _ _ -> ( newmodel
-                                            , Cmd.batch ( [commands] ) )
-                HorizonModule.GotBounds _ -> ( newmodel
-                                            , Cmd.batch ( [commands, getplot newmodel] ) )
-                HorizonModule.GotChoices _ -> ( newmodel
-                                            , Cmd.batch ( [commands] ) )
-                HorizonModule.GetDirectData _ -> ( resetmodel
-                                                , Cmd.batch ( [commands, getplot newmodel] ) )
+                                         , commands )
+                HorizonModule.FromLocalStorage _ -> default
+                HorizonModule.Internal _ -> default
+
 
         HistoryMode isChecked ->
             let

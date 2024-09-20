@@ -433,7 +433,7 @@ update msg model =
                                             , Cmd.none )
                 ModuleHorizon.Frame _ -> ( newModel
                                          , Cmd.batch ( [commands] ++ defaultActions newModel ))
-                ModuleHorizon.Data _ -> ( newModel
+                ModuleHorizon.Option _ -> ( newModel
                                         , Cmd.batch ( [commands] ++ defaultActions newModel ))
                 -- This branch starts the chain of command at initialization
                 ModuleHorizon.FromLocalStorage _ -> ( newModel
@@ -661,7 +661,7 @@ actionsHorizon model msg horizonModel =
 
         ModuleHorizon.Frame op -> defaultActions newModel
 
-        ModuleHorizon.Data op -> defaultActions newModel
+        ModuleHorizon.Option op -> defaultActions newModel
 
         ModuleHorizon.Internal op -> [ Cmd.none ]
 

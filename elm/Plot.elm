@@ -313,7 +313,7 @@ update msg model =
                                             , Cmd.none )
                 ModuleHorizon.Frame _ -> ( resetModel
                                          , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
-                ModuleHorizon.Data _ -> ( resetModel
+                ModuleHorizon.Option _ -> ( resetModel
                                         , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
                                                     , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
