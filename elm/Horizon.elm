@@ -483,8 +483,7 @@ updateHorizon msg convertMsg model =
                 InferredFreq isChecked ->
                     let
                         newmodel =
-                            { dataModel | inferredFreq = isChecked
-                                        , horizonBounds = Nothing }
+                            { dataModel | inferredFreq = isChecked }
                         userprefs =
                             EnrichFromStorage
                                 model.horizon
@@ -497,8 +496,7 @@ updateHorizon msg convertMsg model =
                 ViewNoCache ->
                     let
                         newmodel = { dataModel
-                                   | viewNoCache = not model.viewNoCache
-                                   , horizonBounds = Nothing }
+                                   | viewNoCache = not model.viewNoCache }
                     in
                     ( newmodel
                     , Cmd.none )
