@@ -722,6 +722,14 @@ def tsview(tsa):
                 )
         return json.dumps(infos)
 
+    @bp.route('/settings')
+    def route_settings():
+        flags_menu = json.dumps([homeurl(), 'monitor-settings'])
+        return render_template(
+            'settings.html',
+            flags_menu=flags_menu,
+        )
+
     # menu
 
     @bp.route('/menu')

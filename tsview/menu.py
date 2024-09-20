@@ -95,6 +95,12 @@ def definition(**extra_urls):
             'icone': 'bi bi-heart-pulse',
             'links': [
                 {
+                    'label': 'Settings',
+                    'icone': 'bi bi-floppy',
+                    'target': '/settings',
+                    'id': 'monitor-settings'
+                },
+                {
                     'label': 'Warnings',
                     'icone': 'bi bi-exclamation-triangle',
                     'target': '/tswatch/',
