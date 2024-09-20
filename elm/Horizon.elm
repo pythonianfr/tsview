@@ -20,12 +20,10 @@ port module Horizon exposing
     , extractXaxis
     , extractZoomDates
     , setStatusPlot
-    , setDisabled
     )
 
 import Date
 import Dict exposing (Dict)
-import Either exposing (Either(..))
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -99,7 +97,6 @@ type alias HorizonModel =
     , viewNoCache: Bool
     , horizonChoices: List String
     , plotStatus : PlotStatus
-    , disabled: Bool
     , horizonBounds: Maybe (String, String)
     , dataBounds: Maybe (String, String)
     , queryBounds: Maybe (String, String)
@@ -139,7 +136,6 @@ initHorizon baseUrl min max status =
     , viewNoCache = False
     , horizonChoices = []
     , plotStatus = status
-    , disabled = False
     , horizonBounds = Nothing
     , dataBounds = Nothing
     , queryBounds = buildBounds min max
@@ -240,9 +236,6 @@ setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
     { model | plotStatus = status}
 
-setDisabled: HorizonModel -> Bool ->HorizonModel
-setDisabled model status =
-    { model | disabled = status }
 
 getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
 getBounds model convertMsg step =
@@ -289,17 +282,14 @@ updateHorizon msg convertMsg model =
                 Ok datadict ->
                     let enrichdatadict = toHorizonType datadict
                     in
-                    let (newdatadict, disabled)  = case model.queryBounds of
-                            Nothing ->  ( enrichdatadict, False)
-                            Just _ ->  ( { enrichdatadict | horizon = Disabled }, True )
+                    let newdatadict  = case model.queryBounds of
+                            Nothing ->  enrichdatadict
+                            Just _ -> { enrichdatadict | horizon = Disabled }
                     in
                     let
-                        newmodel =
-                            setDisabled
-                                ( updatefromlocalstorage
-                                    newdatadict
-                                    model )
-                                disabled
+                        newmodel = updatefromlocalstorage
+                                        newdatadict
+                                        model
                     in
                     ( newmodel
                      , case newmodel.queryBounds of
@@ -336,12 +326,10 @@ updateHorizon msg convertMsg model =
 
                     updatedModel = updateInternalHorizon horizon frameModel
                 in
-                let  newModel =  { updatedModel | disabled = False }
-                in
-                ( newModel
+                ( updatedModel
                 , Cmd.batch [
                     saveToLocalStorage userprefs
-                    , getBounds newModel convertMsg 0
+                    , getBounds updatedModel convertMsg 0
                     ]
                 )
 
@@ -361,7 +349,6 @@ updateHorizon msg convertMsg model =
                                             , editBounds = False
                                             , editedBounds = { from = Nothing, to = Nothing }
                                             , horizon = Disabled
-                                            , disabled = True
                                 }
                   in
                     ( newmodel
@@ -597,7 +584,11 @@ selectHorizon model convertmsg =
             (renderhorizon model.horizon)
             ( ["All"]
                ++ model.horizonChoices
-               ++ if model.disabled then [""] else [] )
+               ++ ( case model.horizon of
+                        Disabled -> [""]
+                        _ -> []
+                  )
+            )
         )
 
 
@@ -762,7 +753,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled ||  model.horizon == All )
+                ( model.horizon == Disabled ||  model.horizon == All )
                 -1
                 "btn btn-outline-dark btn-sm" ]
         , if not model.editBounds
@@ -817,7 +808,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.disabled || model.horizon == All )
+                ( model.horizon == Disabled ||  model.horizon == All )
                 1
                 "btn btn-outline-dark btn-sm" ]
         , H.div
