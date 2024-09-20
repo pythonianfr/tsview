@@ -9,8 +9,8 @@ import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
     , initHorizon
-    , horizons
     , getFromToDates
+    , getFetchBounds
     , loadFromLocalStorage
     , updateHorizon
     , updateHorizonFromData
@@ -195,39 +195,23 @@ getPoints model =
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
 getSeries model callback apipoint method name =
-    case model.horizon.queryBounds of
-        Nothing -> getOrPostData
-                    method
-                    { baseurl = model.baseurl
-                    , name = name
-                    , idate = Nothing
-                    , callback = callback
-                    , nocache = (U.bool2int model.horizon.viewNoCache)
-                    , fromdate = ""
-                    , todate = ""
-                    , horizon = model.horizon.horizon |> Maybe.andThen
-                                (\key-> OD.get key horizons) |> Maybe.map
-                          (String.replace "{offset}" (String.fromInt model.horizon.offset))
-                    , tzone = model.horizon.timeZone
-                    , inferredFreq = model.horizon.inferredFreq
-                    , keepnans = True
-                    , apipoint = apipoint
-                    }
-        Just (min, max) -> getOrPostData
-                            method
-                            { baseurl = model.baseurl
-                            , name = name
-                            , idate = Nothing
-                            , callback = callback
-                            , nocache = (U.bool2int model.horizon.viewNoCache)
-                            , fromdate = min
-                            , todate = max
-                            , horizon = Nothing
-                            , tzone = model.horizon.timeZone
-                            , inferredFreq = model.horizon.inferredFreq
-                            , keepnans = True
-                            , apipoint = apipoint
-                            }
+    let ( start, end ) = getFetchBounds model.horizon
+    in
+    getOrPostData
+        method
+        { baseurl = model.baseurl
+        , name = name
+        , idate = Nothing
+        , callback = callback
+        , nocache = (U.bool2int model.horizon.viewNoCache)
+        , fromdate = start
+        , todate = end
+        , horizon = Nothing
+        , tzone = model.horizon.timeZone
+        , inferredFreq = model.horizon.inferredFreq
+        , keepnans = True
+        , apipoint = apipoint
+        }
 
 
 getOrPostData method query =
@@ -422,29 +406,29 @@ update msg model =
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
                                                     hMsg
+                                                    convertMsg
                                                     model.horizon
             in
             let newModel =  {model | horizon = newModelHorizon
                                    , zoomedTs = Nothing
                                    , zoomedFormula = Nothing}
-           in
+            in
+            let default = ( newModel, commands )
+            in
             case hMsg of
-                ModuleHorizon.Internal _ -> ( {model | horizon = newModelHorizon }
-                                            , Cmd.none )
-                ModuleHorizon.Frame _ -> ( newModel
-                                         , Cmd.batch ( [commands] ++ defaultActions newModel ))
-                ModuleHorizon.Option _ -> ( newModel
-                                        , Cmd.batch ( [commands] ++ defaultActions newModel ))
-                -- This branch starts the chain of command at initialization
-                ModuleHorizon.FromLocalStorage _ -> ( newModel
-                                                    , Cmd.batch (
-                                                        [ commands ]
-                                                        ++ [(M.getsysmetadata
-                                                                model.baseurl
-                                                                model.name
-                                                                GotMetadata
-                                                                "series")]))
-
+                ModuleHorizon.Internal _ -> default
+                ModuleHorizon.Frame _ -> default
+                ModuleHorizon.FromLocalStorage _ ->
+                    ( newModel
+                    , Cmd.batch ([ commands
+                                 , M.getsysmetadata
+                                        model.baseurl
+                                        model.name
+                                        GotMetadata
+                                        "series"]))
+                ModuleHorizon.Fetch _ -> ( newModel
+                                         , Cmd.batch ([ commands ]
+                                         ++ getRelevantData newModel ))
 
         InputChanged date rawvalue ->
             let
@@ -644,26 +628,6 @@ update msg model =
 
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
-
-
-defaultActions newModel =
-    getRelevantData newModel
-
-
-actionsHorizon : Model -> ModuleHorizon.Msg -> HorizonModel -> List (Cmd Msg)
-actionsHorizon model msg horizonModel =
-    let newModel = { model | horizon = horizonModel}
-    in
-    case msg of
-        ModuleHorizon.FromLocalStorage _ ->
-            -- This branch starts the chain of command at initialization
-            [(M.getsysmetadata model.baseurl model.name GotMetadata "series")]
-
-        ModuleHorizon.Frame op -> defaultActions newModel
-
-        ModuleHorizon.Option op -> defaultActions newModel
-
-        ModuleHorizon.Internal op -> [ Cmd.none ]
 
 
 newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
@@ -1246,7 +1210,11 @@ init input =
                     , source = ""
                     , seriestype = I.Primary
                     , date_index = 0
-                    , horizon = initHorizon input.min input.max Loading
+                    , horizon = initHorizon
+                                    input.baseurl
+                                    input.min
+                                    input.max
+                                    Loading
                     , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
