@@ -6,7 +6,6 @@ port module Horizon exposing
     , FetchTrigger(..)
     , LocalStorageData
     , PlotStatus(..)
-    , Offset
     , initHorizon
     , horizonview
     , getFromToDates
@@ -33,18 +32,12 @@ import Html.Events as HE
 import Http
 import Json.Decode as D
 import List.Extra as List
-import Maybe.Extra as Maybe
-import OrderedDict as OD
 import Util as U
 import Url.Builder as UB
 import Task
 
 port saveToLocalStorage : LocalStorageData -> Cmd msg
 port loadFromLocalStorage : (String -> msg) -> Sub msg
-
-
-type alias Offset =
-    Either Int Int
 
 
 type Msg =
@@ -98,7 +91,6 @@ type Horizon =
 
 type alias HorizonModel =
     { baseUrl: String
-    , offset : Int
     , horizon : Horizon
     , dateRef: String
     , inferredFreq : Bool
@@ -139,7 +131,6 @@ buildBounds min max =
 initHorizon: String -> String -> String -> PlotStatus -> HorizonModel
 initHorizon baseUrl min max status =
     { baseUrl = baseUrl
-    , offset = 0
     , horizon = All
     , dateRef = "yyyy-mm-dd"
     , inferredFreq = False
@@ -292,8 +283,6 @@ decodeChoices =
 
 updateHorizon : Msg -> ( Msg -> msg ) -> HorizonModel -> ( HorizonModel, Cmd msg )
 updateHorizon msg convertMsg model =
-    let previousOffset = model.offset
-    in
     case msg of
         FromLocalStorage rawdata ->
             case D.decodeString localstoragedecoder rawdata of
@@ -512,7 +501,6 @@ updateInternalHorizon horizon model =
         | horizon = case horizon of
                         Nothing -> All
                         Just hor -> Label hor
-        , offset = 0
     }
 
 
