@@ -898,8 +898,8 @@ update msg model =
                                             , Cmd.batch ( [commands, getplot newmodel] ) )
                 HorizonModule.GotChoices _ -> ( newmodel
                                             , Cmd.batch ( [commands] ) )
-                HorizonModule.GetAll -> ( resetmodel
-                                        , Cmd.batch ( [commands, getplot newmodel] ) )
+                HorizonModule.GetDirectData _ -> ( resetmodel
+                                                , Cmd.batch ( [commands, getplot newmodel] ) )
 
         HistoryMode isChecked ->
             let

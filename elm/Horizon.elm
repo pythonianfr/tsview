@@ -50,7 +50,7 @@ type Msg =
      | DateNow Date.Date When
      | GotBounds ( Result Http.Error String)
      | GotChoices ( Result Http.Error String)
-     | GetAll
+     | GetDirectData ( Maybe ( String, String ))
      | Frame Move
      | Data Option
      | Internal Operation
@@ -233,7 +233,7 @@ getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
 getBounds model convertMsg step =
     case model.horizon of
         Disabled -> Cmd.none
-        All -> Task.succeed (convertMsg GetAll)
+        All -> Task.succeed (convertMsg ( GetDirectData Nothing))
                     |> Task.perform identity
         Label horizon ->
             Http.get
@@ -289,8 +289,19 @@ updateHorizon msg convertMsg model =
                                 disabled
                     in
                     ( newmodel
-                     , Task.perform (\ t -> convertMsg (DateNow t Start))  Date.today )
-
+                     , case newmodel.queryBounds of
+                         Nothing -> Task.perform
+                                        (\ t -> convertMsg (DateNow t Start))  Date.today
+                         Just bounds -> Cmd.batch [
+                                    getChoices model convertMsg
+                                    , Task.perform
+                                        (\ t -> convertMsg (DateNow t Reset))  Date.today
+                                    , Task.perform
+                                        identity
+                                        (Task.succeed
+                                            (convertMsg ( GetDirectData ( Just bounds ))))
+                                    ]
+                    )
                 Err _ ->
                     ( model
                      , Cmd.none )
@@ -386,7 +397,8 @@ updateHorizon msg convertMsg model =
                                 }
                   in
                     ( newmodel
-                    , Cmd.none )
+                    , Task.succeed (convertMsg ( GetDirectData newmodel.queryBounds ))
+                        |> Task.perform identity )
 
         Data op ->
             let dataModel = { model |  plotStatus = Loading }
@@ -430,8 +442,8 @@ updateHorizon msg convertMsg model =
                 ( newmodel
                 , Cmd.none )
 
-        GetAll ->
-            let allModel = { model | queryBounds = Nothing
+        GetDirectData queryBounds ->
+            let allModel = { model | queryBounds = queryBounds
                                    , zoomBounds = Nothing
                                    , horizonBounds = Nothing
                                    , plotStatus = Loading }
