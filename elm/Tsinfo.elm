@@ -334,8 +334,6 @@ getplot model =
     }
 
 
-
-
 getlog : String -> String-> Maybe Int -> Cmd Msg
 getlog urlprefix name logLimit  =
     Http.get
@@ -894,12 +892,14 @@ update msg model =
                                             , Cmd.none )
                 HorizonModule.FromLocalStorage _ -> ( newmodel
                                                     , Cmd.batch ( [commands] ))
-                HorizonModule.DateNow _ -> ( newmodel
+                HorizonModule.DateNow _ _ -> ( newmodel
                                             , Cmd.batch ( [commands] ) )
                 HorizonModule.GotBounds _ -> ( newmodel
                                             , Cmd.batch ( [commands, getplot newmodel] ) )
                 HorizonModule.GotChoices _ -> ( newmodel
                                             , Cmd.batch ( [commands] ) )
+                HorizonModule.GetAll -> ( resetmodel
+                                        , Cmd.batch ( [commands, getplot newmodel] ) )
 
         HistoryMode isChecked ->
             let
@@ -1542,8 +1542,6 @@ init input =
         , getsource input.baseurl input.name
         , I.getwriteperms input.baseurl GetPermissions
         , getcachepolicy input.baseurl input.name
-        -- calculate current date:
-        , T.perform (\ t -> convertMsg (HorizonModule.DateNow t)) Date.today
         ]
     )
 

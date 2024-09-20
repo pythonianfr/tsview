@@ -47,13 +47,17 @@ type alias Offset =
 
 type Msg =
      FromLocalStorage String
-     | DateNow Date.Date
+     | DateNow Date.Date When
      | GotBounds ( Result Http.Error String)
      | GotChoices ( Result Http.Error String)
+     | GetAll
      | Frame Move
      | Data Option
      | Internal Operation
 
+type When =
+    Start
+    | Reset
 
 type Move =
     HorizonSelected (Maybe String)
@@ -227,7 +231,8 @@ getBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
 getBounds model convertMsg step =
     case model.horizon of
         Disabled -> Cmd.none
-        All -> Cmd.none
+        All -> Task.succeed (convertMsg GetAll)
+                    |> Task.perform identity
         Label horizon ->
             Http.get
                 { expect = Http.expectString (\ s -> convertMsg ( GotBounds s ))
@@ -282,25 +287,28 @@ updateHorizon msg convertMsg model =
                                 disabled
                     in
                     ( newmodel
-                     , Task.perform (\ t -> convertMsg (DateNow t))  Date.today )
+                     , Task.perform (\ t -> convertMsg (DateNow t Start))  Date.today )
 
                 Err _ ->
                     ( model
                      , Cmd.none )
 
-        DateNow date ->
+        DateNow date when ->
             let newmodel = { model | dateRef = Date.toIsoString date }
             in
             ( newmodel
-            , Cmd.batch [
-                getBounds
-                    model
-                    convertMsg
-                    0
-                , getChoices
-                    model
-                    convertMsg
-                ]
+            , case when of
+                Start ->
+                    Cmd.batch [
+                        getBounds
+                            newmodel
+                            convertMsg
+                            0
+                        , getChoices
+                            newmodel
+                            convertMsg
+                        ]
+                Reset -> Cmd.none
             )
 
         GotBounds (Ok raw) ->
@@ -419,6 +427,16 @@ updateHorizon msg convertMsg model =
                 in
                 ( newmodel
                 , Cmd.none )
+
+        GetAll ->
+            let allModel = { model | queryBounds = Nothing
+                                   , zoomBounds = Nothing
+                                   , horizonBounds = Nothing
+                                   , plotStatus = Loading }
+            in
+                ( allModel
+                , Task.perform (\ t -> convertMsg (DateNow t Reset)) Date.today
+                )
 
         Internal op ->
             case op of
