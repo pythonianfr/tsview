@@ -11,7 +11,6 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import KeywordSelector
-import List.Extra as List
 import Plotter exposing
     ( Series
     , defaultLayoutOptions
@@ -28,8 +27,8 @@ import Horizon exposing
     , PlotStatus(..)
     , initHorizon
     , horizonview
-    , horizons
     , getFromToDates
+    , getFetchBounds
     , loadFromLocalStorage
     , updateHorizon
     , extendHorizonFromData
@@ -98,54 +97,31 @@ findmissing model =
     in List.filter ismissing selected
 
 
-fetchseries: Model -> Bool -> List ( Cmd Msg )
+fetchseries: Model -> Bool -> Cmd Msg
 fetchseries model reload =
-    case model.horizon.queryBounds of
-        Nothing ->
-            List.map
-                (\name -> getdata
-                     { baseurl = model.baseurl
-                     , name = name
-                     , idate = Nothing
-                     , callback = GotPlotData name
-                     , nocache = (U.bool2int model.horizon.viewNoCache)
-                     , fromdate = ""
-                     , todate = ""
-                     , horizon = model.horizon.horizon
-                                    |> Maybe.andThen
-                                        (\key-> OD.get key horizons)
-                                            |> Maybe.map
-                                  (String.replace "{offset}"
-                                        (String.fromInt model.horizon.offset))
-                     , tzone = model.horizon.timeZone
-                     , inferredFreq = model.horizon.inferredFreq
-                     , keepnans = False
-                     , apipoint = "state"
-                     }
-                )
-                ( if not reload
-                    then findmissing model
-                    else model.search.selected )
-        Just (min, max) ->
-            List.map
-                (\name -> getdata
-                     { baseurl = model.baseurl
-                     , name = name
-                     , idate = Nothing
-                     , callback = GotPlotData name
-                     , nocache = (U.bool2int model.horizon.viewNoCache)
-                     , fromdate = min
-                     , todate = max
-                     , horizon = Nothing
-                     , tzone = model.horizon.timeZone
-                     , inferredFreq = model.horizon.inferredFreq
-                     , keepnans = False
-                     , apipoint = "state"
-                     }
-                )
-                ( if not reload
-                    then findmissing model
-                    else model.search.selected )
+    let ( start, end ) = getFetchBounds model.horizon
+    in
+    Cmd.batch
+    ( List.map
+        (\name -> getdata
+             { baseurl = model.baseurl
+             , name = name
+             , idate = Nothing
+             , callback = GotPlotData name
+             , nocache = (U.bool2int model.horizon.viewNoCache)
+             , fromdate = start
+             , todate = end
+             , horizon = Nothing
+             , tzone = model.horizon.timeZone
+             , inferredFreq = model.horizon.inferredFreq
+             , keepnans = False
+             , apipoint = "state"
+             }
+        )
+        ( if not reload
+            then findmissing model
+            else model.search.selected )
+    )
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
 plotFigure =
@@ -238,7 +214,7 @@ update msg model =
                          { horizonmodel | plotStatus = multiStatus
                                                             updatedloadedseries }
               }
-            , Cmd.batch <| fetchseries newmodel False
+            , fetchseries newmodel False
             )
 
         SearchSeries x ->
@@ -303,20 +279,23 @@ update msg model =
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
                                                     hMsg
+                                                    convertMsg
                                                     model.horizon
             in
             let resetModel = { model | horizon = newModelHorizon
                                      , loadedseries = resetSeries model.loadedseries}
+                default = ( { model | horizon = newModelHorizon} , commands )
             in
             case hMsg of
-                ModuleHorizon.Internal _ -> ({ model | horizon = newModelHorizon }
-                                            , Cmd.none )
+                ModuleHorizon.Internal _ -> default
                 ModuleHorizon.Frame _ -> ( resetModel
-                                         , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
-                ModuleHorizon.Option _ -> ( resetModel
-                                        , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
+                                         , commands )
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
-                                                    , Cmd.batch ([ commands ] ++ ( fetchseries resetModel True )))
+                                                    , Cmd.batch ([ commands]))
+                                                                 --, fetchseries resetModel True ]))
+                ModuleHorizon.Fetch _ -> ( resetModel
+                        , Cmd.batch ([ commands
+                                     , fetchseries resetModel True ]))
 
 
         -- zoom
@@ -546,7 +525,11 @@ main =
                     flags.selected
                 model =
                     { baseurl = flags.baseurl
-                    , horizon = initHorizon flags.min flags.max None
+                    , horizon = initHorizon
+                                    flags.baseurl
+                                    flags.min
+                                    flags.max
+                                    None
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])
@@ -557,11 +540,12 @@ main =
                     }
 
             in ( model
-               , Cmd.batch <| [
-                      Cmd.map
-                          GotCatalog
-                          (Catalog.get model.baseurl "series" 1 Catalog.ReceivedSeries)
-                     ] ++ fetchseries model False
+               , Cmd.batch ([ Catalog.get
+                                model.baseurl
+                                "series" 1
+                                (\ h -> GotCatalog (Catalog.ReceivedSeries h))
+                            , fetchseries model False
+                            ])
                )
 
     in
