@@ -728,6 +728,7 @@ def tsview(tsa):
         flags_menu = json.dumps([homeurl(), 'monitor-settings'])
         return render_template(
             'settings.html',
+            homeurl=homeurl(),
             flags_menu=flags_menu,
         )
 
