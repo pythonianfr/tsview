@@ -11,7 +11,8 @@ from flask import (
     make_response,
     request,
     render_template,
-    url_for
+    url_for,
+    Response,
 )
 import numpy as np
 import pandas as pd
@@ -783,5 +784,22 @@ def tsview(tsa):
             int(step)
         )
         return json.dumps(result)
+
+    @bp.route('/list-horizons')
+    def list_horizons():
+        engine = tsa.engine
+        api = Horizon(engine)
+        catalog = api.get_all()
+        return json.dumps(
+            catalog
+        )
+
+    @bp.route('/replace-horizons', methods = ['POST'])
+    def replace_horizons():
+        results = json.loads(request.data.decode())
+        engine = tsa.engine
+        api = Horizon(engine)
+        api.replace_all(results)
+        return Response(status=201)
 
     return bp
