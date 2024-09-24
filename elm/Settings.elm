@@ -69,8 +69,11 @@ catalogEncode records =
 
 type Msg =
     GotHorizons ( Result Http.Error ( List Record ))
+    | UserInput (Int, String) String
     | Save
     | Saved ( Result Http.Error ())
+
+
 
 getHorirzons: Model -> Cmd Msg
 getHorirzons model =
@@ -99,6 +102,14 @@ update msg model =
         GotHorizons (Err emsg) ->
             ( model, Cmd.none )
 
+        UserInput ( index, name ) value ->
+            ( { model | horizons = updateFromUser
+                                        model.horizons
+                                        index
+                                        name
+                                        value }
+            , Cmd.none )
+
         Save -> ( model, saveHorizons model )
 
         Saved (Ok _) -> ( { model | message = "New definitions saved" }
@@ -107,33 +118,64 @@ update msg model =
                         , Cmd.none)
 
 
+updateFromUser: Array.Array Record -> Int -> String -> String -> Array.Array Record
+updateFromUser horizons index name value =
+   Array.fromList
+       ( List.map
+            ( mutateHorizon index name value )
+            ( Array.toIndexedList horizons ))
+
+
+mutateHorizon: Int -> String -> String -> ( Int,  Record ) -> Record
+mutateHorizon targetIndex name targetValue ( index,  record ) =
+       if targetIndex == index
+       then mutateRecord name record targetValue
+       else record
+
+
+mutateRecord: String -> Record -> String -> Record
+mutateRecord name record value =
+    if name == "label"
+    then { record | label = value}
+    else
+        if name == "from"
+        then { record | from = value}
+        else
+            if name == "to"
+            then { record | to = value}
+            else record
+
+
 viewRows: Model -> List ( Html Msg )
 viewRows model =
-    List.map
+    List.indexedMap
         viewRow
         ( Array.toList model.horizons )
 
 
-viewRow: Record -> Html Msg
-viewRow record =
+viewRow: Int -> Record -> Html Msg
+viewRow index record =
     tr
         []
         [ td
             []
             [ input
-                [ value record.label ]
+                [ value record.label
+                , onInput ( UserInput ( index, "label" ))]
                 []
             ]
         , td
              []
              [  input
-                [ value record.from ]
+                [ value record.from
+                , onInput ( UserInput ( index, "from" ))]
                 []
             ]
         , td
             []
             [ input
-                [ value record.to ]
+                [ value record.to
+                , onInput ( UserInput ( index, "to" ))]
                 []
             ]
         ]
