@@ -19,6 +19,7 @@ import Html exposing (
     , text)
 import Html.Attributes exposing (
     class
+    , hidden
     , value)
 import Html.Events exposing (
     onInput
@@ -104,13 +105,27 @@ catalogEncode: ( List Record ) -> JE.Value
 catalogEncode records =
     JE.list
         recordEncode
-        records
+        ( reorderRecords records )
+
+
+reorderRecords: List Record -> List Record
+reorderRecords records =
+    ( List.filter
+        ( \ record -> record.action /= Delete )
+        records )
+    ++
+    ( List.filter
+        ( \ record -> record.action == Delete )
+        records )
 
 
 type Msg =
     GotHorizons ( Result Http.Error ( List Record ))
     | UserInput (Int, String) String
     | AddRow
+    | Remove Int
+    | Up Int
+    | Down Int
     | Save
     | Saved ( Result Http.Error ())
 
@@ -156,6 +171,16 @@ update msg model =
             ( {model | horizons =  addRow model.horizons }
             , Cmd.none )
 
+        Up index-> ( model, Cmd.none )
+        Down index-> ( model, Cmd.none )
+        Remove index-> ( { model | horizons = updateFromUser
+                                                model.horizons
+                                                index
+                                                "action"
+                                                "delete"
+                         }
+                        , Cmd.none )
+
         Save -> ( model, saveHorizons model )
 
         Saved (Ok _) -> ( { model | message = "New definitions saved" }
@@ -200,7 +225,12 @@ mutateRecord name record value =
         else
             if name == "to"
             then { record | to = value}
-            else record
+            else
+                if name == "action"
+                    then if (value == "delete")
+                         then { record | action = Delete }
+                         else record
+                    else record
 
 
 viewRows: Model -> List ( Html Msg )
@@ -213,7 +243,7 @@ viewRows model =
 viewRow: Int -> Record -> Html Msg
 viewRow index record =
     tr
-        []
+        [hidden ( record.action == Delete )]
         [ td
             []
             [ input
@@ -235,6 +265,11 @@ viewRow index record =
                 , onInput ( UserInput ( index, "to" ))]
                 []
             ]
+        , td
+            []
+            [ button [onClick (Up index)] [text "↑"]
+            , button [onClick (Down index)] [text "↓"]
+            , button [onClick (Remove index)] [text "❌"]]
         ]
 
 viewHeader: Html Msg
@@ -242,7 +277,9 @@ viewHeader =
     tr  []
         [ th [] [text "label"]
         , th [] [text "from"]
-        , th [] [text "to"]]
+        , th [] [text "to"]
+        , th [] []
+        ]
 
 view: Model -> Html Msg
 view model =
