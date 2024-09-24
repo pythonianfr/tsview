@@ -9,6 +9,7 @@ import Html exposing (
     Html
     , div
     , table
+    , header
     , th
     , tr
     , td
@@ -122,24 +123,39 @@ viewRow record =
             [ input
                 [ value record.label ]
                 []
-            ,  input
+            ]
+        , td
+             []
+             [  input
                 [ value record.from ]
                 []
-            , input
+            ]
+        , td
+            []
+            [ input
                 [ value record.to ]
                 []
             ]
         ]
+
+viewHeader: Html Msg
+viewHeader =
+    tr  []
+        [ th [] [text "label"]
+        , th [] [text "from"]
+        , th [] [text "to"]]
 
 view: Model -> Html Msg
 view model =
     div
         []
         [ table
-            []
-            ( viewRows model )
+            [ ]
+            ( [ viewHeader ]
+            ++ ( viewRows model ))
         , button
-            [ onClick Save ]
+            [ class "btn btn-primary"
+            , onClick Save ]
             [ text "Update" ]
         , div
             []
