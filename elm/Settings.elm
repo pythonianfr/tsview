@@ -15,6 +15,7 @@ import Html exposing (
     , td
     , input
     , button
+    , br
     , text)
 import Html.Attributes exposing (
     class
@@ -70,6 +71,7 @@ catalogEncode records =
 type Msg =
     GotHorizons ( Result Http.Error ( List Record ))
     | UserInput (Int, String) String
+    | AddRow
     | Save
     | Saved ( Result Http.Error ())
 
@@ -82,6 +84,7 @@ getHorirzons model =
         , expect = Http.expectJson GotHorizons catalogDecoder
         }
 
+
 saveHorizons: Model -> Cmd Msg
 saveHorizons model =
     Http.post
@@ -91,6 +94,7 @@ saveHorizons model =
                     ( Array.toList model.horizons ))
     , expect = Http.expectWhatever Saved
     }
+
 
 update: Msg -> Model -> ( Model, (Cmd Msg) )
 update msg model =
@@ -109,6 +113,9 @@ update msg model =
                                         name
                                         value }
             , Cmd.none )
+        AddRow ->
+            ( {model | horizons =  addRow model.horizons }
+            , Cmd.none )
 
         Save -> ( model, saveHorizons model )
 
@@ -116,6 +123,11 @@ update msg model =
                         , Cmd.none)
         Saved (Err _) -> ( { model | message = "Error while saving" }
                         , Cmd.none)
+
+
+addRow: Array.Array Record -> Array.Array Record
+addRow records =
+     Array.push ( Record "" "" "" ) records
 
 
 updateFromUser: Array.Array Record -> Int -> String -> String -> Array.Array Record
@@ -195,6 +207,11 @@ view model =
             [ ]
             ( [ viewHeader ]
             ++ ( viewRows model ))
+        , button
+            [ class "btn btn-primary"
+            , onClick AddRow ]
+            [ text "+" ]
+        , br [] []
         , button
             [ class "btn btn-primary"
             , onClick Save ]
