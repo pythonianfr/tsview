@@ -31,6 +31,7 @@ import List
 type alias Model =
     { baseUrl: String
     , horizons : Array.Array Record
+    , toDelete: Array.Array Record
     , message : String }
 
 
@@ -101,22 +102,12 @@ recordEncode record =
         ]
 
 
-catalogEncode: ( List Record ) -> JE.Value
-catalogEncode records =
+catalogEncode: Model -> JE.Value
+catalogEncode model =
     JE.list
         recordEncode
-        ( reorderRecords records )
-
-
-reorderRecords: List Record -> List Record
-reorderRecords records =
-    ( List.filter
-        ( \ record -> record.action /= Delete )
-        records )
-    ++
-    ( List.filter
-        ( \ record -> record.action == Delete )
-        records )
+        (( Array.toList model.horizons )
+        ++ ( Array.toList model.toDelete ))
 
 
 type Msg =
@@ -144,8 +135,7 @@ saveHorizons model =
     Http.post
     { url = model.baseUrl ++ "replace-horizons"
     , body = Http.jsonBody
-                ( catalogEncode
-                    ( Array.toList model.horizons ))
+                ( catalogEncode model )
     , expect = Http.expectWhatever Saved
     }
 
@@ -171,15 +161,17 @@ update msg model =
             ( {model | horizons =  addRow model.horizons }
             , Cmd.none )
 
-        Up index-> ( model, Cmd.none )
-        Down index-> ( model, Cmd.none )
-        Remove index-> ( { model | horizons = updateFromUser
-                                                model.horizons
-                                                index
-                                                "action"
-                                                "delete"
-                         }
-                        , Cmd.none )
+        Up index-> ( { model | horizons = permut model.horizons index ( index - 1 )}
+                    , Cmd.none )
+        Down index-> ( { model | horizons = permut model.horizons index ( index + 1 )}
+                    , Cmd.none )
+        Remove index-> ( isolateDelete { model | horizons = updateFromUser
+                                                    model.horizons
+                                                    index
+                                                    "action"
+                                                    "delete"
+                                       }
+                       , Cmd.none )
 
         Save -> ( model, saveHorizons model )
 
@@ -187,6 +179,41 @@ update msg model =
                         , Cmd.none)
         Saved (Err _) -> ( { model | message = "Error while saving" }
                         , Cmd.none)
+
+
+permut: Array.Array a -> Int -> Int -> Array.Array a
+permut array i1 i2 =
+    let temp1 = Array.get i1 array
+        temp2 = Array.get i2 array
+    in
+    case temp1 of
+        Nothing -> array
+        Just tmp1 ->
+            case temp2 of
+                Nothing -> array
+                Just tmp2 ->
+                    (Array.set
+                        i1
+                        tmp2
+                        (Array.set
+                            i2
+                            tmp1
+                            array))
+
+
+isolateDelete: Model -> Model
+isolateDelete model =
+    let activeRecords = List.filter
+                            (\ rec -> rec.action /= Delete)
+                            ( Array.toList model.horizons )
+        deletedRecords = List.filter
+                            (\ rec -> rec.action == Delete)
+                            ( Array.toList model.horizons )
+    in
+        { model | horizons = Array.fromList activeRecords
+                , toDelete = Array.fromList deletedRecords
+        }
+
 
 addRow: Array.Array Record -> Array.Array Record
 addRow records =
@@ -243,7 +270,7 @@ viewRows model =
 viewRow: Int -> Record -> Html Msg
 viewRow index record =
     tr
-        [hidden ( record.action == Delete )]
+        [ ]
         [ td
             []
             [ input
@@ -312,6 +339,7 @@ init: String -> ( Model, ( Cmd Msg ))
 init baseUrl =
     let newModel = { baseUrl = baseUrl
                    , horizons = Array.empty
+                   , toDelete = Array.empty
                    , message = "" }
    in
     ( newModel
