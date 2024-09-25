@@ -198,6 +198,7 @@ def tsview(tsa):
         flags_menu = json.dumps([homeurl(), 'timeseries-quickview'])
         min = request.args.get('startdate')
         max = request.args.get('enddate')
+        debug = request.args.get('debug')
         title = 'Quick view'
         return render_template(
             'tsview.html',
@@ -206,6 +207,7 @@ def tsview(tsa):
             series=request.args.getlist("series"),
             min=min,
             max=max,
+            debug=debug,
             flags_menu=flags_menu,
             title=title,
         )
@@ -529,6 +531,7 @@ def tsview(tsa):
         name = request.args.get('name')
         min = request.args.get('startdate')
         max = request.args.get('enddate')
+        debug = request.args.get('debug')
         title = f'Info: {name}'
         return render_template(
             'tsinfo.html',
@@ -537,6 +540,7 @@ def tsview(tsa):
             flags_menu=flags_menu,
             min=min,
             max=max,
+            debug=debug,
             title=title,
         )
 
@@ -680,6 +684,7 @@ def tsview(tsa):
         name = request.args.get('name')
         min = request.args.get('startdate')
         max = request.args.get('enddate')
+        debug = request.args.get('debug')
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
         title = f'Edit: {name}'
         return render_template(
@@ -688,6 +693,7 @@ def tsview(tsa):
             name=name,
             min=min,
             max=max,
+            debug=debug,
             flags_menu=flags_menu,
             title=title,
         )

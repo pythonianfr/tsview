@@ -1198,6 +1198,7 @@ type alias Input =
     , name : String
     , min: String
     , max: String
+    , debug: String
     }
 
 
@@ -1214,6 +1215,7 @@ init input =
                                     input.baseurl
                                     input.min
                                     input.max
+                                    input.debug
                                     Loading
                     , editing = Dict.empty
                     , insertion_dates = Array.empty

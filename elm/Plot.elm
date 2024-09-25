@@ -516,6 +516,7 @@ main : Program
        , haseditor : Bool
        , min: String
        , max : String
+       , debug: String
        } Model Msg
 main =
     let
@@ -529,6 +530,7 @@ main =
                                     flags.baseurl
                                     flags.min
                                     flags.max
+                                    flags.debug
                                     None
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor

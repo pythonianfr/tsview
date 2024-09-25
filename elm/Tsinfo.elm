@@ -1470,6 +1470,7 @@ type alias Input =
     , name : String
     , min: String
     , max: String
+    , debug: String
     }
 
 
@@ -1523,6 +1524,7 @@ init input =
                     input.baseurl
                     input.min
                     input.max
+                    input.debug
                     Loading
       , historyPlots = Dict.empty
       , historyMode = False

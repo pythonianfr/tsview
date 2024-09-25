@@ -125,8 +125,8 @@ buildBounds min max =
             then Nothing
             else Just (min, max)
 
-initHorizon: String -> String -> String -> PlotStatus -> HorizonModel
-initHorizon baseUrl min max status =
+initHorizon: String -> String -> String -> String -> PlotStatus -> HorizonModel
+initHorizon baseUrl min max debug status =
     { baseUrl = baseUrl
     , horizon = All
     , dateRef = "yyyy-mm-dd"
@@ -142,7 +142,7 @@ initHorizon baseUrl min max status =
     , zoomBounds = Nothing
     , editBounds = False
     , editedBounds = { from = Nothing, to = Nothing }
-    , debug = False
+    , debug = debug == "1"
     }
 
 
