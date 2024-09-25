@@ -792,6 +792,20 @@ def tsview(tsa):
         )
         return json.dumps(result)
 
+    @bp.route('/translate-dates/<from_value_date>/<to_value_date>/<ref_date>/<step>')
+    def translate_dates(from_value_date, to_value_date, ref_date, step):
+        engine = tsa.engine
+        api = Horizon(engine)
+        result = api.translate(
+            {
+                'from': from_value_date,
+                'to': to_value_date,
+                'ref-date': ref_date,
+            },
+            int(step)
+        )
+        return json.dumps(result)
+
     @bp.route('/list-horizons')
     def list_horizons():
         engine = tsa.engine

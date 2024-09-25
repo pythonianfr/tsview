@@ -254,6 +254,22 @@ getBounds model convertMsg step =
                       []
                 }
 
+slideBounds: HorizonModel -> ( Msg -> msg ) -> Int -> Cmd msg
+slideBounds model convertMsg step =
+    let ( from, to ) = getFetchBounds model
+    in
+    Http.get
+        { expect = Http.expectString (\ s -> convertMsg (Fetch ( GotBounds s )))
+        , url = UB.crossOrigin model.baseUrl
+              [ "translate-dates"
+              , from
+              , to
+              , model.dateRef
+              , ( String.fromInt step ) ]
+              []
+        }
+
+
 getChoices: HorizonModel -> ( Msg -> msg ) -> Cmd msg
 getChoices model convertMsg =
     Http.get
@@ -335,7 +351,7 @@ updateHorizon msg convertMsg model =
 
             Slide i ->
                 ( frameModel
-                , getBounds model convertMsg i )
+                , slideBounds model convertMsg i )
 
             EditDateValidate ->
                 let
@@ -753,7 +769,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.horizon == Disabled ||  model.horizon == All )
+                ( model.horizon == All )
                 -1
                 "btn btn-outline-dark btn-sm" ]
         , if not model.editBounds
@@ -808,7 +824,7 @@ horizonview model convertmsg klass tzaware =
             []
             [ buttonArrow
                 convertmsg
-                ( model.horizon == Disabled ||  model.horizon == All )
+                ( model.horizon == All )
                 1
                 "btn btn-outline-dark btn-sm" ]
         , H.div
