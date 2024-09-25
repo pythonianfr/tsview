@@ -182,6 +182,21 @@ class Horizon():
             'ref-date': ref_date
         }
 
+    def translate(self, bounds, step=0):
+        assert set(bounds.keys()) == {
+            'fromdate', 'todate', 'ref-date'
+        }
+        from_value_date = pd.Timestamp(bounds['fromdate'])
+        to_value_date = pd.Timestamp(bounds['todate'])
+        ref_date = pd.Timestamp(bounds['ref-date'])
+        delta = to_value_date - from_value_date
+
+        return {
+            'fromdate': str(from_value_date + delta * step),
+            'todate': str(to_value_date + delta * step),
+            'ref-date': str(ref_date + delta * step)
+        }
+
     def _validate_config(self, batch):
         # labels must be uniques
         labels = [elt['label'] for elt in batch]

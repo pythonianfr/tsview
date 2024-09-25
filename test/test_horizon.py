@@ -180,6 +180,31 @@ def test_horizon_evaluate(engine):
     assert ref_date == '2024-12-06 00:00:00'
 
 
+def test_translation(engine):
+    today = '2024-09-17'
+    api = Horizon(engine)
+    def_1 = {
+        'fromdate': '(shifted (today ) #:days -15)',
+        'todate': '(shifted (today ) #:days 7)',
+        'label': 'add-15d-+7d',
+    }
+    api.add(def_1)
+    result = api.eval_bounds('add-15d-+7d', today)
+    assert result == {
+        'fromdate': '2024-09-02 00:00:00',
+        'todate': '2024-09-24 00:00:00',
+        'ref-date': '2024-09-17 00:00:00'
+    }
+
+    translated = api.translate(result, -2)
+
+    assert translated == {
+        'fromdate': '2024-07-20 00:00:00',
+        'todate': '2024-08-11 00:00:00',
+        'ref-date': '2024-08-04 00:00:00'
+    }
+
+
 def test_bad_horizon(engine):
     api = Horizon(engine)
     def_1 = {
