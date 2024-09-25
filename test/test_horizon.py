@@ -1,3 +1,5 @@
+import pytest
+
 from tsview.api import Horizon
 
 
@@ -176,3 +178,31 @@ def test_horizon_evaluate(engine):
     }
     ref_date = result['ref-date']
     assert ref_date == '2024-12-06 00:00:00'
+
+
+def test_bad_horizon(engine):
+    api = Horizon(engine)
+    def_1 = {
+        'fromdate': '(shifted (today ) #:days -15)',
+        'todate': '(shifted (today ) #:days 7)',
+        'label': '-15d-+7d',
+    }
+    # we introduce a pair of typo
+    def_2 = {
+        'fromdate': '(shifted (todo ) #:days -93)',
+        'todate': '(shifted (today ) #:days 31',
+        'label': '3 months',
+    }
+
+    batch = [def_1, def_2]
+    with pytest.raises(Exception) as excinfo:
+        api.replace_all(batch)
+
+    # we permut from and to
+    def_2 = {
+        'fromdate': '(shifted (today ) #:days 31)',
+        'todate': '(shifted (today ) #:days -93)',
+        'label': '3 months',
+    }
+    with pytest.raises(Exception) as excinfo:
+        api.replace_all([def_1, def_2])

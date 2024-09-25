@@ -72,6 +72,8 @@ class Horizon():
         The orders of the operation (delete, update, create)
         are important to respect the rank unicity constraint
         """
+        self._validate_config(batch)
+
         to_delete = [
             spec
             for spec in batch
@@ -179,3 +181,28 @@ class Horizon():
             'todate': str(to_value_date),
             'ref-date': ref_date
         }
+
+    def _validate_config(self, batch):
+        # labels must be uniques
+        labels = [elt['label'] for elt in batch]
+        assert len(labels) == len(set(labels)), (
+            'Labels must be unique'
+        )
+        for row in batch:
+            # all keys must be presents
+            assert set(row.keys()) == {
+                'label', 'fromdate', 'todate', 'action', 'id',
+            }
+            # bounds must be evaluable
+            from_value_date = lisp.evaluate(
+                row['fromdate'],
+                env=_MOMENT_ENV
+            )
+            to_value_date = lisp.evaluate(
+                row['todate'],
+                env = _MOMENT_ENV
+            )
+            # to_value_date must be after from_value_date
+            assert to_value_date > from_value_date, (
+                '"From" must be anterior to "to"'
+            )
