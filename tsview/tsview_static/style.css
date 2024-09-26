@@ -17,6 +17,10 @@ div.main-content {
     display:flex;
 }
 
+.bi-clipboard {
+    cursor: pointer;
+}
+
 .action-left {
     display: flex;
     flex: initial;
@@ -50,7 +54,7 @@ div.main-content {
     margin-left: .5em;
 }
 
-.widget-date {
+.horizon-trinity.read .widget-date {
     width: 10ch;
     text-align: center;
     vertical-align:middle;
@@ -67,7 +71,6 @@ div.main-content {
 }
 
 .horizon-trinity.write .widget-date {
-    width: 12ch;
 }
 
 .horizon-trinity .edit-buttons button {
