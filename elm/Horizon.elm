@@ -683,7 +683,7 @@ tzonedropdown model convertmsg =
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
         , HA.disabled ( model.plotStatus == Loading )
         ]
-        (List.map (renderTimeZone model.timeZone) ["UTC", "CET"])
+        (List.map (renderTimeZone model.timeZone) ["UTC", "CET", "GMT"])
 
 
 loadingStatus: HorizonModel -> H.Html msg
