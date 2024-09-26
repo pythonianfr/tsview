@@ -1249,6 +1249,28 @@ extractMax max =
         Just nb -> String.fromInt nb
 
 
+historyInput: Model -> H.Html Msg
+historyInput model =
+    if model.nbRevisions > 0
+    then
+    H.span
+        []
+        [
+        H.text ("   "
+                 ++ (String.fromInt model.nbRevisions)
+                 ++ " revisions. Only showing the last "
+                 )
+        , H.input
+            [ HA.value ( extractMax model.maxNbRevisions )
+            , HA.class "form-control-sm"
+            , HA.attribute "type" "text"
+            , HA.style "width" "4em"
+            , HE.onInput ChangeMaxRevs ]
+            [ ]
+        ]
+    else H.div [] []
+
+
 viewplot : Model -> H.Html Msg
 viewplot model =
     let
@@ -1273,17 +1295,7 @@ viewplot model =
                     , HE.onClick ViewAllHistory
                     ]
                     [ H.text "view all history" ]
-                , H.text ("   "
-                         ++ (String.fromInt model.nbRevisions)
-                         ++ " revisions. Only showing the last "
-                         )
-                , H.input
-                    [ HA.value ( extractMax model.maxNbRevisions )
-                    , HA.class "form-control-sm"
-                    , HA.attribute "type" "text"
-                    , HA.style "width" "4em"
-                    , HE.onInput ChangeMaxRevs ]
-                    [ ]
+                , historyInput model
                 , H.button
                     [ HA.class "btn btn-primary btn-sm"
                     , HA.attribute "type" "button"
