@@ -245,3 +245,28 @@ label.option {
 .js-plotly-plot div {
     overflow: visible !important;
 }
+
+/* Settings */
+
+.settings {
+    margin-left: 20px;
+    margin-right: 20px;
+
+}
+
+.settings h2 {
+    font-size: 1.2em;
+    color: rgb(92, 91, 91);
+    justify-content: left;
+    font-weight: 400;
+}
+
+.settings .settings-date input {
+    width: 20vw;
+}
+
+.settings table input {
+    border-style: none;
+    background-color:  #f8f8f8;
+}
+

@@ -8,8 +8,11 @@ import Json.Encode as JE
 import Html exposing (
     Html
     , div
+    , br
+    , h1
+    , h2
     , table
-    , header
+    , thead
     , th
     , tr
     , td
@@ -20,6 +23,7 @@ import Html exposing (
 import Html.Attributes exposing (
     class
     , hidden
+    , type_
     , value)
 import Html.Events exposing (
     onInput
@@ -272,21 +276,21 @@ viewRow index record =
     tr
         [ ]
         [ td
-            []
+            [ class "settings-label" ]
             [ input
                 [ value record.label
                 , onInput ( UserInput ( index, "label" ))]
                 []
             ]
         , td
-             []
+             [ class "settings-date" ]
              [  input
                 [ value record.from
                 , onInput ( UserInput ( index, "from" ))]
                 []
             ]
         , td
-            []
+            [ class "settings-date" ]
             [ input
                 [ value record.to
                 , onInput ( UserInput ( index, "to" ))]
@@ -301,34 +305,64 @@ viewRow index record =
 
 viewHeader: Html Msg
 viewHeader =
-    tr  []
-        [ th [] [text "label"]
-        , th [] [text "from"]
-        , th [] [text "to"]
-        , th [] []
+    thead
+        []
+        [ tr    []
+                [ th [] [text "Label"]
+                , th [] [text "From"]
+                , th [] [text "To"]
+                , th [] []
+                ]
         ]
+
+tableFooter: Html Msg
+tableFooter =
+    tr
+        []
+        [ td [] []
+        , td [] []
+        , td [] []
+        , td
+            []
+            [ button
+                [  type_ "button"
+                , class "  add-row"
+                , onClick AddRow ]
+                [ text " + " ]
+            ]
+        ]
+
 
 view: Model -> Html Msg
 view model =
-    div
-        []
+   div
+    [ class "settings" ]
+    [ h1
+        [ class "page-title" ]
+        [ text "Settings" ]
+    , h2
+        [ ]
+        [ text "Horizons" ]
+    , div
+        [ class "horizons" ]
         [ table
-            [ ]
+            [ class "table" ]
             ( [ viewHeader ]
-            ++ ( viewRows model ))
-        , button
-            [ class "btn btn-primary"
-            , onClick AddRow ]
-            [ text "+" ]
+            ++ ( viewRows model )
+            ++ [ tableFooter ] )
         , br [] []
-        , button
-            [ class "btn btn-primary"
-            , onClick Save ]
-            [ text "Update" ]
         , div
             []
-            [ text model.message ]
+            [ button
+                [ class "btn btn-success update"
+                , onClick Save ]
+                [ text "Update definitions" ]
+            , div
+                []
+                [ text model.message ]
+            ]
         ]
+    ]
 
 
 subscriptions : Model -> Sub Msg
