@@ -691,12 +691,13 @@ def tsview(tsa):
             title=title,
         )
 
-    @bp.route('/formula-components/<seriesname>')
-    def formula_components(seriesname):
+    @bp.route('/formula-components')
+    def formula_components():
         from tshistory_formula.helper import (
             replace_findseries,
             find_autos,
         )
+        seriesname = request.args.get('name')
         assert tsa.exists(seriesname)
         tree = replace_findseries(
             tsa.engine,

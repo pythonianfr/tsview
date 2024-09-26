@@ -239,8 +239,8 @@ getComponents: Model -> Cmd Msg
 getComponents model =
     Http.get
         { url = (UB.crossOrigin model.baseurl
-                    [ "formula-components", model.name ]
-                    [] )
+                    [ "formula-components" ]
+                    [ UB.string "name" model.name ] )
         , expect = Http.expectString GotComponents }
 
 
