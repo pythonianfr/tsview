@@ -866,6 +866,7 @@ update msg model =
             in
             let resetmodel  = { newmodel | historyPlots = Dict.empty
                                          , dataFromHover = Nothing
+                                         , nbRevisions = 0
                               }
             in
             case hmsg of
@@ -932,6 +933,7 @@ update msg model =
                                             | historyPlots = Dict.empty
                                             , lastIdates = Array.empty
                                             , dataFromHover = Nothing
+                                            , nbRevisions = 0
                                             , horizon = { horizonmodel |
                                                                 zoomBounds = Nothing
                                                             }
