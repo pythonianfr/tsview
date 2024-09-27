@@ -653,7 +653,7 @@ viewHistoryGraph model =
                 idate = Tuple.first tuple
             in
             { type_ = "scatter"
-            , name = idate
+            , name = cleanMs idate
             , x = Dict.keys (Tuple.second tuple)
             , y = Dict.values (Tuple.second tuple)
             , mode = "lines"
