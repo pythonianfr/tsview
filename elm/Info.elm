@@ -195,14 +195,14 @@ tzawareseries model =
     (M.dget "tzaware" model.meta) == "true"
 
 
-viewactionwidgets model convertmsg editor pagetitle =
+viewactionwidgets model convertmsg editor pagetitle bounds =
     let
         editorlabel =
             case model.seriestype of
                 Primary ->  if editor then "edit values ⧉" else "view values ⧉"
                 Formula ->  "show values ⧉"
         queryParameters =
-            case model.horizon.zoomBounds of
+            case bounds of
                 Nothing -> [ UB.string "name" model.name ]
                 Just ( min, max ) -> if editor
                     then  [ UB.string "name" model.name

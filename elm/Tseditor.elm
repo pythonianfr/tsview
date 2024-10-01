@@ -1168,7 +1168,12 @@ view model =
     H.div
         [ HA.class "main-content" ]
         [ H.span [ HA.class "action-container" ]
-              <| I.viewactionwidgets model convertMsg False "Series Editor"
+              <| I.viewactionwidgets
+                    model
+                    convertMsg
+                    False
+                    "Series Editor"
+                    ( getFromToDates model.horizon )
         , I.viewtitle model maybeMedian CopyNameToClipboard
         , H.div
             [ HA.class "status-plot" ]

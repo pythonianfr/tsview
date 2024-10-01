@@ -1441,7 +1441,13 @@ view model =
               [ H.div
                 [ ]
                 [ H.span [ HA.class "tsinfo action-container" ]
-                      <| (I.viewactionwidgets model convertMsg True "Series Info") ++
+                      <| (I.viewactionwidgets
+                            model
+                            convertMsg
+                            True
+                            "Series Info"
+                            ( getFromToDates model.horizon )
+                        ) ++
                       [ I.viewdeletion model deleteEvents
                       , I.viewrenameaction model renameEvents
                       ]
