@@ -147,8 +147,20 @@
     height: 35px;
 }
 
-@media (max-height: 810px) {
+.pythonian-logo {
+    width: 154px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+@media (max-height: 850px) {
     .img-logo {
+        display: none;
+    }
+}
+
+@media (max-height: 910px) {
+    .pythonian-logo {
         display: none;
     }
 }
