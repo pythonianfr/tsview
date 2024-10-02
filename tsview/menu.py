@@ -11,6 +11,12 @@ def definition(**extra_urls):
                     'id': 'navigation-home'
                 },
                 {
+                    'label': 'Settings',
+                    'icone': 'bi bi-gear',
+                    'target': '/settings',
+                    'id': 'monitor-settings'
+                },
+                {
                     'label': 'Dashboard',
                     'icone': 'bi bi-clipboard2-data',
                     'target': extra_urls['dashboard_url'],
@@ -94,12 +100,6 @@ def definition(**extra_urls):
             'label': 'Monitoring',
             'icone': 'bi bi-heart-pulse',
             'links': [
-                {
-                    'label': 'Settings',
-                    'icone': 'bi bi-floppy',
-                    'target': '/settings',
-                    'id': 'monitor-settings'
-                },
                 {
                     'label': 'Warnings',
                     'icone': 'bi bi-exclamation-triangle',
