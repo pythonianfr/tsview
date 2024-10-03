@@ -290,7 +290,7 @@ viewSeriesInfo model = flip HX.viewMaybe model.savedFormulaName <| \name ->
             [ "tsinfo" ]
             [ UB.string "name" name ]
 
-    in H.a [ HA.href href  ] [ H.text name ]
+    in H.a [ HA.href href  ] [ H.text "series info" ]
 
 makeUndoButton : UndoMsg -> UndoList -> Html Msg
 makeUndoButton msg undoList =

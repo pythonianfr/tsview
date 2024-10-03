@@ -199,8 +199,8 @@ viewactionwidgets model convertmsg editor pagetitle bounds =
     let
         editorlabel =
             case model.seriestype of
-                Primary ->  if editor then "edit values ⧉" else "view values ⧉"
-                Formula ->  "show values ⧉"
+                Primary ->  if editor then "edit values" else "view values"
+                Formula ->  "show values"
         queryParameters =
             case bounds of
                 Nothing -> [ UB.string "name" model.name ]
