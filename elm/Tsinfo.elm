@@ -85,6 +85,7 @@ type alias Model =
     , editing : Bool
     -- all errors
     , errors : List String
+    , doesnotexist: Bool
     -- metadata, ventilated by std (system) and user
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
@@ -575,11 +576,25 @@ update msg model =
                             ( D.errorToString err )
 
         GotPlotData (Err err) ->
-            U.nocmd <|
-                addError
-                { model | horizon = setStatusPlot model.horizon Failure }
-                "gotplotdata decode"
-                ( U.unwraperror err )
+            case err of
+                Http.BadStatus code ->
+                    if code == 404
+                   then U.nocmd { model | doesnotexist = True
+                                        , horizon = setStatusPlot
+                                                     model.horizon
+                                                     Failure }
+                   else U.nocmd <|
+                            addError
+                                { model | horizon = setStatusPlot
+                                                        model.horizon
+                                                        Failure }
+                                "gotplotdata decode"
+                                ( U.unwraperror err )
+                _ -> U.nocmd <|
+                        addError
+                        { model | horizon = setStatusPlot model.horizon Failure }
+                        "gotplotdata decode"
+                        ( U.unwraperror err )
 
         GotFormula (Ok rawformula) ->
             case D.decodeString I.formuladecoder rawformula of
@@ -1401,6 +1416,12 @@ showHoverData model =
          Just data -> H.text ( "Hover-data, name : " ++ data.name )
 
 
+msgdoesnotexist =
+    H.div
+        []
+        [ H.text "Series does not exists. Check your url."]
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -1452,7 +1473,7 @@ view model =
             [ HA.class "main-content" ]
               [ H.div
                 [ ]
-                [ H.span [ HA.class "tsinfo action-container" ]
+                ( [ H.span [ HA.class "tsinfo action-container" ]
                       <| (I.viewactionwidgets
                             model
                             convertMsg
@@ -1464,7 +1485,12 @@ view model =
                       , I.viewrenameaction model renameEvents
                       ]
                 , I.viewtitle model maybeMedian CopyNameToClipboard
-                , case model.activetab of
+                ] ++
+                if model.doesnotexist
+                then
+                [ msgdoesnotexist]
+                else
+                [ case model.activetab of
                       Plot ->
                           if strseries model.meta
                           then H.div [] [ head ]
@@ -1493,6 +1519,7 @@ view model =
                           H.div [] [ head, tabcontents [ viewcache model ] ]
                 , I.viewerrors model
                 ]
+                )
             ]
         ]
 
@@ -1523,6 +1550,7 @@ init input =
       , editing = False
       -- all errors
       , errors = [ ]
+      , doesnotexist= False
       -- metadata
       , meta = Dict.empty
       , usermeta = Dict.empty
