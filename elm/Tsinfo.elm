@@ -866,8 +866,11 @@ update msg model =
             in
             let resetmodel  = { newmodel | historyPlots = Dict.empty
                                          , dataFromHover = Nothing
+                                         , lastIdates = Array.empty
                                          , nbRevisions = 0
                               }
+                launchHistory = [ T.succeed ( HistoryMode model.historyMode )
+                                    |> T.perform identity ]
             in
             case hmsg of
                 HorizonModule.Fetch fetch ->
@@ -888,13 +891,22 @@ update msg model =
                                 ( { resetmodel | insertion_dates = Array.empty }
                                 , Cmd.batch ([ commands
                                              , getplot newmodel
-                                             , I.getidates newmodel "series" InsertionDates ]))
+                                             , I.getidates newmodel "series" InsertionDates ]
+                                             ++ launchHistory
+                                             )
+                                )
                             HorizonModule.InferredFreq _ -> ( resetmodel
                                                             , Cmd.batch ([ commands
-                                                                         , getplot newmodel ]))
+                                                                         , getplot newmodel ]
+                                                                         ++ launchHistory
+                                                                        )
+                                                            )
                             HorizonModule.TimeZoneSelected _ -> ( resetmodel
                                                                 , Cmd.batch ([ commands
-                                                                             , getplot newmodel ]))
+                                                                             , getplot newmodel ]
+                                                                             ++ launchHistory
+                                                                             )
+                                                                 )
 
                 HorizonModule.Frame _ -> ( resetmodel
                                          , commands )
