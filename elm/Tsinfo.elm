@@ -197,7 +197,7 @@ type Msg
     | HistoryMode Bool
     | DatesFromZoom (List String)
     | NewDragMode Bool
-    | HistoryIdates ( Maybe (String, String) ) (Result Http.Error String)
+    | HistoryIdates (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
@@ -401,7 +401,7 @@ getsomeidates model =
                 model.baseurl
                 [ "api", "series", "insertion_dates" ]
                 ( baseQuery ++ boundQuery )
-                , expect = Http.expectString ( HistoryIdates bounds )
+                , expect = Http.expectString HistoryIdates
             }
 
 
@@ -957,7 +957,7 @@ update msg model =
             U.nocmd { model | panActive = panIsActive }
 
 
-        HistoryIdates bounds (Ok rawdates) ->
+        HistoryIdates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
@@ -977,7 +977,7 @@ update msg model =
                 Err err ->
                     doerr "idates decode" <| D.errorToString err
 
-        HistoryIdates _ (Err error) ->
+        HistoryIdates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
         GotVersion idate (Ok rawdata) ->
