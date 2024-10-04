@@ -255,7 +255,7 @@ def test_group_formulas(client, tsa):
     }
 
 
-def test_spec_types(client):
+def test_query_spec_types(client):
     res = client.get('/queryspec')
     assert sorted(res.json) == [
         ['<',
@@ -419,6 +419,7 @@ def test_formula_form_base(engine, client, tsa):
                 'arith1 : (add (* 10 (series "gas-a")) (series "gas-b") (naive (constant 42.0 (date "2010-1-1") (now) "D" (date "1900-1-1")) "CET"))',
                 'arith2 : (add (series "gas-c") (series "prio1") (naive (constant 42.5 (date "1900-1-1") (date "2039-12-31") "D" (date "1900-1-1")) "CET"))',
                 'formula_with_comma : (/ (add (findseries (by.name "gas") #:fill "ffill, bfill")))',
+                'holidays : (holidays "fr")',
                 'prio1 : (priority (series "crude-a") (series "crude-b") (series "crude-c"))'
                 ]
         },

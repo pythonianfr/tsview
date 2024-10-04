@@ -2,3 +2,4 @@ name,text
 prio1,(priority (series "crude-a") (series "crude-b") (series "crude-c"))
 arith1,(add (* 10 (series "gas-a")) (series "gas-b") (naive (constant 42.0 (date "2010-1-1") (now) "D" (date "1900-1-1")) "CET"))
 arith2,(add (series "gas-c") (series "prio1") (naive (constant 42.5 (date "1900-1-1") (date "2039-12-31") "D" (date "1900-1-1")) "CET"))
+holidays,(holidays "fr")
