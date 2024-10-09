@@ -38,14 +38,17 @@ def test_horizon_crude(engine):
     all = api.get_all()
     assert all == [
         {'fromdate': '(shifted (today ) #:days -15)',
+         'id': 1,
          'label': '-15d-+7d',
          'rank': 1,
          'todate': '(shifted (today ) #:days 7)'},
         {'fromdate': '(shifted (today ) #:days -93)',
+         'id': 2,
          'label': '3 months',
          'rank': 2,
          'todate': '(shifted (today ) #:days 31)'},
         {'fromdate': '(shifted (today ) #:days -366)',
+         'id': 3,
          'label': '1 year',
          'rank': 3,
          'todate': '(shifted (today ) #:days 31)'}
@@ -63,7 +66,6 @@ def test_horizon_crude(engine):
             '(shifted (today ) #:days -93)',
             '(shifted (today ) #:days 31)'
         )
-
 
 def test_horizon_evaluate(engine):
     # we insert the same definition as before

@@ -59,7 +59,7 @@ class Horizon():
     def get_all(self):
         with self.engine.begin() as cn:
             query = cn.execute(
-                'select label, fromdate, todate, rank '
+                'select id, label, fromdate, todate, rank '
                 'from tsview.horizon '
                 'order by rank asc')
             colnames = query.keys()
