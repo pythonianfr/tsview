@@ -10,7 +10,7 @@ class Horizon():
     def __init__(self, engine):
         self.engine = engine
 
-    def update(self, definition):
+    def add(self, definition):
         assert isinstance(definition, dict)
         assert set(definition.keys()) == {
             'label', 'fromdate', 'todate'

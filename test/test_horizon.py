@@ -31,9 +31,9 @@ def test_horizon_crude(engine):
         'label': '1 year',
     }
 
-    api.update(def_1)
-    api.update(def_2)
-    api.update(def_3)
+    api.add(def_1)
+    api.add(def_2)
+    api.add(def_3)
 
     all = api.get_all()
     assert all == [
@@ -84,9 +84,9 @@ def test_horizon_evaluate(engine):
         'label': '1 year',
     }
 
-    api.update(def_1)
-    api.update(def_2)
-    api.update(def_3)
+    api.add(def_1)
+    api.add(def_2)
+    api.add(def_3)
 
     today = '2024-09-17'
 

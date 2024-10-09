@@ -223,6 +223,6 @@ def initialize_horizon(db_uri, force=False):
         'label': '1year',
     }
 
-    api.update(def_1)
-    api.update(def_2)
-    api.update(def_3)
+    api.add(def_1)
+    api.add(def_2)
+    api.add(def_3)
