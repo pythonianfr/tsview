@@ -1,13 +1,10 @@
 import io
-import json
 import csv
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from tshistory.testutil import (
-    assert_df,
     genserie,
     gengroup,
     utcdt

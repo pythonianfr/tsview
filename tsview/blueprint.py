@@ -498,7 +498,7 @@ def tsview(tsa):
             if hasattr(cls, '__sig__'):
                 types[lispname] = cls.__sig__()
 
-        return_first = lambda x: 0 if x[0]=='return' else 1
+        return_first = lambda x: 0 if x[0] == 'return' else 1  # noqa
         return [
             (op_name, sorted(op_spec.items(), key=return_first))
             for op_name, op_spec in types.items()
