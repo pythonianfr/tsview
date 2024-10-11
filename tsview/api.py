@@ -35,6 +35,72 @@ class Horizon():
                 rank=max_rank + 1
         )
 
+    def _delete(self, cn, batch):
+        if not len(batch):
+            return
+        sql = ('delete '
+               'from tsview.horizon '
+               'where tsview.horizon.id=%(id)s')
+        cn.execute(sql, batch)
+
+    def _create(self, cn, batch):
+        if not len(batch):
+            return
+        sql = (
+            'insert into tsview.horizon '
+            '(label, fromdate, todate, rank) '
+            'values (%(label)s, %(fromdate)s, %(todate)s, %(rank)s)'
+        )
+        cn.execute(sql, batch)
+
+    def _update(self, cn, batch):
+        if not len(batch):
+            return
+        sql = (
+            'update tsview.horizon '
+            'set rank = %(rank)s ,'
+                'fromdate = %(fromdate)s,'
+                'todate = %(todate)s,'
+                'label = %(label)s '
+            'where tsview.horizon.id = %(id)s'
+        )
+        cn.execute(sql,batch)
+
+    def replace_all(self, batch):
+        """
+        dispatch definitions to corresponding methods
+        The orders of the operation (delete, update, create)
+        are important to respect the rank unicity constraint
+        """
+        to_delete = [
+            spec
+            for spec in batch
+            if spec['action'] == 'delete'
+        ]
+        others = [
+            spec
+            for spec in batch
+            if spec['action'] != 'delete'
+        ]
+        # attribute rank:
+        for rank, spec in enumerate(others):
+            spec['rank'] = rank + 1
+
+        to_update = [
+            spec
+            for spec in others
+            if spec['action'] == 'update'
+        ]
+        to_create = [
+            spec
+            for spec in others
+            if spec['action'] == 'create'
+        ]
+        with self.engine.connect() as cn:
+            self._delete(cn, to_delete)
+            self._update(cn, to_update)
+            self._create(cn, to_create)
+
     def get_choices(self):
         with self.engine.begin() as cn:
             result = cn.execute(

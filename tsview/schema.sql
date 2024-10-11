@@ -3,9 +3,7 @@ create table tsview.horizon(
     label text not null unique deferrable initially deferred,
     fromdate text not null,
     todate text not null,
-    rank int not null,
-    unique(label),
-    unique(rank)
+    rank int not null unique deferrable initially deferred
 );
 
 create index on tsview.horizon(id);
