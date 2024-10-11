@@ -1,0 +1,39 @@
+stages:
+  - test
+
+image: registry.heptapod.host/pythonian/dockerizer/ci-image:latest
+
+unit-test-job:
+  stage: test
+  tags:
+    - clever-cloud
+  script:
+    - cd ..
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/dbcache
+    - hg -R dbcache update tip
+    - pip install -e dbcache
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/tshistory
+    - hg -R tshistory update tip
+    - pip install -e tshistory
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/tshistory_supervision
+    - hg -R tshistory_supervision update tip
+    - pip install -e tshistory_supervision
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/tshistory_formula
+    - hg -R tshistory_formula update tip
+    - pip install -e tshistory_formula
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/tshistory_xl
+    - hg -R tshistory_xl update tip
+    - pip install -e tshistory_xl
+    - pip install -e tsview
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/rework
+    - hg -R rework update tip
+    - pip install -e rework
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/rework_ui
+    - hg -R rework_ui update tip
+    - pip install -e rework_ui
+    - hg clone https://heptapod.host/pythonian/timeseries-refinery/tshistory_refinery
+    - hg -R tshistory_refinery update tip
+    - pip install -e tshistory_refinery
+    - cd tsview
+    - ruff check .
+    - pytest
