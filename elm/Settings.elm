@@ -32,24 +32,61 @@ type alias Model =
     , horizons : Array.Array Record
     , message : String }
 
+
+type alias FromServer =
+    { label: String
+    , from: String
+    , to: String
+    , id: Int
+    }
+
 type alias Record =
     { label: String
     , from: String
     , to: String
-    , rank: Int
     , id: Int
+    , action: Action
     }
+
+
+type Action =
+    Update
+    | Create
+    | Delete
+
+
+actionName: Action -> String
+actionName action =
+    case action of
+        Update -> "update"
+        Create -> "create"
+        Delete -> "delete"
+
+
+extendRec: FromServer -> Record
+extendRec rec =
+    { id = rec.id
+    , from = rec.from
+    , to = rec.to
+    , label = rec.label
+    , action = Update
+    }
+
 
 catalogDecoder: JD.Decoder ( List Record )
 catalogDecoder =
-    JD.list
-        ( JD.map5 Record
-            (JD.field "label" JD.string)
-            (JD.field "fromdate" JD.string)
-            (JD.field "todate" JD.string)
-            (JD.field "id" JD.int)
-            (JD.field "rank" JD.int)
+    ( JD.list
+        ( JD.map
+            extendRec
+                ( JD.map4 FromServer
+                    (JD.field "label" JD.string)
+                    (JD.field "fromdate" JD.string)
+                    (JD.field "todate" JD.string)
+                    (JD.field "id" JD.int)
+            )
         )
+    )
+
 
 recordEncode: Record -> JE.Value
 recordEncode record =
@@ -59,7 +96,9 @@ recordEncode record =
         , ( "todate", JE.string record.to )
         , ( "action", JE.string "update" )
         , ( "id", JE.int record.id)
+        , ("action", JE.string ( actionName record.action ))
         ]
+
 
 catalogEncode: ( List Record ) -> JE.Value
 catalogEncode records =
@@ -124,10 +163,16 @@ update msg model =
         Saved (Err _) -> ( { model | message = "Error while saving" }
                         , Cmd.none)
 
-
 addRow: Array.Array Record -> Array.Array Record
 addRow records =
-     Array.push ( Record "" "" "" ) records
+     Array.push
+        { label = ""
+        , from = ""
+        , to = ""
+        , id = -1
+        , action = Create
+        }
+        records
 
 
 updateFromUser: Array.Array Record -> Int -> String -> String -> Array.Array Record
