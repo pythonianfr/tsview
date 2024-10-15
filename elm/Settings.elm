@@ -30,6 +30,11 @@ import Html.Events exposing (
     , onClick )
 
 import Http
+import Http exposing (
+    Expect,
+    Metadata,
+    Response)
+
 import List
 
 type alias Model =
@@ -122,7 +127,7 @@ type Msg =
     | Up Int
     | Down Int
     | Save
-    | Saved ( Result Http.Error ())
+    | Saved ( Result ErrorDetailed (Metadata, String))
 
 
 
@@ -133,6 +138,55 @@ getHorirzons model =
         , expect = Http.expectJson GotHorizons catalogDecoder
         }
 
+-- dealing  with the lack of proper message return
+-- in case of 500
+
+type ErrorDetailed
+    = BadUrl String
+    | Timeout
+    | NetworkError
+    | BadStatus Http.Metadata String
+    | BadBody String
+
+
+unpackError: ErrorDetailed -> String
+unpackError error =
+    case error of
+        BadUrl msg ->
+            msg
+        Timeout ->
+            "Timeout"
+        NetworkError ->
+            "NetworkError"
+        BadStatus metadata err ->
+            err
+        BadBody body ->
+            body
+
+convertResponseString : Response String -> Result ErrorDetailed ( Metadata, String )
+convertResponseString httpResponse =
+    case httpResponse of
+        Http.BadUrl_ url ->
+            Err (BadUrl url)
+
+        Http.Timeout_ ->
+            Err Timeout
+
+        Http.NetworkError_ ->
+            Err NetworkError
+
+        Http.BadStatus_ metadata body ->
+            Err (BadStatus metadata body)
+
+        Http.GoodStatus_ metadata body ->
+            Ok ( metadata, body )
+
+
+expectStringDetailed : (Result ErrorDetailed ( Metadata, String ) -> msg) -> Expect msg
+expectStringDetailed msg =
+    Http.expectStringResponse msg convertResponseString
+
+-- ending with the 500 error handling
 
 saveHorizons: Model -> Cmd Msg
 saveHorizons model =
@@ -140,7 +194,7 @@ saveHorizons model =
     { url = model.baseUrl ++ "replace-horizons"
     , body = Http.jsonBody
                 ( catalogEncode model )
-    , expect = Http.expectWhatever Saved
+    , expect = expectStringDetailed Saved
     }
 
 
@@ -187,8 +241,8 @@ update msg model =
                             ( newModel
                             , getHorirzons newModel )
 
-        Saved (Err _) -> ( { model | message = "Error while saving" }
-                        , Cmd.none)
+        Saved (Err error) -> ( { model | message = unpackError error }
+                             , Cmd.none)
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a

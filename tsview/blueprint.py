@@ -48,6 +48,7 @@ from tsview.util import (
     format_formula
 )
 from tsview.menu import definition as menu_spec
+from tsview.moment import ConfigurationError
 from tsview.icons import definition as icons_definition
 from tsview.api import Horizon
 
@@ -820,7 +821,10 @@ def tsview(tsa):
         results = json.loads(request.data.decode())
         engine = tsa.engine
         api = Horizon(engine)
-        api.replace_all(results)
-        return Response(status=201)
+        try:
+            api.replace_all(results)
+            return Response(status=201)
+        except ConfigurationError as err:
+            return make_response(jsonify(error=str(err)), 500)
 
     return bp
