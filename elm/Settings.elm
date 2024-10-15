@@ -179,8 +179,14 @@ update msg model =
 
         Save -> ( model, saveHorizons model )
 
-        Saved (Ok _) -> ( { model | message = "New definitions saved" }
-                        , Cmd.none)
+        Saved (Ok _) -> let newModel = { model | message = "New definitions saved"
+                                               , horizons = Array.empty
+                                               , toDelete = Array.empty
+                                        }
+                        in
+                            ( newModel
+                            , getHorirzons newModel )
+
         Saved (Err _) -> ( { model | message = "Error while saving" }
                         , Cmd.none)
 
