@@ -216,9 +216,10 @@ isolateDelete model =
     let activeRecords = List.filter
                             (\ rec -> rec.action /= Delete)
                             ( Array.toList model.horizons )
-        deletedRecords = List.filter
-                            (\ rec -> rec.action == Delete)
-                            ( Array.toList model.horizons )
+        deletedRecords = ( Array.toList model.toDelete
+                         ) ++ (List.filter
+                                (\ rec -> rec.action == Delete)
+                                ( Array.toList model.horizons ))
     in
         { model | horizons = Array.fromList activeRecords
                 , toDelete = Array.fromList deletedRecords
