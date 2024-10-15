@@ -5,7 +5,6 @@ from psyl import lisp
 from dateutil.parser import (
     isoparse,
     parse as defaultparse,
-    ParserError
 )
 from dateutil.relativedelta import relativedelta
 

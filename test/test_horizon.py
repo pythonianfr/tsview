@@ -220,7 +220,7 @@ def test_bad_horizon(engine):
     }
 
     batch = [def_1, def_2]
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(Exception):
         api.replace_all(batch)
 
     # we permut from and to
@@ -229,5 +229,5 @@ def test_bad_horizon(engine):
         'todate': '(shifted (today ) #:days -93)',
         'label': '3 months',
     }
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(Exception):
         api.replace_all([def_1, def_2])

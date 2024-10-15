@@ -4,7 +4,6 @@ import socket
 import webbrowser
 
 import click
-from sqlalchemy import create_engine
 
 from tshistory import api
 from tshistory.util import find_dburi

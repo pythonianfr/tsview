@@ -12,15 +12,14 @@ class TsviewSchema():
         with engine.begin() as cn:
             if reset:
                 cn.execute(
-                    f'drop schema if exists "tsview" cascade'
+                    'drop schema if exists "tsview" cascade'
                 )
 
             hasschema = cn.execute(
-                f"select exists (select 1 "
-                f"  from information_schema.schemata "
-                f"  where schema_name='tsview' "
-                f")"
+                "select exists (select 1 "
+                "  from information_schema.schemata "
+                "  where schema_name='tsview' )"
             ).scalar()
             if not hasschema:
-                cn.execute(f'create schema "tsview"')
+                cn.execute('create schema "tsview"')
                 cn.execute(sqlfile(SCHEMA, ns="tsview"))

@@ -22,7 +22,7 @@ class Horizon():
             ).scalar()
             max_rank = 0 if max_rank is None else max_rank
             labels = cn.execute('select label from tsview.horizon').fetchall()
-            if len(labels) and (definition['label'] in [l for (l,) in labels]):
+            if len(labels) and (definition['label'] in [lab for (lab,) in labels]):
                 return
             cn.execute(
                 'insert into tsview.horizon '
