@@ -211,23 +211,33 @@ def test_bad_horizon(engine):
         'fromdate': '(shifted (today ) #:days -15)',
         'todate': '(shifted (today ) #:days 7)',
         'label': '-15d-+7d',
+        'action': 'create',
+        'id': 187
     }
     # we introduce a pair of typo
     def_2 = {
         'fromdate': '(shifted (todo ) #:days -93)',
         'todate': '(shifted (today ) #:days 31',
         'label': '3 months',
+        'action': 'create',
+        'id': 188
     }
 
     batch = [def_1, def_2]
-    with pytest.raises(Exception):
+    with pytest.raises(Exception) as info:
         api.replace_all(batch)
+    assert str(info.value) == (
+        "Value '(shifted (todo ) #:days -93)' is not a valid moment expression"
+    )
 
     # we permut from and to
     def_2 = {
         'fromdate': '(shifted (today ) #:days 31)',
         'todate': '(shifted (today ) #:days -93)',
         'label': '3 months',
+        'action': 'create',
+        'id': 189
     }
-    with pytest.raises(Exception):
+    with pytest.raises(Exception) as info:
         api.replace_all([def_1, def_2])
+    assert str(info.value) == '"From" must be anterior to "To"'

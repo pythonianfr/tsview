@@ -9,6 +9,24 @@ from dateutil.parser import (
 from dateutil.relativedelta import relativedelta
 
 
+class ConfigurationError(Exception):
+    pass
+
+
+def eval_moment(expr):
+    try:
+        return lisp.evaluate(
+            expr,
+            env=_MOMENT_ENV
+        )
+    except LookupError:
+        import traceback as tb
+        tb.print_exc()
+        raise ConfigurationError(
+            f'Value {repr(expr)} is not a valid moment expression'
+        )
+
+
 def _parsedatetime(strdt):
     try:
         return isoparse(strdt)

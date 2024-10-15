@@ -1,7 +1,9 @@
 import pandas as pd
-from psyl import lisp
 
-from tsview.moment import _MOMENT_ENV
+from tsview.moment import (
+    eval_moment,
+    ConfigurationError,
+)
 
 
 class Horizon():
@@ -152,19 +154,17 @@ class Horizon():
             + 1 is a slide on the right
         """
         bounds = self._get_bounds(label)
-        from_value_date = lisp.evaluate(
+        from_value_date = eval_moment(
             self._replace_today(
                 bounds[0],
                 ref_date,
             )
-            , env=_MOMENT_ENV
         )
-        to_value_date = lisp.evaluate(
+        to_value_date = eval_moment(
             self._replace_today(
                 bounds[1],
                 ref_date,
             )
-            , env=_MOMENT_ENV
         )
         if step != 0:
             interval = to_value_date - from_value_date
@@ -200,24 +200,24 @@ class Horizon():
     def _validate_config(self, batch):
         # labels must be uniques
         labels = [elt['label'] for elt in batch]
-        assert len(labels) == len(set(labels)), (
-            'Labels must be unique'
-        )
+        if len(labels) != len(set(labels)):
+            raise ConfigurationError(
+                'Labels must be unique'
+            )
         for row in batch:
             # all keys must be presents
             assert set(row.keys()) == {
                 'label', 'fromdate', 'todate', 'action', 'id',
             }
             # bounds must be evaluable
-            from_value_date = lisp.evaluate(
+            from_value_date = eval_moment(
                 row['fromdate'],
-                env=_MOMENT_ENV
             )
-            to_value_date = lisp.evaluate(
+            to_value_date = eval_moment(
                 row['todate'],
-                env = _MOMENT_ENV
             )
             # to_value_date must be after from_value_date
-            assert to_value_date > from_value_date, (
-                '"From" must be anterior to "to"'
-            )
+            if to_value_date <= from_value_date:
+                raise ConfigurationError(
+                    '"From" must be anterior to "To"'
+                )
