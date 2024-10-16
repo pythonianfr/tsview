@@ -34,6 +34,7 @@ import Horizon exposing
     , updateHorizon
     , extendHorizonFromData
     , extractXaxis
+    , extractYaxis
     , extractZoomDates
     , setStatusPlot )
 import Maybe.Extra as Maybe
@@ -303,9 +304,11 @@ update msg model =
         FromZoom zoom ->
             let
                 zoomDates = ( extractZoomDates zoom).x
+                zoomY = ( extractZoomDates zoom).y
                 horizonmodel = model.horizon
             in ({ model | horizon =
                     { horizonmodel | zoomBounds = zoomDates
+                                   , zoomY = zoomY
                     }
                 }
                , Cmd.none )
@@ -410,6 +413,8 @@ view model =
                 data
                 { defaultLayoutOptions | xaxis = extractXaxis
                                                     model.horizon.zoomBounds
+                                        , yaxis = extractYaxis
+                                                    model.horizon.zoomY
                                         , height = Just 700
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"

@@ -27,6 +27,7 @@ type alias LayoutOptions =
     { title: Maybe String
     , dragMode: Maybe String
     , xaxis: Maybe { range: List String }
+    , yaxis: Maybe { range: List Float }
     , height: Maybe Int
     }
 
@@ -36,6 +37,7 @@ defaultLayoutOptions =
     { title = Nothing
     , dragMode = Nothing
     , xaxis = Nothing
+    , yaxis = Nothing
     , height = Nothing
     }
 
@@ -156,6 +158,11 @@ encodeLayout layoutOptions =
                 Just range -> [ ("xaxis", E.object [ ("range"
                               , E.list E.string [ Maybe.withDefault "" (List.head range.range)
                                                 , Maybe.withDefault "" (List.last range.range)])])]
+            , case layoutOptions.yaxis of
+                Nothing -> []
+                Just range -> [ ("yaxis", E.object [ ("range"
+                              , E.list E.float [ Maybe.withDefault 0 (List.head range.range)
+                                               , Maybe.withDefault 0 (List.last range.range)])])]
             , case layoutOptions.dragMode of
                 Nothing -> []
                 Just drag -> [("dragmode", E.string drag )]

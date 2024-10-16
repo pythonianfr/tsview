@@ -19,6 +19,7 @@ port module Horizon exposing
     , updateHorizonFromData
     , extendHorizonFromData
     , extractXaxis
+    , extractYaxis
     , extractZoomDates
     , setStatusPlot
     )
@@ -102,6 +103,7 @@ type alias HorizonModel =
     , dataBounds: Maybe (String, String)
     , queryBounds: Maybe (String, String)
     , zoomBounds: Maybe (String, String)
+    , zoomY: Maybe (Float, Float)
     , editBounds : Bool
     , editedBounds : { from: Maybe String
                      , to: Maybe String }
@@ -151,6 +153,7 @@ initHorizon baseUrl min max debug status =
     , dataBounds = Nothing
     , queryBounds = buildBounds min max
     , zoomBounds = Nothing
+    , zoomY = Nothing
     , editBounds = False
     , editedBounds = { from = Nothing, to = Nothing }
     , debug = debug == "1"
@@ -633,6 +636,13 @@ renderhorizon selectedhorizon horizon =
 
 extractXaxis : Maybe ( String,  String ) -> Maybe { range: List String }
 extractXaxis bounds =
+    case bounds of
+        Nothing -> Nothing
+        Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
+
+
+extractYaxis : Maybe ( Float,  Float ) -> Maybe { range: List Float }
+extractYaxis bounds =
     case bounds of
         Nothing -> Nothing
         Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
