@@ -25,6 +25,7 @@ import Horizon as ModuleHorizon
 import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
+    , ZoomFromPlotly
     , initHorizon
     , horizonview
     , getFromToDates
@@ -43,7 +44,7 @@ import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
 
-port dateInInterval : ( List String -> msg ) -> Sub msg
+port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 
 port panActive : (Bool -> msg) -> Sub msg
 
@@ -81,7 +82,7 @@ type Msg
     | SourceChange String Bool
     -- dates
     | Horizon ModuleHorizon.Msg
-    | DatesFromZoom ( List String )
+    | FromZoom ZoomFromPlotly
     | NewDragMode Bool
 
 
@@ -299,9 +300,9 @@ update msg model =
 
 
         -- zoom
-        DatesFromZoom range ->
+        FromZoom zoom ->
             let
-                zoomDates = extractZoomDates range
+                zoomDates = ( extractZoomDates zoom).x
                 horizonmodel = model.horizon
             in ({ model | horizon =
                     { horizonmodel | zoomBounds = zoomDates
@@ -506,7 +507,7 @@ realsubs =
     Sub.batch
     [ loadFromLocalStorage
         (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
-    , dateInInterval DatesFromZoom
+    , zoomPlot FromZoom
     , panActive NewDragMode
     ]
 

@@ -4,6 +4,7 @@ port module Horizon exposing
     , FrameMove(..)
     , OptionType(..)
     , FetchTrigger(..)
+    , ZoomFromPlotly
     , LocalStorageData
     , PlotStatus(..)
     , initHorizon
@@ -116,6 +117,16 @@ type PlotStatus
 type FromOrTo
     = From
     | To
+
+
+type alias ZoomFromPlotly =
+    (( String, String )
+    ,( Float, Float ))
+
+type alias Zoom =
+    { x: Maybe ( String, String )
+    , y: Maybe ( Float, Float )
+    }
 
 buildBounds: String -> String -> Maybe (String, String)
 buildBounds min max =
@@ -627,19 +638,29 @@ extractXaxis bounds =
         Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
 
 
-extractZoomDates : List String -> Maybe ( String, String )
-extractZoomDates dates =
-    if String.join "" dates == ""
-    then Nothing
-    else
-    let min = ( Maybe.map (String.replace " " "T") (List.head dates))
-        max = ( Maybe.map (String.replace " " "T") (List.last dates))
+curateDate: ( String, String ) -> ( String, String )
+curateDate ( start, end ) =
+    ( (String.replace " " "T") start
+    , (String.replace " " "T") end )
+
+
+extractZoomDates : ZoomFromPlotly -> Zoom
+extractZoomDates zoom =
+    let xZoom = if Tuple.first zoom == ("", "")
+                    then Nothing
+                    else Just ( curateDate ( Tuple.first zoom ))
+        yZoom = case (isNaN ( Tuple.first ( Tuple.second zoom ))) of
+                    True -> Nothing
+                    False -> Just ( Tuple.second zoom )
     in
-        case min of
-            Nothing -> Nothing
-            Just minDate -> case max of
-                Nothing -> Nothing
-                Just maxDate -> Just ( minDate, maxDate )
+    case xZoom of
+        Nothing -> case yZoom of
+            Nothing -> Zoom Nothing Nothing
+            Just yzoom -> Zoom Nothing ( Just yzoom )
+        Just xzoom -> case yZoom of
+            Nothing -> Zoom ( Just xzoom ) Nothing
+            Just yzoom -> Zoom (Just xzoom) (Just yzoom)
+
 
 renderTimeZone : String -> String -> H.Html msg
 renderTimeZone selectedhorizon timeZone =

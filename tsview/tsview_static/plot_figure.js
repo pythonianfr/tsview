@@ -15,7 +15,8 @@ class PlotFigure extends HTMLElement {
                 );
                 document.getElementById(args.div).on(
                     'plotly_relayout', function(eventData) {
-                        let range = ["", ""]
+                        let nullXRange = ["", ""];
+                        let nullYRange = [Number.NaN, Number.NaN];
                         let panactive = false
                         if ('dragmode' in eventData) {
                             if (eventData['dragmode'] == 'pan') {
@@ -25,15 +26,34 @@ class PlotFigure extends HTMLElement {
                         };
                         if ('xaxis.autorange' in eventData &&
                             'yaxis.autorange' in eventData) {
-                            app.ports.dateInInterval.send(range);
+                            app.ports.zoomPlot.send(
+                                [nullXRange, nullYRange]
+                            );
                         };
+                        let xRange = nullXRange
+                        let yRange = nullYRange
+                        let send = false
                         if ('xaxis.range[0]' in eventData &&
                             'xaxis.range[1]' in eventData) {
-                            range = [
+                            xRange = [
                                 eventData['xaxis.range[0]'],
                                 eventData['xaxis.range[1]']
                             ];
-                            app.ports.dateInInterval.send(range);
+                            send = true;
+                        };
+                        if ('yaxis.range[0]' in eventData &&
+                            'yaxis.range[1]' in eventData) {
+                            yRange = [
+                                eventData['yaxis.range[0]'],
+                                eventData['yaxis.range[1]']
+                            ];
+                            send = true;
+                        };
+                        console.log(eventData, xRange, yRange, send);
+                        if (send) {
+                            app.ports.zoomPlot.send(
+                                [xRange, yRange]
+                            );
                         };
                     }
                 );
