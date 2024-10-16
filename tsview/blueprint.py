@@ -50,7 +50,8 @@ from tsview.util import (
 from tsview.menu import definition as menu_spec
 from tsview.moment import ConfigurationError
 from tsview.icons import definition as icons_definition
-from tsview.api import Horizon
+from tsview.horizon import Horizon
+
 
 def primary_names(tsa):
     cat = list(tsa.catalog(

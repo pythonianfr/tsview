@@ -12,7 +12,8 @@ from sqlalchemy import create_engine
 from psyl.lisp import parse, pretty
 
 from tsview.schema import TsviewSchema
-from tsview.api import Horizon
+from tsview.horizon import Horizon
+
 
 # formula helper
 

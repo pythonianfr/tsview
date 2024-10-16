@@ -1,6 +1,6 @@
 import pytest
 
-from tsview.api import Horizon
+from tsview.horizon import Horizon
 
 
 def remove_metadata(tsrepr):
