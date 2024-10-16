@@ -8,6 +8,7 @@ import Set exposing (Set)
 import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
+    , ZoomFromPlotly
     , initHorizon
     , getFromToDates
     , getFetchBounds
@@ -39,7 +40,7 @@ import Json.Encode as JE
 import Task as T
 
 port copyToClipboard : String -> Cmd msg
-port dateInInterval : (List String -> msg) -> Sub msg
+port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port panActive : (Bool -> msg) -> Sub msg
 
 
@@ -85,7 +86,7 @@ type Msg
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
-    | DatesFromZoom (List String)
+    | FromZoom ZoomFromPlotly
     | NewDragMode Bool
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -584,9 +585,9 @@ update msg model =
         InsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        DatesFromZoom dates ->
+        FromZoom dates ->
                  let
-                    zoomDates = extractZoomDates dates
+                    zoomDates = (extractZoomDates dates).x
                     horizonmodel =
                         model.horizon
                     newmodel =
@@ -1248,7 +1249,7 @@ main =
         , update = update
         , subscriptions =
           \_ -> Sub.batch
-                [ dateInInterval DatesFromZoom
+                [ zoomPlot FromZoom
                 , panActive NewDragMode
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))

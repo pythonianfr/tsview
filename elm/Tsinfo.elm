@@ -22,6 +22,7 @@ import NavTabs exposing
 import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
+    , ZoomFromPlotly
     , extractXaxis
     , getFromToDates
     , getFetchBounds
@@ -59,7 +60,7 @@ import Util as U
 import Time
 import Date
 
-port dateInInterval : ( List String -> msg ) -> Sub msg
+port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port dataFromHover : ( String -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
 port panActive : (Bool -> msg) -> Sub msg
@@ -196,7 +197,7 @@ type Msg
     | Horizon HorizonModule.Msg
     -- history mode
     | HistoryMode Bool
-    | DatesFromZoom (List String)
+    | FromZoom ZoomFromPlotly
     | NewDragMode Bool
     | HistoryIdates (Result Http.Error String)
     | GotVersion String (Result Http.Error String)
@@ -948,10 +949,10 @@ update msg model =
                     else U.nocmd newmodel
 
 
-        DatesFromZoom range ->
+        FromZoom range ->
             let
                 horizonmodel = model.horizon
-                bounds = extractZoomDates range
+                bounds = ( extractZoomDates range).x
             in
             if model.historyMode
             then
@@ -1616,7 +1617,7 @@ main =
         , update = update
         , subscriptions =
             \_ -> Sub.batch
-                  [ dateInInterval DatesFromZoom
+                  [ zoomPlot FromZoom
                   , dataFromHover NewDataFromHover
                   , panActive NewDragMode
                   , loadFromLocalStorage
