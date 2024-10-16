@@ -240,4 +240,4 @@ def test_bad_horizon(engine):
     }
     with pytest.raises(Exception) as info:
         api.replace_all([def_1, def_2])
-    assert str(info.value) == '"From" must be anterior to "To"'
+    assert str(info.value) == '"From" must precede "To"'

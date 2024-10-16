@@ -12,8 +12,7 @@ class Horizon():
     def __init__(self, engine):
         self.engine = engine
 
-    def add(self, definition):
-        assert isinstance(definition, dict)
+    def add(self, definition: dict):
         assert set(definition.keys()) == {
             'label', 'fromdate', 'todate'
         }
@@ -37,15 +36,17 @@ class Horizon():
                 rank=max_rank + 1
         )
 
-    def _delete(self, cn, batch):
+    def _delete(self, cn, batch: list):
         if not len(batch):
             return
-        sql = ('delete '
-               'from tsview.horizon '
-               'where tsview.horizon.id=%(id)s')
+        sql = (
+            'delete '
+            'from tsview.horizon '
+            'where tsview.horizon.id = %(id)s'
+        )
         cn.execute(sql, batch)
 
-    def _create(self, cn, batch):
+    def _create(self, cn, batch: list):
         if not len(batch):
             return
         sql = (
@@ -55,20 +56,20 @@ class Horizon():
         )
         cn.execute(sql, batch)
 
-    def _update(self, cn, batch):
+    def _update(self, cn, batch: list):
         if not len(batch):
             return
         sql = (
             'update tsview.horizon '
             'set rank = %(rank)s ,'
-                'fromdate = %(fromdate)s,'
-                'todate = %(todate)s,'
-                'label = %(label)s '
+            '    fromdate = %(fromdate)s,'
+            '    todate = %(todate)s,'
+            '    label = %(label)s '
             'where tsview.horizon.id = %(id)s'
         )
         cn.execute(sql,batch)
 
-    def replace_all(self, batch):
+    def replace_all(self, batch: list):
         """
         dispatch definitions to corresponding methods
         The orders of the operation (delete, update, create)
@@ -87,8 +88,8 @@ class Horizon():
             if spec['action'] != 'delete'
         ]
         # attribute rank:
-        for rank, spec in enumerate(others):
-            spec['rank'] = rank + 1
+        for rank, spec in enumerate(others, start=1):
+            spec['rank'] = rank
 
         to_update = [
             spec
@@ -108,21 +109,21 @@ class Horizon():
     def get_choices(self):
         with self.engine.begin() as cn:
             result = cn.execute(
-                        'select label '
-                        'from tsview.horizon '
-                        'order by rank asc'
-                     )
+                'select label '
+                'from tsview.horizon '
+                'order by rank asc'
+            )
 
             return [elt[0] for elt in result.fetchall()]
 
     def _get_bounds(self, label):
         with self.engine.begin() as cn:
             result = cn.execute(
-                        'select fromdate, todate '
-                        'from tsview.horizon '
-                        'where tsview.horizon.label = %(label)s '
-                        , label=label
-                     )
+                'select fromdate, todate '
+                'from tsview.horizon '
+                'where tsview.horizon.label = %(label)s ',
+                label=label
+            )
 
             return result.fetchall()[0]
 
@@ -131,11 +132,15 @@ class Horizon():
             query = cn.execute(
                 'select id, label, fromdate, todate, rank '
                 'from tsview.horizon '
-                'order by rank asc')
+                'order by rank asc'
+            )
             colnames = query.keys()
             result = query.fetchall()
             named = [
-                {name: value for (name, value) in zip(colnames, row)}
+                {
+                    name: value
+                    for (name, value) in zip(colnames, row)
+                }
                 for row in result
             ]
             return named
@@ -174,7 +179,7 @@ class Horizon():
             to_value_date = to_value_date + interval * step
         else:
             # homogenize format
-            ref_date=str(pd.Timestamp(ref_date))
+            ref_date = str(pd.Timestamp(ref_date))
 
         return {
             'fromdate': str(from_value_date),
@@ -182,7 +187,7 @@ class Horizon():
             'ref-date': ref_date
         }
 
-    def translate(self, bounds, step=0):
+    def translate(self, bounds, step):
         assert set(bounds.keys()) == {
             'fromdate', 'todate', 'ref-date'
         }
@@ -198,7 +203,7 @@ class Horizon():
         }
 
     def _validate_config(self, batch):
-        # labels must be uniques
+        # labels must be unique
         labels = [elt['label'] for elt in batch]
         if len(labels) != len(set(labels)):
             raise ConfigurationError(
@@ -219,5 +224,5 @@ class Horizon():
             # to_value_date must be after from_value_date
             if to_value_date <= from_value_date:
                 raise ConfigurationError(
-                    '"From" must be anterior to "To"'
+                    '"From" must precede "To"'
                 )
