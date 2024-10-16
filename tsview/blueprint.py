@@ -800,8 +800,8 @@ def tsview(tsa):
         api = Horizon(engine)
         result = api.translate(
             {
-                'from': from_value_date,
-                'to': to_value_date,
+                'fromdate': from_value_date,
+                'todate': to_value_date,
                 'ref-date': ref_date,
             },
             int(step)

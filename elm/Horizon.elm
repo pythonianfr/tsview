@@ -282,8 +282,8 @@ getChoices model convertMsg =
 decodeBounds: D.Decoder Bounds
 decodeBounds =
     D.map3 Bounds
-        (D.field "from" D.string)
-        (D.field "to" D.string)
+        (D.field "fromdate" D.string)
+        (D.field "todate" D.string)
         (D.field "ref-date" D.string)
 
 decodeChoices: D.Decoder ( List String )
