@@ -13,7 +13,5 @@ class Migrator(_Migrator):
 
 
 @version('tsview', '0.20.0')
-def create_schema():
-    from tshistory.api import timeseries
-    tsa = timeseries()
-    initialize_horizon(tsa.uri, force=False)
+def create_schema(engine, namespace, interactive):
+    initialize_horizon(engine.url, force=False)
