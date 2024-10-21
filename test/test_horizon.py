@@ -205,6 +205,31 @@ def test_translation(engine):
     }
 
 
+def test_date_vs_datetime(engine):
+    api = Horizon(engine)
+    inbase = api.get_all()
+    fromclient = []
+    for row in inbase:
+        elt = row
+        elt.update({'action': 'update'})
+        elt.pop('rank')
+        fromclient.append(elt)
+    def_date = {
+        'fromdate': '(date "2022-01-01")',
+        'todate': '(today )',
+        'label': 'From 2022',
+        'id': 19,
+        'action': 'create'
+    }
+    api.replace_all( fromclient + [def_date])
+    bounds = api.eval_bounds('From 2022', "2024-10-01")
+    assert bounds == {
+        'fromdate': '2022-01-01 00:00:00',
+        'todate': '2024-10-01 00:00:00',
+        'ref-date': '2024-10-01 00:00:00'
+    }
+
+
 def test_bad_horizon(engine):
     api = Horizon(engine)
     def_1 = {

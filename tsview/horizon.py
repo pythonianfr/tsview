@@ -222,7 +222,7 @@ class Horizon():
                 row['todate'],
             )
             # to_value_date must be after from_value_date
-            if to_value_date <= from_value_date:
+            if pd.Timestamp(to_value_date) <= pd.Timestamp(from_value_date):
                 raise ConfigurationError(
                     '"From" must precede "To"'
                 )
