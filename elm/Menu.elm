@@ -3,6 +3,7 @@ port module Menu exposing
     , Msg(..)
     , buildCmd
     , getMenu
+    , getPro
     , initmenu
     , loadMenuData
     , viewMenu
@@ -19,6 +20,7 @@ import Html.Attributes as A
 import Html.Events as HE
 import Json.Decode as JD
 import Json.Decode exposing (Decoder)
+import Json.Decode.Pipeline exposing (required, optional)
 import Icons exposing (Icon, buildSvg)
 
 
@@ -35,6 +37,7 @@ type alias Model =
     , menuModeText : Bool
     , selected: Maybe String
     , icones: Dict String Icon
+    , isPro: Bool
     }
 
 
@@ -53,6 +56,7 @@ type alias Link =
     , icone: String
     , target: String
     , id: String
+    , profeature: Bool
     }
 
 
@@ -61,6 +65,7 @@ type Msg =
     | LoadMenuData String
     | GotMenu (Result Http.Error Menu)
     | GotIcons (Result Http.Error (Dict String Icon))
+    | GotPro ( Result Http.Error String )
 
 
 initmenu self =
@@ -68,6 +73,7 @@ initmenu self =
     , menuModeText = False
     , icones = Dict.empty
     , selected = Just self
+    , isPro = True
     }
 
 
@@ -87,11 +93,12 @@ decodeSection =
 
 decodeLink: Decoder Link
 decodeLink =
-    JD.map4 Link
-        ( JD.field "label" JD.string )
-        ( JD.field "icone" JD.string )
-        ( JD.field "target" JD.string )
-        ( JD.field "id" JD.string )
+     JD.succeed Link
+        |> required "label" JD.string
+        |> required "icone" JD.string
+        |> required "target" JD.string
+        |> required "id" JD.string
+        |> optional "profeature" JD.bool False
 
 
 getMenu: String -> ((Result Http.Error Menu) -> msg) -> Cmd msg
@@ -99,6 +106,13 @@ getMenu baseUrl msgBuilder =
     Http.get
         { url = baseUrl ++ "menu"
         , expect = Http.expectJson msgBuilder menuDecoder
+        }
+
+getPro: String -> ((Result Http.Error String) -> msg) -> Cmd msg
+getPro baseUrl msgBuilder =
+    Http.get
+        { url = baseUrl ++ "ispro"
+        , expect = Http.expectString msgBuilder
         }
 
 
@@ -121,22 +135,28 @@ updateModel msg model =
         GotMenu (Err error) ->  model
         GotIcons (Ok content) -> { model | icones = content }
         GotIcons (Err error) ->  model
+        GotPro (Ok _) -> { model | isPro = True }
+        GotPro (Err _) -> { model | isPro = False }
+
 
 
 buildCmd: Msg -> Model -> Cmd msg
 buildCmd msg model =
     case msg of
         ToggleMenu -> saveMenuData (MenuData (not model.menuModeText))
-        LoadMenuData _ -> Cmd.none
-        GotMenu (Ok content) -> Cmd.none
-        GotMenu (Err error) ->  Cmd.none
-        GotIcons (Ok content) -> Cmd.none
-        GotIcons (Err error) ->  Cmd.none
+        _ -> Cmd.none
 
 -- view
 
-displayTextSection: (Dict String Icon) -> Menu -> Maybe String -> Html msg
-displayTextSection icones content selected =
+filterPro: Bool -> Link -> Bool
+filterPro isPro link =
+    if isPro
+        then True
+        else not link.profeature
+
+
+displayTextSection: (Dict String Icon) -> Menu -> Maybe String -> Bool -> Html msg
+displayTextSection icones content selected isPro =
     let
         format section =
             H.li
@@ -148,14 +168,14 @@ displayTextSection icones content selected =
                           [ A.class "label"]
                           [ H.text section.label ]
                       ]
-                , displayTextLinks icones section.links selected
+                , displayTextLinks icones section.links selected isPro
                 ]
     in
     H.ul [] <| List.map format content
 
 
-displayTextLinks: (Dict String Icon) -> List Link -> Maybe String -> Html msg
-displayTextLinks icones links selected =
+displayTextLinks: (Dict String Icon) -> List Link -> Maybe String -> Bool -> Html msg
+displayTextLinks icones links selected isPro =
     let
         format link =
             H.li
@@ -173,11 +193,13 @@ displayTextLinks icones links selected =
                       ]
                 ]
     in
-    H.ul [] <| List.map format links
+    H.ul [] <| List.map
+                format
+                ( List.filter ( filterPro isPro ) links )
 
 
-displayIconeContent: (Dict String Icon) -> Menu -> Maybe String -> Html msg
-displayIconeContent icones content selected =
+displayIconeContent: (Dict String Icon) -> Menu -> Maybe String -> Bool -> Html msg
+displayIconeContent icones content selected isPro =
     let
         format section =
             H.li
@@ -187,14 +209,14 @@ displayIconeContent icones content selected =
                       , A.title section.label
                       ]
                       [ buildSvg icones section.icone ]
-                , displayIconeLinks icones section.links selected
+                , displayIconeLinks icones section.links selected isPro
                 ]
     in
     H.ul [] <| List.map format content
 
 
-displayIconeLinks: (Dict String Icon) -> List Link -> Maybe String -> Html msg
-displayIconeLinks icones links selected =
+displayIconeLinks: (Dict String Icon) -> List Link -> Maybe String -> Bool -> Html msg
+displayIconeLinks icones links selected isPro =
     let
         format link =
             H.li
@@ -208,7 +230,9 @@ displayIconeLinks icones links selected =
                       [ buildSvg icones link.icone ]
                 ]
     in
-    H.ul [] <| List.map format links
+    H.ul [] <| List.map
+                format
+                ( List.filter ( filterPro isPro ) links )
 
 
 classSelect: String -> Maybe String -> Attribute msg
@@ -249,8 +273,8 @@ viewMenu model msgBuilder =
                         , A.title "show/hide text"]
                         [ displaSwitchButton model.icones model.menuModeText ]
                   , if model.menuModeText
-                    then displayTextSection model.icones model.menuContent model.selected
-                    else displayIconeContent model.icones model.menuContent model.selected
+                    then displayTextSection model.icones model.menuContent model.selected model.isPro
+                    else displayIconeContent model.icones model.menuContent model.selected model.isPro
                   ]
             ]
         ]

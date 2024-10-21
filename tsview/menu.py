@@ -20,7 +20,9 @@ def definition(**extra_urls):
                     'label': 'Dashboard',
                     'icone': 'bi bi-clipboard2-data',
                     'target': extra_urls['dashboard_url'],
-                    'id': 'navigation-dashboard'
+                    'id': 'navigation-dashboard',
+                    'profeature': True
+
                 },
             ]
         },
@@ -104,7 +106,8 @@ def definition(**extra_urls):
                     'label': 'Warnings',
                     'icone': 'bi bi-exclamation-triangle',
                     'target': '/tswatch/',
-                    'id': 'monitor-tswatch'
+                    'id': 'monitor-tswatch',
+                    'profeature': True
                 },
                 {
                     'label': 'Tasks',

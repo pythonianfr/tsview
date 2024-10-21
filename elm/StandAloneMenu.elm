@@ -36,8 +36,9 @@ init: (String, String) -> ( Model, ( Cmd Msg ))
 init (baseUrl, selected) =
     ( initModel baseUrl selected
     , Cmd.batch
-        [ Men.getMenu baseUrl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ) )
-        , getIcons baseUrl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ) )
+        [ Men.getMenu baseUrl ( \ returnHttp ->  Menu (Men.GotMenu returnHttp ))
+        , Men.getPro baseUrl ( \ returnHttp ->  Menu (Men.GotPro returnHttp ) )
+        , getIcons baseUrl ( \ returnHttp ->  Menu (Men.GotIcons returnHttp ))
        ]
    )
 
