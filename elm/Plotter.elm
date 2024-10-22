@@ -63,6 +63,7 @@ type alias TraceOptions =
     { showlegend: Bool
     , line: Maybe { color: String }
     , opacity: Float
+    , visible: Bool
     }
 
 
@@ -70,6 +71,7 @@ defaultoptions =
     { showlegend = False
     , line = Nothing
     , opacity = 1
+    , visible = True
     }
 
 
@@ -105,28 +107,23 @@ type alias PlotQuery msg =
 
 encodetrace : Trace -> E.Value
 encodetrace t =
-    case t.options.line of
-        Nothing ->
-            E.object
-                [ ( "type", E.string t.type_ )
-                , ( "name", E.string t.name )
-                , ( "x", E.list E.string t.x )
-                , ( "y", E.list (E.maybe E.float) t.y )
-                , ( "mode", E.string t.mode )
-                , ( "showlegend",  E.bool t.options.showlegend )
-                , ( "opacity", E.float t.options.opacity )
-                ]
-        Just line ->
-            E.object
-                [ ( "type", E.string t.type_ )
-                , ( "name", E.string t.name )
-                , ( "x", E.list E.string t.x )
-                , ( "y", E.list (E.maybe E.float) t.y )
-                , ( "mode", E.string t.mode )
-                , ( "showlegend",  E.bool t.options.showlegend )
-                , ( "line", (E.object [("color", E.string line.color)]))
-                , ( "opacity", E.float t.options.opacity )
-                ]
+    E.object
+        <| List.concat [
+            [ ( "type", E.string t.type_ )
+            , ( "name", E.string t.name )
+            , ( "x", E.list E.string t.x )
+            , ( "y", E.list (E.maybe E.float) t.y )
+            , ( "mode", E.string t.mode )
+            , ( "showlegend",  E.bool t.options.showlegend )
+            , ( "opacity", E.float t.options.opacity )
+            ]
+        , case t.options.line of
+            Nothing -> []
+            Just line -> [( "line", (E.object [("color", E.string line.color)]))]
+        , case t.options.visible of
+            True -> []
+            False -> [( "visible", E.string "legendonly" )]
+        ]
 
 
 type alias Series =

@@ -646,6 +646,7 @@ viewHistoryGraph model =
                 if (idate == lastIdate) || (idate == currentIdate) then True else False
             , opacity =
                 if (idate == lastIdate) || (idate == currentIdate) then 1 else 0.2
+            , visible = True
             }
 
         formatLine tuple =
@@ -684,6 +685,7 @@ viewHoverGraph dictData =
             showlegend = False
             , line = Nothing
             , opacity = 1
+            , visible = True
             }
         plot =
             scatterplot

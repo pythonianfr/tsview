@@ -61,7 +61,7 @@ type alias Model =
     , loadedseries : Dict String SeriesAndInfos
     , errors : List String
     , panActive: Bool
-    , legendStatus : List (String, Bool)
+    , legendStatus : Maybe (List (String, Bool))
     }
 
 type alias SeriesAndInfos =
@@ -321,7 +321,7 @@ update msg model =
             U.nocmd { model | panActive = panIsActive }
 
         Legends legends ->
-            U.nocmd { model | legendStatus = legends }
+            U.nocmd { model | legendStatus = Just legends }
 
 
 resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
@@ -393,6 +393,20 @@ viewlinks haseditor seriesName =
         ]
 
 
+visibility: Model -> String -> Bool
+visibility model name =
+    case model.legendStatus of
+        Nothing -> True
+        Just allStatus
+            -> Tuple.second
+                    <| Maybe.withDefault
+                         ("noseries", True)
+                         <| List.head
+                            <| List.filter
+                                (\( n,_ ) -> n == name)
+                                allStatus
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -411,7 +425,9 @@ view model =
                              (Dict.keys series)
                              (Dict.values series)
                              (if model.horizon.inferredFreq then "lines+markers" else "lines")
-                             { defaultoptions | showlegend = True }
+                             { defaultoptions | showlegend = True
+                                              , visible = visibility model name
+                             }
                         )
                         model.search.selected
             in
@@ -488,13 +504,17 @@ view model =
 
 
 showSelectedLegends model =
-    if model.horizon.debug
-        then ( List.map
-                (\ (l, s) -> if s
-                                then (H.li [] [ H.text l ])
-                                else H.text "" )
-                model.legendStatus )
-        else []
+    if not model.horizon.debug
+        then []
+        else  case model.legendStatus of
+                Nothing -> []
+                Just legends -> ( List.map
+                                    ( \ (l, s) -> if s
+                                                    then (H.li
+                                                            []
+                                                            [ H.text l ])
+                                                    else H.text "" )
+                                    legends )
 
 
 permalink: Model -> H.Html Msg
@@ -564,7 +584,7 @@ main =
                     , loadedseries = Dict.empty
                     , errors = []
                     , panActive = False
-                    , legendStatus = []
+                    , legendStatus = Nothing
                     }
 
             in ( model
