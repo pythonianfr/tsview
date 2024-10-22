@@ -10,7 +10,7 @@ class PlotFigure extends HTMLElement {
                 Plotly.newPlot(
                     args.div,
                     args.data,
-                     args.layout,
+                    args.layout,
                     args.config
                 );
                 document.getElementById(args.div).on(
@@ -57,8 +57,39 @@ class PlotFigure extends HTMLElement {
                         };
                     }
                 );
+                document.getElementById(args.div).on(
+                    'plotly_legendclick', function(legendData) {
+                        let legend_status = [];
+                        let status = true
+                        let changed = legendData.curveNumber
+                        // current status
+                        for (var i=0; i < legendData.data.length; i++) {
+                            let trace = legendData.data[i]
+                            let name = trace.name;
+                            if ("visible" in trace) {
+                                if (trace["visible"] == "legendonly") {
+                                    status = false;
+                                }
+                                else {
+                                    status = true;
+                                }
+                            }
+                            else {
+                                status = true;
+                            }
+                            // change the status of the one clicked on
+                            if (i == changed) {
+                                status = !status
+                            }
+                            legend_status.push([name, status]);
+                        }
+                        app.ports.legendStatus.send(
+                            legend_status
+                        );
+                    }
+                );
             }
-            setTimeout(doit, 10)
+            setTimeout(doit, 1)
         }
         if ( name == 'history-args' ) {
             function doit () {

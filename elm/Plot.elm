@@ -49,6 +49,7 @@ port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 
 port panActive : (Bool -> msg) -> Sub msg
 
+port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 
 type alias Model =
     { baseurl : String
@@ -60,6 +61,7 @@ type alias Model =
     , loadedseries : Dict String SeriesAndInfos
     , errors : List String
     , panActive: Bool
+    , legendStatus : List (String, Bool)
     }
 
 type alias SeriesAndInfos =
@@ -84,7 +86,9 @@ type Msg
     -- dates
     | Horizon ModuleHorizon.Msg
     | FromZoom ZoomFromPlotly
+    -- plotly params
     | NewDragMode Bool
+    | Legends ( List ( String, Bool ))
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -316,6 +320,9 @@ update msg model =
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
 
+        Legends legends ->
+            U.nocmd { model | legendStatus = legends }
+
 
 resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
 resetSeries loaded =
@@ -472,11 +479,22 @@ view model =
                 , H.div
                     [ HA.class "quickview" ]
                     [ H.header [ ] [ selector ]
+                    , H.ul [] ( showSelectedLegends model )
                     , H.div [ HA.id plotDiv ] []
                     , plotFigure [ HA.attribute "args" args ] []
                     , H.footer [] [ urls ]
                     ]
                 ]]
+
+
+showSelectedLegends model =
+    if model.horizon.debug
+        then ( List.map
+                (\ (l, s) -> if s
+                                then (H.li [] [ H.text l ])
+                                else H.text "" )
+                model.legendStatus )
+        else []
 
 
 permalink: Model -> H.Html Msg
@@ -514,6 +532,7 @@ realsubs =
         (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
     , zoomPlot FromZoom
     , panActive NewDragMode
+    , legendStatus Legends
     ]
 
 main : Program
@@ -545,6 +564,7 @@ main =
                     , loadedseries = Dict.empty
                     , errors = []
                     , panActive = False
+                    , legendStatus = []
                     }
 
             in ( model
