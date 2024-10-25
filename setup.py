@@ -77,6 +77,7 @@ setup(name='tsview',
           'tshistory_formula >= 0.15'
       ],
       package_data={'tsview': [
+          'schema.sql',
           'tsview_static/*',
           'tsview_templates/*'
       ]},
