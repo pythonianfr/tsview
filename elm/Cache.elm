@@ -843,8 +843,7 @@ viewcachedserieslist model =
 
 viewfreeserieslist model =
     H.div [ ]
-        [  H.h1 [ HA.class "header-refinery"] [ H.text "Policies" ]
-        , H.h5 [] [ H.text "Free series" ]
+        [ H.h5 [] [ H.text "Free series" ]
         , H.p [] [ H.input [ HA.class "form-control"
                            , HE.onInput FreeSeriesQuery
                            , HA.placeholder "type here to filter the series list by name"
