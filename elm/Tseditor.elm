@@ -54,6 +54,7 @@ type alias Model =
     , date_index : Int
     , horizon : HorizonModel
     , insertion_dates : Array String
+    , forceDraw : Bool
     , editing : Dict String String
     , processedPasted: List String
     , rawPasted: String
@@ -79,6 +80,7 @@ type Msg
     | GotSource (Result Http.Error String)
     | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
+    | SwitchForceDraw
     | InputChanged String String
     | SaveEditedData
     | GotEditedData (Result Http.Error String)
@@ -99,9 +101,12 @@ convertMsg msg =
 
 maxPoints = 1000
 
-msgTooManyPoints =
-    """ Too many points to display. Please select a smaller time
-    frame or an area on the graph."""
+msgTooManyPoints nbPoints =
+    H.text
+        <|  """ Too many points to display. ("""
+            ++ String.fromInt nbPoints
+            ++ """) Please select a smaller time
+            frame or an area on the graph."""
 
 
 type alias Entry =
@@ -418,7 +423,8 @@ update msg model =
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> default
+                ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False }
+                                         , commands )
                 ModuleHorizon.FromLocalStorage _ ->
                     ( newModel
                     , Cmd.batch ([ commands
@@ -430,6 +436,9 @@ update msg model =
                 ModuleHorizon.Fetch _ -> ( newModel
                                          , Cmd.batch ([ commands ]
                                          ++ getRelevantData newModel ))
+
+        SwitchForceDraw ->
+            ( flipForce model , Cmd.none)
 
         InputChanged date rawvalue ->
             let
@@ -596,6 +605,7 @@ update msg model =
                                                , zoomedTs = Nothing
                                                , zoomedFormula = Nothing
                                                , monotonicCount = model.monotonicCount + 1
+                                               , forceDraw = False
                                         }
                             Just (minDate, maxDate) -> { model | zoomedTs = Just ( newZoom
                                                                                         minDate
@@ -629,6 +639,11 @@ update msg model =
 
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+
+
+flipForce: Model -> Model
+flipForce model =
+    { model | forceDraw = not model.forceDraw}
 
 
 newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
@@ -863,6 +878,20 @@ divSaveDataTable filtredDict =
             ]
 
 
+
+msgTooManyPointsWithButton: Int -> H.Html Msg
+msgTooManyPointsWithButton nbPoints =
+    H.div
+        []
+        [ msgTooManyPoints nbPoints
+        , H.button
+            [ HE.onClick SwitchForceDraw
+            , HA.type_ "button"
+            , HA.class "btn btn-warning"]
+            [ H.text "Show anyway"]
+        ]
+
+
 editTable : Model -> H.Html Msg
 editTable model =
     let
@@ -877,10 +906,13 @@ editTable model =
     if Dict.isEmpty ( getActiveTs model )
     then H.div [ class ][ ]
     else
-        if Dict.size ( getActiveTs model ) > maxPoints
+        let nbPoints = (Dict.size ( getActiveTs model ))
+        in
+        if nbPoints > maxPoints
+            && not model.forceDraw
         then H.div
             [ class ]
-            [ H.text msgTooManyPoints
+            [ msgTooManyPointsWithButton nbPoints
             , node
             ]
     else
@@ -922,7 +954,10 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    if (List.length (Dict.toList ( getActiveFormula model ))) < maxPoints
+    let nbPoints = List.length (Dict.toList ( getActiveFormula model ))
+    in
+    if nbPoints < maxPoints ||
+       model.forceDraw
     then
         H.tbody
             []
@@ -932,7 +967,7 @@ bodyShowValue model =
     else
         H.p
             []
-            [ H.text msgTooManyPoints ]
+            [ msgTooManyPointsWithButton nbPoints ]
 
 
 datesValue: Model -> List String
@@ -1223,6 +1258,7 @@ init input =
                                     input.max
                                     input.debug
                                     Loading
+                    ,forceDraw = False
                     , editing = Dict.empty
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
