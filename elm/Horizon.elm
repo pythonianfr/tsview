@@ -760,6 +760,16 @@ showBounds bounds label =
         Just (a, b) -> label ++a ++ " - " ++ b
 
 
+showFloats: Maybe (Float, Float) -> String -> String
+showFloats bounds label =
+    case bounds of
+        Nothing -> label ++ "nothing"
+        Just (a, b) -> label
+                        ++ String.fromFloat a
+                        ++ " - "
+                        ++ String.fromFloat b
+
+
 showEdited: { from: Maybe String, to: Maybe String} -> String -> String
 showEdited edited label =
     label ++
@@ -776,7 +786,8 @@ debugInfo model =
             , H.li [] [ H.text ( showBounds model.horizonBounds "horizon : " )]
             , H.li [] [ H.text ( showBounds model.dataBounds "data : " )]
             , H.li [] [ H.text ( showBounds model.queryBounds "query : " )]
-            , H.li [] [ H.text ( showBounds model.zoomBounds "zoom : " )]
+            , H.li [] [ H.text ( showBounds model.zoomBounds "zoomX : " )]
+            , H.li [] [ H.text ( showFloats model.zoomY "zoomY : " )]
             , H.li [] [ H.text ( showEdited model.editedBounds "edited : " )]
             ]
     else
