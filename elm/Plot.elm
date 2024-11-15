@@ -36,7 +36,7 @@ import Horizon exposing
     , extractXaxis
     , extractYaxis
     , extractZoomDates
-    , setStatusPlot )
+    , updateZoom )
 import Maybe.Extra as Maybe
 import OrderedDict as OD
 import SeriesSelector
@@ -307,12 +307,13 @@ update msg model =
         -- zoom
         FromZoom zoom ->
             let
-                zoomDates = ( extractZoomDates zoom).x
-                zoomY = ( extractZoomDates zoom).y
                 horizonmodel = model.horizon
+                updated = updateZoom
+                                model.horizon
+                                ( extractZoomDates zoom )
             in ({ model | horizon =
-                    { horizonmodel | zoomBounds = zoomDates
-                                   , zoomY = zoomY
+                    { horizonmodel | zoomBounds = updated.x
+                                   , zoomY = updated.y
                     }
                 }
                , Cmd.none )

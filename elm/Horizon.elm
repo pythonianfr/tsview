@@ -22,6 +22,7 @@ port module Horizon exposing
     , extractYaxis
     , extractZoomDates
     , setStatusPlot
+    , updateZoom
     )
 
 import Date
@@ -129,6 +130,20 @@ type alias Zoom =
     { x: Maybe ( String, String )
     , y: Maybe ( Float, Float )
     }
+
+
+updateZoom: HorizonModel -> Zoom -> Zoom
+updateZoom model newZoom =
+    case newZoom.x of
+        Nothing ->
+            case newZoom.y of
+                Nothing -> { x = Nothing, y = Nothing }
+                Just zoomY -> { x = model.zoomBounds, y = Just zoomY }
+        Just zoomX ->
+            case newZoom.y of
+                Nothing -> { x = Just zoomX, y = model.zoomY }
+                Just zoomY -> { x = Just zoomX, y = Just zoomY}
+
 
 buildBounds: String -> String -> Maybe (String, String)
 buildBounds min max =
