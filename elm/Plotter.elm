@@ -1,5 +1,5 @@
 module Plotter exposing
-    ( defaultoptions
+    ( defaultTraceOptions
     , defaultLayoutOptions
     , defaultConfigOptions
     , getdata
@@ -67,7 +67,7 @@ type alias TraceOptions =
     }
 
 
-defaultoptions =
+defaultTraceOptions =
     { showlegend = False
     , line = Nothing
     , opacity = 1

@@ -267,7 +267,7 @@ viewPlot {formulaName, plotData, plotErrMess} =
             (Dict.keys plotData)
             (Dict.values plotData)
             "lines"
-            Plotter.defaultoptions
+            Plotter.defaultTraceOptions
         args = serializedPlotArgs
                 "plot"
                 [plot]

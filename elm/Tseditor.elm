@@ -30,8 +30,11 @@ import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
     ( defaultLayoutOptions
-    , defaultoptions
+    , defaultTraceOptions
+    , defaultConfigOptions
     , getdata
+    , scatterplot
+    , serializedPlotArgs
     )
 import Process as P
 import Url.Builder as UB
@@ -1224,13 +1227,33 @@ view model =
                                 interval, select another one."""
                    else H.text ""
             ]
-        , I.viewgraph
-            model.name
-            dates
-            values
-            { defaultLayoutOptions | dragMode = Just dragMode }
-            defaultoptions
-            model.horizon.inferredFreq
+        , H.div
+            [ ]
+            [ H.div
+                [ HA.id "plot" ]
+                [ ]
+            , H.node "plot-figure"
+                [ HA.attribute
+                    "args"
+                    ( serializedPlotArgs
+                         "plot"
+                        [ scatterplot
+                            model.name
+                            dates
+                            values
+                            ( if model.horizon.inferredFreq
+                                then "lines+markers"
+                                else "lines" )
+                            defaultTraceOptions
+                        ]
+                        { defaultLayoutOptions | dragMode = Just dragMode }
+                        defaultConfigOptions
+                    )
+                ]
+                [ ]
+            ]
+
+
         , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)

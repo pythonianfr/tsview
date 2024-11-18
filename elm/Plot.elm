@@ -15,7 +15,7 @@ import Plotter exposing
     ( Series
     , defaultLayoutOptions
     , defaultConfigOptions
-    , defaultoptions
+    , defaultTraceOptions
     , getdata
     , serializedPlotArgs
     , scatterplot
@@ -425,7 +425,7 @@ view model =
                              (Dict.keys series)
                              (Dict.values series)
                              (if model.horizon.inferredFreq then "lines+markers" else "lines")
-                             { defaultoptions | showlegend = True
+                             { defaultTraceOptions | showlegend = True
                                               , visible = visibility model name
                              }
                         )

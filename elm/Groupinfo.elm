@@ -33,7 +33,7 @@ import NavTabs as Nav exposing
 import Plotter exposing
     ( defaultLayoutOptions
     , defaultConfigOptions
-    , defaultoptions
+    , defaultTraceOptions
     , getgroupplotdata
     , groupdecoder
     , scatterplot
@@ -502,7 +502,7 @@ viewplot model =
                 (Dict.keys plotdata)
                 (Dict.values plotdata)
                 "lines"
-                defaultoptions
+                defaultTraceOptions
 
         plots = List.map plot <| Dict.toList groupdata
 

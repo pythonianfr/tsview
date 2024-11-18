@@ -49,7 +49,7 @@ import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
     ( defaultLayoutOptions
-    , defaultoptions
+    , defaultTraceOptions
     , getdata
     , seriesdecoder
     )
@@ -1340,7 +1340,7 @@ viewplot model =
                 (Dict.keys ts)
                 (Dict.values ts)
                 defaultLayout
-                defaultoptions
+                defaultTraceOptions
                 model.horizon.inferredFreq
             , viewDatesRange
                 model.lastIdates
@@ -1386,7 +1386,7 @@ viewplot model =
                 (Dict.keys ts)
                 (Dict.values ts)
                 defaultLayout
-                defaultoptions
+                defaultTraceOptions
                 model.horizon.inferredFreq
             ]
 
