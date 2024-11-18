@@ -53,6 +53,7 @@ type alias Model =
     , seriestype : I.SeriesType
     , date_index : Int
     , horizon : HorizonModel
+    , initialCommands : Cmd Msg
     , insertion_dates : Array String
     , forceDraw : Bool
     , editing : Dict String String
@@ -426,9 +427,10 @@ update msg model =
                 ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ ->
-                    ( newModel
-                    , Cmd.batch ([ commands
-                                 , M.getsysmetadata
+                    -- we want to fire the commands AFTER getting the metadata:
+                    -- we store these commands in the model -.-
+                    ( { newModel | initialCommands = commands }
+                    , Cmd.batch ([ M.getsysmetadata
                                         model.baseurl
                                         model.name
                                         GotMetadata
@@ -546,8 +548,10 @@ update msg model =
                                   }
                    in
                        ( newmodel
-                       , Cmd.batch ( [ getHasCache newmodel
-                                     ] ++ (getRelevantData newmodel)))
+                       , Cmd.batch ([ getHasCache newmodel
+                                    , model.initialCommands
+                                    ])
+                       )
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
@@ -1258,6 +1262,7 @@ init input =
                                     input.max
                                     input.debug
                                     Loading
+                    , initialCommands = Cmd.none
                     ,forceDraw = False
                     , editing = Dict.empty
                     , insertion_dates = Array.empty

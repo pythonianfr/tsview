@@ -298,7 +298,6 @@ update msg model =
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
                                                     , Cmd.batch ([ commands]))
-                                                                 --, fetchseries resetModel True ]))
                 ModuleHorizon.Fetch _ -> ( resetModel
                         , Cmd.batch ([ commands
                                      , fetchseries resetModel True ]))
