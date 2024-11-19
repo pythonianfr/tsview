@@ -60,6 +60,8 @@ type alias Model =
     , insertion_dates : Array String
     , forceDraw : Bool
     , editing : Dict String String -- short term buffer (emptied when valid)
+    , slope: Maybe String
+    , intercept: Maybe String
     , processedPasted: List String
     , rawPasted: String
     , initialTs: Dict String Entry
@@ -87,6 +89,7 @@ type Msg
     | SwitchForceDraw
     | InputChanged String String
     | SaveEditedData
+    | Correction Parameter
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
     | InsertionDates (Result Http.Error String)
@@ -101,6 +104,11 @@ type Msg
 convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
+
+
+type Parameter =
+    Slope String
+    | Intercept String
 
 
 maxPoints = 1000
@@ -531,8 +539,16 @@ update msg model =
             , I.getidates model "series" GetLastInsertionDates
             )
 
+        Correction param ->
+            case param of
+                Slope value ->  U.nocmd { model | slope = Just value}
+                Intercept value -> U.nocmd { model | intercept = Just value}
+
         GotEditedData (Ok _) ->
-            ( { model | monotonicCount = model.monotonicCount + 1 }
+            ( { model | monotonicCount = model.monotonicCount + 1
+                      , slope = Nothing
+                      , intercept = Nothing
+              }
             , Cmd.batch
                   ( getRelevantData model)
             )
@@ -774,8 +790,7 @@ patchEditedData model =
                 _ -> False
 
         patch =
-            ( getActiveTs model )
-                |> Dict.filter (\_ value -> Maybe.isJust value.edited)
+            currentDiff model
                 |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
     in
     Http.request
@@ -856,14 +871,12 @@ divSaveDataTable filtredDict =
                 [ H.td [ ] [ H.text date ]
                 , H.td [ ] [ H.text (Maybe.withDefault "" entry.edited)]
                 ]
-        classlist =
-            [ HA.class "save-data-table" ]
     in
     if Dict.isEmpty filtredDict then
-        H.div classlist [ ]
+        H.div [] []
     else
         H.div
-            classlist
+            []
             [ H.table
                   [ HA.class "table-style" ]
                   [ H.thead
@@ -1111,9 +1124,12 @@ printValue value =
 
 currentDiff: Model -> Dict String Entry
 currentDiff model =
-     Dict.filter
-        (\_ entry -> Maybe.isJust entry.edited)
-        ( getActiveTs model )
+    Dict.map
+        (\ _ e -> { e | edited = ( linearCorrection model e.edited )})
+        ( Dict.filter
+            (\_ entry -> Maybe.isJust entry.edited)
+            ( getActiveTs model )
+        )
 
 
 diffToFloat: List Entry -> List ( Maybe Float )
@@ -1136,8 +1152,74 @@ viewedittable model =
         [ HA.class "tables" ]
         [ viewsavebutton model.horizon.plotStatus filtredDict
         , editTable model
-        , divSaveDataTable filtredDict
+        , H.div
+            [HA.class "save-data-table"]
+            [ divLinearCorrection model
+            , divSaveDataTable filtredDict
+            ]
         ]
+
+
+divLinearCorrection: Model -> H.Html Msg
+divLinearCorrection model =
+    H.div
+        []
+        [ H.text "Intercept : "
+        , H.input
+            [
+            case  model.intercept of
+                Nothing ->
+                    HA.placeholder "0"
+                Just intercept ->
+                   HA.value intercept
+           , HE.onInput (\ s ->  Correction (Intercept s) )
+           ]
+           []
+        , H.text "Slope : "
+        , H.input
+            [
+            case  model.slope of
+                Nothing ->
+                    HA.placeholder "1"
+                Just slope ->
+                   HA.value slope
+           , HE.onInput (\ s ->  Correction (Slope s) )
+           ]
+           []
+        ]
+
+
+linearCorrection: Model -> Maybe String -> Maybe String
+linearCorrection model value =
+    case value of
+        Nothing -> Nothing
+        Just val ->
+            case String.toFloat val of
+                Nothing -> Nothing
+                Just v ->
+                    let a = case model.slope of
+                                Nothing -> Nothing
+                                Just slope ->
+                                    case String.toFloat slope of
+                                        Nothing -> Nothing
+                                        Just s -> Just s
+                        b = case model.intercept of
+                                Nothing -> Nothing
+                                Just inter ->
+                                    case String.toFloat inter of
+                                        Nothing -> Nothing
+                                        Just i -> Just i
+                    in
+                        case a of
+                            Nothing ->
+                                case b of
+                                    Nothing -> Just ( String.fromFloat v )
+                                    Just inter -> Just ( String.fromFloat ( v + inter ))
+                            Just slope ->
+                                case b of
+                                    Nothing -> Just ( String.fromFloat ( v * slope ))
+                                    Just inter ->
+                                        Just ( String.fromFloat ( v * slope + inter ))
 
 
 viewrow : Model -> ( String, Entry ) -> H.Html Msg
@@ -1325,8 +1407,10 @@ init input =
                                     input.debug
                                     Loading
                     , initialCommands = Cmd.none
-                    ,forceDraw = False
+                    , forceDraw = False
                     , editing = Dict.empty
+                    , intercept = Nothing
+                    , slope = Nothing
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
                     , monotonicCount = 0
