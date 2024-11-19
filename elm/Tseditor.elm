@@ -59,7 +59,7 @@ type alias Model =
     , initialCommands : Cmd Msg
     , insertion_dates : Array String
     , forceDraw : Bool
-    , editing : Dict String String
+    , editing : Dict String String -- short term buffer (emptied when valid)
     , processedPasted: List String
     , rawPasted: String
     , initialTs: Dict String Entry
@@ -1109,12 +1109,17 @@ printValue value =
         Just val -> String.fromFloat val
 
 
+currentDiff: Model -> Dict String Entry
+currentDiff model =
+     Dict.filter
+        (\_ entry -> Maybe.isJust entry.edited)
+        ( getActiveTs model )
+
+
 viewedittable : Model -> H.Html Msg
 viewedittable model =
     let
-        filtredDict = Dict.filter
-            (\_ entry -> Maybe.isJust entry.edited)
-            ( getActiveTs model )
+        filtredDict = currentDiff model
     in
     H.div
         [ HA.class "tables" ]
@@ -1198,6 +1203,22 @@ getTs model =
         , ( Dict.values ( getActiveFormula model ) ))
 
 
+debugView: Model -> H.Html Msg
+debugView model =
+    H.div
+        []
+        ( if model.horizon.debug
+            then
+                [( H.text "debug active" )] ++
+                ( List.map
+                    (\ (k, v) -> H.text (k++v))
+                    ( Dict.toList model.editing )
+                )
+            else
+                []
+        )
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -1253,7 +1274,7 @@ view model =
                 [ ]
             ]
 
-
+        , debugView model
         , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
