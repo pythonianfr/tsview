@@ -775,9 +775,7 @@ updateEntry value maybeEntry =
     maybeEntry
         |> Maybe.andThen
            (\entry ->
-                if (parseCopyPastedData (Maybe.unwrap "" String.fromFloat entry.value)) /= value
-                then Just { entry | edited = value }
-                else Just { entry | edited = Nothing }
+                Just { entry | edited = value }
            )
 
 
