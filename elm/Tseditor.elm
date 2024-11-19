@@ -1116,6 +1116,17 @@ currentDiff model =
         ( getActiveTs model )
 
 
+diffToFloat: List Entry -> List ( Maybe Float )
+diffToFloat entries =
+    List.map
+        (\  e -> case e.edited of
+                    Nothing -> Nothing
+                    Just edit -> case String.toFloat edit of
+                        Nothing -> Nothing
+                        Just ed -> Just ed
+        )
+        entries
+
 viewedittable : Model -> H.Html Msg
 viewedittable model =
     let
@@ -1228,6 +1239,7 @@ view model =
             if model.panActive
             then "pan"
             else "zoom"
+        diff = currentDiff model
     in
     H.div
         [ HA.class "main-content" ]
@@ -1265,6 +1277,12 @@ view model =
                             ( if model.horizon.inferredFreq
                                 then "lines+markers"
                                 else "lines" )
+                            defaultTraceOptions
+                        , scatterplot
+                            "edition"
+                            ( Dict.keys diff )
+                            ( diffToFloat ( Dict.values diff ))
+                            "lines+markers"
                             defaultTraceOptions
                         ]
                         { defaultLayoutOptions | dragMode = Just dragMode }
