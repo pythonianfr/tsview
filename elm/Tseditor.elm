@@ -1220,7 +1220,9 @@ viewedittable model =
         , editTable model
         , H.div
             [HA.class "save-data-table"]
-            [ divLinearCorrection model
+            [ if List.length ( Dict.toList filtredDict ) /= 0
+                then divLinearCorrection model
+                else H.div [] []
             , divSaveDataTable filtredDict
             ]
         ]
@@ -1230,26 +1232,26 @@ divLinearCorrection: Model -> H.Html Msg
 divLinearCorrection model =
     H.div
         []
-        [ H.text "Intercept : "
+        [ H.text "Y = "
         , H.input
-            [
-            case  model.intercept of
-                Nothing ->
-                    HA.placeholder "0"
-                Just intercept ->
-                   HA.value intercept
-           , HE.onInput (\ s ->  Correction (Intercept s) )
-           ]
-           []
-        , H.text "Slope : "
-        , H.input
-            [
-            case  model.slope of
+            [ HA.class "correction"
+            , case  model.slope of
                 Nothing ->
                     HA.placeholder "1"
                 Just slope ->
                    HA.value slope
            , HE.onInput (\ s ->  Correction (Slope s) )
+           ]
+           []
+        , H.text "X + "
+        , H.input
+            [ HA.class "correction"
+            , case  model.intercept of
+                Nothing ->
+                    HA.placeholder "0"
+                Just intercept ->
+                   HA.value intercept
+           , HE.onInput (\ s ->  Correction (Intercept s) )
            ]
            []
         ]

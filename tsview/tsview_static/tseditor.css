@@ -53,6 +53,10 @@
     color: red;
 }
 
+.correction {
+    width: 40px;
+}
+
 .data-table {
     grid-area: data-table;
 }
