@@ -617,9 +617,7 @@ update msg model =
             let transformed = Dict.map
                                 (if model.dragOn
                                     then
-                                    ( \ _ v ->
-                                        { v | selected =  v.selected || ( v.index == index )}
-                                    )
+                                        (selectContiguous model index)
                                     else
                                      ( \ _ v ->
                                         { v | selected = if v.selected
@@ -784,6 +782,28 @@ getSelectedValues model =
             (\ e -> e.selected )
             ( Dict.values ( getActiveTs model ))
 
+
+selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
+selectContiguous model index =
+    case model.first of
+        Nothing ->  ( \ _ v ->
+                        { v | selected = v.index == index }
+                    )
+        Just first ->
+            if index < first
+                then   ( \ _ v ->
+                            { v | selected =
+                                v.selected
+                                || ( ( v.index >= index ) && ( v.index <= first ))
+                            }
+                        )
+                else
+                        ( \ _ v ->
+                            { v | selected =
+                                v.selected
+                                || ( ( v.index <= index ) && ( v.index >= first ))
+                            }
+                        )
 
 getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
