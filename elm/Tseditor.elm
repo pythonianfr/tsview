@@ -92,6 +92,7 @@ type Msg
     | Correction Parameter
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
+    | SelectRow Int
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -126,9 +127,9 @@ type alias Entry =
     , override : Bool
     , edited : Maybe String
     , index : Int
+    , selected: Bool
     }
 
-emptyEntry = Entry Nothing False Nothing 0
 
 type alias Component =
     { name: String
@@ -187,12 +188,12 @@ pasteditems raw =
 
 entryDecoder : JD.Decoder Entry
 entryDecoder =
-    JD.map4 Entry
+    JD.map5 Entry
         (JD.field "series" (JD.maybe JD.float))
         (JD.field "markers" JD.bool)
         (JD.succeed Nothing)
         (JD.succeed 0)
-
+        (JD.succeed False)
 
 dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
@@ -316,16 +317,6 @@ reindex increment keyvalue =
     ( Tuple.first keyvalue
     , { data | index = increment }
     )
-
-
-decorateVanilla : Dict String (Maybe Float) -> Dict String Entry
-decorateVanilla values =
-    Dict.fromList
-        ( List.map
-            ( \ (date, value) ->
-                ( date
-                , {value=value, override=False, edited=Nothing, index=1}))
-            ( Dict.toList values ))
 
 
 addError: Model -> String -> String -> Model
@@ -603,6 +594,15 @@ update msg model =
                 newtimeSeries = getPastedDict model payload
             in
             U.nocmd ( setOnActiveTs model newtimeSeries )
+
+        SelectRow index ->
+            let transformed = Dict.map
+                                ( \ _ v ->
+                                    { v | selected = ( v.index == index ) || v.selected}
+                                )
+                                ( getActiveTs model )
+            in
+                U.nocmd (setOnActiveTs model transformed)
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -1245,7 +1245,12 @@ viewrow model ( date, entry ) =
                               then "row-nan"
                               else ""
     in
-    H.tr [ ]
+    H.tr
+        [ HA.class "row-edit"
+        , if entry.selected
+            then HA.class "selected"
+            else HA.class ""
+        , HE.onDoubleClick (SelectRow entry.index) ]
         [ H.td
               [ HA.class rowstyle]
               [ H.text <| String.replace "T" " " date ]
