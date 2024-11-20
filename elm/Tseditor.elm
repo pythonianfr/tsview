@@ -95,6 +95,7 @@ type Msg
     | Paste PasteType
     | SelectRow Int
     | DeselectAll
+    | CopySelection
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -600,7 +601,15 @@ update msg model =
         SelectRow index ->
             let transformed = Dict.map
                                 ( \ _ v ->
-                                    { v | selected = ( v.index == index ) || v.selected}
+                                    { v | selected = if v.selected
+                                                        then if ( v.index == index )
+                                                                then False
+                                                                else True
+                                                        else if ( v.index == index )
+                                                                then True
+                                                                else False
+
+                                    }
                                 )
                                 ( getActiveTs model )
                 newmodel = setOnActiveTs model transformed
@@ -615,6 +624,16 @@ update msg model =
                  newmodel = setOnActiveTs model transformed
               in
                 U.nocmd { newmodel | first = Nothing }
+
+        CopySelection ->
+            let selectedValues = getSelectedValues model
+                concatened = String.join "\n" selectedValues
+            in
+            ( model
+            , Cmd.batch [ T.perform identity (T.succeed DeselectAll)
+                        , copyToClipboard concatened
+                        ]
+            )
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -726,6 +745,18 @@ getHasCache model =
               [ UB.string "name" model.name ]
         , expect = Http.expectString HasCache
         }
+
+
+getSelectedValues: Model -> List String
+getSelectedValues model =
+    List.map
+        (\ e ->  case e.value of
+                    Nothing -> ""
+                    Just val -> String.fromFloat val
+        )
+        <| List.filter
+            (\ e -> e.selected )
+            ( Dict.values ( getActiveTs model ))
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -1302,13 +1333,14 @@ viewrow model ( date, entry ) =
                   [ ]
             ]
         , H.td
-            [ HA.class "control-col"
-            , HA.class <| if isFirstSelected
-                            then model.clipboardclass
-                            else ""
-            ]
-            [
-            ]
+            ([ HA.class "control-col"
+               ] ++ if isFirstSelected
+                    then [ HA.class "bi bi-clipboard"
+                         , HA.class "copy-selection"
+                         , HE.onClick CopySelection]
+                    else []
+                )
+            [ ]
         , H.td
             ([ HA.class "control-col"
             ] ++ if isFirstSelected
