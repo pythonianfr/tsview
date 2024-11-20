@@ -1361,6 +1361,7 @@ viewrow model ( date, entry ) =
                ] ++ if isFirstSelected
                     then [ HA.class "bi bi-clipboard"
                          , HA.class "copy-selection"
+                         , HA.title "Copy selection"
                          , HE.onClick CopySelection]
                     else []
                 )
@@ -1369,6 +1370,7 @@ viewrow model ( date, entry ) =
             ([ HA.class "control-col"
             ] ++ if isFirstSelected
                     then [ HA.class "remove-selection"
+                         , HA.title "Deselect all"
                          , HE.onClick DeselectAll]
                     else []
             )

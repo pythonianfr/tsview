@@ -42,6 +42,17 @@
     text-align: left;
 }
 
+.table-style td.control-col, .table-style th.control-col  {
+    background-color: white;
+    border: 0;
+    width: 30px;
+}
+
+.remove-selection {
+    cursor: pointer;
+    color: red;
+}
+
 .data-table {
     grid-area: data-table;
 }
@@ -110,9 +121,4 @@
 
 .row-edit.selected td:nth-child(2) {
     box-shadow: inset 0px 0px 10px;
-}
-
-.control-col {
-    background-color: transparent;
-    border: 0;
 }
