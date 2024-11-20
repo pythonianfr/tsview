@@ -65,6 +65,7 @@ type alias Model =
     , processedPasted: List String
     , rawPasted: String
     , first : Maybe Int
+    , dragOn: Bool
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
@@ -95,6 +96,7 @@ type Msg
     | Paste PasteType
     | SelectRow Int
     | DeselectAll
+    | Drag DragMode
     | CopySelection
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
@@ -143,6 +145,10 @@ type alias PasteType =
     { text: String
     , index: String
     }
+
+type DragMode =
+    On
+    | Off
 
 type alias Series = Dict String (Maybe Float)
 
@@ -600,16 +606,22 @@ update msg model =
 
         SelectRow index ->
             let transformed = Dict.map
-                                ( \ _ v ->
-                                    { v | selected = if v.selected
+                                (if model.dragOn
+                                    then
+                                    ( \ _ v ->
+                                        { v | selected =  v.selected || ( v.index == index )}
+                                    )
+                                    else
+                                     ( \ _ v ->
+                                        { v | selected = if v.selected
                                                         then if ( v.index == index )
                                                                 then False
                                                                 else True
                                                         else if ( v.index == index )
                                                                 then True
                                                                 else False
-
-                                    }
+                                        }
+                                    )
                                 )
                                 ( getActiveTs model )
                 newmodel = setOnActiveTs model transformed
@@ -634,6 +646,11 @@ update msg model =
                         , copyToClipboard concatened
                         ]
             )
+
+        Drag mode ->
+            case mode of
+                On -> U.nocmd { model | dragOn = True }
+                Off -> U.nocmd  { model | dragOn = False }
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -1312,11 +1329,18 @@ viewrow model ( date, entry ) =
                                             else False
     in
     H.tr
-        [ HA.class "row-edit"
+        ([ HA.class "row-edit"
         , if entry.selected
             then HA.class "selected"
             else HA.class ""
-        , HE.onDoubleClick (SelectRow entry.index) ]
+        , HE.onDoubleClick (SelectRow entry.index)
+        , HE.onMouseDown (Drag On)] ++
+            if model.dragOn
+                then [ HE.onMouseEnter (SelectRow entry.index)
+                     , HE.onMouseLeave (SelectRow entry.index)
+                     ]
+                else []
+        )
         [ H.td
               [ HA.class rowstyle]
               [ H.text <| String.replace "T" " " date ]
@@ -1396,7 +1420,9 @@ debugView model =
                 ( List.map
                     (\ (k, v) -> H.text (k++v))
                     ( Dict.toList model.editing )
-                )
+                ) ++ [ H.text (", dragMode = " ++ if model.dragOn
+                                                    then "On"
+                                                    else "Off")]
             else
                 []
         )
@@ -1414,7 +1440,8 @@ view model =
         diff = currentDiff model
     in
     H.div
-        [ HA.class "main-content" ]
+        [ HA.class "main-content"
+        , HE.onMouseUp (Drag Off)]
         [ H.span [ HA.class "action-container" ]
               <| I.viewactionwidgets
                     model
@@ -1506,6 +1533,7 @@ init input =
                     , monotonicCount = 0
                     , rawPasted = ""
                     , first = Nothing
+                    , dragOn = False
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
                     , initialFormula = Dict.empty
