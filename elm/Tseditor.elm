@@ -64,6 +64,7 @@ type alias Model =
     , intercept: Maybe String
     , processedPasted: List String
     , rawPasted: String
+    , first : Maybe Int
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
@@ -93,6 +94,7 @@ type Msg
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
     | SelectRow Int
+    | DeselectAll
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -601,8 +603,18 @@ update msg model =
                                     { v | selected = ( v.index == index ) || v.selected}
                                 )
                                 ( getActiveTs model )
+                newmodel = setOnActiveTs model transformed
+                ( _, first ) = firstSelected ( Dict.values (getActiveTs newmodel))
             in
-                U.nocmd (setOnActiveTs model transformed)
+                U.nocmd { newmodel | first = first }
+
+        DeselectAll ->
+             let transformed = Dict.map
+                                ( \ _ v -> { v | selected = False })
+                                ( getActiveTs model )
+                 newmodel = setOnActiveTs model transformed
+              in
+                U.nocmd { newmodel | first = Nothing }
 
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -946,10 +958,18 @@ editTable model =
                               , H.th
                                   [ HA.scope "col" ]
                                   [ H.text "Values" ]
+                              , H.th
+                                  [ HA.class "control-col" ]
+                                  [ ]
+                              , H.th
+                                  [ HA.class "control-col" ]
+                                  [ ]
                               ]
                         ]
                   , H.tbody [ ]
-                      <| List.map (viewrow model) (Dict.toList ( getActiveTs model ))
+                      <| List.map
+                            (viewrow model)
+                            (Dict.toList ( getActiveTs model ))
                   ]
             , node
             ]
@@ -1220,6 +1240,16 @@ linearCorrection model value =
                                         Just ( String.fromFloat ( v * slope + inter ))
 
 
+firstSelected: List Entry -> ( List Entry, Maybe Int)
+firstSelected entries =
+    case entries of
+        [] -> ( [], Nothing )
+        x::xs ->
+            if x.selected
+                then ( [], Just x.index )
+                else firstSelected xs
+
+
 viewrow : Model -> ( String, Entry ) -> H.Html Msg
 viewrow model ( date, entry ) =
     let
@@ -1244,6 +1274,11 @@ viewrow model ( date, entry ) =
                          else if Maybe.isNothing entry.value
                               then "row-nan"
                               else ""
+        isFirstSelected = case model.first of
+                            Nothing -> False
+                            Just first -> if entry.index == first
+                                            then True
+                                            else False
     in
     H.tr
         [ HA.class "row-edit"
@@ -1265,6 +1300,26 @@ viewrow model ( date, entry ) =
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
+            ]
+        , H.td
+            [ HA.class "control-col"
+            , HA.class <| if isFirstSelected
+                            then model.clipboardclass
+                            else ""
+            ]
+            [
+            ]
+        , H.td
+            ([ HA.class "control-col"
+            ] ++ if isFirstSelected
+                    then [ HA.class "remove-selection"
+                         , HE.onClick DeselectAll]
+                    else []
+            )
+
+            [ if isFirstSelected
+                then H.text "x"
+                else H.text ""
             ]
         ]
 
@@ -1418,6 +1473,7 @@ init input =
                     , processedPasted = [ ]
                     , monotonicCount = 0
                     , rawPasted = ""
+                    , first = Nothing
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
                     , initialFormula = Dict.empty
