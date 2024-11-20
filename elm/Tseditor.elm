@@ -91,6 +91,7 @@ type Msg
     | SwitchForceDraw
     | InputChanged String String
     | SaveEditedData
+    | CancelEdition
     | Correction Parameter
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
@@ -539,6 +540,14 @@ update msg model =
             , I.getidates model "series" GetLastInsertionDates
             )
 
+        CancelEdition ->
+            ( setOnActiveTs model
+                (Dict.map
+                    (\ _ e -> { e | edited = Nothing })
+                    ( getActiveTs model ))
+            , Cmd.none
+            )
+
         Correction param ->
             case param of
                 Slope value ->  U.nocmd { model | slope = Just value}
@@ -909,14 +918,25 @@ viewsavebutton plotstatus patch =
     in
     H.div
         [ HA.class "button-save-data" ]
-        [ H.button
-              [ HA.class (if Dict.isEmpty patch then "invisible" else "greenbutton")
-              , HA.attribute "type" "button"
-              , HE.onClick SaveEditedData
-              , HA.disabled (plotstatus == Loading)
-              ]
-              [ H.text status ]
-        ]
+         (if Dict.isEmpty patch
+            then []
+            else
+                [ H.button
+                  [ HA.class  "bluebutton"
+                  , HA.attribute "type" "button"
+                  , HE.onClick CancelEdition
+                  , HA.disabled (plotstatus == Loading)
+                  ]
+                  [ H.text "Cancel" ]
+                , H.button
+                  [ HA.class  "greenbutton"
+                  , HA.attribute "type" "button"
+                  , HE.onClick SaveEditedData
+                  , HA.disabled (plotstatus == Loading)
+                  ]
+                  [ H.text status ]
+                ]
+         )
 
 
 divSaveDataTable : Dict String Entry -> H.Html Msg
@@ -1231,7 +1251,7 @@ viewedittable model =
 divLinearCorrection: Model -> H.Html Msg
 divLinearCorrection model =
     H.div
-        []
+        [ HA.class "linear-correction"]
         [ H.text "Y = "
         , H.input
             [ HA.class "correction"
