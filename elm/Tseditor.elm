@@ -2,6 +2,7 @@ port module Tseditor exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Events exposing (onKeyDown)
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
 import Set exposing (Set)
@@ -46,6 +47,21 @@ port copyToClipboard : String -> Cmd msg
 port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port panActive : (Bool -> msg) -> Sub msg
 port copySignal: (Bool -> msg) -> Sub msg
+
+
+keyDecoder : JD.Decoder Msg
+keyDecoder =
+    JD.map toKey (JD.field "key" JD.string)
+
+
+toKey : String -> Msg
+toKey keyValue =
+    case String.uncons keyValue of
+        Just ( char, "" ) ->
+            NoAction
+        _ ->
+            ControlKey keyValue
+
 
 type alias Model =
     { baseurl : String
@@ -100,6 +116,8 @@ type Msg
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
+    | ControlKey String
+    | NoAction
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -659,6 +677,16 @@ update msg model =
 
         CopyFromBrowser _->
             ( model, T.perform identity ( T.succeed CopySelection ))
+
+        NoAction -> U.nocmd model
+
+        ControlKey key ->
+            if key == "Escape"
+                then
+                    ({ model | first = Nothing }
+                    , T.perform identity (T.succeed DeselectAll)
+                    )
+                else U.nocmd model
 
         Drag mode ->
             case mode of
@@ -1608,6 +1636,7 @@ main =
                 [ zoomPlot FromZoom
                 , panActive NewDragMode
                 , copySignal CopyFromBrowser
+                , onKeyDown keyDecoder
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
                 ]
