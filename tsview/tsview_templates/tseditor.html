@@ -94,6 +94,13 @@
              flags: {{flags_menu | safe}}
          });
         </script>
+        <script>
+            document.getElementsByClassName('main-content')[0].addEventListener(
+                "copy",(event) => {
+                    app.ports.copySignal.send(true);
+                }
+            );
+        </script>
         {% include "menu_stand_alone.html" %}
     </body>
 </html>

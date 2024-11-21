@@ -45,7 +45,7 @@ import Task as T
 port copyToClipboard : String -> Cmd msg
 port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port panActive : (Bool -> msg) -> Sub msg
-
+port copySignal: (Bool -> msg) -> Sub msg
 
 type alias Model =
     { baseurl : String
@@ -99,6 +99,7 @@ type Msg
     | DeselectAll
     | Drag DragMode
     | CopySelection
+    | CopyFromBrowser Bool
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -436,7 +437,9 @@ update msg model =
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False }
+                ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False
+                                                      , first = Nothing
+                                           }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ ->
                     -- we want to fire the commands AFTER getting the metadata:
@@ -653,6 +656,9 @@ update msg model =
                         , copyToClipboard concatened
                         ]
             )
+
+        CopyFromBrowser _->
+            ( model, T.perform identity ( T.succeed CopySelection ))
 
         Drag mode ->
             case mode of
@@ -1601,6 +1607,7 @@ main =
           \_ -> Sub.batch
                 [ zoomPlot FromZoom
                 , panActive NewDragMode
+                , copySignal CopyFromBrowser
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
                 ]
