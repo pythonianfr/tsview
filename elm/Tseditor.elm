@@ -82,6 +82,7 @@ type alias Model =
     , rawPasted: String
     , first : Maybe Int
     , dragOn: Bool
+    , firstNas: List Int
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
@@ -387,6 +388,10 @@ update msg model =
                         U.nocmd { model
                                     | initialTs = indexedval
                                     , zoomedTs = zoomTs
+                                    , firstNas = findStartNas
+                                                    ( Dict.toList ( getActiveTs model ))
+                                                    False
+                                                    []
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
@@ -815,6 +820,24 @@ getSelectedValues model =
         <| List.filter
             (\ e -> e.selected )
             ( Dict.values ( getActiveTs model ))
+
+
+findStartNas: List (String,  Entry) -> Bool -> List Int -> List Int
+findStartNas series previousIsValue found =
+    case series of
+        [] -> found
+        (k, val) :: xs ->
+            if previousIsValue
+                then
+                if val.value == Nothing
+                    then  List.concat [ [val.index]
+                                       , ( findStartNas xs False found )
+                                       ]
+                    else ( findStartNas xs True found )
+                else
+                    if val.value == Nothing
+                        then ( findStartNas xs False found )
+                        else ( findStartNas xs True found )
 
 
 selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
@@ -1501,6 +1524,10 @@ debugView model =
                 ) ++ [ H.text (", dragMode = " ++ if model.dragOn
                                                     then "On"
                                                     else "Off")]
+                  ++ ( List.map
+                            (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
+                            model.firstNas
+                     )
             else
                 []
         )
@@ -1612,6 +1639,7 @@ init input =
                     , rawPasted = ""
                     , first = Nothing
                     , dragOn = False
+                    , firstNas = []
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
                     , initialFormula = Dict.empty
