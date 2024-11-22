@@ -158,7 +158,7 @@ type alias Entry =
     }
 
 type Edited =
-    Edition String
+    Edition Float
     | NoEdition
     | Deletion
 
@@ -488,24 +488,9 @@ update msg model =
 
         InputChanged date rawvalue ->
             let
-                value =
-                    String.replace "," "." rawvalue
-                floatvalue =
-                    String.toFloat value
+                edition = parseInput rawvalue
             in
-            case floatvalue of
-                Just _ ->
-                    U.nocmd ( patchWithValue model date value )
-
-                Nothing ->
-                    if value == "" -- we read this as a NaN
-                    then  U.nocmd ( patchWithValue model date "" )
-                    else U.nocmd
-                            { model
-                                 | editing = Dict.update
-                                                date (\_ -> Just value)
-                                                model.editing
-                            }
+            U.nocmd (patchWithValue model date edition)
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -754,13 +739,16 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-patchWithValue: Model -> String -> String -> Model
-patchWithValue model date validval =
+patchWithValue: Model -> String -> Edited -> Model
+patchWithValue model date edition =
     let
         newentry =
-            updateEntry (parseCopyPastedData validval)
+            updateEntry edition
         patched =
-            Dict.update date newentry ( getActiveTs model )
+            Dict.update
+                date
+                newentry
+                ( getActiveTs model )
         patchedModel = setOnActiveTs model patched
     in
     { patchedModel | editing = Dict.remove
@@ -883,12 +871,11 @@ getRelevantData model =
             [ getPoints model ]
 
 
-parseCopyPastedData : String -> Edited
-parseCopyPastedData value =
+parseInput : String -> Edited
+parseInput value =
     case String.toFloat (String.replace "," "." value) of
-        Just _ ->
-            Edition (String.replace "," "." value)
-
+        Just val ->
+            Edition val
         Nothing ->
             if value == "" then
                 Deletion
@@ -901,7 +888,7 @@ applyPastedDict model payload =
     let
         newValues =
             List.map
-                parseCopyPastedData
+                parseInput
                 (pasteditems payload.text)
         firstIndex =
             Maybe.unwrap
@@ -994,10 +981,7 @@ filterAndConvert editedData =
                     (\ (k, e) -> case e of
                                     NoEdition -> []
                                     Deletion -> [(k, Nothing)]
-                                    Edition val ->
-                                        case String.toFloat val of
-                                            Nothing -> []
-                                            Just v -> [(k, Just v)]
+                                    Edition val -> [(k, Just val)]
                     )
                     ( Dict.toList editedData )
 
@@ -1070,7 +1054,7 @@ divSaveDataTable filtredDict =
                 [ ]
                 [ H.td [ ] [ H.text date ]
                 , H.td [ ] [ H.text (case entry.edited of
-                                        Edition val -> val
+                                        Edition val -> String.fromFloat val
                                         _ -> ""
                                     )
                             ]
@@ -1356,10 +1340,7 @@ entryToFloat entry =
     case entry.edited of
         NoEdition -> Nothing
         Deletion -> Nothing
-        Edition edit ->
-            case String.toFloat edit of
-                Nothing -> Nothing
-                Just ed -> Just ed
+        Edition edit -> Just edit
 
 
 entryToString: Entry -> String
@@ -1367,7 +1348,7 @@ entryToString entry =
     case entry.edited of
         NoEdition -> ""
         Deletion -> ""
-        Edition edit -> edit
+        Edition edit -> String.fromFloat edit
 
 
 viewedittable : Model -> H.Html Msg
@@ -1423,33 +1404,30 @@ linearCorrection model value =
     case value of
         NoEdition -> NoEdition
         Deletion -> Deletion
-        Edition val ->
-            case String.toFloat val of
-                Nothing -> NoEdition
-                Just v ->
-                    let a = case model.slope of
+        Edition v ->
+            let a = case model.slope of
+                        Nothing -> Nothing
+                        Just slope ->
+                            case String.toFloat slope of
                                 Nothing -> Nothing
-                                Just slope ->
-                                    case String.toFloat slope of
-                                        Nothing -> Nothing
-                                        Just s -> Just s
-                        b = case model.intercept of
+                                Just s -> Just s
+                b = case model.intercept of
+                        Nothing -> Nothing
+                        Just inter ->
+                            case String.toFloat inter of
                                 Nothing -> Nothing
-                                Just inter ->
-                                    case String.toFloat inter of
-                                        Nothing -> Nothing
-                                        Just i -> Just i
-                    in
-                        case a of
-                            Nothing ->
-                                case b of
-                                    Nothing -> Edition ( String.fromFloat v )
-                                    Just inter -> Edition ( String.fromFloat ( v + inter ))
-                            Just slope ->
-                                case b of
-                                    Nothing -> Edition ( String.fromFloat ( v * slope ))
-                                    Just inter ->
-                                        Edition ( String.fromFloat ( v * slope + inter ))
+                                Just i -> Just i
+            in
+                case a of
+                    Nothing ->
+                        case b of
+                            Nothing -> Edition v
+                            Just inter -> Edition ( v + inter )
+                    Just slope ->
+                        case b of
+                            Nothing -> Edition ( v * slope )
+                            Just inter ->
+                                Edition ( v * slope + inter )
 
 
 firstSelected: List Entry -> ( List Entry, Maybe Int)
@@ -1472,7 +1450,7 @@ viewrow model ( date, entry ) =
                 Just edited -> edited
                 Nothing ->
                     case entry.edited of
-                        Edition v -> v
+                        Edition v -> String.fromFloat v
                         Deletion -> ""
                         NoEdition ->
                             Maybe.unwrap
@@ -1601,9 +1579,11 @@ debugView model =
                 ( List.map
                     (\ (k, v) -> H.text (k++v))
                     ( Dict.toList model.editing )
-                ) ++ [ H.text (", dragMode = " ++ if model.dragOn
+                ) ++ [ H.br [] []]
+                  ++ [ H.text (", dragMode = " ++ if model.dragOn
                                                     then "On"
                                                     else "Off")]
+                  ++ [ H.br [] []]
                   ++ ( List.map
                             (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
                             model.firstNas
