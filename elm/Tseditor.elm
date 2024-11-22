@@ -152,10 +152,15 @@ msgTooManyPoints nbPoints =
 type alias Entry =
     { value : Maybe Float
     , override : Bool
-    , edited : Maybe String
+    , edited : Edited
     , index : Int
     , selected: Bool
     }
+
+type Edited =
+    Edition String
+    | NoEdition
+    | Deletion
 
 
 type alias Component =
@@ -222,7 +227,7 @@ entryDecoder =
     JD.map5 Entry
         (JD.field "series" (JD.maybe JD.float))
         (JD.field "markers" JD.bool)
-        (JD.succeed Nothing)
+        (JD.succeed NoEdition)
         (JD.succeed 0)
         (JD.succeed False)
 
@@ -557,7 +562,7 @@ update msg model =
         CancelEdition ->
             ( setOnActiveTs model
                 (Dict.map
-                    (\ _ e -> { e | edited = Nothing })
+                    (\ _ e -> { e | edited = NoEdition })
                     ( getActiveTs model ))
             , Cmd.none
             )
@@ -878,17 +883,17 @@ getRelevantData model =
             [ getPoints model ]
 
 
-parseCopyPastedData : String -> Maybe String
+parseCopyPastedData : String -> Edited
 parseCopyPastedData value =
     case String.toFloat (String.replace "," "." value) of
         Just _ ->
-            Just (String.replace "," "." value)
+            Edition (String.replace "," "." value)
 
         Nothing ->
             if value == "" then
-                Just ""
+                Deletion
             else
-                Nothing --error
+                NoEdition
 
 
 applyPastedDict : Model -> PasteType -> Dict String Entry
@@ -933,18 +938,15 @@ applyPastedDict model payload =
         ( getActiveTs model )
 
 
-updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
+updateEntry : Edited -> Maybe Entry -> Maybe Entry
 updateEntry value maybeEntry =
-    case value of
+    case maybeEntry of
         Nothing -> Nothing
-        Just val ->
-            case maybeEntry of
-                Nothing -> Nothing
-                Just entry ->
-                     Just { entry | edited = Just val }
+        Just entry ->
+             Just { entry | edited = value }
 
 
-buildCopyPasteDict : List String -> List ( Maybe String ) -> Dict String ( Maybe String)
+buildCopyPasteDict : List String -> List Edited -> Dict String Edited
 buildCopyPasteDict listDates newValues =
     Dict.fromList <| List.map2
                         Tuple.pair
@@ -959,9 +961,10 @@ patchEditedData model =
                 Just (M.MBool val) -> val
                 _ -> False
 
-        patch =
-            currentDiff model
-                |> Dict.map (\_ value -> Maybe.withDefault "" value.edited)
+        patch = filterAndConvert
+                    <| Dict.map
+                        ( \ _ e -> e.edited )
+                        ( currentDiff model )
     in
     Http.request
         { method = "PATCH"
@@ -983,14 +986,30 @@ patchEditedData model =
         }
 
 
-encodeEditedData : Dict String String -> JE.Value
+filterAndConvert: Dict String Edited -> Dict String ( Maybe Float )
+filterAndConvert editedData =
+    Dict.fromList
+        <| List.concat
+            <| List.map
+                    (\ (k, e) -> case e of
+                                    NoEdition -> []
+                                    Deletion -> [(k, Nothing)]
+                                    Edition val ->
+                                        case String.toFloat val of
+                                            Nothing -> []
+                                            Just v -> [(k, Just v)]
+                    )
+                    ( Dict.toList editedData )
+
+
+encodeEditedData : Dict String (Maybe Float) -> JE.Value
 encodeEditedData editedData =
     JE.dict
         identity
-        (\value ->
-            if value == ""
-            then JE.null
-            else JE.float (Maybe.withDefault 0.0 (String.toFloat value))
+        ( \value ->
+            case value of
+                Nothing -> JE.null --deletion
+                Just val -> JE.float val
         )
         editedData
 
@@ -1050,7 +1069,11 @@ divSaveDataTable filtredDict =
             H.tr
                 [ ]
                 [ H.td [ ] [ H.text date ]
-                , H.td [ ] [ H.text (Maybe.withDefault "" entry.edited)]
+                , H.td [ ] [ H.text (case entry.edited of
+                                        Edition val -> val
+                                        _ -> ""
+                                    )
+                            ]
                 ]
     in
     if Dict.isEmpty filtredDict then
@@ -1316,7 +1339,7 @@ currentDiff model =
     Dict.map
         (\ _ e -> { e | edited = ( linearCorrection model e.edited )})
         ( Dict.filter
-            (\_ entry -> Maybe.isJust entry.edited)
+            (\_ entry -> entry.edited  /= NoEdition )
             ( getActiveTs model )
         )
 
@@ -1324,13 +1347,28 @@ currentDiff model =
 diffToFloat: List Entry -> List ( Maybe Float )
 diffToFloat entries =
     List.map
-        (\  e -> case e.edited of
-                    Nothing -> Nothing
-                    Just edit -> case String.toFloat edit of
-                        Nothing -> Nothing
-                        Just ed -> Just ed
-        )
+        entryToFloat
         entries
+
+
+entryToFloat: Entry -> Maybe Float
+entryToFloat entry =
+    case entry.edited of
+        NoEdition -> Nothing
+        Deletion -> Nothing
+        Edition edit ->
+            case String.toFloat edit of
+                Nothing -> Nothing
+                Just ed -> Just ed
+
+
+entryToString: Entry -> String
+entryToString entry =
+    case entry.edited of
+        NoEdition -> ""
+        Deletion -> ""
+        Edition edit -> edit
+
 
 viewedittable : Model -> H.Html Msg
 viewedittable model =
@@ -1380,13 +1418,14 @@ divLinearCorrection model =
         ]
 
 
-linearCorrection: Model -> Maybe String -> Maybe String
+linearCorrection: Model -> Edited -> Edited
 linearCorrection model value =
     case value of
-        Nothing -> Nothing
-        Just val ->
+        NoEdition -> NoEdition
+        Deletion -> Deletion
+        Edition val ->
             case String.toFloat val of
-                Nothing -> Nothing
+                Nothing -> NoEdition
                 Just v ->
                     let a = case model.slope of
                                 Nothing -> Nothing
@@ -1404,13 +1443,13 @@ linearCorrection model value =
                         case a of
                             Nothing ->
                                 case b of
-                                    Nothing -> Just ( String.fromFloat v )
-                                    Just inter -> Just ( String.fromFloat ( v + inter ))
+                                    Nothing -> Edition ( String.fromFloat v )
+                                    Just inter -> Edition ( String.fromFloat ( v + inter ))
                             Just slope ->
                                 case b of
-                                    Nothing -> Just ( String.fromFloat ( v * slope ))
+                                    Nothing -> Edition ( String.fromFloat ( v * slope ))
                                     Just inter ->
-                                        Just ( String.fromFloat ( v * slope + inter ))
+                                        Edition ( String.fromFloat ( v * slope + inter ))
 
 
 firstSelected: List Entry -> ( List Entry, Maybe Int)
@@ -1432,21 +1471,28 @@ viewrow model ( date, entry ) =
             case editing of
                 Just edited -> edited
                 Nothing ->
-                    if Maybe.isJust entry.edited
-                    then Maybe.withDefault "" entry.edited
-                    else Maybe.unwrap "" String.fromFloat entry.value
-
+                    case entry.edited of
+                        Edition v -> v
+                        Deletion -> ""
+                        NoEdition ->
+                            Maybe.unwrap
+                                ""
+                                String.fromFloat
+                                entry.value
         rowstyle =
             case editing of
                 Just _ -> "row-invalid"
                 Nothing ->
-                    if Maybe.isJust entry.edited
-                    then "row-editing"
-                    else if entry.override
-                         then "row-override"
-                         else if Maybe.isNothing entry.value
-                              then "row-nan"
-                              else ""
+                    case entry.edited of
+                        Edition _ -> "row-editing"
+                        Deletion -> "row-editing"
+                        NoEdition ->
+                            if entry.override
+                             then "row-override"
+                             else if Maybe.isNothing entry.value
+                                  then "row-nan"
+                                  else ""
+
         isFirstSelected = case model.first of
                             Nothing -> False
                             Just first -> if entry.index == first
