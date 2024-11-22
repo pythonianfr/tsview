@@ -75,7 +75,6 @@ type alias Model =
     , initialCommands : Cmd Msg
     , insertion_dates : Array String
     , forceDraw : Bool
-    , editing : Dict String String -- short term buffer (emptied when valid)
     , slope: Maybe String
     , intercept: Maybe String
     , processedPasted: List String
@@ -749,12 +748,9 @@ patchWithValue model date edition =
                 date
                 newentry
                 ( getActiveTs model )
-        patchedModel = setOnActiveTs model patched
     in
-    { patchedModel | editing = Dict.remove
-                                    date
-                                    model.editing
-    }
+        setOnActiveTs model patched
+
 
 flipForce: Model -> Model
 flipForce model =
@@ -1443,33 +1439,25 @@ firstSelected entries =
 viewrow : Model -> ( String, Entry ) -> H.Html Msg
 viewrow model ( date, entry ) =
     let
-        editing =
-            Dict.get date model.editing
-        data =
-            case editing of
-                Just edited -> edited
-                Nothing ->
-                    case entry.edited of
-                        Edition v -> String.fromFloat v
-                        Deletion -> ""
-                        NoEdition ->
-                            Maybe.unwrap
-                                ""
-                                String.fromFloat
-                                entry.value
+        value =
+            case entry.edited of
+                Edition v -> String.fromFloat v
+                Deletion -> ""
+                NoEdition ->
+                    Maybe.unwrap
+                        ""
+                        String.fromFloat
+                        entry.value
         rowstyle =
-            case editing of
-                Just _ -> "row-invalid"
-                Nothing ->
-                    case entry.edited of
-                        Edition _ -> "row-editing"
-                        Deletion -> "row-editing"
-                        NoEdition ->
-                            if entry.override
-                             then "row-override"
-                             else if Maybe.isNothing entry.value
-                                  then "row-nan"
-                                  else ""
+            case entry.edited of
+                Edition _ -> "row-editing"
+                Deletion -> "row-editing"
+                NoEdition ->
+                    if entry.override
+                     then "row-override"
+                     else if Maybe.isNothing entry.value
+                          then "row-nan"
+                          else ""
 
         isFirstSelected = case model.first of
                             Nothing -> False
@@ -1498,7 +1486,7 @@ viewrow model ( date, entry ) =
             ([ H.input
                   [ HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
-                  , HA.value data
+                  , HA.value value
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
@@ -1576,11 +1564,7 @@ debugView model =
         ( if model.horizon.debug
             then
                 [( H.text "debug active" )] ++
-                ( List.map
-                    (\ (k, v) -> H.text (k++v))
-                    ( Dict.toList model.editing )
-                ) ++ [ H.br [] []]
-                  ++ [ H.text (", dragMode = " ++ if model.dragOn
+                [ H.text (", dragMode = " ++ if model.dragOn
                                                     then "On"
                                                     else "Off")]
                   ++ [ H.br [] []]
@@ -1690,7 +1674,6 @@ init input =
                                     Loading
                     , initialCommands = Cmd.none
                     , forceDraw = False
-                    , editing = Dict.empty
                     , intercept = Nothing
                     , slope = Nothing
                     , insertion_dates = Array.empty
