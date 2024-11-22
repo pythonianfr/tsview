@@ -485,35 +485,22 @@ update msg model =
             let
                 value =
                     String.replace "," "." rawvalue
-
                 floatvalue =
                     String.toFloat value
-
-                patchwithvalue validval =
-                    let
-                        horizonmodel =
-                            model.horizon
-                        newentry =
-                            updateEntry (parseCopyPastedData validval)
-                        patched =
-                            Dict.update date newentry ( getActiveTs model )
-                    in
-                    let patchedModel = setOnActiveTs model patched
-                    in
-                    U.nocmd { patchedModel | editing = Dict.remove
-                                                        date
-                                                        model.editing }
             in
             case floatvalue of
                 Just _ ->
-                    patchwithvalue value
+                    U.nocmd ( patchWithValue model date value )
 
                 Nothing ->
                     if value == "" -- we read this as a NaN
-                    then patchwithvalue ""
-                    else U.nocmd { model
-                                     | editing = Dict.update date (\_ -> Just value) model.editing
-                                 }
+                    then  U.nocmd ( patchWithValue model date "" )
+                    else U.nocmd
+                            { model
+                                 | editing = Dict.update
+                                                date (\_ -> Just value)
+                                                model.editing
+                            }
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -636,7 +623,7 @@ update msg model =
 
         Paste payload ->
             let
-                newtimeSeries = getPastedDict model payload
+                newtimeSeries = applyPastedDict model payload
             in
             U.nocmd ( setOnActiveTs model newtimeSeries )
 
@@ -761,6 +748,20 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
+
+patchWithValue: Model -> String -> String -> Model
+patchWithValue model date validval =
+    let
+        newentry =
+            updateEntry (parseCopyPastedData validval)
+        patched =
+            Dict.update date newentry ( getActiveTs model )
+        patchedModel = setOnActiveTs model patched
+    in
+    { patchedModel | editing = Dict.remove
+                                    date
+                                    model.editing
+    }
 
 flipForce: Model -> Model
 flipForce model =
@@ -887,33 +888,45 @@ parseCopyPastedData value =
             if value == "" then
                 Just ""
             else
-                Nothing
+                Nothing --error
 
 
-getPastedDict : Model -> PasteType -> Dict String Entry
-getPastedDict model payload =
+applyPastedDict : Model -> PasteType -> Dict String Entry
+applyPastedDict model payload =
     let
         newValues =
-            List.map parseCopyPastedData (pasteditems payload.text)
+            List.map
+                parseCopyPastedData
+                (pasteditems payload.text)
         firstIndex =
             Maybe.unwrap
                 0
                 (\entry -> entry.index)
-                (Dict.get (payload.index) ( getActiveTs model ))
+                (Dict.get
+                    (payload.index)
+                    ( getActiveTs model )
+                )
         listIndex =
-            List.range firstIndex (firstIndex + (List.length newValues) - 1)
+            List.range
+                firstIndex
+                (firstIndex + (List.length newValues) - 1)
         listDates =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
                      ( getActiveTs model )
                 )
-        copyPastedDict =
-            Dict.fromList <| List.map2 Tuple.pair listDates newValues
+        copyPastedDict = buildCopyPasteDict
+                            listDates
+                            newValues
     in
     Dict.merge
         (\_ _ dict -> dict)
-        (\key _ value dict -> Dict.update key (updateEntry value) dict)
+        (\key _ value dict -> Dict.update
+                                key
+                                (updateEntry value)
+                                dict
+        )
         (\_ _ dict -> dict)
         ( getActiveTs model )
         copyPastedDict
@@ -922,12 +935,21 @@ getPastedDict model payload =
 
 updateEntry : Maybe String -> Maybe Entry -> Maybe Entry
 updateEntry value maybeEntry =
-    maybeEntry
-        |> Maybe.andThen
-           (\entry ->
-                Just { entry | edited = value }
-           )
+    case value of
+        Nothing -> Nothing
+        Just val ->
+            case maybeEntry of
+                Nothing -> Nothing
+                Just entry ->
+                     Just { entry | edited = Just val }
 
+
+buildCopyPasteDict : List String -> List ( Maybe String ) -> Dict String ( Maybe String)
+buildCopyPasteDict listDates newValues =
+    Dict.fromList <| List.map2
+                        Tuple.pair
+                        listDates
+                        newValues
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
