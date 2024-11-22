@@ -119,6 +119,7 @@ type Msg
     | CopyFromBrowser Bool
     | ControlKey String
     | NoAction
+    | FillNas Int
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -682,6 +683,9 @@ update msg model =
 
         CopyFromBrowser _->
             ( model, T.perform identity ( T.succeed CopySelection ))
+
+        FillNas index ->
+            ( model, Cmd.none )
 
         NoAction -> U.nocmd model
 
@@ -1445,7 +1449,7 @@ viewrow model ( date, entry ) =
               [ H.text <| String.replace "T" " " date ]
         , H.td
             [ ]
-            [ H.input
+            ([ H.input
                   [ HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
                   , HA.value data
@@ -1454,7 +1458,15 @@ viewrow model ( date, entry ) =
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
-            ]
+             ] ++ ( if List.member ( entry.index + 1 ) model.firstNas
+                        then [ H.button
+                                [ HA.title "Fill"
+                                , HE.onClick ( FillNas entry.index )]
+                                [ H.text "↓" ]
+                        ]
+                        else []
+                  )
+            )
         , H.td
             ([ HA.class "control-col"
                ] ++ if isFirstSelected
