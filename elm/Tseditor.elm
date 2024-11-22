@@ -804,10 +804,18 @@ getHasCache model =
         }
 
 
+getCurrentValue: Entry -> Maybe Float
+getCurrentValue entry =
+    case entry.edited of
+        Edition value -> Just value
+        Deletion -> Nothing
+        NoEdition -> entry.value
+
+
 getSelectedValues: Model -> List String
 getSelectedValues model =
     List.map
-        (\ e ->  case e.value of
+        (\ e ->  case (getCurrentValue e) of
                     Nothing -> ""
                     Just val -> String.fromFloat val
         )
@@ -1337,14 +1345,6 @@ entryToFloat entry =
         NoEdition -> Nothing
         Deletion -> Nothing
         Edition edit -> Just edit
-
-
-entryToString: Entry -> String
-entryToString entry =
-    case entry.edited of
-        NoEdition -> ""
-        Deletion -> ""
-        Edition edit -> String.fromFloat edit
 
 
 viewedittable : Model -> H.Html Msg
