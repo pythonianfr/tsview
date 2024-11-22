@@ -156,6 +156,13 @@ type alias Entry =
     , selected: Bool
     }
 
+emptyEntry = Entry
+                Nothing
+                False
+                NoEdition
+                0
+                False
+
 type Edited =
     Edition Float
     | NoEdition
@@ -489,7 +496,11 @@ update msg model =
             let
                 edition = parseInput rawvalue
             in
-            U.nocmd (patchWithValue model date edition)
+            U.nocmd <|setOnActiveTs model
+                        <| patchWithValue
+                            (getActiveTs model)
+                            ( date, edition )
+
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -660,8 +671,27 @@ update msg model =
         CopyFromBrowser _->
             ( model, T.perform identity ( T.succeed CopySelection ))
 
-        FillNas index ->
-            ( model, Cmd.none )
+        FillNas indexLastValue ->
+            let
+                entry = Maybe.withDefault
+                            emptyEntry
+                                <| List.head
+                                    <|Dict.values
+                                        <|Dict.filter
+                                            ( \ _ e -> e.index == indexLastValue )
+                                            ( getActiveTs model )
+                lastValue = Maybe.withDefault 0 ( getCurrentValue entry )
+            in
+                ( setOnActiveTs
+                    model
+                        <|Dict.union
+                            (fillNas
+                                ( getActiveTs model )
+                                lastValue
+                                ( indexLastValue )
+                            )
+                            ( getActiveTs model )
+                , Cmd.none )
 
         NoAction -> U.nocmd model
 
@@ -738,18 +768,16 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-patchWithValue: Model -> String -> Edited -> Model
-patchWithValue model date edition =
+patchWithValue: Dict String Entry -> (String , Edited) -> Dict String Entry
+patchWithValue series (date, edition) =
     let
         newentry =
             updateEntry edition
-        patched =
-            Dict.update
-                date
-                newentry
-                ( getActiveTs model )
     in
-        setOnActiveTs model patched
+        Dict.update
+            date
+            newentry
+            series
 
 
 flipForce: Model -> Model
@@ -840,6 +868,34 @@ findStartNas series previousIsValue found =
                     if val.value == Nothing
                         then ( findStartNas xs False found )
                         else ( findStartNas xs True found )
+
+
+fillNas: Dict String  Entry  -> Float -> Int -> Dict String Entry
+fillNas series lastValue indexLastValue =
+    Dict.fromList
+        <|recFillNas
+                ( List.filter
+                    (\ (_, e) -> e.index > indexLastValue)
+                    ( Dict.toList series )
+                )
+                lastValue
+                []
+
+
+recFillNas: List (String,  Entry)  -> Float -> List (String,  Entry)  -> List (String,  Entry)
+recFillNas series lastValue result =
+    case series of
+        [] -> result
+        (k, entry) :: xs ->
+            case getCurrentValue entry of
+                Just _ -> result
+                Nothing -> List.concat[
+                            [(k, {entry | edited = Edition lastValue})]
+                            , recFillNas
+                                xs
+                                lastValue
+                                result
+                            ]
 
 
 selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
@@ -1495,7 +1551,7 @@ viewrow model ( date, entry ) =
              ] ++ ( if List.member ( entry.index + 1 ) model.firstNas
                         then [ H.button
                                 [ HA.title "Fill"
-                                , HE.onClick ( FillNas entry.index )]
+                                , HE.onClick ( FillNas ( entry.index ) )]
                                 [ H.text "↓" ]
                         ]
                         else []
