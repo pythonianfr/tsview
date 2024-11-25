@@ -465,6 +465,7 @@ update msg model =
                                                     model.horizon
             in
             let newModel =  {model | horizon = newModelHorizon
+                                   , monotonicCount = model.monotonicCount + 1
                                    , zoomedTs = Nothing
                                    , zoomedFormula = Nothing}
             in
