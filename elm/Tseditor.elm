@@ -389,21 +389,18 @@ update msg model =
                         indexedval =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
-                    in
-                    let zoomTs = case model.horizon.zoomBounds of
+                        zoomTs = case model.horizon.zoomBounds of
                                     Nothing -> Nothing
                                     Just ( min, max ) -> Just  (
                                         Dict.filter
                                             (( \k _ -> (( k >= min ) && ( k <= max ))))
                                             indexedval )
+
                     in
                         U.nocmd { model
                                     | initialTs = indexedval
                                     , zoomedTs = zoomTs
-                                    , firstNas = findStartNas
-                                                    ( Dict.toList ( getActiveTs model ))
-                                                    False
-                                                    []
+                                    , firstNas = setupNas model
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
@@ -873,6 +870,13 @@ deleteSelectedValues model =
                 )
                 ( getActiveTs model )
 
+
+setupNas: Model -> List Int
+setupNas model =
+    findStartNas
+        ( Dict.toList ( getActiveTs model ))
+        False
+        []
 
 findStartNas: List (String,  Entry) -> Bool -> List Int -> List Int
 findStartNas series previousIsValue found =
