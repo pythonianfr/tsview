@@ -699,9 +699,17 @@ update msg model =
         ControlKey key ->
             if key == "Escape"
                 then
-                    ({ model | first = Nothing }
+                    ( model
                     , T.perform identity (T.succeed DeselectAll)
                     )
+            else
+            if key == "Delete"
+                then
+
+                    ( deleteSelectedValues model
+                    , T.perform identity (T.succeed DeselectAll)
+                    )
+
                 else U.nocmd model
 
         Drag mode ->
@@ -851,6 +859,19 @@ getSelectedValues model =
         <| List.filter
             (\ e -> e.selected )
             ( Dict.values ( getActiveTs model ))
+
+
+deleteSelectedValues: Model -> Model
+deleteSelectedValues model =
+    setOnActiveTs
+        model
+        <| Dict.map
+                (\ k e ->  if e.selected
+                            then
+                                { e | edited = Deletion}
+                            else e
+                )
+                ( getActiveTs model )
 
 
 findStartNas: List (String,  Entry) -> Bool -> List Int -> List Int
