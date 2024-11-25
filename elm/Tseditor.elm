@@ -81,7 +81,7 @@ type alias Model =
     , rawPasted: String
     , first : Maybe Int
     , dragOn: Bool
-    , firstNas: List Int
+    , lastValids: List Int
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
     , initialFormula : Dict String (Maybe Float)
@@ -119,6 +119,7 @@ type Msg
     | ControlKey String
     | NoAction
     | FillNas Int
+    | FillAll
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -676,14 +677,9 @@ update msg model =
 
         FillNas indexLastValue ->
             let
-                entry = Maybe.withDefault
-                            emptyEntry
-                                <| List.head
-                                    <|Dict.values
-                                        <|Dict.filter
-                                            ( \ _ e -> e.index == indexLastValue )
-                                            ( getActiveTs model )
-                lastValue = Maybe.withDefault 0 ( getCurrentValue entry )
+                lastValue = getLastValue
+                                ( getActiveTs model )
+                                indexLastValue
             in
                 ( setOnActiveTs
                     model
@@ -695,6 +691,15 @@ update msg model =
                             )
                             ( getActiveTs model )
                 , Cmd.none )
+
+        FillAll ->
+            ( setOnActiveTs
+                model
+                <| fillAllNas
+                    ( getActiveTs model )
+                    model.lastValids
+            , Cmd.none
+            )
 
         NoAction -> U.nocmd model
 
@@ -879,7 +884,7 @@ deleteSelectedValues model =
 
 setupNas: Model -> Model
 setupNas model =
-    { model | firstNas = findStartNas
+    { model | lastValids = findLastValid
                             ( Dict.toList
                                 ( getActiveTs model )
                             )
@@ -888,22 +893,22 @@ setupNas model =
     }
 
 
-findStartNas: List (String,  Entry) -> Bool -> List Int -> List Int
-findStartNas series previousIsValue found =
+findLastValid: List (String,  Entry) -> Bool -> List Int -> List Int
+findLastValid series previousIsValue found =
     case series of
         [] -> found
         (k, val) :: xs ->
             if previousIsValue
                 then
                 if getCurrentValue val == Nothing
-                    then  List.concat [ [val.index]
-                                       , ( findStartNas xs False found )
+                    then  List.concat [ [ val.index - 1]
+                                       , ( findLastValid xs False found )
                                        ]
-                    else ( findStartNas xs True found )
+                    else ( findLastValid xs True found )
                 else
                     if getCurrentValue val == Nothing
-                        then ( findStartNas xs False found )
-                        else ( findStartNas xs True found )
+                        then ( findLastValid xs False found )
+                        else ( findLastValid xs True found )
 
 
 fillNas: Dict String  Entry  -> Float -> Int -> Dict String Entry
@@ -932,6 +937,39 @@ recFillNas series lastValue result =
                                 lastValue
                                 result
                             ]
+
+
+fillAllNas : Dict String  Entry -> List Int -> Dict String  Entry
+fillAllNas series idxNa =
+    case idxNa of
+        [] -> series
+        x :: xs ->
+            let lastValue = getLastValue series x
+            in
+                Dict.union
+                    ( fillNas
+                        series
+                        lastValue
+                        x
+                    )
+                    ( fillAllNas
+                        series
+                        xs
+                    )
+
+
+getLastValue: Dict String  Entry -> Int -> Float
+getLastValue series indexNa =
+    let
+        entry = Maybe.withDefault
+                    emptyEntry
+                        <| List.head
+                            <|Dict.values
+                                <|Dict.filter
+                                    ( \ _ e -> e.index == indexNa  )
+                                    series
+    in
+        Maybe.withDefault 0 ( getCurrentValue entry )
 
 
 selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
@@ -1206,6 +1244,14 @@ editTable model =
             ]
             [ ]
         class = HA.class "data-table"
+        buttonFillAll = if model.lastValids /= []
+                            then H.button
+                                    [ HA.class "bluebutton"
+                                    , HE.onClick FillAll
+                                    ]
+                                    [ H.text "Fill all Nas ↓" ]
+                            else
+                                H.div [] []
     in
     if Dict.isEmpty ( getActiveTs model )
     then H.div [ class ][ ]
@@ -1222,7 +1268,8 @@ editTable model =
     else
         H.div
             [ class ]
-            [ H.table
+            [ buttonFillAll
+            , H.table
                   [ HA.class "table-style" ]
                   [ H.thead [ ]
                         [ H.tr [ ]
@@ -1584,7 +1631,7 @@ viewrow model ( date, entry ) =
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
-             ] ++ ( if List.member ( entry.index + 1 ) model.firstNas
+             ] ++ ( if List.member  entry.index  model.lastValids
                         then [ H.button
                                 [ HA.title "Fill"
                                 , HE.onClick ( FillNas ( entry.index ) )]
@@ -1662,7 +1709,7 @@ debugView model =
                   ++ [ H.br [] []]
                   ++ ( List.map
                             (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
-                            model.firstNas
+                            model.lastValids
                      )
             else
                 []
@@ -1774,7 +1821,7 @@ init input =
                     , rawPasted = ""
                     , first = Nothing
                     , dragOn = False
-                    , firstNas = []
+                    , lastValids = []
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
                     , initialFormula = Dict.empty
