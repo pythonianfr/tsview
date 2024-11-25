@@ -397,14 +397,16 @@ update msg model =
                                             indexedval )
 
                     in
-                        U.nocmd { model
+                        ( setupNas
+                            ({ model
                                     | initialTs = indexedval
                                     , zoomedTs = zoomTs
-                                    , firstNas = setupNas model
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
-                                }
+                            })
+                        ,
+                        Cmd.none )
                 Err err ->
                   U.nocmd ( addError
                                 model
@@ -494,11 +496,12 @@ update msg model =
             let
                 edition = parseInput rawvalue
             in
-            U.nocmd <|setOnActiveTs model
+            ( setupNas
+                <| setOnActiveTs model
                         <| patchWithValue
                             (getActiveTs model)
                             ( date, edition )
-
+            , Cmd.none )
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -553,10 +556,12 @@ update msg model =
             )
 
         CancelEdition ->
-            ( setOnActiveTs model
-                (Dict.map
-                    (\ _ e -> { e | edited = NoEdition })
-                    ( getActiveTs model ))
+            ( setupNas
+                (setOnActiveTs model
+                    (Dict.map
+                        (\ _ e -> { e | edited = NoEdition })
+                        ( getActiveTs model ))
+                )
             , Cmd.none
             )
 
@@ -703,7 +708,8 @@ update msg model =
             if key == "Delete"
                 then
 
-                    ( deleteSelectedValues model
+                    ( setupNas
+                        ( deleteSelectedValues model )
                     , T.perform identity (T.succeed DeselectAll)
                     )
 
@@ -871,12 +877,16 @@ deleteSelectedValues model =
                 ( getActiveTs model )
 
 
-setupNas: Model -> List Int
+setupNas: Model -> Model
 setupNas model =
-    findStartNas
-        ( Dict.toList ( getActiveTs model ))
-        False
-        []
+    { model | firstNas = findStartNas
+                            ( Dict.toList
+                                ( getActiveTs model )
+                            )
+                            False
+                            []
+    }
+
 
 findStartNas: List (String,  Entry) -> Bool -> List Int -> List Int
 findStartNas series previousIsValue found =
@@ -885,13 +895,13 @@ findStartNas series previousIsValue found =
         (k, val) :: xs ->
             if previousIsValue
                 then
-                if val.value == Nothing
+                if getCurrentValue val == Nothing
                     then  List.concat [ [val.index]
                                        , ( findStartNas xs False found )
                                        ]
                     else ( findStartNas xs True found )
                 else
-                    if val.value == Nothing
+                    if getCurrentValue val == Nothing
                         then ( findStartNas xs False found )
                         else ( findStartNas xs True found )
 
