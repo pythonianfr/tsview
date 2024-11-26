@@ -10,7 +10,7 @@
 }
 
 div.main-content {
-    margin: 0.5em;
+    margin-left: 0.5em;
  }
 
 .action-container {
@@ -272,4 +272,5 @@ label.option {
     border-style: none;
     background-color:  #f8f8f8;
 }
+
 

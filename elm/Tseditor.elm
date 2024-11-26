@@ -1715,11 +1715,88 @@ debugView model =
                 []
         )
 
+viewInfoTable model =
+    H.table
+        [ HA.class "stat-table"]
+        [ H.th
+            [HA.colspan 3]
+            [ H.text "Series Meta"]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Tzaware"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [H.text ( M.dget "tzaware" model.meta )]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Status"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [H.text ( M.dget "supervision_status" model.meta )]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Type"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [H.text ( M.dget "value_type"  model.meta )]
+            ]
+
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Source"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [H.text model.source ]
+            ]
+        , H.tr
+            []
+            [   H.th
+                [HA.colspan 3]
+                [ H.text "Data Info"]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Freq"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| Maybe.withDefault
+                                ""
+                                ( medianValue ( Dict.keys ( getActiveTs model )))
+                ]
+            ]
+        ]
 
 view : Model -> H.Html Msg
 view model =
     let
-        maybeMedian = medianValue (Dict.keys ( getActiveTs model ))
+        maybeMedian = Nothing
         ( dates, values ) = getTs model
         dragMode =
             if model.panActive
@@ -1728,7 +1805,10 @@ view model =
         diff = currentDiff model
     in
     H.div
-        [ HA.class "main-content"
+        [HA.class "tseditor"]
+        [
+    H.div
+        [ HA.class "plot-and-stuffs"
         , HE.onMouseUp (Drag Off)]
         [ H.span [ HA.class "action-container" ]
               <| I.viewactionwidgets
@@ -1783,8 +1863,16 @@ view model =
         , permaLink model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
-
         ]
+        ,
+        H.div
+            [ HA.class "stat-position"]
+            [ H.div
+                [ HA.class "stat-table-container"]
+                [ viewInfoTable model ]
+            ]
+    ]
+
 
 
 type alias Input =
