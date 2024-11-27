@@ -40,6 +40,7 @@ import Plotter exposing
     , serializedPlotArgs
     )
 import Process as P
+import Round
 import Url.Builder as UB
 import Util as U
 import Json.Encode as JE
@@ -77,6 +78,7 @@ type alias Model =
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
     , statistics: Statistics
+    , roundStat: Int
     -- technical
     , errors : List String
     , rawPasted: String
@@ -1768,8 +1770,31 @@ debugView model =
                 []
         )
 
+displayDate: Maybe String -> List ( H.Html msg )
+displayDate date =
+    case date of
+        Nothing -> []
+        Just dat ->
+            intercal
+                ( H.br [] [] )
+                ( List.map
+                    (\ part -> H.text part )
+                    (String.split "T" dat)
+                )
+                []
+
+
+intercal: a -> List a -> List a ->  List a
+intercal toAdd parts result =
+     case parts of
+         [] -> result
+         [x] -> result  ++ [x]
+         x :: xs -> result ++ [x] ++ [toAdd] ++ intercal toAdd xs result
+
+
 viewStatTable model =
     H.table
+
         [ HA.class "stat-table"]
         [ H.th
             [HA.colspan 3]
@@ -1854,10 +1879,8 @@ viewStatTable model =
                 [H.text ":"]
             , H.td
                 []
-                [ H.text <| Maybe.withDefault
-                                ""
-                               model.statistics.start
-                ]
+                ( displayDate model.statistics.start )
+
             ]
         , H.tr
             []
@@ -1869,10 +1892,7 @@ viewStatTable model =
                 [H.text ":"]
             , H.td
                 []
-                [ H.text <| Maybe.withDefault
-                                ""
-                               model.statistics.end
-                ]
+                 ( displayDate model.statistics.end )
             ]
         , H.tr
             []
@@ -1886,7 +1906,9 @@ viewStatTable model =
                 []
                 [ H.text <| case model.statistics.min of
                                 Nothing -> ""
-                                Just val -> String.fromFloat val
+                                Just val -> Round.round
+                                                model.roundStat
+                                                val
                 ]
             ]
         , H.tr
@@ -1899,9 +1921,11 @@ viewStatTable model =
                 [H.text ":"]
             , H.td
                 []
-                [ H.text <| case model.statistics.min of
+                [ H.text <| case model.statistics.max of
                                 Nothing -> ""
-                                Just val -> String.fromFloat val
+                                Just val -> Round.round
+                                                model.roundStat
+                                                val
                 ]
             ]
         , H.tr
@@ -1916,7 +1940,9 @@ viewStatTable model =
                 []
                 [ H.text <| case model.statistics.mean of
                                 Nothing -> ""
-                                Just val -> String.fromFloat val
+                                Just val -> Round.round
+                                                model.roundStat
+                                                val
                 ]
             ]
         , H.tr
@@ -1931,7 +1957,9 @@ viewStatTable model =
                 []
                 [ H.text <| case model.statistics.median of
                                 Nothing -> ""
-                                Just val -> String.fromFloat val
+                                Just val -> Round.round
+                                                model.roundStat
+                                                val
                 ]
             ]
         ]
@@ -2055,6 +2083,7 @@ init input =
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
                     , statistics = emptyStat
+                    , roundStat = 2
                     , initialFormula = Dict.empty
                     , zoomedFormula = Nothing
                     , clipboardclass = "bi bi-clipboard"

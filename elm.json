@@ -45,6 +45,7 @@
             "langyu-app/elm-ancillary-nonempty-list": "1.6.0",
             "maca/elm-rose-tree": "1.2.0",
             "mgold/elm-nonempty-list": "4.2.0",
+            "myrho/elm-round": "1.0.5",
             "rtfeldman/elm-css": "16.1.1",
             "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "toastal/either": "3.6.3",

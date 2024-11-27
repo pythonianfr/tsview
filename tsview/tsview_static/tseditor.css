@@ -26,7 +26,7 @@
 .tseditor {
     display: grid;
     grid-template: "plot-and-stuffs stat-table";
-    grid-template-columns: auto 20ch;
+    grid-template-columns: auto min-content;
 }
 
 .plot-and-stuffs {
@@ -35,7 +35,6 @@
 
 .stat-position {
     grid-area: stat-table;
-    height: fit-content;
 }
 
 .stat-table-container {
@@ -44,18 +43,25 @@
 
 .stat-table {
     float: right;
-    border-left: 1px solid;
-    border-bottom: 1px solid;
+    min-width: 20ch;
+}
+
+
+.stat-table th {
+    text-align: center;
 }
 
 .stat-table tr:nth-child(even){
     background-color: #e0e0e0;
 }
 
+.stat-table td:nth-child(1){
+    padding-left: 3px;
+}
+
 .stat-table td:nth-child(3){
     padding-left: 3px;
     padding-right: 3px;
-
 }
 
 .table-style {
