@@ -26,6 +26,8 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
 import Json.Decode as JD
+import List.Extra as List
+import List.Statistics as Stat
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -74,6 +76,7 @@ type alias Model =
     , insertion_dates : Array String
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
+    , statistics: Statistics
     -- technical
     , errors : List String
     , rawPasted: String
@@ -140,6 +143,24 @@ type Parameter =
     Slope String
     | Intercept String
 
+
+type alias Statistics =
+    { start : Maybe String
+    , end: Maybe String
+    , min: Maybe Float
+    , max: Maybe Float
+    , mean: Maybe Float
+    , median: Maybe Float
+    }
+
+emptyStat =
+    Statistics
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
 
 maxPoints = 1000
 
@@ -398,12 +419,13 @@ update msg model =
                                         Dict.filter
                                             (( \k _ -> (( k >= min ) && ( k <= max ))))
                                             indexedval )
-
+                        statistics = getStatistics ( onlyValues indexedval )
                     in
                         ( setupNas
                             ({ model
                                     | initialTs = indexedval
                                     , zoomedTs = zoomTs
+                                    , statistics = statistics
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     indexedval
@@ -751,22 +773,26 @@ update msg model =
                                                , zoomedFormula = Nothing
                                                , monotonicCount = model.monotonicCount + 1
                                                , forceDraw = False
+                                               , statistics = getStatistics ( onlyValues  model.initialTs )
                                         }
-                            Just (minDate, maxDate) -> { model | zoomedTs = Just ( newZoom
+                            Just (minDate, maxDate) -> let zoomedTs =  newZoom
+                                                                            minDate
+                                                                            maxDate
+                                                                            model.initialTs
+                                                                            model.zoomedTs
+                                                                            model.panActive
+                                                        in
+                                                            { model | zoomedTs = Just zoomedTs
+                                                            , zoomedFormula = Just ( newZoom
                                                                                         minDate
                                                                                         maxDate
-                                                                                        model.initialTs
-                                                                                        model.zoomedTs
+                                                                                        model.initialFormula
+                                                                                        model.zoomedFormula
                                                                                         model.panActive )
-                                                                , zoomedFormula = Just ( newZoom
-                                                                                            minDate
-                                                                                            maxDate
-                                                                                            model.initialFormula
-                                                                                            model.zoomedFormula
-                                                                                            model.panActive )
-                                                                , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
-                                                                , monotonicCount = model.monotonicCount + 1
-                                                        }
+                                                            , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
+                                                            , monotonicCount = model.monotonicCount + 1
+                                                            , statistics = getStatistics ( onlyValues  zoomedTs )
+                                                            }
 
                  in
                     ( newmodel , Cmd.none )
@@ -847,6 +873,32 @@ getHasCache model =
               [ "api", "cache", "series-has-cache" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString HasCache
+        }
+
+
+onlyValues: Dict String Entry -> Dict String Float
+onlyValues series =
+    Dict.fromList
+        <| List.concat
+            <| List.map
+                (\ (k, e) -> case e.value of
+                                Nothing -> []
+                                Just val -> [(k, val)]
+                )
+                (Dict.toList series)
+
+
+getStatistics: Dict String Float -> Statistics
+getStatistics series =
+    let dates = List.sort ( Dict.keys series )
+        values = List.sort ( Dict.values series )
+    in
+        { start = List.head dates
+        , end = List.last dates
+        , min = Stat.minimum values
+        , max = Stat.maximum values
+        , mean = Stat.mean values
+        , median = Stat.median values
         }
 
 
@@ -1716,7 +1768,7 @@ debugView model =
                 []
         )
 
-viewInfoTable model =
+viewStatTable model =
     H.table
         [ HA.class "stat-table"]
         [ H.th
@@ -1790,6 +1842,96 @@ viewInfoTable model =
                 [ H.text <| Maybe.withDefault
                                 ""
                                 ( medianValue ( Dict.keys ( getActiveTs model )))
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Start"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| Maybe.withDefault
+                                ""
+                               model.statistics.start
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "End"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| Maybe.withDefault
+                                ""
+                               model.statistics.end
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Min"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| case model.statistics.min of
+                                Nothing -> ""
+                                Just val -> String.fromFloat val
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Max"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| case model.statistics.min of
+                                Nothing -> ""
+                                Just val -> String.fromFloat val
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Mean"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| case model.statistics.mean of
+                                Nothing -> ""
+                                Just val -> String.fromFloat val
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [H.text "Median"]
+            , H.td
+                []
+                [H.text ":"]
+            , H.td
+                []
+                [ H.text <| case model.statistics.median of
+                                Nothing -> ""
+                                Just val -> String.fromFloat val
                 ]
             ]
         ]
@@ -1870,7 +2012,7 @@ view model =
             [ HA.class "stat-position"]
             [ H.div
                 [ HA.class "stat-table-container"]
-                [ viewInfoTable model ]
+                [ viewStatTable model ]
             ]
     ]
 
@@ -1912,6 +2054,7 @@ init input =
                     , lastValids = []
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
+                    , statistics = emptyStat
                     , initialFormula = Dict.empty
                     , zoomedFormula = Nothing
                     , clipboardclass = "bi bi-clipboard"
