@@ -193,6 +193,7 @@ type Edited =
     Edition Float
     | NoEdition
     | Deletion
+    | Error String
 
 
 type alias Component =
@@ -912,6 +913,7 @@ getCurrentValue entry =
         Edition value -> Just value
         Deletion -> Nothing
         NoEdition -> entry.value
+        Error _ -> Nothing
 
 
 getSelectedValues: Model -> List String
@@ -1064,14 +1066,23 @@ getRelevantData model =
 
 parseInput : String -> Edited
 parseInput value =
-    case String.toFloat (String.replace "," "." value) of
-        Just val ->
-            Edition val
-        Nothing ->
-            if value == "" then
-                Deletion
+    if String.endsWith "." value
+    then
+        Error value
+    else
+        if value == ""
+            then Deletion
             else
-                NoEdition
+                case String.toFloat
+                        <| String.replace
+                                ","
+                                "."
+                                value
+                of
+                    Just val ->
+                        Edition val
+                    Nothing ->
+                        Error value
 
 
 applyPastedDict : Model -> PasteType -> Dict String Entry
@@ -1171,6 +1182,7 @@ filterAndConvert editedData =
             <| List.map
                     (\ (k, e) -> case e of
                                     NoEdition -> []
+                                    Error _ -> []
                                     Deletion -> [(k, Nothing)]
                                     Edition val -> [(k, Just val)]
                     )
@@ -1547,6 +1559,7 @@ entryToFloat: Entry -> Maybe Float
 entryToFloat entry =
     case entry.edited of
         NoEdition -> Nothing
+        Error _ -> Nothing
         Deletion -> Nothing
         Edition edit -> Just edit
 
@@ -1604,6 +1617,7 @@ linearCorrection model value =
     case value of
         NoEdition -> NoEdition
         Deletion -> Deletion
+        Error s -> Error s
         Edition v ->
             let a = case model.slope of
                         Nothing -> Nothing
@@ -1646,6 +1660,7 @@ viewrow model ( date, entry ) =
         value =
             case entry.edited of
                 Edition v -> String.fromFloat v
+                Error s -> s
                 Deletion -> ""
                 NoEdition ->
                     Maybe.unwrap
@@ -1656,6 +1671,7 @@ viewrow model ( date, entry ) =
             case entry.edited of
                 Edition _ -> "row-editing"
                 Deletion -> "row-editing"
+                Error _ -> "row-invalid"
                 NoEdition ->
                     if entry.override
                      then "row-override"
