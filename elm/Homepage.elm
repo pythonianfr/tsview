@@ -102,7 +102,7 @@ buildLinksDiv model =
             [ HA.class "homepage-button"
             , HA.class "greenbutton"
             , HA.target "_blank"
-            , HA.href "https://tshistory-refinery.readthedocs.io/en/latest/" ]
+            , HA.href "https://refinery.docs.pythonian.fr" ]
             [ H.text "documentation" ]
         , H.br [] []
         , H.a
