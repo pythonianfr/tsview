@@ -828,7 +828,9 @@ patchWithValue series (date, edition) =
 
 flipForce: Model -> Model
 flipForce model =
-    { model | forceDraw = not model.forceDraw}
+    { model | forceDraw = not model.forceDraw
+            , monotonicCount = model.monotonicCount + 1
+    }
 
 
 newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
@@ -1292,10 +1294,12 @@ msgTooManyPointsWithButton nbPoints =
 editTable : Model -> H.Html Msg
 editTable model =
     let
-        node = H.node "eval-js"
+        nodeTriggerPastable = H.node "eval-js"
             [ HA.attribute
                   "myjs"
-                  ("applyCopyPaste(" ++ String.fromInt model.monotonicCount ++ ");")
+                  ( "applyCopyPaste("
+                     ++ String.fromInt model.monotonicCount
+                     ++ ");")
             ]
             [ ]
         class = HA.class "data-table"
@@ -1318,7 +1322,13 @@ editTable model =
         then H.div
             [ class ]
             [ msgTooManyPointsWithButton nbPoints
-            , node
+            -- for some reason an existing input help
+            -- to apply the method from a blank page
+            , H.input
+                [ HA.class "pastable"
+                , HA.hidden True]
+                []
+            , nodeTriggerPastable
             ]
     else
         H.div
@@ -1347,7 +1357,7 @@ editTable model =
                             (viewrow model)
                             (Dict.toList ( getActiveTs model ))
                   ]
-            , node
+            , nodeTriggerPastable
             ]
 
 
