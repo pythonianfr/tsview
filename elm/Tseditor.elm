@@ -65,31 +65,33 @@ toKey keyValue =
 
 type alias Model =
     { baseurl : String
-    , errors : List String
     , name : String
     , meta : M.StdMetadata
     , source : String
     , seriestype : I.SeriesType
-    , date_index : Int
     , horizon : HorizonModel
-    , initialCommands : Cmd Msg
+    -- data
     , insertion_dates : Array String
-    , forceDraw : Bool
-    , slope: Maybe String
-    , intercept: Maybe String
-    , processedPasted: List String
-    , rawPasted: String
-    , first : Maybe Int
-    , dragOn: Bool
-    , lastValids: List Int
     , initialTs: Dict String Entry
     , zoomedTs : Maybe ( Dict String Entry )
-    , initialFormula : Dict String (Maybe Float)
-    , zoomedFormula : Maybe ( Dict String (Maybe Float) )
+    -- technical
+    , errors : List String
+    , rawPasted: String
+    , processedPasted: List String
+    , initialCommands : Cmd Msg
     , monotonicCount : Int
     , clipboardclass : String
     , panActive : Bool
+    -- cells interactivity
+    , forceDraw : Bool
+    , firstSelected : Maybe Int
+    , dragOn: Bool
+    , lastValids: List Int
+    , slope: Maybe String
+    , intercept: Maybe String
     -- show-values for formula
+    , initialFormula : Dict String (Maybe Float)
+    , zoomedFormula : Maybe ( Dict String (Maybe Float) )
     , components : List Component
     , componentsData: Dict String Series
     }
@@ -474,7 +476,7 @@ update msg model =
             case hMsg of
                 ModuleHorizon.Internal _ -> default
                 ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False
-                                                      , first = Nothing
+                                                      , firstSelected = Nothing
                                            }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ ->
@@ -652,7 +654,7 @@ update msg model =
                 newmodel = setOnActiveTs model transformed
                 ( _, first ) = firstSelected ( Dict.values (getActiveTs newmodel))
             in
-                U.nocmd { newmodel | first = first }
+                U.nocmd { newmodel | firstSelected = first }
 
         DeselectAll ->
              let transformed = Dict.map
@@ -660,7 +662,7 @@ update msg model =
                                 ( getActiveTs model )
                  newmodel = setOnActiveTs model transformed
               in
-                U.nocmd { newmodel | first = Nothing }
+                U.nocmd { newmodel | firstSelected = Nothing }
 
         CopySelection ->
             let selectedValues = getSelectedValues model
@@ -730,7 +732,6 @@ update msg model =
                 Ok dates ->
                     U.nocmd { model
                                 | insertion_dates = Array.fromList dates
-                                , date_index = List.length dates - 1
                             }
                 Err err ->
                     doerr "idates decode" <| JD.errorToString err
@@ -974,7 +975,7 @@ getLastValue series indexNa =
 
 selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
 selectContiguous model index =
-    case model.first of
+    case model.firstSelected of
         Nothing ->  ( \ _ v ->
                         { v | selected = v.index == index }
                     )
@@ -1598,7 +1599,7 @@ viewrow model ( date, entry ) =
                           then "row-nan"
                           else ""
 
-        isFirstSelected = case model.first of
+        isFirstSelected = case model.firstSelected of
                             Nothing -> False
                             Just first -> if entry.index == first
                                             then True
@@ -1892,7 +1893,6 @@ init input =
                     , meta = Dict.empty
                     , source = ""
                     , seriestype = I.Primary
-                    , date_index = 0
                     , horizon = initHorizon
                                     input.baseurl
                                     input.min
@@ -1907,7 +1907,7 @@ init input =
                     , processedPasted = [ ]
                     , monotonicCount = 0
                     , rawPasted = ""
-                    , first = Nothing
+                    , firstSelected = Nothing
                     , dragOn = False
                     , lastValids = []
                     , initialTs = Dict.empty
