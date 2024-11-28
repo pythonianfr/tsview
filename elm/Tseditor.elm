@@ -453,6 +453,7 @@ update msg model =
                                                     model.horizon
                                                     val
                                     , monotonicCount = model.monotonicCount + 1
+                                    , statistics = getStatistics ( fromFormula val )
                               }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
@@ -774,26 +775,33 @@ update msg model =
                                                , zoomedFormula = Nothing
                                                , monotonicCount = model.monotonicCount + 1
                                                , forceDraw = False
-                                               , statistics = getStatistics ( onlyValues  model.initialTs )
+                                               , statistics = getRelevantStatistics
+                                                                ( onlyValues  model.initialTs )
+                                                                ( fromFormula model.initialFormula )
                                         }
-                            Just (minDate, maxDate) -> let zoomedTs =  newZoom
-                                                                            minDate
-                                                                            maxDate
-                                                                            model.initialTs
-                                                                            model.zoomedTs
-                                                                            model.panActive
-                                                        in
-                                                            { model | zoomedTs = Just zoomedTs
-                                                            , zoomedFormula = Just ( newZoom
-                                                                                        minDate
-                                                                                        maxDate
-                                                                                        model.initialFormula
-                                                                                        model.zoomedFormula
-                                                                                        model.panActive )
-                                                            , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
-                                                            , monotonicCount = model.monotonicCount + 1
-                                                            , statistics = getStatistics ( onlyValues  zoomedTs )
-                                                            }
+                            Just (minDate, maxDate)
+                                -> let zoomedTs =  newZoom
+                                                        minDate
+                                                        maxDate
+                                                        model.initialTs
+                                                        model.zoomedTs
+                                                        model.panActive
+                                       formulaTs = newZoom
+                                                        minDate
+                                                        maxDate
+                                                        model.initialFormula
+                                                        model.zoomedFormula
+                                                        model.panActive
+                                  in
+                                    { model | zoomedTs = Just zoomedTs
+                                            , zoomedFormula = Just formulaTs
+                                            , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
+                                            , monotonicCount = model.monotonicCount + 1
+                                            , statistics = getRelevantStatistics
+                                                                ( onlyValues zoomedTs )
+                                                                ( fromFormula formulaTs )
+
+                                    }
 
                  in
                     ( newmodel , Cmd.none )
@@ -891,6 +899,18 @@ onlyValues series =
                 (Dict.toList series)
 
 
+fromFormula: Dict String (Maybe Float) -> Dict String Float
+fromFormula series =
+    Dict.fromList
+        <| List.concat
+            <| List.map
+                (\ (k, v) -> case v of
+                                Nothing -> []
+                                Just val -> [(k, val)]
+                )
+                (Dict.toList series)
+
+
 getStatistics: Dict String Float -> Statistics
 getStatistics series =
     let dates = List.sort ( Dict.keys series )
@@ -903,6 +923,13 @@ getStatistics series =
         , mean = Stat.mean values
         , median = Stat.median values
         }
+
+
+getRelevantStatistics: Dict String Float -> Dict String Float -> Statistics
+getRelevantStatistics series formula =
+    if Dict.isEmpty series
+        then getStatistics formula
+        else getStatistics series
 
 
 getCurrentValue: Entry -> Maybe Float
