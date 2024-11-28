@@ -490,32 +490,30 @@ update msg model =
                                                     hMsg
                                                     convertMsg
                                                     model.horizon
-            in
-            let newModel =  {model | horizon = newModelHorizon
-                                   , monotonicCount = model.monotonicCount + 1
-                                   , zoomedTs = Nothing
-                                   , zoomedFormula = Nothing}
-            in
-            let default = ( newModel, commands )
+                default = ( { model | horizon = newModelHorizon}, commands )
+                resetModel = { model | horizon = newModelHorizon
+                                     , monotonicCount = model.monotonicCount + 1
+                                     , zoomedTs = Nothing
+                                     , zoomedFormula = Nothing}
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> ( { newModel | forceDraw = False
+                ModuleHorizon.Frame _ -> ( { resetModel | forceDraw = False
                                                       , firstSelected = Nothing
                                            }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ ->
                     -- we want to fire the commands AFTER getting the metadata:
                     -- we store these commands in the model -.-
-                    ( { newModel | initialCommands = commands }
+                    ( { resetModel | initialCommands = commands }
                     , Cmd.batch ([ M.getsysmetadata
                                         model.baseurl
                                         model.name
                                         GotMetadata
                                         "series"]))
-                ModuleHorizon.Fetch _ -> ( newModel
+                ModuleHorizon.Fetch _ -> ( resetModel
                                          , Cmd.batch ([ commands ]
-                                         ++ getRelevantData newModel ))
+                                         ++ getRelevantData resetModel ))
 
         SwitchForceDraw ->
             ( flipForce model , Cmd.none)
