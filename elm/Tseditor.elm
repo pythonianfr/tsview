@@ -178,6 +178,7 @@ type alias Entry =
     { value : Maybe Float
     , override : Bool
     , edited : Edited
+    , raw: Maybe String
     , index : Int
     , selected: Bool
     }
@@ -186,6 +187,7 @@ emptyEntry = Entry
                 Nothing
                 False
                 NoEdition
+                Nothing
                 0
                 False
 
@@ -257,10 +259,11 @@ pasteditems raw =
 
 entryDecoder : JD.Decoder Entry
 entryDecoder =
-    JD.map5 Entry
+    JD.map6 Entry
         (JD.field "series" (JD.maybe JD.float))
         (JD.field "markers" JD.bool)
         (JD.succeed NoEdition)
+        (JD.succeed Nothing)
         (JD.succeed 0)
         (JD.succeed False)
 
@@ -521,13 +524,15 @@ update msg model =
 
         InputChanged date rawvalue ->
             let
-                edition = parseInput rawvalue
+                raw = String.replace " " "" rawvalue
+                edition = parseInput raw
             in
             ( setupNas
                 <| setOnActiveTs model
                         <| patchWithValue
                             (getActiveTs model)
                             ( date, edition )
+                            raw
             , Cmd.none )
 
         GetLastInsertionDates (Ok rawdates) ->
@@ -821,11 +826,11 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-patchWithValue: Dict String Entry -> (String , Edited) -> Dict String Entry
-patchWithValue series (date, edition) =
+patchWithValue: Dict String Entry -> (String , Edited) -> String -> Dict String Entry
+patchWithValue series (date, edition) raw =
     let
         newentry =
-            updateEntry edition
+            updateEntry edition ( Just raw )
     in
         Dict.update
             date
@@ -1101,23 +1106,19 @@ getRelevantData model =
 
 parseInput : String -> Edited
 parseInput value =
-    if String.endsWith "." value
-    then
-        Error value
-    else
-        if value == ""
-            then Deletion
-            else
-                case String.toFloat
-                        <| String.replace
-                                ","
-                                "."
-                                value
-                of
-                    Just val ->
-                        Edition val
-                    Nothing ->
-                        Error value
+    if value == ""
+        then Deletion
+        else
+            case String.toFloat
+                    <| String.replace
+                            ","
+                            "."
+                            value
+            of
+                Just val ->
+                    Edition val
+                Nothing ->
+                    Error value
 
 
 applyPastedDict : Model -> PasteType -> Dict String Entry
@@ -1153,7 +1154,7 @@ applyPastedDict model payload =
         (\_ _ dict -> dict)
         (\key _ value dict -> Dict.update
                                 key
-                                (updateEntry value)
+                                (updateEntry value Nothing)
                                 dict
         )
         (\_ _ dict -> dict)
@@ -1162,12 +1163,14 @@ applyPastedDict model payload =
         ( getActiveTs model )
 
 
-updateEntry : Edited -> Maybe Entry -> Maybe Entry
-updateEntry value maybeEntry =
+updateEntry : Edited ->  Maybe String -> Maybe Entry -> Maybe Entry
+updateEntry value raw maybeEntry  =
     case maybeEntry of
         Nothing -> Nothing
         Just entry ->
-             Just { entry | edited = value }
+             Just { entry | edited = value
+                          , raw = raw
+                  }
 
 
 buildCopyPasteDict : List String -> List Edited -> Dict String Edited
@@ -1756,15 +1759,18 @@ divLinearCorrection model filtredDict =
 
 getValue: Entry -> String
 getValue entry =
-    case entry.edited of
-        Edition v -> String.fromFloat v
-        Error s -> s
-        Deletion -> ""
-        NoEdition ->
-            Maybe.unwrap
-                ""
-                String.fromFloat
-                entry.value
+    case entry.raw of
+        Nothing->
+            case entry.edited of
+                Edition v -> String.fromFloat v
+                Error s -> s
+                Deletion -> ""
+                NoEdition ->
+                    Maybe.unwrap
+                        ""
+                        String.fromFloat
+                        entry.value
+        Just stuff -> stuff
 
 rowStyle: Entry -> String
 rowStyle entry =
@@ -1812,7 +1818,7 @@ viewrow model ( date, entry ) =
             ([ H.input
                   [ HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
-                  , HA.value ( getValue entry )
+                  , HA.value ( formatNumber ( getValue entry ))
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
