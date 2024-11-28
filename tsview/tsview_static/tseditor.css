@@ -14,11 +14,10 @@
     grid-area: tables;
     display: grid;
     grid-template:
-        "button-save-data button-save-data"
+        "header-tables-edition header-tables-edition"
         "data-table save-data-table";
     justify-content: left;
     column-gap: 50px;
-    row-gap: 20px;
 }
 
 /* stat table */
@@ -111,25 +110,38 @@
     grid-area: save-data-table;
 }
 
-.button-save-data {
-    grid-area: button-save-data;
+.header-tables-edition {
+    grid-area: header-tables-edition;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    min-height:42px;
 }
 
+.linear-correction{
+    margin-right: 20px;
+}
 
-.greenbutton {
-    padding: 0.5rem 0.5rem;
-    background: green;
-    border: 1px solid green;
-    border-radius: 8px;
-    color: white;
+.for-current-diff {
+    display: flex;
+
+}
+
+.save-buttons{
+    margin-right: 0;
 }
 
 .bluebutton {
     padding: 0.5rem 0.5rem;
     background: #007bff;
     border: 1px solid blue;
+    border-radius: 8px;
+    color: white;
+}
+
+.greenbutton {
+    padding: 0.5rem 0.5rem;
+    background: green;
+    border: 1px solid green;
     border-radius: 8px;
     color: white;
 }

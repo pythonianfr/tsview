@@ -1289,16 +1289,17 @@ nodeTriggerPastable model =
     [ ]
 
 
-buttonFillAll: Model -> H.Html Msg
+buttonFillAll: Model -> List (H.Html Msg)
 buttonFillAll model =
     if model.lastValids /= []
-        then H.button
-                [ HA.class "bluebutton"
-                , HE.onClick FillAll
-                ]
-                [ H.text "Fill all Nas ↓" ]
+        then [ H.button
+                    [ HA.class "bluebutton"
+                    , HE.onClick FillAll
+                    ]
+                    [ H.text "Fill all Nas ↓" ]
+             ]
         else
-            H.div [] []
+            [ H.div [] [] ]
 
 
 viewRelevantTable: Model -> H.Html Msg
@@ -1495,39 +1496,52 @@ entryToFloat entry =
 viewEditTable : Model -> H.Html Msg
 viewEditTable model =
     let
-        filtredDict = currentDiff model
+        patch = currentDiff model
     in
     H.div
         [ HA.class "tables-edition" ]
-        [ viewsavebutton model.horizon.plotStatus filtredDict
+        [ commonHeaderEdition model patch
         , editTable model
-        , divLinearCorrection model filtredDict
-        , divSaveDataTable filtredDict
+        , divSaveDataTable patch
         ]
 
-viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
-viewsavebutton plotstatus patch =
+
+commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
+commonHeaderEdition model patch =
     H.div
-        [ HA.class "button-save-data" ]
-         (if Dict.isEmpty patch
-            then []
-            else
+        [ HA.class "header-tables-edition" ]
+        ( buttonFillAll model ++
+          [ H.div
+              [ HA.class "for-current-diff"]
+              ( divLinearCorrection model patch ++
+                saveButtons model patch )
+          ]
+        )
+
+
+saveButtons: Model -> Dict String Entry -> List (H.Html Msg)
+saveButtons model patch =
+    if Dict.isEmpty patch
+        then [ ]
+        else
+            [ H.div
+                [ HA.class "save-buttons" ]
                 [ H.button
-                  [ HA.class  "bluebutton"
+                  [ HA.class "bluebutton"
                   , HA.attribute "type" "button"
                   , HE.onClick CancelEdition
-                  , HA.disabled (plotstatus == Loading)
+                  , HA.disabled (model.horizon.plotStatus == Loading)
                   ]
                   [ H.text "Cancel" ]
                 , H.button
-                  [ HA.class  "greenbutton"
+                  [ HA.class "greenbutton"
                   , HA.attribute "type" "button"
                   , HE.onClick SaveEditedData
-                  , HA.disabled (plotstatus == Loading)
+                  , HA.disabled (model.horizon.plotStatus == Loading)
                   ]
-                  [ H.text ( printStatus plotstatus ) ]
+                  [ H.text ( printStatus model.horizon.plotStatus ) ]
                 ]
-         )
+            ]
 
 
 type StatePoints =
@@ -1572,8 +1586,7 @@ editTable model =
         Drawable ->
             H.div
                 [ class ]
-                [ buttonFillAll model
-                , H.table
+                [ H.table
                       [ HA.class "table-style" ]
                       [ H.thead [ ]
                             [ H.tr [ ]
@@ -1639,12 +1652,10 @@ rowSave (date, entry) =
                     ]
         ]
 
-divLinearCorrection: Model -> Dict String Entry -> H.Html Msg
+divLinearCorrection: Model -> Dict String Entry -> List (H.Html Msg)
 divLinearCorrection model filtredDict =
-    H.div
-        [HA.class "save-data-table"]
-        [ if not ( Dict.isEmpty filtredDict )
-          then
+    case ( Dict.isEmpty filtredDict ) of
+        False -> [
             H.div
                 [ HA.class "linear-correction"]
                 [ H.text "Y = "
@@ -1670,9 +1681,10 @@ divLinearCorrection model filtredDict =
                    ]
                    []
                 ]
-          else
-            H.div [] []
-        ]
+            ]
+        True ->
+            [ ]
+
 
 
 getValue: Entry -> String
