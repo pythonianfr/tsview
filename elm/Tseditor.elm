@@ -952,6 +952,16 @@ setupNas model =
     }
 
 
+firstSelected: List Entry -> ( List Entry, Maybe Int)
+firstSelected entries =
+    case entries of
+        [] -> ( [], Nothing )
+        x::xs ->
+            if x.selected
+                then ( [], Just x.index )
+                else firstSelected xs
+
+
 findLastValid: List (String,  Entry) -> Bool -> List Int -> List Int
 findLastValid series previousIsValue found =
     case series of
@@ -1175,6 +1185,38 @@ patchEditedData model =
         }
 
 
+linearCorrection: Model -> Edited -> Edited
+linearCorrection model value =
+    case value of
+        NoEdition -> NoEdition
+        Deletion -> Deletion
+        Error s -> Error s
+        Edition v ->
+            let a = case model.slope of
+                        Nothing -> Nothing
+                        Just slope ->
+                            case String.toFloat slope of
+                                Nothing -> Nothing
+                                Just s -> Just s
+                b = case model.intercept of
+                        Nothing -> Nothing
+                        Just inter ->
+                            case String.toFloat inter of
+                                Nothing -> Nothing
+                                Just i -> Just i
+            in
+                case a of
+                    Nothing ->
+                        case b of
+                            Nothing -> Edition v
+                            Just inter -> Edition ( v + inter )
+                    Just slope ->
+                        case b of
+                            Nothing -> Edition ( v * slope )
+                            Just inter ->
+                                Edition ( v * slope + inter )
+
+
 filterAndConvert: Dict String Edited -> Dict String ( Maybe Float )
 filterAndConvert editedData =
     Dict.fromList
@@ -1213,82 +1255,14 @@ permaLink model =
         [ H.text "Permalink"]
 
 
-viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
-viewsavebutton plotstatus patch =
-    let
-        status =
-            case plotstatus of
-                Loading ->
-                    "Saving ... please wait"
-                Success ->
-                    "Save"
-                _ ->
-                    "Saving failed. Are you editing a forecast ?"
-    in
-    H.div
-        [ HA.class "button-save-data" ]
-         (if Dict.isEmpty patch
-            then []
-            else
-                [ H.button
-                  [ HA.class  "bluebutton"
-                  , HA.attribute "type" "button"
-                  , HE.onClick CancelEdition
-                  , HA.disabled (plotstatus == Loading)
-                  ]
-                  [ H.text "Cancel" ]
-                , H.button
-                  [ HA.class  "greenbutton"
-                  , HA.attribute "type" "button"
-                  , HE.onClick SaveEditedData
-                  , HA.disabled (plotstatus == Loading)
-                  ]
-                  [ H.text status ]
-                ]
-         )
-
-
-divSaveDataTable : Dict String Entry -> H.Html Msg
-divSaveDataTable filtredDict =
-    let
-        row : (String, Entry) -> H.Html Msg
-        row (date, entry) =
-            H.tr
-                [ ]
-                [ H.td [ ] [ H.text date ]
-                , H.td [ ] [ H.text (case entry.edited of
-                                        Edition val -> String.fromFloat val
-                                        _ -> ""
-                                    )
-                            ]
-                ]
-    in
-    if Dict.isEmpty filtredDict then
-        H.div [] []
-    else
-        H.div
-            []
-            [ H.table
-                  [ HA.class "table-style" ]
-                  [ H.thead
-                        [ ]
-                        [ H.tr
-                              [ ]
-                              [ H.th
-                                    [ HA.scope "col" ]
-                                    [ H.text "Dates" ]
-                              , H.th
-                                  [ HA.scope "col" ]
-                                  [ H.text "Values" ]
-                              ]
-                        ]
-                  , H.tbody
-                      [ HA.class "row-green" ]
-                      (List.map row (Dict.toList filtredDict))
-                  ]
-            ]
-
-
+printStatus plotstatus =
+    case plotstatus of
+        Loading ->
+            "Saving ... please wait"
+        Success ->
+            "Save"
+        _ ->
+            "Saving Impossible"
 
 msgTooManyPointsWithButton: Int -> H.Html Msg
 msgTooManyPointsWithButton nbPoints =
@@ -1303,80 +1277,34 @@ msgTooManyPointsWithButton nbPoints =
         ]
 
 
-editTable : Model -> H.Html Msg
-editTable model =
-    let
-        nodeTriggerPastable = H.node "eval-js"
-            [ HA.attribute
-                  "myjs"
-                  ( "applyCopyPaste("
-                     ++ String.fromInt model.monotonicCount
-                     ++ ");")
-            ]
-            [ ]
-        class = HA.class "data-table"
-        buttonFillAll = if model.lastValids /= []
-                            then H.button
-                                    [ HA.class "bluebutton"
-                                    , HE.onClick FillAll
-                                    ]
-                                    [ H.text "Fill all Nas ↓" ]
-                            else
-                                H.div [] []
-    in
-    if Dict.isEmpty ( getActiveTs model )
-    then H.div [ class ][ ]
-    else
-        let nbPoints = (Dict.size ( getActiveTs model ))
-        in
-        if nbPoints > maxPoints
-            && not model.forceDraw
-        then H.div
-            [ class ]
-            [ msgTooManyPointsWithButton nbPoints
-            -- for some reason an existing input help
-            -- to apply the method from a blank page
-            , H.input
-                [ HA.class "pastable"
-                , HA.hidden True]
-                []
-            , nodeTriggerPastable
-            ]
-    else
-        H.div
-            [ class ]
-            [ buttonFillAll
-            , H.table
-                  [ HA.class "table-style" ]
-                  [ H.thead [ ]
-                        [ H.tr [ ]
-                              [ H.th
-                                    [ HA.scope "col" ]
-                                    [ H.text "Dates" ]
-                              , H.th
-                                  [ HA.scope "col" ]
-                                  [ H.text "Values" ]
-                              , H.th
-                                  [ HA.class "control-col" ]
-                                  [ ]
-                              , H.th
-                                  [ HA.class "control-col" ]
-                                  [ ]
-                              ]
-                        ]
-                  , H.tbody [ ]
-                      <| List.map
-                            (viewrow model)
-                            (Dict.toList ( getActiveTs model ))
-                  ]
-            , nodeTriggerPastable
-            ]
+nodeTriggerPastable: Model -> H.Html Msg
+nodeTriggerPastable model =
+    H.node "eval-js"
+    [ HA.attribute
+          "myjs"
+          ( "applyCopyPaste("
+             ++ String.fromInt model.monotonicCount
+             ++ ");")
+    ]
+    [ ]
+
+
+buttonFillAll: Model -> H.Html Msg
+buttonFillAll model =
+    if model.lastValids /= []
+        then H.button
+                [ HA.class "bluebutton"
+                , HE.onClick FillAll
+                ]
+                [ H.text "Fill all Nas ↓" ]
+        else
+            H.div [] []
 
 
 viewRelevantTable: Model -> H.Html Msg
 viewRelevantTable model =
     if model.seriestype == I.Primary
-        then  viewedittable model
+        then viewEditTable model
         else viewValueTable model
 
 
@@ -1564,126 +1492,225 @@ entryToFloat entry =
         Edition edit -> Just edit
 
 
-viewedittable : Model -> H.Html Msg
-viewedittable model =
+viewEditTable : Model -> H.Html Msg
+viewEditTable model =
     let
         filtredDict = currentDiff model
     in
     H.div
-        [ HA.class "tables" ]
+        [ HA.class "tables-edition" ]
         [ viewsavebutton model.horizon.plotStatus filtredDict
         , editTable model
-        , H.div
-            [HA.class "save-data-table"]
-            [ if List.length ( Dict.toList filtredDict ) /= 0
-                then divLinearCorrection model
-                else H.div [] []
-            , divSaveDataTable filtredDict
-            ]
+        , divLinearCorrection model filtredDict
+        , divSaveDataTable filtredDict
         ]
 
-
-divLinearCorrection: Model -> H.Html Msg
-divLinearCorrection model =
+viewsavebutton : PlotStatus -> Dict String Entry -> H.Html Msg
+viewsavebutton plotstatus patch =
     H.div
-        [ HA.class "linear-correction"]
-        [ H.text "Y = "
-        , H.input
-            [ HA.class "correction"
-            , case  model.slope of
-                Nothing ->
-                    HA.placeholder "1"
-                Just slope ->
-                   HA.value slope
-           , HE.onInput (\ s ->  Correction (Slope s) )
-           ]
-           []
-        , H.text "X + "
-        , H.input
-            [ HA.class "correction"
-            , case  model.intercept of
-                Nothing ->
-                    HA.placeholder "0"
-                Just intercept ->
-                   HA.value intercept
-           , HE.onInput (\ s ->  Correction (Intercept s) )
-           ]
-           []
+        [ HA.class "button-save-data" ]
+         (if Dict.isEmpty patch
+            then []
+            else
+                [ H.button
+                  [ HA.class  "bluebutton"
+                  , HA.attribute "type" "button"
+                  , HE.onClick CancelEdition
+                  , HA.disabled (plotstatus == Loading)
+                  ]
+                  [ H.text "Cancel" ]
+                , H.button
+                  [ HA.class  "greenbutton"
+                  , HA.attribute "type" "button"
+                  , HE.onClick SaveEditedData
+                  , HA.disabled (plotstatus == Loading)
+                  ]
+                  [ H.text ( printStatus plotstatus ) ]
+                ]
+         )
+
+
+type StatePoints =
+    NoPoint
+    | TooMuchPoints Int
+    | Drawable
+
+
+statePoints : Int -> Bool -> StatePoints
+statePoints nbPoints forceDraw=
+    if nbPoints == 0
+        then NoPoint
+        else
+            if ( nbPoints < maxPoints ) || forceDraw
+                then Drawable
+                else TooMuchPoints nbPoints
+
+
+editTable : Model -> H.Html Msg
+editTable model =
+    let
+        class = HA.class "data-table"
+    in
+    case statePoints
+            (Dict.size ( getActiveTs model ))
+            model.forceDraw
+    of
+        NoPoint
+            ->  H.div [ class ][ ]
+        TooMuchPoints nbPoints ->
+            H.div
+                [ class ]
+                [ msgTooManyPointsWithButton nbPoints
+                -- for some reason an existing input help
+                -- to apply the method from a blank page
+                , H.input
+                    [ HA.class "pastable"
+                    , HA.hidden True]
+                    []
+                , nodeTriggerPastable model
+                ]
+        Drawable ->
+            H.div
+                [ class ]
+                [ buttonFillAll model
+                , H.table
+                      [ HA.class "table-style" ]
+                      [ H.thead [ ]
+                            [ H.tr [ ]
+                                  [ H.th
+                                        [ HA.scope "col" ]
+                                        [ H.text "Dates" ]
+                                  , H.th
+                                      [ HA.scope "col" ]
+                                      [ H.text "Values" ]
+                                  , H.th
+                                      [ HA.class "control-col" ]
+                                      [ ]
+                                  , H.th
+                                      [ HA.class "control-col" ]
+                                      [ ]
+                                  ]
+                            ]
+                      , H.tbody [ ]
+                          <| List.map
+                                (viewrow model)
+                                (Dict.toList ( getActiveTs model ))
+                      ]
+                , nodeTriggerPastable model
+                ]
+
+
+divSaveDataTable : Dict String Entry -> H.Html Msg
+divSaveDataTable filtredDict =
+    if Dict.isEmpty filtredDict then
+        H.div [] []
+    else
+        H.div
+            [HA.class "save-data-table"]
+            [ H.table
+                  [ HA.class "table-style" ]
+                  [ H.thead
+                        [ ]
+                        [ H.tr
+                              [ ]
+                              [ H.th
+                                    [ HA.scope "col" ]
+                                    [ H.text "Dates" ]
+                              , H.th
+                                  [ HA.scope "col" ]
+                                  [ H.text "Values" ]
+                              ]
+                        ]
+                  , H.tbody
+                      [ HA.class "row-green" ]
+                      (List.map rowSave (Dict.toList filtredDict))
+                  ]
+            ]
+
+rowSave : (String, Entry) -> H.Html Msg
+rowSave (date, entry) =
+    H.tr
+        [ ]
+        [ H.td [ ] [ H.text date ]
+        , H.td [ ] [ H.text (case entry.edited of
+                                Edition val -> String.fromFloat val
+                                _ -> ""
+                            )
+                    ]
+        ]
+
+divLinearCorrection: Model -> Dict String Entry -> H.Html Msg
+divLinearCorrection model filtredDict =
+    H.div
+        [HA.class "save-data-table"]
+        [ if not ( Dict.isEmpty filtredDict )
+          then
+            H.div
+                [ HA.class "linear-correction"]
+                [ H.text "Y = "
+                , H.input
+                    [ HA.class "correction"
+                    , case  model.slope of
+                        Nothing ->
+                            HA.placeholder "1"
+                        Just slope ->
+                           HA.value slope
+                   , HE.onInput (\ s ->  Correction (Slope s) )
+                   ]
+                   []
+                , H.text "X + "
+                , H.input
+                    [ HA.class "correction"
+                    , case  model.intercept of
+                        Nothing ->
+                            HA.placeholder "0"
+                        Just intercept ->
+                           HA.value intercept
+                   , HE.onInput (\ s ->  Correction (Intercept s) )
+                   ]
+                   []
+                ]
+          else
+            H.div [] []
         ]
 
 
-linearCorrection: Model -> Edited -> Edited
-linearCorrection model value =
-    case value of
-        NoEdition -> NoEdition
-        Deletion -> Deletion
-        Error s -> Error s
-        Edition v ->
-            let a = case model.slope of
-                        Nothing -> Nothing
-                        Just slope ->
-                            case String.toFloat slope of
-                                Nothing -> Nothing
-                                Just s -> Just s
-                b = case model.intercept of
-                        Nothing -> Nothing
-                        Just inter ->
-                            case String.toFloat inter of
-                                Nothing -> Nothing
-                                Just i -> Just i
-            in
-                case a of
-                    Nothing ->
-                        case b of
-                            Nothing -> Edition v
-                            Just inter -> Edition ( v + inter )
-                    Just slope ->
-                        case b of
-                            Nothing -> Edition ( v * slope )
-                            Just inter ->
-                                Edition ( v * slope + inter )
+getValue: Entry -> String
+getValue entry =
+    case entry.edited of
+        Edition v -> String.fromFloat v
+        Error s -> s
+        Deletion -> ""
+        NoEdition ->
+            Maybe.unwrap
+                ""
+                String.fromFloat
+                entry.value
 
-
-firstSelected: List Entry -> ( List Entry, Maybe Int)
-firstSelected entries =
-    case entries of
-        [] -> ( [], Nothing )
-        x::xs ->
-            if x.selected
-                then ( [], Just x.index )
-                else firstSelected xs
+rowStyle: Entry -> String
+rowStyle entry =
+        case entry.edited of
+            Edition _ -> "row-editing"
+            Deletion -> "row-editing"
+            Error _ -> "row-invalid"
+            NoEdition ->
+                if entry.override
+                 then "row-override"
+                 else if Maybe.isNothing entry.value
+                      then "row-nan"
+                      else ""
 
 
 viewrow : Model -> ( String, Entry ) -> H.Html Msg
 viewrow model ( date, entry ) =
     let
-        value =
-            case entry.edited of
-                Edition v -> String.fromFloat v
-                Error s -> s
-                Deletion -> ""
-                NoEdition ->
-                    Maybe.unwrap
-                        ""
-                        String.fromFloat
-                        entry.value
-        rowstyle =
-            case entry.edited of
-                Edition _ -> "row-editing"
-                Deletion -> "row-editing"
-                Error _ -> "row-invalid"
-                NoEdition ->
-                    if entry.override
-                     then "row-override"
-                     else if Maybe.isNothing entry.value
-                          then "row-nan"
-                          else ""
-
+        rowstyle = rowStyle entry
         isFirstSelected = case model.firstSelected of
                             Nothing -> False
-                            Just first -> if entry.index == first
-                                            then True
-                                            else False
+                            Just first ->
+                                if entry.index == first
+                                    then True
+                                    else False
     in
     H.tr
         ([ HA.class "row-edit"
@@ -1698,65 +1725,54 @@ viewrow model ( date, entry ) =
                      ]
                 else []
         )
-        [ H.td
+        ([ H.td
               [ HA.class rowstyle]
               [ H.text <| String.replace "T" " " date ]
-        , H.td
+         , H.td
             [ ]
             ([ H.input
                   [ HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
-                  , HA.value value
+                  , HA.value ( getValue entry )
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
-             ] ++ ( if List.member  entry.index  model.lastValids
-                        then [ H.button
-                                [ HA.title "Fill"
-                                , HE.onClick ( FillNas ( entry.index ) )]
-                                [ H.text "↓" ]
-                        ]
-                        else []
+             ] ++ ( case List.member  entry.index  model.lastValids of
+                        True -> [ H.button
+                                    [ HA.title "Fill"
+                                    , HE.onClick ( FillNas ( entry.index ) )]
+                                    [ H.text "↓" ]
+                                ]
+                        False -> []
                   )
             )
-        , H.td
-            ([ HA.class "control-col"
-               ] ++ if isFirstSelected
-                    then [ HA.class "bi bi-clipboard"
-                         , HA.class "copy-selection"
-                         , HA.title "Copy selection"
-                         , HE.onClick CopySelection]
-                    else []
-                )
-            [ ]
-        , H.td
-            ([ HA.class "control-col"
-            ] ++ if isFirstSelected
-                    then [ HA.class "remove-selection"
-                         , HA.title "Deselect all"
-                         , HE.onClick DeselectAll]
-                    else []
-            )
+         ] ++ (buttonsFirstSelected isFirstSelected )
+        )
 
-            [ if isFirstSelected
-                then H.text "x"
-                else H.text ""
+
+buttonsFirstSelected: Bool -> List (H.Html Msg)
+buttonsFirstSelected predicat =
+    if not predicat
+        then []
+        else [
+            H.td
+                [ HA.class "control-col"
+                , HA.class "bi bi-clipboard"
+                , HA.class "copy-selection"
+                , HA.title "Copy selection"
+                , HE.onClick CopySelection
+                ]
+                [ ]
+            , H.td
+                [ HA.class "control-col"
+                , HA.class "remove-selection"
+                , HA.title "Deselect all"
+                , HE.onClick DeselectAll
+                ]
+                [ H.text "x"]
             ]
-        ]
-
-
-statusText : ModuleHorizon.PlotStatus -> String
-statusText plotStatus =
-    if plotStatus == None then
-        "Init"
-    else if plotStatus == Loading then
-        "Loading ..."
-    else if plotStatus == Success then
-        ""
-    else
-        "Failure"
 
 
 isEmpty: Model -> Bool
@@ -1820,7 +1836,6 @@ intercal toAdd parts result =
 
 viewStatTable model =
     H.table
-
         [ HA.class "stat-table"]
         [ H.th
             [HA.colspan 3]

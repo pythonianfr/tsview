@@ -10,7 +10,7 @@
     min-height: 20px;
 }
 
-.tables {
+.tables-edition {
     grid-area: tables;
     display: grid;
     grid-template:
