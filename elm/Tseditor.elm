@@ -1489,8 +1489,50 @@ printValue: Maybe Float -> String
 printValue value =
     case value of
         Nothing -> ""
-        Just val -> String.fromFloat val
+        Just val -> formatNumber (String.fromFloat val)
 
+
+formatNumber: String -> String
+formatNumber number =
+    let parts = String.split "." number
+    in
+      case parts of
+          [] -> ""
+          [x] -> addSpace x
+          x :: xs ->
+            String.concat
+                [ String.reverse
+                    ( addSpace
+                        ( String.reverse x )
+                    )
+                , "."
+                , addSpace ( String.concat xs )
+                ]
+
+
+addSpace: String -> String
+addSpace part =
+   String.fromList
+        <|addSpaceRec
+            (String.toList part)
+            3
+            []
+
+
+addSpaceRec: List Char -> Int -> List Char -> List Char
+addSpaceRec parts counter result =
+    if counter == 0 && not (List.isEmpty parts)
+        then addSpaceRec
+                parts
+                3
+                ( List.append result [' '] )
+        else
+            case parts of
+                [] -> result
+                x :: xs ->
+                    addSpaceRec
+                        xs ( counter - 1 )
+                        ( List.append result [ x ])
 
 currentDiff: Model -> Dict String Entry
 currentDiff model =
