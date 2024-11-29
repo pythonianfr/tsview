@@ -2213,83 +2213,91 @@ viewStatTable model =
             ]
         ]
 
-view : Model -> H.Html Msg
-view model =
-    let
-        maybeMedian = Nothing
-        ( dates, values ) = getTs model
+displayStatus: Model -> H.Html Msg
+displayStatus model =
+    if model.horizon.plotStatus == None
+      then H.text "The graph is loading, please wait"
+      else if isEmpty model && (model.horizon.plotStatus == Success)
+           then H.text """It seems there is no data to display in this
+                        interval, select another one."""
+           else H.text ""
+
+
+plotNode: Model -> H.Html Msg
+plotNode model =
+    let ( dates, values ) = getTs model
+        diff = currentDiff model
         dragMode =
             if model.panActive
             then "pan"
             else "zoom"
-        diff = currentDiff model
+    in
+    H.node "plot-figure"
+            [ HA.attribute
+                "args"
+                ( serializedPlotArgs
+                     "plot"
+                    [ scatterplot
+                        model.name
+                        dates
+                        values
+                        ( if model.horizon.inferredFreq
+                            then "lines+markers"
+                            else "lines" )
+                        defaultTraceOptions
+                    , scatterplot
+                        "edition"
+                        ( Dict.keys diff )
+                        ( diffToFloat ( Dict.values diff ))
+                        "lines+markers"
+                        defaultTraceOptions
+                    ]
+                    { defaultLayoutOptions | dragMode = Just dragMode }
+                    defaultConfigOptions
+                )
+            ]
+            [ ]
+
+
+view : Model -> H.Html Msg
+view model =
+    let
+        maybeMedian = Nothing
     in
     H.div
-        [HA.class "tseditor"]
-        [
-    H.div
-        [ HA.class "plot-and-stuffs"
-        , HE.onMouseUp (Drag Off)]
-        [ H.span [ HA.class "action-container" ]
-              <| I.viewactionwidgets
-                    model
-                    convertMsg
-                    False
-                    "Series Editor"
-                    ( getFromToDates model.horizon )
-        , I.viewtitle model maybeMedian CopyNameToClipboard
-        , H.div
-            [ HA.class "status-plot" ]
-            [ if model.horizon.plotStatus == None
-              then H.text "The graph is loading, please wait"
-              else if isEmpty model && (model.horizon.plotStatus == Success)
-                   then H.text """It seems there is no data to display in this
-                                interval, select another one."""
-                   else H.text ""
-            ]
-        , H.div
-            [ ]
-            [ H.div
-                [ HA.id "plot" ]
-                [ ]
-            , H.node "plot-figure"
-                [ HA.attribute
-                    "args"
-                    ( serializedPlotArgs
-                         "plot"
-                        [ scatterplot
-                            model.name
-                            dates
-                            values
-                            ( if model.horizon.inferredFreq
-                                then "lines+markers"
-                                else "lines" )
-                            defaultTraceOptions
-                        , scatterplot
-                            "edition"
-                            ( Dict.keys diff )
-                            ( diffToFloat ( Dict.values diff ))
-                            "lines+markers"
-                            defaultTraceOptions
-                        ]
-                        { defaultLayoutOptions | dragMode = Just dragMode }
-                        defaultConfigOptions
-                    )
-                ]
-                [ ]
-            ]
-
-        , debugView model
-        , underThePlot model
-        , viewRelevantTable model
-        , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
+        [HA.class "tseditor"
+        , HE.onMouseUp (Drag Off)
         ]
-        ,
-        H.div
-            [ HA.class "stat-position"]
+        [ H.div
+            [ HA.class "header-with-horizon"]
+            [ H.div [ HA.class "action-container" ]
+                  <| I.viewactionwidgets
+                        model
+                        convertMsg
+                        False
+                        "Series Editor"
+                        ( getFromToDates model.horizon )
+            , I.viewtitle model maybeMedian CopyNameToClipboard
+            ]
+        , H.div
+            [ HA.class "under-the-header"]
             [ H.div
-                [ HA.class "stat-table-container"]
-                [ viewStatTable model ]
+                [ HA.class "plot-and-stuffs" ]
+                [ H.div
+                    [ HA.class "status-plot" ]
+                    [ displayStatus model ]
+                , H.div
+                    [ HA.id "plot" ]
+                    [ ]
+                , plotNode model
+                , debugView model
+                , underThePlot model
+                , viewRelevantTable model
+                , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
+                ]
+                , H.div
+                    [ HA.class "stat-table-container"]
+                    [ viewStatTable model ]
             ]
     ]
 

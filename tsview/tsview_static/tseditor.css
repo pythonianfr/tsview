@@ -22,10 +22,14 @@
 
 /* stat table */
 
-.tseditor {
+.under-the-header {
     display: grid;
     grid-template: "plot-and-stuffs stat-table";
     grid-template-columns: auto min-content;
+}
+
+.header-with-horizon {
+    grid-area: header
 }
 
 .plot-and-stuffs {
@@ -33,10 +37,11 @@
 }
 
 .stat-position {
-    grid-area: stat-table;
 }
 
 .stat-table-container {
+    width: min-content;
+    grid-area: stat-table;
 
 }
 
