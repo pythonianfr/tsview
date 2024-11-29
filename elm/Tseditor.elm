@@ -169,6 +169,8 @@ emptyStat =
 type ActionRound =
     Replace String
     | Remove
+    | More
+    | Less
 
 maxPoints = 1000
 
@@ -773,6 +775,14 @@ update msg model =
                             case String.toInt stuff of
                                 Nothing -> U.nocmd model
                                 Just val -> U.nocmd { model | roundValues = Just val }
+                More ->
+                    case model.roundValues of
+                        Nothing -> U.nocmd model
+                        Just round -> U.nocmd { model | roundValues = Just ( round + 1 ) }
+                Less ->
+                    case model.roundValues of
+                        Nothing -> U.nocmd model
+                        Just round -> U.nocmd { model | roundValues = Just ( round - 1 ) }
 
 
         InsertionDates (Ok rawdates) ->
@@ -1318,12 +1328,20 @@ maybeRoundForm model =
         I.Formula ->
             [ H.div
                 []
-                [ H.input
+            [ H.button
+                    [ HA.class "increment-round"
+                    , HE.onClick ( NewRound Less )]
+                    [ H.text "-" ]
+                , H.input
                     [ HA.class "round-input"
                     , HE.onInput (\ s -> NewRound (Replace s) )
                     , HA.value ( printRound model.roundValues )
                     ]
                     []
+                , H.button
+                    [ HA.class "increment-round"
+                    , HE.onClick ( NewRound More )]
+                    [ H.text "+" ]
                 , H.button
                     [ HA.class "remove-round"
                     , HE.onClick ( NewRound Remove )]
