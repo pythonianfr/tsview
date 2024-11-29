@@ -1027,7 +1027,9 @@ deleteSelectedValues model =
         <| Dict.map
                 (\ k e ->  if e.selected
                             then
-                                { e | edited = Deletion}
+                                { e | edited = Deletion
+                                    , raw = Nothing
+                                }
                             else e
                 )
                 ( getActiveTs model )
