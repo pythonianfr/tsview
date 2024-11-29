@@ -87,6 +87,17 @@
              incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
          }
          app.ports.loadFromLocalStorage.send(incache);
+
+         // round
+         app.ports.saveLocal.subscribe(function (dataInCache) {
+             localStorage.setItem("round", JSON.stringify(dataInCache))
+         });
+         incache = localStorage.getItem("round")
+         if (incache === null) {
+             incache = '{"round": null}'
+         }
+         app.ports.loadLocal.send(incache);
+
         </script>
         <script>
          var menuapp = Elm.StandAloneMenu.init({

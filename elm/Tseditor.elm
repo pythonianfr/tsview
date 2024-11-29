@@ -50,6 +50,8 @@ port copyToClipboard : String -> Cmd msg
 port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port panActive : (Bool -> msg) -> Sub msg
 port copySignal: (Bool -> msg) -> Sub msg
+port saveLocal : LocalStorage -> Cmd msg
+port loadLocal : (String -> msg) -> Sub msg
 
 
 keyDecoder : JD.Decoder Msg
@@ -128,6 +130,7 @@ type Msg
     | NoAction
     | FillNas Int
     | FillAll
+    | FromLocal String
     | NewRound ActionRound
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
@@ -171,6 +174,10 @@ type ActionRound =
     | Remove
     | More
     | Less
+
+type alias LocalStorage =
+    { round : Maybe String
+    }
 
 maxPoints = 1000
 
@@ -284,6 +291,12 @@ componentsDecoder =
     JD.list (JD.map2 Component
                 (JD.field "name" JD.string)
                 (JD.field "type" JD.string))
+
+localDecoder : JD.Decoder LocalStorage
+localDecoder =
+    JD.map LocalStorage
+        (JD.field "round" (JD.nullable JD.string))
+
 
 getPoints: Model -> Cmd Msg
 getPoints model =
@@ -766,23 +779,43 @@ update msg model =
 
 
         NewRound action ->
+            let save = (\ newRound ->
+                            ( { model | roundValues = newRound}
+                            , saveLocal { round =
+                                            case newRound of
+                                                Nothing -> Nothing
+                                                Just round -> Just ( String.fromInt
+                                                                        round )
+                                        }
+                            )
+                       )
+            in
             case action of
-                Remove -> U.nocmd { model | roundValues = Nothing }
+                Remove -> save Nothing
                 Replace stuff ->
                     if stuff == ""
-                        then U.nocmd { model | roundValues = Nothing }
+                        then save Nothing
                         else
                             case String.toInt stuff of
                                 Nothing -> U.nocmd model
-                                Just val -> U.nocmd { model | roundValues = Just val }
+                                Just val -> save ( Just val )
                 More ->
                     case model.roundValues of
-                        Nothing -> U.nocmd model
-                        Just round -> U.nocmd { model | roundValues = Just ( round + 1 ) }
+                        Nothing -> save ( Just 0 )
+                        Just round -> save ( Just ( round + 1 ) )
                 Less ->
                     case model.roundValues of
                         Nothing -> U.nocmd model
-                        Just round -> U.nocmd { model | roundValues = Just ( round - 1 ) }
+                        Just round -> save ( Just ( round - 1 ) )
+
+
+        FromLocal payload ->
+             case JD.decodeString localDecoder payload of
+                 Err _ -> U.nocmd model
+                 Ok local ->
+                     case local.round of
+                         Nothing -> U.nocmd { model | roundValues = Nothing }
+                         Just round -> U.nocmd { model | roundValues = ( String.toInt  round)}
 
 
         InsertionDates (Ok rawdates) ->
@@ -2321,6 +2354,7 @@ main =
                 , panActive NewDragMode
                 , copySignal CopyFromBrowser
                 , onKeyDown keyDecoder
+                , loadLocal FromLocal
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
                 ]
