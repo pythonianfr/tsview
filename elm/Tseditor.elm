@@ -79,6 +79,7 @@ type alias Model =
     , zoomedTs : Maybe ( Dict String Entry )
     , statistics: Statistics
     , roundStat: Int
+    , roundValues: Maybe Int
     -- technical
     , errors : List String
     , rawPasted: String
@@ -127,6 +128,7 @@ type Msg
     | NoAction
     | FillNas Int
     | FillAll
+    | NewRound ActionRound
     | InsertionDates (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
@@ -163,6 +165,10 @@ emptyStat =
         Nothing
         Nothing
         Nothing
+
+type ActionRound =
+    Replace String
+    | Remove
 
 maxPoints = 1000
 
@@ -756,6 +762,19 @@ update msg model =
                 On -> U.nocmd { model | dragOn = True }
                 Off -> U.nocmd  { model | dragOn = False }
 
+
+        NewRound action ->
+            case action of
+                Remove -> U.nocmd { model | roundValues = Nothing }
+                Replace stuff ->
+                    if stuff == ""
+                        then U.nocmd { model | roundValues = Nothing }
+                        else
+                            case String.toInt stuff of
+                                Nothing -> U.nocmd model
+                                Just val -> U.nocmd { model | roundValues = Just val }
+
+
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
@@ -1271,6 +1290,15 @@ encodeEditedData editedData =
         editedData
 
 
+underThePlot: Model -> H.Html Msg
+underThePlot model =
+    H.div
+        [ HA.class "under-the-plot" ]
+        <| List.append
+            [ permaLink model ]
+            ( maybeRoundForm model )
+
+
 permaLink: Model -> H.Html Msg
 permaLink model =
     H.a
@@ -1281,6 +1309,35 @@ permaLink model =
         , HA.target "_blank"
         ]
         [ H.text "Permalink"]
+
+
+maybeRoundForm: Model -> List ( H.Html Msg )
+maybeRoundForm model =
+    case model.seriestype of
+        I.Primary -> []
+        I.Formula ->
+            [ H.div
+                []
+                [ H.input
+                    [ HA.class "round-input"
+                    , HE.onInput (\ s -> NewRound (Replace s) )
+                    , HA.value ( printRound model.roundValues )
+                    ]
+                    []
+                , H.button
+                    [ HA.class "remove-round"
+                    , HE.onClick ( NewRound Remove )]
+                    [ H.text "X" ]
+                ]
+            ]
+
+
+printRound: Maybe Int -> String
+printRound stuff =
+    case stuff of
+        Nothing -> ""
+        Just something ->
+            String.fromInt something
 
 
 printStatus plotstatus =
@@ -1416,7 +1473,7 @@ buildRow model date =
             [ H.th
                 [HA.class "editor-values-table-dates"]
                 [ H.text date ]
-            , H.td [] [ H.text ( printValue
+            , H.td [] [ H.text ( printValue model.roundValues
                                     ( Maybe.withDefault
                                           Nothing
                                           ( Dict.get
@@ -1476,23 +1533,35 @@ buildLink model comp =
 addComponentCells: Model -> String -> List (H.Html Msg)
 addComponentCells model date =
     List.map
-        ( \ comp -> H.td [] [H.text ( printValue
-                               ( Maybe.withDefault
+        ( \ comp -> H.td [] [H.text
+                            <| printValue model.roundValues
+                               <| Maybe.withDefault
                                    Nothing
-                                   ( Dict.get
+                                   <| Dict.get
                                         date
-                                        ( Maybe.withDefault
+                                        <| Maybe.withDefault
                                             Dict.empty
-                                            ( Dict.get
-                                                comp.name
-                                                model.componentsData)))))])
+                                              <|Dict.get
+                                                    comp.name
+                                                    model.componentsData ])
         model.components
 
-printValue: Maybe Float -> String
-printValue value =
+
+printValue: Maybe Int -> Maybe Float -> String
+printValue round value =
     case value of
         Nothing -> ""
-        Just val -> formatNumber (String.fromFloat val)
+        Just val -> formatNumber
+                        <| roundNumber
+                            round
+                            val
+
+
+roundNumber: Maybe Int -> Float -> String
+roundNumber round number =
+    case round of
+        Nothing -> String.fromFloat number
+        Just r -> Round.round r number
 
 
 formatNumber: String -> String
@@ -2157,7 +2226,7 @@ view model =
             ]
 
         , debugView model
-        , permaLink model
+        , underThePlot model
         , viewRelevantTable model
         , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
         ]
@@ -2210,6 +2279,7 @@ init input =
                     , zoomedTs = Nothing
                     , statistics = emptyStat
                     , roundStat = 2
+                    , roundValues = Nothing
                     , initialFormula = Dict.empty
                     , zoomedFormula = Nothing
                     , clipboardclass = "bi bi-clipboard"
