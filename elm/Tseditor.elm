@@ -1360,8 +1360,9 @@ maybeRoundForm model =
         I.Primary -> []
         I.Formula ->
             [ H.div
-                []
-            [ H.button
+                [ HA.class "form-round"]
+                [ H.text "Decimals : "
+                 ,H.button
                     [ HA.class "increment-round"
                     , HE.onClick ( NewRound Less )]
                     [ H.text "-" ]
@@ -1380,7 +1381,7 @@ maybeRoundForm model =
                     , HE.onClick ( NewRound Remove )]
                     [ H.text "X" ]
                 ]
-            ]
+                ]
 
 
 printRound: Maybe Int -> String

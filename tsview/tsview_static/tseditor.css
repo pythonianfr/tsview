@@ -63,6 +63,35 @@
     padding-right: 3px;
 }
 
+/* form for round */
+
+.under-the-plot {
+    display: flex;
+}
+
+.form-round{
+    display: inline;
+    margin-left:20px;
+}
+
+
+.form-round button{
+    background-color: white;
+    width: 3ch;
+    height: 3ch;
+}
+
+.round-input {
+    width: 3ch;
+    border-style: none;
+    text-align: center;
+}
+
+.editor-values-table td {
+    text-align: right;
+}
+
+
 .table-style {
     border-collapse: collapse;
     width: 100%;
