@@ -612,7 +612,8 @@ update msg model =
             ( setupNas
                 (setOnActiveTs model
                     (Dict.map
-                        (\ _ e -> { e | edited = NoEdition })
+                        (\ _ e -> { e | edited = NoEdition
+                                      , raw = Nothing })
                         ( getActiveTs model ))
                 )
             , Cmd.none
