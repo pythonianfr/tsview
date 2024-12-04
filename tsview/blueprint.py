@@ -31,7 +31,7 @@ from tshistory import (
     search,
     util
 )
-from tshistory.util import find_first_uriname
+from tshistory.config import configuration
 
 from tshistory_formula.helper import (
     BadKeyword,
@@ -181,7 +181,7 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         baseurl = homeurl()
-        appname = find_first_uriname()
+        appname = configuration().find_first_uriname()
         instance = "Local" if len(appname)==0 else appname.capitalize()
         flags_menu = json.dumps([homeurl(), 'navigation-home'])
         import tshistory_refinery

@@ -6,7 +6,7 @@ import webbrowser
 import click
 
 from tshistory import api
-from tshistory.util import find_dburi
+from tshistory.config import configuration
 from tshistory_formula.tsio import timeseries
 
 from tsview.app import kickoff
@@ -25,7 +25,7 @@ def host():
 def view(db_uri, debug=False):
     """visualize time series through the web"""
     tsa = api.timeseries(
-            find_dburi(db_uri),
+            configuration().find_dburi(db_uri),
             handler=timeseries
         )
     ipaddr = host()
