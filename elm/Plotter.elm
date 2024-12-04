@@ -5,7 +5,8 @@ module Plotter exposing
     , defaultTraceOptions
     , defaultLayoutOptions
     , defaultConfigOptions
-    , defaultAxis
+    , defaultDateAxis
+    , defaultValueAxis
     , getdata
     , getgroupplotdata
     , Group
@@ -40,14 +41,14 @@ defaultLayoutOptions: LayoutOptions
 defaultLayoutOptions =
     { title = Nothing
     , dragMode = Nothing
-    , xaxis = defaultAxis
-    , yaxis = defaultAxis
+    , xaxis = defaultDateAxis
+    , yaxis = defaultValueAxis
     , height = Nothing
     }
 
 type alias Axis =
     { range : Maybe Range
-    , hoverFormat: String
+    , hoverFormat: Maybe String
     }
 
 type Range =
@@ -56,8 +57,10 @@ type Range =
 
 defaultAxis =
     { range = Nothing
-    , hoverFormat = ".2f"}
+    , hoverFormat = Nothing}
 
+defaultDateAxis = defaultAxis
+defaultValueAxis = { defaultAxis | hoverFormat = Just "n"}
 
 type alias ConfiOptions =
     { displaylogo: Bool
@@ -167,6 +170,10 @@ encodeAxis axisName axis =
             List.concat [ case axis.range of
                                 Nothing -> []
                                 Just range -> encodeRange range
+                        ,  case axis.hoverFormat of
+                                Nothing -> []
+                                Just format
+                                    -> [( "hoverformat", E.string format )]
                         ]
       )]
 

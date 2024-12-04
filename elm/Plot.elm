@@ -16,7 +16,8 @@ import Plotter exposing
     , defaultLayoutOptions
     , defaultConfigOptions
     , defaultTraceOptions
-    , defaultAxis
+    , defaultDateAxis
+    , defaultValueAxis
     , getdata
     , serializedPlotArgs
     , scatterplot
@@ -435,11 +436,11 @@ view model =
             serializedPlotArgs
                 plotDiv
                 data
-                { defaultLayoutOptions | xaxis = { defaultAxis |
+                { defaultLayoutOptions | xaxis = { defaultDateAxis |
                                                     range = extractDates
                                                         model.horizon.zoomBounds
                                                  }
-                                        , yaxis = { defaultAxis |
+                                        , yaxis = { defaultValueAxis |
                                                         range = extractValues
                                                             model.horizon.zoomY
                                                   }

@@ -48,7 +48,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultAxis
+    ( defaultDateAxis
+    , defaultValueAxis
     , defaultLayoutOptions
     , defaultTraceOptions
     , getdata
@@ -1307,7 +1308,7 @@ viewplot model =
     let
         ts = model.timeseries
         defaultLayout = { defaultLayoutOptions |
-                            xaxis = { defaultAxis | range = extractDates
+                            xaxis = { defaultDateAxis | range = extractDates
                                                         model.horizon.zoomBounds
                                     }
                             , dragMode = Just ( if model.panActive
