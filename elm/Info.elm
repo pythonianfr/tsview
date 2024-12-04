@@ -42,8 +42,11 @@ import JsonTree as JT exposing (TaggedValue(..))
 import Lisp
 import List.Extra as List
 import Plotter exposing
-    ( defaultLayoutOptions
+    ( Trace
+    , TraceOptions
+    , defaultLayoutOptions
     , defaultConfigOptions
+    , defaultTraceOptions
     , serializedPlotArgs
     , scatterplot
     )
@@ -630,40 +633,16 @@ viewHistoryGraph model =
         lastIdate = Maybe.withDefault
             ""
             (List.last (Array.toList model.lastIdates))
-
-        options idate =
-            { line = Just
-                  { color =
-                        if idate == lastIdate
-                        then "rgb(0, 0, 0)"
-                        else if idate < currentIdate
-                             then "rgb(20, 200, 20)"
-                             else if idate == currentIdate
-                                  then "rgb(0, 0, 250)"
-                                  else "rgb(204, 12, 20)"
-                     }
-            , showlegend =
-                if (idate == lastIdate) || (idate == currentIdate) then True else False
-            , opacity =
-                if (idate == lastIdate) || (idate == currentIdate) then 1 else 0.2
-            , visible = True
-            }
-
-        formatLine tuple =
-            let
-                idate = Tuple.first tuple
-            in
-            { type_ = "scatter"
-            , name = cleanMs idate
-            , x = Dict.keys (Tuple.second tuple)
-            , y = Dict.values (Tuple.second tuple)
-            , mode = "lines"
-            , options = options idate
-            }
-
+        partialOption = buildOptions
+                            defaultTraceOptions
+                            lastIdate
+                            currentIdate
+        listTraces = List.map
+                        ( buildTrace partialOption)
+                        (Dict.toList model.historyPlots)
         historyArgs = serializedPlotArgs
                         "plot-history"
-                        (List.map formatLine (Dict.toList model.historyPlots))
+                        listTraces
                         defaultLayoutOptions
                         defaultConfigOptions
     in
@@ -674,26 +653,51 @@ viewHistoryGraph model =
         ]
 
 
+buildOptions: TraceOptions -> String -> String -> String -> TraceOptions
+buildOptions default lastIdate currentIdate idate =
+    { default | line = Just
+                          { color =
+                                if idate == lastIdate
+                                then "rgb(0, 0, 0)"
+                                else if idate < currentIdate
+                                     then "rgb(20, 200, 20)"
+                                     else if idate == currentIdate
+                                          then "rgb(0, 0, 250)"
+                                          else "rgb(204, 12, 20)"
+                             }
+              , showlegend = if (idate == lastIdate) || (idate == currentIdate)
+                                then True
+                                else False
+              , opacity = if (idate == lastIdate) || (idate == currentIdate)
+                            then 1
+                            else 0.2
+    }
+
+
+buildTrace:  (String -> TraceOptions) -> ( String , Dict String ( Maybe Float )) -> Trace
+buildTrace partialOption ( idate, series )  =
+                { type_ = "scatter"
+                , name = cleanMs idate
+                , x = Dict.keys series
+                , y = Dict.values series
+                , mode = "lines"
+                , options = partialOption idate
+                }
+
+
 viewHoverGraph dictData =
     let
         title = "Application date : " ++ dictData.name
         sortedData = List.sortBy .date dictData.data
         dates = List.map (\dict -> dict.date) sortedData
         values = List.map (\dict -> Just dict.value) sortedData
-
-        options = {
-            showlegend = False
-            , line = Nothing
-            , opacity = 1
-            , visible = True
-            }
         plot =
             scatterplot
                 dictData.name
                 dates
                 values
                 "lines"
-                options
+                defaultTraceOptions
         hoverArgs =
             serializedPlotArgs
                 "plot-hover"

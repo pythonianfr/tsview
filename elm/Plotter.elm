@@ -1,5 +1,7 @@
 module Plotter exposing
-    ( defaultTraceOptions
+    ( Trace
+    , TraceOptions
+    , defaultTraceOptions
     , defaultLayoutOptions
     , defaultConfigOptions
     , getdata
