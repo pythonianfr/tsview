@@ -16,6 +16,7 @@ import Plotter exposing
     , defaultLayoutOptions
     , defaultConfigOptions
     , defaultTraceOptions
+    , defaultAxis
     , getdata
     , serializedPlotArgs
     , scatterplot
@@ -33,8 +34,8 @@ import Horizon exposing
     , loadFromLocalStorage
     , updateHorizon
     , extendHorizonFromData
-    , extractXaxis
-    , extractYaxis
+    , extractDates
+    , extractValues
     , extractZoomDates
     , updateZoom )
 import Maybe.Extra as Maybe
@@ -434,10 +435,14 @@ view model =
             serializedPlotArgs
                 plotDiv
                 data
-                { defaultLayoutOptions | xaxis = extractXaxis
-                                                    model.horizon.zoomBounds
-                                        , yaxis = extractYaxis
-                                                    model.horizon.zoomY
+                { defaultLayoutOptions | xaxis = { defaultAxis |
+                                                    range = extractDates
+                                                        model.horizon.zoomBounds
+                                                 }
+                                        , yaxis = { defaultAxis |
+                                                        range = extractValues
+                                                            model.horizon.zoomY
+                                                  }
                                         , height = Just 700
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"

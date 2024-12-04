@@ -1,9 +1,11 @@
 module Plotter exposing
-    ( Trace
+    ( Range(..)
+    , Trace
     , TraceOptions
     , defaultTraceOptions
     , defaultLayoutOptions
     , defaultConfigOptions
+    , defaultAxis
     , getdata
     , getgroupplotdata
     , Group
@@ -28,8 +30,8 @@ import Bool.Extra
 type alias LayoutOptions =
     { title: Maybe String
     , dragMode: Maybe String
-    , xaxis: Maybe { range: List String }
-    , yaxis: Maybe { range: List Float }
+    , xaxis: Axis
+    , yaxis: Axis
     , height: Maybe Int
     }
 
@@ -38,10 +40,23 @@ defaultLayoutOptions: LayoutOptions
 defaultLayoutOptions =
     { title = Nothing
     , dragMode = Nothing
-    , xaxis = Nothing
-    , yaxis = Nothing
+    , xaxis = defaultAxis
+    , yaxis = defaultAxis
     , height = Nothing
     }
+
+type alias Axis =
+    { range : Maybe Range
+    , hoverFormat: String
+    }
+
+type Range =
+    Dates { range: List String }
+    | Values { range: List Float }
+
+defaultAxis =
+    { range = Nothing
+    , hoverFormat = ".2f"}
 
 
 type alias ConfiOptions =
@@ -145,23 +160,52 @@ scatterplot =
     Trace "scatter"
 
 
+encodeAxis : String -> Axis -> List ( String, E.Value )
+encodeAxis axisName axis =
+     [( axisName
+      ,  E.object <|
+            List.concat [ case axis.range of
+                                Nothing -> []
+                                Just range -> encodeRange range
+                        ]
+      )]
+
+
+encodeRange: Range ->  List ( String, E.Value )
+encodeRange range =
+    case range of
+        Dates record ->
+              [ ( "range"
+                 , E.list E.string [ Maybe.withDefault
+                                        ""
+                                        (List.head record.range)
+                                   , Maybe.withDefault
+                                        ""
+                                        (List.last record.range)
+                                   ]
+                 )
+               ]
+        Values record ->
+              [ ( "range"
+                         , E.list E.float [ Maybe.withDefault
+                                                0
+                                                (List.head record.range)
+                                           , Maybe.withDefault
+                                                0
+                                                (List.last record.range)
+                                           ]
+                         )
+                       ]
+
+
 encodeLayout : LayoutOptions -> E.Value
 encodeLayout layoutOptions =
     (E.object ( List.concat [
             case layoutOptions.title of
                 Nothing -> []
                 Just title -> [( "title", E.string title )]
-
-            , case layoutOptions.xaxis of
-                Nothing -> []
-                Just range -> [ ("xaxis", E.object [ ("range"
-                              , E.list E.string [ Maybe.withDefault "" (List.head range.range)
-                                                , Maybe.withDefault "" (List.last range.range)])])]
-            , case layoutOptions.yaxis of
-                Nothing -> []
-                Just range -> [ ("yaxis", E.object [ ("range"
-                              , E.list E.float [ Maybe.withDefault 0 (List.head range.range)
-                                               , Maybe.withDefault 0 (List.last range.range)])])]
+            , encodeAxis "xaxis" layoutOptions.xaxis
+            , encodeAxis "yaxis" layoutOptions.yaxis
             , case layoutOptions.dragMode of
                 Nothing -> []
                 Just drag -> [("dragmode", E.string drag )]
@@ -169,6 +213,7 @@ encodeLayout layoutOptions =
                 Nothing -> []
                 Just height -> [ ( "height", E.int height ) ]
             ] ))
+
 
 encodeConfig: ConfiOptions -> E.Value
 encodeConfig configOptions =

@@ -18,8 +18,8 @@ port module Horizon exposing
     , updateHorizon
     , updateHorizonFromData
     , extendHorizonFromData
-    , extractXaxis
-    , extractYaxis
+    , extractDates
+    , extractValues
     , extractZoomDates
     , setStatusPlot
     , updateZoom
@@ -33,6 +33,8 @@ import Html.Events as HE
 import Http
 import Json.Decode as D
 import List.Extra as List
+import Plotter exposing
+    ( Range(..) )
 import Util as U
 import Url.Builder as UB
 import Task
@@ -649,18 +651,18 @@ renderhorizon selectedhorizon horizon =
         [ H.text horizon ]
 
 
-extractXaxis : Maybe ( String,  String ) -> Maybe { range: List String }
-extractXaxis bounds =
+extractDates : Maybe ( String,  String ) -> Maybe Range
+extractDates bounds =
     case bounds of
         Nothing -> Nothing
-        Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
+        Just ( x0, x1 ) -> Just ( Dates { range = [ x0, x1 ]})
 
 
-extractYaxis : Maybe ( Float,  Float ) -> Maybe { range: List Float }
-extractYaxis bounds =
+extractValues : Maybe ( Float,  Float ) -> Maybe Range
+extractValues bounds =
     case bounds of
         Nothing -> Nothing
-        Just ( x0, x1 ) -> Just { range = [ x0, x1 ]}
+        Just ( x0, x1 ) -> Just (Values { range = [ x0, x1 ]})
 
 
 curateDate: ( String, String ) -> ( String, String )

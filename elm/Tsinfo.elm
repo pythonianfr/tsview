@@ -23,7 +23,7 @@ import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
     , ZoomFromPlotly
-    , extractXaxis
+    , extractDates
     , getFromToDates
     , getFetchBounds
     , initHorizon
@@ -48,7 +48,8 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultLayoutOptions
+    ( defaultAxis
+    , defaultLayoutOptions
     , defaultTraceOptions
     , getdata
     , seriesdecoder
@@ -1306,8 +1307,9 @@ viewplot model =
     let
         ts = model.timeseries
         defaultLayout = { defaultLayoutOptions |
-                            xaxis = extractXaxis
-                                        model.horizon.zoomBounds
+                            xaxis = { defaultAxis | range = extractDates
+                                                        model.horizon.zoomBounds
+                                    }
                             , dragMode = Just ( if model.panActive
                                                              then "pan"
                                                              else "zoom" )}
