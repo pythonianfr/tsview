@@ -34,8 +34,8 @@ type alias LayoutOptions =
     , xaxis: Axis
     , yaxis: Axis
     , height: Maybe Int
+    , separators : String
     }
-
 
 defaultLayoutOptions: LayoutOptions
 defaultLayoutOptions =
@@ -44,6 +44,9 @@ defaultLayoutOptions =
     , xaxis = defaultDateAxis
     , yaxis = defaultValueAxis
     , height = Nothing
+    -- separators: first char for decimal
+    -- second for thousands
+    , separators = ".\u{00a0}"
     }
 
 type alias Axis =
@@ -219,6 +222,7 @@ encodeLayout layoutOptions =
             , case layoutOptions.height of
                 Nothing -> []
                 Just height -> [ ( "height", E.int height ) ]
+            , [( "separators", E.string layoutOptions.separators )]
             ] ))
 
 
