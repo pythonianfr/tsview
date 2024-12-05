@@ -2056,62 +2056,7 @@ viewStatTable model =
         [ HA.class "stat-table"]
         [ H.th
             [HA.colspan 3]
-            [ H.text "Series Meta"]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Tzaware"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [H.text ( M.dget "tzaware" model.meta )]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Status"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [H.text ( M.dget "supervision_status" model.meta )]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Type"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [H.text ( M.dget "value_type"  model.meta )]
-            ]
-
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Source"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [H.text model.source ]
-            ]
-        , H.tr
-            []
-            [   H.th
-                [HA.colspan 3]
-                [ H.text "Data Info"]
-            ]
+            [ H.text "Data Info"]
         , H.tr
             []
             [ H.td
