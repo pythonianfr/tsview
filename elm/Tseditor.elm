@@ -1632,13 +1632,14 @@ formatNumber number =
     in
       case parts of
           [] -> ""
-          [x] -> addSpace x
+          [x] ->  String.reverse
+                    <| addSpace
+                        <| String.reverse x
           x :: xs ->
             String.concat
                 [ String.reverse
-                    ( addSpace
-                        ( String.reverse x )
-                    )
+                    <| addSpace
+                        <| String.reverse x
                 , "."
                 , String.concat xs
                 ]
