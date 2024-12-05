@@ -2051,6 +2051,15 @@ intercal toAdd parts result =
          x :: xs -> result ++ [x] ++ [toAdd] ++ intercal toAdd xs result
 
 
+forStat: Maybe Float -> Int -> String
+forStat number round =
+     case number of
+            Nothing -> ""
+            Just val -> formatNumber
+                            <| Round.round
+                                   round
+                                   val
+
 viewStatTable model =
     H.table
         [ HA.class "stat-table"]
@@ -2107,11 +2116,9 @@ viewStatTable model =
                 []
             , H.td
                 []
-                [ H.text <| case model.statistics.min of
-                                Nothing -> ""
-                                Just val -> Round.round
-                                                model.roundStat
-                                                val
+                [ H.text <| forStat
+                                model.statistics.min
+                                model.roundStat
                 ]
             ]
         , H.tr
@@ -2124,11 +2131,9 @@ viewStatTable model =
                 []
             , H.td
                 []
-                [ H.text <| case model.statistics.max of
-                                Nothing -> ""
-                                Just val -> Round.round
-                                                model.roundStat
-                                                val
+                [ H.text <| forStat
+                                model.statistics.max
+                                model.roundStat
                 ]
             ]
         , H.tr
@@ -2141,11 +2146,9 @@ viewStatTable model =
                 []
             , H.td
                 []
-                [ H.text <| case model.statistics.mean of
-                                Nothing -> ""
-                                Just val -> Round.round
-                                                model.roundStat
-                                                val
+                [ H.text <| forStat
+                                model.statistics.mean
+                                model.roundStat
                 ]
             ]
         , H.tr
@@ -2158,11 +2161,9 @@ viewStatTable model =
                 []
             , H.td
                 []
-                [ H.text <| case model.statistics.median of
-                                Nothing -> ""
-                                Just val -> Round.round
-                                                model.roundStat
-                                                val
+                [ H.text <| forStat
+                                model.statistics.median
+                                model.roundStat
                 ]
             ]
         ]
