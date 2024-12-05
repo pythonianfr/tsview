@@ -1640,7 +1640,7 @@ formatNumber number =
                         ( String.reverse x )
                     )
                 , "."
-                , addSpace ( String.concat xs )
+                , String.concat xs
                 ]
 
 
