@@ -1585,6 +1585,13 @@ buildLink model comp =
         )
 
 
+buildFormater: Maybe Int -> String
+buildFormater maybeRounds =
+    case maybeRounds of
+        Nothing -> "n"
+        Just round -> ",." ++ String.fromInt round ++ "f"
+
+
 addComponentCells: Model -> String -> List (H.Html Msg)
 addComponentCells model date =
     List.map
@@ -2232,6 +2239,10 @@ plotNode model =
             if model.panActive
             then "pan"
             else "zoom"
+        yaxis = defaultLayoutOptions.yaxis
+        newYaxis =  { yaxis | hoverFormat = Just <| buildFormater
+                                                        model.roundValues
+                    }
     in
     H.node "plot-figure"
             [ HA.attribute
@@ -2253,7 +2264,9 @@ plotNode model =
                         "lines+markers"
                         defaultTraceOptions
                     ]
-                    { defaultLayoutOptions | dragMode = Just dragMode }
+                    { defaultLayoutOptions | dragMode = Just dragMode
+                                           , yaxis = newYaxis
+                    }
                     defaultConfigOptions
                 )
             ]
