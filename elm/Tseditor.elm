@@ -2064,7 +2064,7 @@ viewStatTable model =
                 [H.text "Tzaware"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [H.text ( M.dget "tzaware" model.meta )]
@@ -2076,7 +2076,7 @@ viewStatTable model =
                 [H.text "Status"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [H.text ( M.dget "supervision_status" model.meta )]
@@ -2088,7 +2088,7 @@ viewStatTable model =
                 [H.text "Type"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [H.text ( M.dget "value_type"  model.meta )]
@@ -2101,7 +2101,7 @@ viewStatTable model =
                 [H.text "Source"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [H.text model.source ]
@@ -2119,7 +2119,7 @@ viewStatTable model =
                 [H.text "Freq"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [ H.text <| Maybe.withDefault
@@ -2134,7 +2134,7 @@ viewStatTable model =
                 [H.text "Start"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 ( displayDate model.statistics.start )
@@ -2147,7 +2147,7 @@ viewStatTable model =
                 [H.text "End"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                  ( displayDate model.statistics.end )
@@ -2159,7 +2159,7 @@ viewStatTable model =
                 [H.text "Min"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [ H.text <| case model.statistics.min of
@@ -2176,7 +2176,7 @@ viewStatTable model =
                 [H.text "Max"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [ H.text <| case model.statistics.max of
@@ -2193,7 +2193,7 @@ viewStatTable model =
                 [H.text "Mean"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [ H.text <| case model.statistics.mean of
@@ -2210,7 +2210,7 @@ viewStatTable model =
                 [H.text "Median"]
             , H.td
                 []
-                [H.text ":"]
+                []
             , H.td
                 []
                 [ H.text <| case model.statistics.median of

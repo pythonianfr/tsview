@@ -50,7 +50,6 @@
     min-width: 20ch;
 }
 
-
 .stat-table th {
     text-align: center;
 }
@@ -64,8 +63,8 @@
 }
 
 .stat-table td:nth-child(3){
-    padding-left: 3px;
     padding-right: 3px;
+    text-align: right;
 }
 
 /* form for round */
