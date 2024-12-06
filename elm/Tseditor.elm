@@ -92,8 +92,10 @@ type alias Model =
     , monotonicCount : Int
     , clipboardclass : String
     , panActive : Bool
-    -- cells interactivity
+    -- user actions
     , forceDraw : Bool
+    , allowInferFreq : Bool
+    -- cells interactivity
     , firstSelected : Maybe Int
     , dragOn: Bool
     , lastValids: List Int
@@ -117,6 +119,7 @@ type Msg
     | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | SwitchForceDraw
+    | AllowInferFreq
     | InputChanged String String
     | SaveEditedData
     | CancelEdition
@@ -460,7 +463,9 @@ update msg model =
                                         Dict.filter
                                             (( \k _ -> (( k >= min ) && ( k <= max ))))
                                             indexedval )
-                        statistics = getStatistics ( onlyValues indexedval )
+                        statistics = getStatistics
+                                        model.allowInferFreq
+                                        ( onlyValues indexedval )
                     in
                         ( setupNas
                             ({ model
@@ -491,7 +496,9 @@ update msg model =
                                                     model.horizon
                                                     val
                                     , monotonicCount = model.monotonicCount + 1
-                                    , statistics = getStatistics val
+                                    , statistics = getStatistics
+                                                    model.allowInferFreq
+                                                    val
                               }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
@@ -556,6 +563,16 @@ update msg model =
 
         SwitchForceDraw ->
             ( flipForce model , Cmd.none)
+
+        AllowInferFreq ->
+            ({ model | allowInferFreq = True
+                     , statistics = getRelevantStatistics
+                                        True
+                                        ( onlyValues  model.initialTs )
+                                        model.initialFormula
+             }
+            , Cmd.none
+            )
 
         InputChanged date rawvalue ->
             let
@@ -858,8 +875,9 @@ update msg model =
                                                , monotonicCount = model.monotonicCount + 1
                                                , forceDraw = False
                                                , statistics = getRelevantStatistics
+                                                                model.allowInferFreq
                                                                 ( onlyValues  model.initialTs )
-                                                                 model.initialFormula
+                                                                model.initialFormula
                                         }
                             Just (minDate, maxDate)
                                 -> let zoomedTs =  newZoom
@@ -880,6 +898,7 @@ update msg model =
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                                             , monotonicCount = model.monotonicCount + 1
                                             , statistics = getRelevantStatistics
+                                                                model.allowInferFreq
                                                                 ( onlyValues zoomedTs )
                                                                  formulaTs
 
@@ -987,8 +1006,8 @@ onlyValues series =
         series
 
 
-getStatistics: Dict String ( Maybe Float )-> Statistics
-getStatistics series =
+getStatistics: Bool -> Dict String ( Maybe Float )-> Statistics
+getStatistics allowInfer series =
     let dates = List.sort ( Dict.keys series )
         values = List.sort <| onlyJustValues series
         length = List.length values
@@ -1006,18 +1025,18 @@ getStatistics series =
         , p25 = Numeric <| Statistics.quantile 0.25 values
         , median = Numeric <| Stat.median values
         , p75 = Numeric <| Statistics.quantile 0.75 values
-        , inferFreq = InferFreq <| if length < maxPoints
+        , inferFreq = InferFreq <| if ( length < maxPoints || allowInfer )
                         then (Authorised ( medianValue ( Dict.keys series)) )
                         else Blocked
         }
 
 
-getRelevantStatistics: Dict String ( Maybe Float ) -> Dict String ( Maybe  Float )
+getRelevantStatistics: Bool ->Dict String ( Maybe Float ) -> Dict String ( Maybe  Float )
                         -> Statistics
-getRelevantStatistics series formula =
+getRelevantStatistics allowInfer series formula =
     if Dict.isEmpty series
-        then getStatistics formula
-        else getStatistics series
+        then getStatistics allowInfer formula
+        else getStatistics allowInfer series
 
 
 getCurrentValue: Entry -> Maybe Float
@@ -2103,7 +2122,12 @@ rowStat round name statistic  =
                                 ]
                     Date date -> displayDate date
                     InferFreq infer -> case infer of
-                                        Blocked -> [ H.text "futur-button"]
+                                        Blocked -> [ H.button
+                                                    [ HA.class "badge badge-primary h4"
+                                                    , HA.title "! Might be costly !"
+                                                    , HE.onClick AllowInferFreq ]
+                                                    [ H.text "Unlock" ]
+                                                    ]
                                         Authorised freq ->
                                             case freq of
                                                 Nothing -> []
@@ -2268,6 +2292,7 @@ init input =
                                     Loading
                     , initialCommands = Cmd.none
                     , forceDraw = False
+                    , allowInferFreq = False
                     , intercept = Nothing
                     , slope = Nothing
                     , insertion_dates = Array.empty
