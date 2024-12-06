@@ -47,13 +47,16 @@
 
 .stat-table {
     float: right;
-    min-width: 20ch;
+    min-width: 15ch;
 }
 
 .stat-table th {
     text-align: center;
 }
 
+.stat-table td {
+    white-space:nowrap;
+}
 .stat-table tr:nth-child(even){
     background-color: #e0e0e0;
 }
