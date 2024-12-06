@@ -5,6 +5,7 @@ import Browser
 import Browser.Events exposing (onKeyDown)
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
+import Maybe.Extra as Maybe
 import Set exposing (Set)
 import Horizon exposing
     ( HorizonModel
@@ -41,6 +42,7 @@ import Plotter exposing
     )
 import Process as P
 import Round
+import Statistics
 import Url.Builder as UB
 import Util as U
 import Json.Encode as JE
@@ -152,22 +154,32 @@ type Parameter =
 
 
 type alias Statistics =
-    { start : Maybe String
-    , end: Maybe String
-    , min: Maybe Float
-    , max: Maybe Float
-    , mean: Maybe Float
-    , median: Maybe Float
+    { start : TypeStat
+    , end: TypeStat
+    , min: TypeStat
+    , max: TypeStat
+    , sum: TypeStat
+    , count: TypeStat
+    , nas: TypeStat
+    , mean: TypeStat
+    , p25: TypeStat
+    , median: TypeStat
+    , p75: TypeStat
     }
 
 emptyStat =
-    Statistics
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
+    { start = Date Nothing
+    , end = Date Nothing
+    , min = Numeric Nothing
+    , max = Numeric Nothing
+    , sum = Numeric Nothing
+    , count = Count 0
+    , nas = Count 0
+    , mean = Numeric Nothing
+    , p25 = Numeric Nothing
+    , median = Numeric Nothing
+    , p75 = Numeric Nothing
+    }
 
 type ActionRound =
     Replace String
@@ -477,7 +489,7 @@ update msg model =
                                                     model.horizon
                                                     val
                                     , monotonicCount = model.monotonicCount + 1
-                                    , statistics = getStatistics ( fromFormula val )
+                                    , statistics = getStatistics val
                               }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
@@ -845,7 +857,7 @@ update msg model =
                                                , forceDraw = False
                                                , statistics = getRelevantStatistics
                                                                 ( onlyValues  model.initialTs )
-                                                                ( fromFormula model.initialFormula )
+                                                                 model.initialFormula
                                         }
                             Just (minDate, maxDate)
                                 -> let zoomedTs =  newZoom
@@ -867,7 +879,7 @@ update msg model =
                                             , monotonicCount = model.monotonicCount + 1
                                             , statistics = getRelevantStatistics
                                                                 ( onlyValues zoomedTs )
-                                                                ( fromFormula formulaTs )
+                                                                 formulaTs
 
                                     }
 
@@ -955,45 +967,48 @@ getHasCache model =
         }
 
 
-onlyValues: Dict String Entry -> Dict String Float
+onlyJustValues: Dict String ( Maybe Float ) -> List Float
+onlyJustValues series =
+     List.concat
+        <| List.map
+            (\ (k, v) -> case v of
+                            Nothing -> []
+                            Just val -> [ val ]
+            )
+            (Dict.toList series)
+
+
+onlyValues: Dict String Entry -> Dict String ( Maybe Float )
 onlyValues series =
-    Dict.fromList
-        <| List.concat
-            <| List.map
-                (\ (k, e) -> case e.value of
-                                Nothing -> []
-                                Just val -> [(k, val)]
-                )
-                (Dict.toList series)
+    Dict.map
+        (\ k e -> e.value )
+        series
 
 
-fromFormula: Dict String (Maybe Float) -> Dict String Float
-fromFormula series =
-    Dict.fromList
-        <| List.concat
-            <| List.map
-                (\ (k, v) -> case v of
-                                Nothing -> []
-                                Just val -> [(k, val)]
-                )
-                (Dict.toList series)
-
-
-getStatistics: Dict String Float -> Statistics
+getStatistics: Dict String ( Maybe Float )-> Statistics
 getStatistics series =
     let dates = List.sort ( Dict.keys series )
-        values = List.sort ( Dict.values series )
+        values = List.sort <| onlyJustValues series
+        length = List.length values
     in
-        { start = List.head dates
-        , end = List.last dates
-        , min = Stat.minimum values
-        , max = Stat.maximum values
-        , mean = Stat.mean values
-        , median = Stat.median values
+        { start = Date <| List.head dates
+        , end = Date <| List.last dates
+        , min = Numeric <| Stat.minimum values
+        , max = Numeric <| Stat.maximum values
+        , count = Count length
+        , nas = Count <| ( List.length dates ) - length
+        , sum = if length == 0
+                    then Numeric Nothing
+                    else Numeric ( Just ( List.sum values ))
+        , mean = Numeric <| Stat.mean values
+        , p25 = Numeric <| Statistics.quantile 0.25 values
+        , median = Numeric <| Stat.median values
+        , p75 = Numeric <| Statistics.quantile 0.75 values
         }
 
 
-getRelevantStatistics: Dict String Float -> Dict String Float -> Statistics
+getRelevantStatistics: Dict String ( Maybe Float ) -> Dict String ( Maybe  Float )
+                        -> Statistics
 getRelevantStatistics series formula =
     if Dict.isEmpty series
         then getStatistics formula
@@ -2063,113 +2078,67 @@ forStat number round =
                                    round
                                    val
 
+
+type TypeStat =
+    Numeric ( Maybe Float )
+    | Count Int
+    | Date ( Maybe String )
+
+
+rowStat : Int -> String -> TypeStat -> H.Html Msg
+rowStat round name statistic  =
+    let content = case statistic of
+                    Numeric num ->
+                        case num of
+                            Nothing -> [H.text ""]
+                            Just value -> [ H.text
+                                                <| formatNumber
+                                                    <| Round.round
+                                                        round
+                                                        value
+                                          ]
+                    Count nb -> [ H.text
+                                    <| formatNumber
+                                        ( String.fromInt nb )
+                                ]
+                    Date date -> displayDate date
+    in
+        H.tr
+            []
+            [ H.td
+                []
+                [H.text name]
+            , H.td
+                []
+                []
+            , H.td
+                []
+                content
+            ]
+
+
+viewStatTable: Model -> H.Html Msg
 viewStatTable model =
+    let partialRow = ( rowStat model.roundStat )
+    in
     H.table
         [ HA.class "stat-table"]
         [ H.th
             [HA.colspan 3]
             [ H.text "Data Info"]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Freq"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [ H.text <| Maybe.withDefault
-                                ""
-                                ( medianValue ( Dict.keys ( getActiveTs model )))
-                ]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Start"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                ( displayDate model.statistics.start )
-
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "End"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                 ( displayDate model.statistics.end )
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Min"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [ H.text <| forStat
-                                model.statistics.min
-                                model.roundStat
-                ]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Max"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [ H.text <| forStat
-                                model.statistics.max
-                                model.roundStat
-                ]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Mean"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [ H.text <| forStat
-                                model.statistics.mean
-                                model.roundStat
-                ]
-            ]
-        , H.tr
-            []
-            [ H.td
-                []
-                [H.text "Median"]
-            , H.td
-                []
-                []
-            , H.td
-                []
-                [ H.text <| forStat
-                                model.statistics.median
-                                model.roundStat
-                ]
-            ]
+        , partialRow "Start" model.statistics.start
+        , partialRow "End" model.statistics.end
+        , partialRow "Min" model.statistics.min
+        , partialRow "Max" model.statistics.max
+        , partialRow "Sum" model.statistics.sum
+        , partialRow "Count" model.statistics.count
+        , partialRow "NaNs" model.statistics.nas
+        , partialRow "Mean" model.statistics.mean
+        , partialRow "P25" model.statistics.p25
+        , partialRow "P50" model.statistics.median
+        , partialRow "P75" model.statistics.p75
         ]
+
 
 displayStatus: Model -> H.Html Msg
 displayStatus model =
