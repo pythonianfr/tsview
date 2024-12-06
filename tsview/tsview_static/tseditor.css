@@ -76,9 +76,12 @@
     display: flex;
 }
 
+.under-the-plot .permalink {
+    margin-right:20px;
+}
+
 .form-round{
     display: inline;
-    margin-left:20px;
 }
 
 

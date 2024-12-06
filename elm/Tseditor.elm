@@ -1340,9 +1340,7 @@ underThePlot: Model -> H.Html Msg
 underThePlot model =
     H.div
         [ HA.class "under-the-plot" ]
-        <| List.append
-            [ permaLink model ]
-            ( maybeRoundForm model )
+        ( maybeRoundForm model )
 
 
 permaLink: Model -> H.Html Msg
@@ -1353,6 +1351,7 @@ permaLink model =
                         ["tseditor"]
                         ( queryNav model model.name ))
         , HA.target "_blank"
+        , HA.class "permalink"
         ]
         [ H.text "Permalink"]
 
@@ -1360,11 +1359,15 @@ permaLink model =
 maybeRoundForm: Model -> List ( H.Html Msg )
 maybeRoundForm model =
     case model.seriestype of
-        I.Primary -> []
+        I.Primary ->  [ H.div
+                        [ HA.class "form-round"]
+                        [ permaLink model]
+                      ]
         I.Formula ->
             [ H.div
                 [ HA.class "form-round"]
-                [ H.text "Decimals : "
+                [ permaLink model
+                , H.text "Decimals : "
                  ,H.button
                     [ HA.class "increment-round"
                     , HE.onClick ( NewRound Less )]
