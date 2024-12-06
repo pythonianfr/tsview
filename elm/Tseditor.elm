@@ -165,6 +165,7 @@ type alias Statistics =
     , p25: TypeStat
     , median: TypeStat
     , p75: TypeStat
+    , inferFreq : TypeStat
     }
 
 emptyStat =
@@ -179,6 +180,7 @@ emptyStat =
     , p25 = Numeric Nothing
     , median = Numeric Nothing
     , p75 = Numeric Nothing
+    , inferFreq = InferFreq ( Authorised Nothing )
     }
 
 type ActionRound =
@@ -1004,6 +1006,9 @@ getStatistics series =
         , p25 = Numeric <| Statistics.quantile 0.25 values
         , median = Numeric <| Stat.median values
         , p75 = Numeric <| Statistics.quantile 0.75 values
+        , inferFreq = InferFreq <| if length < maxPoints
+                        then (Authorised ( medianValue ( Dict.keys series)) )
+                        else Blocked
         }
 
 
@@ -2069,21 +2074,16 @@ intercal toAdd parts result =
          x :: xs -> result ++ [x] ++ [toAdd] ++ intercal toAdd xs result
 
 
-forStat: Maybe Float -> Int -> String
-forStat number round =
-     case number of
-            Nothing -> ""
-            Just val -> formatNumber
-                            <| Round.round
-                                   round
-                                   val
-
-
 type TypeStat =
     Numeric ( Maybe Float )
     | Count Int
     | Date ( Maybe String )
+    | InferFreq Freq
 
+
+type Freq =
+    Blocked
+    | Authorised ( Maybe String )
 
 rowStat : Int -> String -> TypeStat -> H.Html Msg
 rowStat round name statistic  =
@@ -2102,6 +2102,12 @@ rowStat round name statistic  =
                                         ( String.fromInt nb )
                                 ]
                     Date date -> displayDate date
+                    InferFreq infer -> case infer of
+                                        Blocked -> [ H.text "futur-button"]
+                                        Authorised freq ->
+                                            case freq of
+                                                Nothing -> []
+                                                Just f -> [ H.text f ]
     in
         H.tr
             []
@@ -2137,6 +2143,7 @@ viewStatTable model =
         , partialRow "P25" model.statistics.p25
         , partialRow "P50" model.statistics.median
         , partialRow "P75" model.statistics.p75
+        , partialRow "Freq" model.statistics.inferFreq
         ]
 
 
