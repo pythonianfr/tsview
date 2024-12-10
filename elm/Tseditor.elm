@@ -639,7 +639,9 @@ update msg model =
 
         SaveEditedData ->
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
-            , I.getidates model "series" GetLastInsertionDates
+            , Cmd.batch [ I.getidates model "series" GetLastInsertionDates
+                        , T.perform identity (T.succeed DeselectAll)
+                        ]
             )
 
         CancelEdition ->
