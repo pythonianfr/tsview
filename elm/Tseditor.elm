@@ -576,8 +576,11 @@ update msg model =
 
         InputChanged date rawvalue ->
             let
-                raw = String.replace " " "" rawvalue
-                edition = parseInput raw
+                rawstring = String.replace " " "" rawvalue
+                edition = parseInput rawstring
+                raw = if rawstring == ""
+                            then Nothing
+                            else Just rawstring
             in
             ( setupNas
                 <| setOnActiveTs model
@@ -922,11 +925,11 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
 
-patchWithValue: Dict String Entry -> (String , Edited) -> String -> Dict String Entry
+patchWithValue: Dict String Entry -> (String , Edited) -> Maybe String -> Dict String Entry
 patchWithValue series (date, edition) raw =
     let
         newentry =
-            updateEntry edition ( Just raw )
+            updateEntry edition <| raw
     in
         Dict.update
             date
