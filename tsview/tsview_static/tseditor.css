@@ -196,6 +196,12 @@
     color: white;
 }
 
+.row-edit input {
+}
+
+.cursor input {
+}
+
 
 .row-editing {
     color: purple;

@@ -2,6 +2,7 @@ port module Tseditor exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Dom
 import Browser.Events exposing
     ( onKeyDown
     , onKeyUp
@@ -76,28 +77,41 @@ toKey action keyValue =
 keyToType:  Action -> String -> ControlKey
 keyToType action keyValue =
     if keyValue == "Escape"
-        then Escape action
-        else
-            if keyValue == "Delete"
-                then Delete action
-                else
-                    if keyValue == "Controle"
-                        then Controle action
-                        else
-                        if keyValue == "Shift"
-                            then Shift action
-                            else Other keyValue action
+    then Escape action
+    else
+    if keyValue == "Delete"
+    then Delete action
+    else
+    if keyValue == "Control"
+    then Control action
+    else
+    if keyValue == "Shift"
+    then Shift action
+    else
+    if keyValue == "ArrowUp"
+    then ArrowUp action
+    else
+    if keyValue == "ArrowDown"
+    then ArrowDown action
+    else
+    if keyValue == "Enter"
+    then ArrowDown action
+    else Other keyValue action
 
 
 type Action =
     Up
     | Down
 
+
 type ControlKey =
     Escape Action
     | Delete Action
     | Control Action
     | Shift Action
+    | ArrowUp Action
+    | ArrowDown Action
+    | Enter Action
     | Other String Action
 
 
@@ -127,6 +141,7 @@ type alias Model =
     , forceDraw : Bool
     , allowInferFreq : Bool
     -- cells interactivity
+    , focus : Maybe Int
     , firstSelected : Maybe Int
     , lastValids: List Int
     , slope: Maybe String
@@ -161,6 +176,7 @@ type Msg
     | Paste PasteType
     | SelectRow Int
     | DeselectAll
+    | ClickCell ( Maybe Int )
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
@@ -766,6 +782,9 @@ update msg model =
             in
             U.nocmd ( setOnActiveTs model newtimeSeries )
 
+        ClickCell index ->
+            applyFocus model index
+
         SelectRow index ->
             let transformed = Dict.map
                                 (if model.holding.mouse
@@ -793,9 +812,12 @@ update msg model =
              let transformed = Dict.map
                                 ( \ _ v -> { v | selected = False })
                                 ( getActiveTs model )
-                 newmodel = setOnActiveTs model transformed
+                 newmodel = setOnActiveTs
+                                { model | firstSelected = Nothing }
+                                transformed
               in
-                U.nocmd { newmodel | firstSelected = Nothing }
+                 applyFocus newmodel Nothing
+
 
         CopySelection ->
             let selectedValues = getSelectedValues model
@@ -855,6 +877,18 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
+                ArrowDown Down -> case model.focus of
+                    Nothing -> U.nocmd model
+                    Just index -> applyFocus model ( Just ( index + 1 ))
+                ArrowUp Down -> case model.focus of
+                    Nothing -> U.nocmd model
+                    Just index -> applyFocus model ( Just ( index - 1 ))
+                Enter Down -> case model.focus of
+                    Nothing -> U.nocmd model
+                    Just index -> applyFocus model ( Just ( index - 1 ))
+                ArrowDown Up -> U.nocmd model
+                ArrowUp Up -> U.nocmd model
+                Enter Up -> U.nocmd model
                 Other keyName action -> U.nocmd { model | keyName = keyName }
 
         Drag mode ->
@@ -977,6 +1011,35 @@ update msg model =
 
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+
+
+applyFocus: Model -> Maybe Int -> ( Model, Cmd Msg )
+applyFocus model maybeIndex =
+    let
+        newModel = { model | focus = maybeIndex }
+    in
+    case maybeIndex of
+        Nothing ->
+            case model.focus of
+                Nothing -> ( newModel, Cmd.none )
+                Just cursor ->
+                    ( newModel
+                    , T.attempt
+                        (\_ -> NoAction)
+                            <| Browser.Dom.blur
+                                <| idEntry cursor
+                    )
+        Just index ->
+            ( newModel
+            , T.attempt
+                (\_ -> NoAction)
+                <| Browser.Dom.focus
+                    <| idEntry index
+            )
+
+
+idEntry: Int -> String
+idEntry = (\ idx -> "e-" ++ ( String.fromInt idx ))
 
 
 patchWithValue: Dict String Entry -> (String , Edited) -> Maybe String -> Dict String Entry
@@ -2027,12 +2090,17 @@ viewrow model ( date, entry ) =
                                 if entry.index == first
                                     then True
                                     else False
+        cursored = entry.index == Maybe.withDefault -1 model.focus
     in
     H.tr
         ([ HA.class "row-edit"
         , if entry.selected
             then HA.class "selected"
             else HA.class ""
+        , if cursored
+            then HA.class "cursor"
+            else HA.class ""
+        , HE.onClick (ClickCell ( Just entry.index ))
         , HE.onDoubleClick (SelectRow entry.index)
         , HE.onMouseDown (Drag On)] ++
             if model.holding.mouse
@@ -2047,7 +2115,8 @@ viewrow model ( date, entry ) =
          , H.td
             [ ]
             ([ H.input
-                  [ HA.class ("pastable " ++ rowstyle)
+                  [ HA.id (idEntry entry.index )
+                  , HA.class ("pastable " ++ rowstyle)
                   , HA.placeholder "enter your value"
                   , HA.value ( formatNumber ( getValue entry ))
                   , HE.onInput (InputChanged date)
@@ -2358,6 +2427,7 @@ init input =
                     , processedPasted = [ ]
                     , monotonicCount = 0
                     , rawPasted = ""
+                    , focus = Nothing
                     , firstSelected = Nothing
                     , holding = emptyHolding
                     , keyName = ""
