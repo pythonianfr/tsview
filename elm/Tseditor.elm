@@ -67,7 +67,23 @@ toKey keyValue =
         Just ( char, "" ) ->
             NoAction
         _ ->
-            ControlKey keyValue
+            PressControl ( keyToType keyValue )
+
+
+keyToType:  String -> ControlKey
+keyToType keyValue =
+    if keyValue == "Escape"
+        then Escape
+        else
+            if keyValue == "Delete"
+            then Delete
+            else Other keyValue
+
+
+type ControlKey =
+    Escape
+    | Delete
+    | Other String
 
 
 type alias Model =
@@ -97,10 +113,12 @@ type alias Model =
     , allowInferFreq : Bool
     -- cells interactivity
     , firstSelected : Maybe Int
-    , dragOn: Bool
     , lastValids: List Int
     , slope: Maybe String
     , intercept: Maybe String
+    -- keyboard/mouse
+    , keyName: String
+    , holding: Holding
     -- show-values for formula
     , initialFormula : Dict String (Maybe Float)
     , zoomedFormula : Maybe ( Dict String (Maybe Float) )
@@ -131,7 +149,7 @@ type Msg
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
-    | ControlKey String
+    | PressControl ControlKey
     | NoAction
     | FillNas Int
     | FillAll
@@ -185,6 +203,12 @@ emptyStat =
     , p75 = Numeric Nothing
     , inferFreq = InferFreq ( Authorised Nothing )
     }
+
+type alias Holding =
+    { mouse: Bool }
+
+emptyHolding =
+    { mouse = False }
 
 type ActionRound =
     Replace String
@@ -722,7 +746,7 @@ update msg model =
 
         SelectRow index ->
             let transformed = Dict.map
-                                (if model.dragOn
+                                (if model.holding.mouse
                                     then
                                         (selectContiguous model index)
                                     else
@@ -792,27 +816,25 @@ update msg model =
 
         NoAction -> U.nocmd model
 
-        ControlKey key ->
-            if key == "Escape"
-                then
-                    ( model
-                    , T.perform identity (T.succeed DeselectAll)
-                    )
-            else
-            if key == "Delete"
-                then
-
-                    ( setupNas
-                        ( deleteSelectedValues model )
-                    , T.perform identity (T.succeed DeselectAll)
-                    )
-
-                else U.nocmd model
+        PressControl key ->
+            case key of
+                Escape -> ( model
+                          , T.perform identity (T.succeed DeselectAll)
+                          )
+                Delete -> ( setupNas
+                            ( deleteSelectedValues model )
+                            , T.perform identity (T.succeed DeselectAll)
+                          )
+                Other keyName -> U.nocmd { model | keyName = keyName }
 
         Drag mode ->
+            let holding = model.holding
+            in
             case mode of
-                On -> U.nocmd { model | dragOn = True }
-                Off -> U.nocmd  { model | dragOn = False }
+                On -> U.nocmd
+                        { model | holding = {holding | mouse = True }}
+                Off -> U.nocmd
+                        { model | holding = {holding | mouse = False }}
 
 
         NewRound action ->
@@ -1983,7 +2005,7 @@ viewrow model ( date, entry ) =
             else HA.class ""
         , HE.onDoubleClick (SelectRow entry.index)
         , HE.onMouseDown (Drag On)] ++
-            if model.dragOn
+            if model.holding.mouse
                 then [ HE.onMouseEnter (SelectRow entry.index)
                      , HE.onMouseLeave (SelectRow entry.index)
                      ]
@@ -2063,8 +2085,8 @@ debugView model =
         []
         ( if model.horizon.debug
             then
-                [( H.text "debug active" )] ++
-                [ H.text (", dragMode = " ++ if model.dragOn
+                [ H.text "debug active" ] ++
+                [ H.text (", dragMode = " ++ if model.holding.mouse
                                                     then "On"
                                                     else "Off")]
                   ++ [ H.br [] []]
@@ -2072,6 +2094,8 @@ debugView model =
                             (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
                      )
+                  ++ [ H.br [] []]
+                  ++ [ H.text  ( "Key Pressed : " ++ model.keyName) ]
             else
                 []
         )
@@ -2305,7 +2329,8 @@ init input =
                     , monotonicCount = 0
                     , rawPasted = ""
                     , firstSelected = Nothing
-                    , dragOn = False
+                    , holding = emptyHolding
+                    , keyName = ""
                     , lastValids = []
                     , initialTs = Dict.empty
                     , zoomedTs = Nothing
