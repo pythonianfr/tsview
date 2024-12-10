@@ -2,7 +2,10 @@ port module Tseditor exposing (main)
 
 import Array exposing (Array)
 import Browser
-import Browser.Events exposing (onKeyDown)
+import Browser.Events exposing
+    ( onKeyDown
+    , onKeyUp
+    )
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
 import Maybe.Extra as Maybe
@@ -56,34 +59,46 @@ port saveLocal : LocalStorage -> Cmd msg
 port loadLocal : (String -> msg) -> Sub msg
 
 
-keyDecoder : JD.Decoder Msg
-keyDecoder =
-    JD.map toKey (JD.field "key" JD.string)
+keyDecoder : Action -> JD.Decoder Msg
+keyDecoder action =
+    JD.map ( toKey action )  (JD.field "key" JD.string)
 
 
-toKey : String -> Msg
-toKey keyValue =
+toKey : Action -> String -> Msg
+toKey action keyValue =
     case String.uncons keyValue of
         Just ( char, "" ) ->
             NoAction
         _ ->
-            PressControl ( keyToType keyValue )
+            ActionControl ( keyToType action keyValue )
 
 
-keyToType:  String -> ControlKey
-keyToType keyValue =
+keyToType:  Action -> String -> ControlKey
+keyToType action keyValue =
     if keyValue == "Escape"
-        then Escape
+        then Escape action
         else
             if keyValue == "Delete"
-            then Delete
-            else Other keyValue
+                then Delete action
+                else
+                    if keyValue == "Controle"
+                        then Controle action
+                        else
+                        if keyValue == "Shift"
+                            then Shift action
+                            else Other keyValue action
 
+
+type Action =
+    Up
+    | Down
 
 type ControlKey =
-    Escape
-    | Delete
-    | Other String
+    Escape Action
+    | Delete Action
+    | Control Action
+    | Shift Action
+    | Other String Action
 
 
 type alias Model =
@@ -149,7 +164,7 @@ type Msg
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
-    | PressControl ControlKey
+    | ActionControl ControlKey
     | NoAction
     | FillNas Int
     | FillAll
@@ -159,6 +174,7 @@ type Msg
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | FromZoom ZoomFromPlotly
+
     | NewDragMode Bool
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -205,10 +221,16 @@ emptyStat =
     }
 
 type alias Holding =
-    { mouse: Bool }
+    { mouse: Bool
+    , control: Bool
+    , shift : Bool
+    }
 
 emptyHolding =
-    { mouse = False }
+    { mouse = False
+    , control = False
+    , shift = False
+    }
 
 type ActionRound =
     Replace String
@@ -816,16 +838,24 @@ update msg model =
 
         NoAction -> U.nocmd model
 
-        PressControl key ->
+        ActionControl ( key ) ->
+            let holding = model.holding
+            in
             case key of
-                Escape -> ( model
+                Escape Down -> ( model
                           , T.perform identity (T.succeed DeselectAll)
                           )
-                Delete -> ( setupNas
+                Escape Up -> U.nocmd model
+                Delete  Down -> ( setupNas
                             ( deleteSelectedValues model )
                             , T.perform identity (T.succeed DeselectAll)
                           )
-                Other keyName -> U.nocmd { model | keyName = keyName }
+                Delete Up -> U.nocmd model
+                Shift Down ->  U.nocmd { model | holding = { holding | shift = True }}
+                Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
+                Control Down -> U.nocmd { model | holding = { holding | control = True }}
+                Control Up -> U.nocmd { model | holding = { holding | control = False }}
+                Other keyName action -> U.nocmd { model | keyName = keyName }
 
         Drag mode ->
             let holding = model.holding
@@ -2359,7 +2389,8 @@ main =
                 [ zoomPlot FromZoom
                 , panActive NewDragMode
                 , copySignal CopyFromBrowser
-                , onKeyDown keyDecoder
+                , onKeyDown ( keyDecoder Down )
+                , onKeyUp ( keyDecoder Up )
                 , loadLocal FromLocal
                 , loadFromLocalStorage
                     (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
