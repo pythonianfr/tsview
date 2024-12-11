@@ -142,6 +142,7 @@ type alias Model =
     , allowInferFreq : Bool
     -- cells interactivity
     , focus : Maybe Int
+    , cursor: Maybe Int
     , firstSelected : Maybe Int
     , lastValids: List Int
     , slope: Maybe String
@@ -176,7 +177,7 @@ type Msg
     | Paste PasteType
     | SelectRow Int
     | DeselectAll
-    | ClickCell ( Maybe Int )
+    | ClickCell Int
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
@@ -783,30 +784,31 @@ update msg model =
             U.nocmd ( setOnActiveTs model newtimeSeries )
 
         ClickCell index ->
-            applyFocus model index
+            case model.holding.shift of
+                False -> applyFocus model ( Just index )
+                True ->
+                    case model.focus of
+                        Nothing -> applyFocus model ( Just index )
+                        Just focus ->
+                            let transformed = Dict.map
+                                                ( selectContiguous (Just focus) index )
+                                                ( getActiveTs model )
+                                newmodel = setOnActiveTs model transformed
+                            in
+                                U.nocmd ( setupFirstSelected newmodel )
 
         SelectRow index ->
             let transformed = Dict.map
                                 (if model.holding.mouse
                                     then
-                                        (selectContiguous model index)
+                                        ( selectContiguous model.firstSelected index )
                                     else
-                                     ( \ _ v ->
-                                        { v | selected = if v.selected
-                                                        then if ( v.index == index )
-                                                                then False
-                                                                else True
-                                                        else if ( v.index == index )
-                                                                then True
-                                                                else False
-                                        }
-                                    )
+                                        ( flipSelection index )
                                 )
                                 ( getActiveTs model )
                 newmodel = setOnActiveTs model transformed
-                ( _, first ) = firstSelected ( Dict.values (getActiveTs newmodel))
             in
-                U.nocmd { newmodel | firstSelected = first }
+                U.nocmd ( setupFirstSelected newmodel )
 
         DeselectAll ->
              let transformed = Dict.map
@@ -1218,6 +1220,13 @@ firstSelected entries =
                 else firstSelected xs
 
 
+setupFirstSelected: Model -> Model
+setupFirstSelected model =
+    let ( _, first ) = firstSelected ( Dict.values (getActiveTs model))
+    in
+        { model | firstSelected = first }
+
+
 findLastValid: List (String,  Entry) -> Bool -> List Int -> List Int
 findLastValid series previousIsValue found =
     case series of
@@ -1297,9 +1306,9 @@ getLastValue series indexNa =
         Maybe.withDefault 0 ( getCurrentValue entry )
 
 
-selectContiguous: Model -> Int -> ( String -> Entry -> Entry )
-selectContiguous model index =
-    case model.firstSelected of
+selectContiguous: Maybe Int -> Int -> ( a -> Entry -> Entry )
+selectContiguous from index =
+    case from of
         Nothing ->  ( \ _ v ->
                         { v | selected = v.index == index }
                     )
@@ -1318,6 +1327,21 @@ selectContiguous model index =
                                 || ( ( v.index <= index ) && ( v.index >= first ))
                             }
                         )
+
+
+flipSelection : Int -> (a -> Entry -> Entry )
+flipSelection index =
+     ( \ _ v ->
+        { v | selected = if v.selected
+                        then if ( v.index == index )
+                                then False
+                                else True
+                        else if ( v.index == index )
+                                then True
+                                else False
+        }
+    )
+
 
 getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
@@ -2102,7 +2126,7 @@ viewrow model ( date, entry ) =
         , if cursored
             then HA.class "cursor"
             else HA.class ""
-        , HE.onClick (ClickCell ( Just entry.index ))
+        , HE.onClick (ClickCell entry.index )
         , HE.onDoubleClick (SelectRow entry.index)
         , HE.onMouseDown (Drag On)] ++
             if model.holding.mouse
@@ -2430,6 +2454,7 @@ init input =
                     , monotonicCount = 0
                     , rawPasted = ""
                     , focus = Nothing
+                    , cursor = Nothing
                     , firstSelected = Nothing
                     , holding = emptyHolding
                     , keyName = ""
