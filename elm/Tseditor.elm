@@ -1359,19 +1359,36 @@ arrowAction model increment =
         Just index ->
             case model.holding.shift of
                 False -> applyFocus model ( Just ( index + increment ))
-                True -> case model.cursor of
-                    Nothing ->
-                        U.nocmd
-                            <| setContiguousSelection
-                                    { model | cursor = Just ( index + increment ) }
-                                    model.focus
-                                    ( index + increment )
-                    Just cursor ->
-                         U.nocmd
-                            <| setContiguousSelection
-                                    { model | cursor = Just ( cursor + increment ) }
-                                    model.focus
-                                    ( cursor + increment )
+                True ->
+                    case model.holding.control of
+                        False ->
+                            case model.cursor of
+                                Nothing ->
+                                    U.nocmd
+                                        <| setContiguousSelection
+                                                { model | cursor =
+                                                            Just ( index + increment ) }
+                                                model.focus
+                                                ( index + increment )
+                                Just cursor ->
+                                     U.nocmd
+                                        <| setContiguousSelection
+                                                { model | cursor =
+                                                            Just ( cursor + increment ) }
+                                                model.focus
+                                                ( cursor + increment )
+                        True ->
+                            let bound = if increment == -1
+                                            then 0
+                                            else List.length
+                                                    <| Dict.toList
+                                                        <| getActiveTs model
+                            in
+                            U.nocmd
+                                <| setContiguousSelection
+                                        { model | cursor = ( Just bound ) }
+                                        model.focus
+                                        bound
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -2248,6 +2265,10 @@ debugView model =
                                                     else "Off")
                 , H.br [] []
                 , H.text (", shiftHold = " ++ if model.holding.shift
+                                                    then "On"
+                                                    else "Off")
+                , H.br [] []
+                , H.text (", controlHold = " ++ if model.holding.control
                                                     then "On"
                                                     else "Off")
                 , H.br [] []
