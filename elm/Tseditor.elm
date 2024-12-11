@@ -793,7 +793,7 @@ update msg model =
                         Just focus ->
                             let newmodel = setContiguousSelection
                                                 model
-                                                (Just focus)
+                                                focus
                                                 index
                             in
                                 U.nocmd  newmodel
@@ -802,7 +802,10 @@ update msg model =
             let transformed = Dict.map
                                 (if model.holding.mouse
                                     then
-                                        ( selectContiguous model.firstDrag index )
+                                        case model.firstDrag of
+                                            Nothing -> (\ k v -> v)
+                                            Just firstDrag ->
+                                                selectContiguous firstDrag index
                                     else
                                         ( flipSelection index )
                                 )
@@ -1307,28 +1310,23 @@ getLastValue series indexNa =
         Maybe.withDefault 0 ( getCurrentValue entry )
 
 
-selectContiguous: Maybe Int -> Int -> ( a -> Entry -> Entry )
-selectContiguous from index =
-    case from of
-        Nothing ->  ( \ _ v ->
-                        { v | selected = v.index == index }
+selectContiguous: Int -> Int -> ( a -> Entry -> Entry )
+selectContiguous from to =
+        if to < from
+            then   ( \ _ v ->
+                        { v | selected =
+                            ( ( v.index >= to ) && ( v.index <= from ))
+                        }
                     )
-        Just first ->
-            if index < first
-                then   ( \ _ v ->
-                            { v | selected =
-                                ( ( v.index >= index ) && ( v.index <= first ))
-                            }
-                        )
-                else
-                        ( \ _ v ->
-                            { v | selected =
-                                ( ( v.index <= index ) && ( v.index >= first ))
-                            }
-                        )
+            else
+                    ( \ _ v ->
+                        { v | selected =
+                            ( ( v.index <= to ) && ( v.index >= from ))
+                        }
+                    )
 
 
-setContiguousSelection: Model -> Maybe Int -> Int -> Model
+setContiguousSelection: Model -> Int -> Int -> Model
 setContiguousSelection model from index =
     setOnActiveTs
         model
@@ -1367,7 +1365,7 @@ arrowAction model increment =
                                          ( setContiguousSelection
                                                 { model | firstShift = Just focus
                                                 }
-                                                ( Just ( focus + increment ) )
+                                                ( focus + increment )
                                                 focus
                                          )
                                          ( Just ( focus + increment ) )
@@ -1375,7 +1373,7 @@ arrowAction model increment =
                                      applyFocus
                                          ( setContiguousSelection
                                                 { model | focus =  Just  ( focus + increment )}
-                                                ( Just ( focus + increment ))
+                                                ( focus + increment )
                                                 ( firstShift )
                                          )
                                          ( Just ( focus + increment ) )
@@ -1389,7 +1387,7 @@ arrowAction model increment =
                             U.nocmd
                                 <| setContiguousSelection
                                         { model | firstShift = ( Just bound ) }
-                                        model.focus
+                                        focus
                                         bound
 
 
