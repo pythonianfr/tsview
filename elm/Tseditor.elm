@@ -143,6 +143,7 @@ type alias Model =
     -- cells interactivity
     , focus : Maybe Int
     , cursor: Maybe Int
+    , firstDrag: Maybe Int
     , firstSelected : Maybe Int
     , lastValids: List Int
     , slope: Maybe String
@@ -304,7 +305,7 @@ type alias PasteType =
     }
 
 type DragMode =
-    On
+    On Int
     | Off
 
 type alias Series = Dict String (Maybe Float)
@@ -790,18 +791,18 @@ update msg model =
                     case model.focus of
                         Nothing -> applyFocus model ( Just index )
                         Just focus ->
-                            let transformed = Dict.map
-                                                ( selectContiguous (Just focus) index )
-                                                ( getActiveTs model )
-                                newmodel = setOnActiveTs model transformed
+                            let newmodel = setContiguousSelection
+                                                model
+                                                (Just focus)
+                                                index
                             in
-                                U.nocmd ( setupFirstSelected newmodel )
+                                U.nocmd  newmodel
 
         SelectRow index ->
             let transformed = Dict.map
                                 (if model.holding.mouse
                                     then
-                                        ( selectContiguous model.firstSelected index )
+                                        ( selectContiguous model.firstDrag index )
                                     else
                                         ( flipSelection index )
                                 )
@@ -818,7 +819,7 @@ update msg model =
                                 { model | firstSelected = Nothing }
                                 transformed
               in
-                 applyFocus newmodel Nothing
+                 applyFocus { newmodel | cursor = Nothing } Nothing
 
 
         CopySelection ->
@@ -881,12 +882,8 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
-                ArrowDown Down -> case model.focus of
-                    Nothing -> U.nocmd model
-                    Just index -> applyFocus model ( Just ( index + 1 ))
-                ArrowUp Down -> case model.focus of
-                    Nothing -> U.nocmd model
-                    Just index -> applyFocus model ( Just ( index - 1 ))
+                ArrowDown Down -> arrowAction model 1
+                ArrowUp Down -> arrowAction model -1
                 Enter Down -> case model.focus of
                     Nothing -> U.nocmd model
                     Just index -> applyFocus model ( Just ( index - 1 ))
@@ -899,10 +896,14 @@ update msg model =
             let holding = model.holding
             in
             case mode of
-                On -> U.nocmd
-                        { model | holding = {holding | mouse = True }}
+                On index -> U.nocmd
+                                { model | holding = { holding | mouse = True }
+                                        , firstDrag = Just index
+                                }
+
                 Off -> U.nocmd
-                        { model | holding = {holding | mouse = False }}
+                        { model | holding = {holding | mouse = False }
+                                , firstDrag = Nothing }
 
 
         NewRound action ->
@@ -1020,7 +1021,8 @@ update msg model =
 applyFocus: Model -> Maybe Int -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
-        newModel = { model | focus = maybeIndex }
+        newModel = { model | focus = maybeIndex
+                           , cursor = Nothing }
     in
     case maybeIndex of
         Nothing ->
@@ -1329,6 +1331,15 @@ selectContiguous from index =
                         )
 
 
+setContiguousSelection: Model -> Maybe Int -> Int -> Model
+setContiguousSelection model from index =
+    setOnActiveTs
+        model
+        <| Dict.map
+            ( selectContiguous from index )
+            ( getActiveTs model )
+
+
 flipSelection : Int -> (a -> Entry -> Entry )
 flipSelection index =
      ( \ _ v ->
@@ -1341,6 +1352,28 @@ flipSelection index =
                                 else False
         }
     )
+
+
+arrowAction: Model -> Int -> ( Model, Cmd Msg )
+arrowAction model increment =
+      case model.focus of
+        Nothing -> U.nocmd model
+        Just index ->
+            case model.holding.shift of
+                False -> applyFocus model ( Just ( index + increment ))
+                True -> case model.cursor of
+                    Nothing ->
+                        U.nocmd
+                            <| setContiguousSelection
+                                    { model | cursor = Just ( index + increment ) }
+                                    model.focus
+                                    ( index + increment )
+                    Just cursor ->
+                         U.nocmd
+                            <| setContiguousSelection
+                                    { model | cursor = Just ( cursor + increment ) }
+                                    model.focus
+                                    ( cursor + increment )
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -2116,19 +2149,20 @@ viewrow model ( date, entry ) =
                                 if entry.index == first
                                     then True
                                     else False
-        cursored = entry.index == Maybe.withDefault -1 model.focus
+        focused = entry.index == Maybe.withDefault -1 model.focus
     in
     H.tr
         ([ HA.class "row-edit"
         , if entry.selected
             then HA.class "selected"
             else HA.class ""
-        , if cursored
-            then HA.class "cursor"
+        , if focused
+            then HA.class "focused"
             else HA.class ""
-        , HE.onClick (ClickCell entry.index )
+        , HE.onClick ( ClickCell entry.index )
         , HE.onDoubleClick (SelectRow entry.index)
-        , HE.onMouseDown (Drag On)] ++
+        , HE.onMouseDown ( Drag ( On entry.index ))
+        ] ++
             if model.holding.mouse
                 then [ HE.onMouseEnter (SelectRow entry.index)
                      , HE.onMouseLeave (SelectRow entry.index)
@@ -2210,17 +2244,30 @@ debugView model =
         []
         ( if model.horizon.debug
             then
-                [ H.text "debug active" ] ++
-                [ H.text (", dragMode = " ++ if model.holding.mouse
+                [ H.text "debug active"
+                , H.text (", dragMode = " ++ if model.holding.mouse
                                                     then "On"
-                                                    else "Off")]
-                  ++ [ H.br [] []]
-                  ++ ( List.map
+                                                    else "Off")
+                , H.br [] []
+                , H.text (", shiftHold = " ++ if model.holding.shift
+                                                    then "On"
+                                                    else "Off")
+                , H.br [] []
+                , H.br [] []
+                , H.text  ( "Key Pressed : " ++ model.keyName)
+                , H.text  ( "Focus : " ++ case model.focus of
+                                                Nothing -> "Nothing"
+                                                Just focus -> String.fromInt focus
+                                )
+
+                , H.text  ( "Cursor : " ++ case model.cursor of
+                                Nothing -> "Nothing"
+                                Just focus -> String.fromInt focus
+                        )
+                ] ++ ( List.map
                             (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
-                     )
-                  ++ [ H.br [] []]
-                  ++ [ H.text  ( "Key Pressed : " ++ model.keyName) ]
+                       )
             else
                 []
         )
@@ -2455,6 +2502,7 @@ init input =
                     , rawPasted = ""
                     , focus = Nothing
                     , cursor = Nothing
+                    , firstDrag = Nothing
                     , firstSelected = Nothing
                     , holding = emptyHolding
                     , keyName = ""
