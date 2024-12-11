@@ -94,6 +94,12 @@ keyToType action keyValue =
     if keyValue == "ArrowDown"
     then ArrowDown action
     else
+    if keyValue == "PageDown"
+    then PageDown action
+    else
+    if keyValue == "PageUp"
+    then PageUp action
+    else
     if keyValue == "Enter"
     then ArrowDown action
     else Other keyValue action
@@ -111,6 +117,8 @@ type ControlKey =
     | Shift Action
     | ArrowUp Action
     | ArrowDown Action
+    | PageUp Action
+    | PageDown Action
     | Enter Action
     | Other String Action
 
@@ -887,11 +895,15 @@ update msg model =
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
                 ArrowDown Down -> arrowAction model 1
                 ArrowUp Down -> arrowAction model -1
+                PageDown Down -> arrowAction model 30
+                PageUp Down -> arrowAction model -30
                 Enter Down -> case model.focus of
                     Nothing -> U.nocmd model
                     Just index -> applyFocus model ( Just ( index - 1 ))
                 ArrowDown Up -> U.nocmd model
                 ArrowUp Up -> U.nocmd model
+                PageDown Up -> U.nocmd model
+                PageUp Up -> U.nocmd model
                 Enter Up -> U.nocmd model
                 Other keyName action -> U.nocmd { model | keyName = keyName }
 
@@ -1349,13 +1361,30 @@ flipSelection index =
     )
 
 
+boundValue: Int -> Int -> Int -> Int
+boundValue minValue maxValue value =
+    if value < minValue
+        then minValue
+        else if value > maxValue
+            then maxValue
+            else value
+
+
 arrowAction: Model -> Int -> ( Model, Cmd Msg )
 arrowAction model increment =
       case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
+            let bound = boundValue
+                            0
+                            (( List.length
+                                 <|Dict.toList
+                                      <|getActiveTs model
+                            ) - 1
+                            )
+            in
             case model.holding.shift of
-                False -> applyFocus model ( Just ( focus + increment ))
+                False -> applyFocus model ( Just ( bound ( focus + increment )))
                 True ->
                     case model.holding.control of
                         False ->
@@ -1365,30 +1394,24 @@ arrowAction model increment =
                                          ( setContiguousSelection
                                                 { model | firstShift = Just focus
                                                 }
-                                                ( focus + increment )
+                                                ( bound ( focus + increment ))
                                                 focus
                                          )
-                                         ( Just ( focus + increment ) )
+                                         ( Just ( bound ( focus + increment )))
                                 Just firstShift ->
                                      applyFocus
                                          ( setContiguousSelection
-                                                { model | focus =  Just  ( focus + increment )}
-                                                ( focus + increment )
+                                                { model | focus =  Just ( bound (focus + increment ))}
+                                                ( bound ( focus + increment ))
                                                 ( firstShift )
                                          )
-                                         ( Just ( focus + increment ) )
+                                         ( Just ( bound (focus + increment ) ))
                         True ->
-                            let bound = if increment == -1
-                                            then 0
-                                            else List.length
-                                                    <| Dict.toList
-                                                        <| getActiveTs model
-                            in
                             U.nocmd
                                 <| setContiguousSelection
-                                        { model | firstShift = ( Just bound ) }
+                                        { model | firstShift = ( Just ( bound increment ))}
                                         focus
-                                        bound
+                                        ( bound increment )
 
 
 getRelevantData : Model -> List (Cmd Msg)
