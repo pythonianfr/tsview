@@ -838,23 +838,25 @@ update msg model =
                                 ( getActiveTs model )
                                 indexLastValue
             in
-                ( setOnActiveTs
-                    model
-                        <|Dict.union
-                            (fillNas
+                ( setupNas
+                    <| setOnActiveTs
+                        model
+                            <|Dict.union
+                                (fillNas
+                                    ( getActiveTs model )
+                                    lastValue
+                                    ( indexLastValue )
+                                )
                                 ( getActiveTs model )
-                                lastValue
-                                ( indexLastValue )
-                            )
-                            ( getActiveTs model )
                 , Cmd.none )
 
         FillAll ->
-            ( setOnActiveTs
-                model
-                <| fillAllNas
-                    ( getActiveTs model )
-                    model.lastValids
+            ( setupNas
+                <| setOnActiveTs
+                        model
+                        <| fillAllNas
+                            ( getActiveTs model )
+                            model.lastValids
             , Cmd.none
             )
 
