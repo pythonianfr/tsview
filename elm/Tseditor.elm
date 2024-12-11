@@ -142,7 +142,7 @@ type alias Model =
     , allowInferFreq : Bool
     -- cells interactivity
     , focus : Maybe Int
-    , cursor: Maybe Int
+    , firstShift: Maybe Int
     , firstDrag: Maybe Int
     , firstSelected : Maybe Int
     , lastValids: List Int
@@ -819,7 +819,7 @@ update msg model =
                                 { model | firstSelected = Nothing }
                                 transformed
               in
-                 applyFocus { newmodel | cursor = Nothing } Nothing
+                 applyFocus { newmodel | firstShift = Nothing } Nothing
 
 
         CopySelection ->
@@ -1021,8 +1021,7 @@ update msg model =
 applyFocus: Model -> Maybe Int -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
-        newModel = { model | focus = maybeIndex
-                           , cursor = Nothing }
+        newModel = { model | focus = maybeIndex }
     in
     case maybeIndex of
         Nothing ->
@@ -1356,27 +1355,30 @@ arrowAction: Model -> Int -> ( Model, Cmd Msg )
 arrowAction model increment =
       case model.focus of
         Nothing -> U.nocmd model
-        Just index ->
+        Just focus ->
             case model.holding.shift of
-                False -> applyFocus model ( Just ( index + increment ))
+                False -> applyFocus model ( Just ( focus + increment ))
                 True ->
                     case model.holding.control of
                         False ->
-                            case model.cursor of
+                            case model.firstShift of
                                 Nothing ->
-                                    U.nocmd
-                                        <| setContiguousSelection
-                                                { model | cursor =
-                                                            Just ( index + increment ) }
-                                                model.focus
-                                                ( index + increment )
-                                Just cursor ->
-                                     U.nocmd
-                                        <| setContiguousSelection
-                                                { model | cursor =
-                                                            Just ( cursor + increment ) }
-                                                model.focus
-                                                ( cursor + increment )
+                                    applyFocus
+                                         ( setContiguousSelection
+                                                { model | firstShift = Just focus
+                                                }
+                                                ( Just ( focus + increment ) )
+                                                focus
+                                         )
+                                         ( Just ( focus + increment ) )
+                                Just firstShift ->
+                                     applyFocus
+                                         ( setContiguousSelection
+                                                { model | focus =  Just  ( focus + increment )}
+                                                ( Just ( focus + increment ))
+                                                ( firstShift )
+                                         )
+                                         ( Just ( focus + increment ) )
                         True ->
                             let bound = if increment == -1
                                             then 0
@@ -1386,7 +1388,7 @@ arrowAction model increment =
                             in
                             U.nocmd
                                 <| setContiguousSelection
-                                        { model | cursor = ( Just bound ) }
+                                        { model | firstShift = ( Just bound ) }
                                         model.focus
                                         bound
 
@@ -2279,7 +2281,7 @@ debugView model =
                                                 Just focus -> String.fromInt focus
                                 )
 
-                , H.text  ( "Cursor : " ++ case model.cursor of
+                , H.text  ( "Cursor : " ++ case model.firstShift of
                                 Nothing -> "Nothing"
                                 Just focus -> String.fromInt focus
                         )
@@ -2520,7 +2522,7 @@ init input =
                     , monotonicCount = 0
                     , rawPasted = ""
                     , focus = Nothing
-                    , cursor = Nothing
+                    , firstShift = Nothing
                     , firstDrag = Nothing
                     , firstSelected = Nothing
                     , holding = emptyHolding
