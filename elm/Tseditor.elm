@@ -1318,15 +1318,13 @@ selectContiguous from index =
             if index < first
                 then   ( \ _ v ->
                             { v | selected =
-                                v.selected
-                                || ( ( v.index >= index ) && ( v.index <= first ))
+                                ( ( v.index >= index ) && ( v.index <= first ))
                             }
                         )
                 else
                         ( \ _ v ->
                             { v | selected =
-                                v.selected
-                                || ( ( v.index <= index ) && ( v.index >= first ))
+                                ( ( v.index <= index ) && ( v.index >= first ))
                             }
                         )
 
