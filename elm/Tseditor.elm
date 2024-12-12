@@ -185,7 +185,7 @@ type Msg
     | GotEditedData (Result Http.Error String)
     | Paste PasteType
     | SelectRow Int
-    | DeselectAll
+    | DeselectAll Bool
     | ClickCell Int
     | Drag DragMode
     | CopySelection
@@ -200,7 +200,6 @@ type Msg
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | FromZoom ZoomFromPlotly
-
     | NewDragMode Bool
     | CopyNameToClipboard
     | ResetClipboardClass
@@ -608,7 +607,8 @@ update msg model =
                                                     hMsg
                                                     convertMsg
                                                     model.horizon
-                default = ( { model | horizon = newModelHorizon}, commands )
+                moreCommands = Cmd.batch [ deselect False , commands]
+                default = ( { model | horizon = newModelHorizon}, moreCommands )
                 resetModel = { model | horizon = newModelHorizon
                                      , monotonicCount = model.monotonicCount + 1
                                      , zoomedTs = Nothing
@@ -619,18 +619,18 @@ update msg model =
                 ModuleHorizon.Frame _ -> ( { resetModel | forceDraw = False
                                                       , firstSelected = Nothing
                                            }
-                                         , commands )
+                                         , moreCommands )
                 ModuleHorizon.FromLocalStorage _ ->
                     -- we want to fire the commands AFTER getting the metadata:
                     -- we store these commands in the model -.-
-                    ( { resetModel | initialCommands = commands }
+                    ( { resetModel | initialCommands = moreCommands }
                     , Cmd.batch ([ M.getsysmetadata
                                         model.baseurl
                                         model.name
                                         GotMetadata
                                         "series"]))
                 ModuleHorizon.Fetch _ -> ( resetModel
-                                         , Cmd.batch ([ commands ]
+                                         , Cmd.batch ([ moreCommands ]
                                          ++ getRelevantData resetModel ))
 
         SwitchForceDraw ->
@@ -712,7 +712,7 @@ update msg model =
         SaveEditedData ->
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , Cmd.batch [ I.getidates model "series" GetLastInsertionDates
-                        , deselect
+                        , deselect False
                         ]
             )
 
@@ -796,7 +796,7 @@ update msg model =
             case model.holding.shift of
                 False -> let ( newmodel, cmd  ) = applyFocus model ( Just index )
                          in
-                            ( clearSelection newmodel, cmd )
+                            ( clearSelection newmodel True, cmd )
                 True ->
                     case model.focus of
                         Nothing -> applyFocus model ( Just index )
@@ -825,9 +825,9 @@ update msg model =
                 U.nocmd ( setupFirstSelected newmodel )
 
 
-        DeselectAll ->
+        DeselectAll keepFocus ->
              let
-                 newmodel = ( clearSelection model )
+                 newmodel = ( clearSelection model keepFocus )
               in
                  applyFocus { newmodel | firstShift = Nothing } Nothing
 
@@ -837,7 +837,7 @@ update msg model =
                 concatened = String.join "\n" selectedValues
             in
             ( model
-            , Cmd.batch [ deselect
+            , Cmd.batch [ deselect False
                         , copyToClipboard concatened
                         ]
             )
@@ -879,10 +879,10 @@ update msg model =
             let holding = model.holding
             in
             case key of
-                Escape Down -> ( model , deselect )
+                Escape Down -> ( model , deselect False )
                 Escape Up -> U.nocmd model
                 Delete  Down -> ( setupNas ( deleteSelectedValues model )
-                                , deselect
+                                , deselect False
                                 )
                 Delete Up -> U.nocmd model
                 Shift Down ->  U.nocmd { model | holding = { holding | shift = True }}
@@ -1012,7 +1012,7 @@ update msg model =
                                     }
 
                  in
-                    ( newmodel , Cmd.none )
+                    applyFocus newmodel model.focus
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1054,23 +1054,26 @@ applyFocus model maybeIndex =
             )
 
 
-clearSelection: Model -> Model
-clearSelection model =
+clearSelection: Model -> Bool -> Model
+clearSelection model keepFocus =
     let transformed = Dict.map
                         ( \ _ v -> { v | selected = False })
                         ( getActiveTs model )
+        focus = if keepFocus then model.focus else Nothing
     in
         setOnActiveTs
             { model | firstSelected = Nothing
                     , firstDrag = Nothing
                     , firstShift = Nothing
+                    , focus = focus
             }
             transformed
 
 
-deselect: Cmd Msg
-deselect =
-    T.perform identity (T.succeed DeselectAll)
+deselect: Bool -> Cmd Msg
+deselect keepFocus =
+    T.perform identity (T.succeed ( DeselectAll keepFocus ))
+
 
 idEntry: Int -> String
 idEntry = (\ idx -> "e-" ++ ( String.fromInt idx ))
@@ -1375,13 +1378,24 @@ flipSelection index =
     )
 
 
-boundValue: Int -> Int -> Int -> Int
-boundValue minValue maxValue value =
+bounded: Int -> Int -> Int -> Int
+bounded minValue maxValue value =
     if value < minValue
         then minValue
         else if value > maxValue
             then maxValue
             else value
+
+
+getLimitIndexes: Dict String Entry -> ( Int, Int )
+getLimitIndexes series =
+    let indexes = List.map
+                    ( \ e -> e.index )
+                    <| Dict.values series
+    in
+    ( Maybe.withDefault 0 ( List.minimum indexes )
+    , Maybe.withDefault 0 (List.maximum indexes )
+    )
 
 
 arrowAction: Model -> Int -> ( Model, Cmd Msg )
@@ -1396,10 +1410,9 @@ arrowActionT model increment =
       case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
-            let maxIndex =   (( List.length
-                                 <|Dict.toList
-                                      <|getActiveTs model) - 1 )
-                bound = boundValue 0 maxIndex
+            let ( minIndex, maxIndex ) = getLimitIndexes
+                                            ( getActiveTs model )
+                bound = bounded minIndex maxIndex
             in
             case model.holding.shift of
                 False -> case model.holding.control of
@@ -1412,7 +1425,7 @@ arrowActionT model increment =
                                                     ( Just maxIndex )
                                         False -> applyFocus
                                                     model
-                                                    ( Just 0 )
+                                                    ( Just minIndex )
                 True ->
                     case model.holding.control of
                         False ->
@@ -1437,7 +1450,7 @@ arrowActionT model increment =
                         True ->
                             let relevantBound = if increment > 0
                                                     then maxIndex
-                                                    else 0
+                                                    else minIndex
                             in
                             case model.firstShift of
                                 Nothing ->
@@ -2303,7 +2316,7 @@ buttonsFirstSelected predicat =
                 [ HA.class "control-col"
                 , HA.class "remove-selection"
                 , HA.title "Deselect all"
-                , HE.onClick DeselectAll
+                , HE.onClick ( DeselectAll False )
                 ]
                 [ H.text "x"]
             ]
