@@ -109,26 +109,32 @@
 
 .table-style {
     border-collapse: collapse;
-    width: 100%;
 }
+
 
 .table-style td, .table-style th {
     border: 1px solid #DDD;
     padding: 5px;
 }
 
-.table-style tr:nth-child(even) {
-    background-color: #EFF1ED;
-}
 
 .table-style tr:hover {
+    background-color: #DDD;
+}
+
+
+.table-style input:hover {
     background-color: #DDD;
 }
 
 .table-style th {
     padding-top: 12px;
     padding-bottom: 12px;
-    text-align: left;
+    text-align: center;
+}
+
+.table-style td:nth-child(2) {
+    padding: 0px;
 }
 
 .table-style td.control-col, .table-style th.control-col  {
@@ -196,10 +202,63 @@
     color: white;
 }
 
-.row-edit input {
+
+.table-style tr th:nth-child(2) {
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
-.focused input {
+.table-style tr th:nth-child(2) {
+    text-align: right;
+    padding-right: 40px;
+}
+
+.row-edit td {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.row-edit input.plain {
+    padding-top: 1px;
+    padding-bottom: 1px;
+    padding-right: 40px;
+    border-style: none;
+    text-align: right;
+    color: inherit;
+}
+
+
+.row-edit input.fill-under {
+    padding-top: 1px;
+    padding-bottom: 1px;
+    padding-right: 15px;
+    border-style: none;
+    text-align: right;
+    color: inherit;
+}
+
+
+.table-style td button {
+    border: 2px solid black;
+    cursor: pointer;
+    padding-top:0px;
+    padding-bottom:0px;
+
+}
+
+
+.row-edit.selected td:nth-child(2) {
+    background-color: #cae9f5;
+}
+
+.row-edit.selected input {
+    background-color: #cae9f5;
+}
+
+
+.focusedr input {
 }
 
 
@@ -232,6 +291,7 @@
     position: sticky;
     top:0px;
     background-color:white;
+
 }
 
 .editor-values-table {
@@ -240,6 +300,4 @@
     white-space: nowrap;
 }
 
-.row-edit.selected td:nth-child(2) {
-    box-shadow: inset 0px 0px 10px;
-}
+

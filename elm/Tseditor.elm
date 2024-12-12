@@ -2233,6 +2233,7 @@ viewrow model ( date, entry ) =
                                     then True
                                     else False
         focused = entry.index == Maybe.withDefault -1 model.focus
+        fillUnder = List.member entry.index  model.lastValids
     in
     H.tr
         ([ HA.class "row-edit"
@@ -2260,6 +2261,7 @@ viewrow model ( date, entry ) =
             ([ H.input
                   [ HA.id (idEntry entry.index )
                   , HA.class ("pastable " ++ rowstyle)
+                  , if fillUnder then HA.class "fill-under" else HA.class "plain"
                   , HA.placeholder "enter your value"
                   , HA.value ( formatNumber ( getValue entry ))
                   , HE.onInput (InputChanged date)
@@ -2267,18 +2269,22 @@ viewrow model ( date, entry ) =
                   , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                   ]
                   [ ]
-             ] ++ ( case List.member  entry.index  model.lastValids of
-                        True -> [ H.button
-                                    [ HA.title "Fill"
-                                    , HE.onClick ( FillNas ( entry.index ) )]
-                                    [ H.text "↓" ]
-                                ]
-                        False -> []
+             ] ++ ( fillButton entry fillUnder
                   )
             )
          ] ++ (buttonsFirstSelected isFirstSelected )
         )
 
+
+fillButton: Entry -> Bool -> List ( H.Html Msg )
+fillButton entry fillUnder =
+    case fillUnder of
+        True -> [ H.button
+                    [ HA.title "Fill"
+                    , HE.onClick ( FillNas ( entry.index ) )]
+                    [ H.text "↓" ]
+                ]
+        False -> []
 
 buttonsFirstSelected: Bool -> List (H.Html Msg)
 buttonsFirstSelected predicat =
