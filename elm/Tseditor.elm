@@ -1372,6 +1372,13 @@ boundValue minValue maxValue value =
 
 arrowAction: Model -> Int -> ( Model, Cmd Msg )
 arrowAction model increment =
+    let ( newmodel, cmd ) = arrowActionT model increment
+    in
+        ( setupFirstSelected newmodel , cmd )
+
+
+arrowActionT: Model -> Int -> ( Model, Cmd Msg )
+arrowActionT model increment =
       case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
