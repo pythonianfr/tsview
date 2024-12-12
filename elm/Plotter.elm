@@ -35,6 +35,14 @@ type alias LayoutOptions =
     , yaxis: Axis
     , height: Maybe Int
     , separators : String
+    , margin: Margin
+    }
+
+type alias Margin =
+    { t: Int
+    , b: Int
+    , l: Int
+    , r: Int
     }
 
 defaultLayoutOptions: LayoutOptions
@@ -47,6 +55,11 @@ defaultLayoutOptions =
     -- separators: first char for decimal
     -- second for thousands
     , separators = ".\u{00a0}"
+    , margin = { t = 10
+                ,b = 30
+                ,l = 40
+                ,r = 20
+                }
     }
 
 type alias Axis =
@@ -223,6 +236,13 @@ encodeLayout layoutOptions =
                 Nothing -> []
                 Just height -> [ ( "height", E.int height ) ]
             , [( "separators", E.string layoutOptions.separators )]
+            , [( "margin", E.object [( "t", E.int layoutOptions.margin.t )
+                                    ,( "b", E.int layoutOptions.margin.b )
+                                    ,( "l", E.int layoutOptions.margin.l )
+                                    ,( "r", E.int layoutOptions.margin.r )
+                                    ]
+               )
+              ]
             ] ))
 
 
