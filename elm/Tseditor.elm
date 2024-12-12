@@ -1061,7 +1061,10 @@ clearSelection model =
                         ( getActiveTs model )
     in
         setOnActiveTs
-            { model | firstSelected = Nothing }
+            { model | firstSelected = Nothing
+                    , firstDrag = Nothing
+                    , firstShift = Nothing
+            }
             transformed
 
 
@@ -2320,7 +2323,11 @@ debugView model =
                                                 Just focus -> String.fromInt focus
                                 )
 
-                , H.text  ( "Cursor : " ++ case model.firstShift of
+                , H.text  ( "FirstShift : " ++ case model.firstShift of
+                                Nothing -> "Nothing"
+                                Just focus -> String.fromInt focus
+                        )
+                , H.text  ( "FirstDrag : " ++ case model.firstDrag of
                                 Nothing -> "Nothing"
                                 Just focus -> String.fromInt focus
                         )
