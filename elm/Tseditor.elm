@@ -1396,16 +1396,23 @@ arrowActionT model increment =
       case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
-            let bound = boundValue
-                            0
-                            (( List.length
+            let maxIndex =   (( List.length
                                  <|Dict.toList
-                                      <|getActiveTs model
-                            ) - 1
-                            )
+                                      <|getActiveTs model) - 1 )
+                bound = boundValue 0 maxIndex
             in
             case model.holding.shift of
-                False -> applyFocus model ( Just ( bound ( focus + increment )))
+                False -> case model.holding.control of
+                            False -> applyFocus
+                                        model
+                                        ( Just ( bound ( focus + increment )))
+                            True -> case increment > 0 of
+                                        True -> applyFocus
+                                                    model
+                                                    ( Just maxIndex )
+                                        False -> applyFocus
+                                                    model
+                                                    ( Just 0 )
                 True ->
                     case model.holding.control of
                         False ->
@@ -1428,11 +1435,28 @@ arrowActionT model increment =
                                          )
                                          ( Just ( bound (focus + increment ) ))
                         True ->
-                            U.nocmd
-                                <| setContiguousSelection
-                                        { model | firstShift = ( Just ( bound increment ))}
-                                        focus
-                                        ( bound increment )
+                            let relevantBound = if increment > 0
+                                                    then maxIndex
+                                                    else 0
+                            in
+                            case model.firstShift of
+                                Nothing ->
+                                    applyFocus
+                                         ( setContiguousSelection
+                                                { model | firstShift = Just focus
+                                                }
+                                                relevantBound
+                                                focus
+                                         )
+                                         ( Just relevantBound)
+                                Just firstShift ->
+                                     applyFocus
+                                         ( setContiguousSelection
+                                                { model | focus =  Just relevantBound }
+                                                relevantBound
+                                                ( firstShift )
+                                         )
+                                         ( Just relevantBound )
 
 
 getRelevantData : Model -> List (Cmd Msg)
