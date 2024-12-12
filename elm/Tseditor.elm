@@ -712,7 +712,7 @@ update msg model =
         SaveEditedData ->
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , Cmd.batch [ I.getidates model "series" GetLastInsertionDates
-                        , T.perform identity (T.succeed DeselectAll)
+                        , deselect
                         ]
             )
 
@@ -794,7 +794,9 @@ update msg model =
 
         ClickCell index ->
             case model.holding.shift of
-                False -> applyFocus model ( Just index )
+                False -> let ( newmodel, cmd  ) = applyFocus model ( Just index )
+                         in
+                            ( clearSelection newmodel, cmd )
                 True ->
                     case model.focus of
                         Nothing -> applyFocus model ( Just index )
@@ -822,13 +824,10 @@ update msg model =
             in
                 U.nocmd ( setupFirstSelected newmodel )
 
+
         DeselectAll ->
-             let transformed = Dict.map
-                                ( \ _ v -> { v | selected = False })
-                                ( getActiveTs model )
-                 newmodel = setOnActiveTs
-                                { model | firstSelected = Nothing }
-                                transformed
+             let
+                 newmodel = ( clearSelection model )
               in
                  applyFocus { newmodel | firstShift = Nothing } Nothing
 
@@ -838,7 +837,7 @@ update msg model =
                 concatened = String.join "\n" selectedValues
             in
             ( model
-            , Cmd.batch [ T.perform identity (T.succeed DeselectAll)
+            , Cmd.batch [ deselect
                         , copyToClipboard concatened
                         ]
             )
@@ -880,14 +879,11 @@ update msg model =
             let holding = model.holding
             in
             case key of
-                Escape Down -> ( model
-                          , T.perform identity (T.succeed DeselectAll)
-                          )
+                Escape Down -> ( model , deselect )
                 Escape Up -> U.nocmd model
-                Delete  Down -> ( setupNas
-                            ( deleteSelectedValues model )
-                            , T.perform identity (T.succeed DeselectAll)
-                          )
+                Delete  Down -> ( setupNas ( deleteSelectedValues model )
+                                , deselect
+                                )
                 Delete Up -> U.nocmd model
                 Shift Down ->  U.nocmd { model | holding = { holding | shift = True }}
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
@@ -1057,6 +1053,21 @@ applyFocus model maybeIndex =
                     <| idEntry index
             )
 
+
+clearSelection: Model -> Model
+clearSelection model =
+    let transformed = Dict.map
+                        ( \ _ v -> { v | selected = False })
+                        ( getActiveTs model )
+    in
+        setOnActiveTs
+            { model | firstSelected = Nothing }
+            transformed
+
+
+deselect: Cmd Msg
+deselect =
+    T.perform identity (T.succeed DeselectAll)
 
 idEntry: Int -> String
 idEntry = (\ idx -> "e-" ++ ( String.fromInt idx ))
