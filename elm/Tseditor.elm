@@ -1836,7 +1836,7 @@ viewRelevantTable model =
 viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     H.table
-        [HA.class "table talbe-sm editor-values-table"]
+        [HA.class "table talbe-sm show-table"]
           [ headerShowValue model
           , bodyShowValue model ]
 
@@ -1910,7 +1910,7 @@ buildRow model date =
         []
         ( List.append
             [ H.th
-                [HA.class "editor-values-table-dates"]
+                [HA.class "show-table-dates"]
                 [ H.text date ]
             , H.td [] [ H.text ( printValue model.roundValues
                                     ( Maybe.withDefault
@@ -1929,9 +1929,9 @@ headerShowValue model =
         []
         [ H.tr
             []
-            ( [ H.th [ HA.class "editor-values-table-dates" ] []
+            ( [ H.th [ HA.class "show-table-dates" ] []
               , H.th
-                    [ HA.class "editor-values-table-series" ]
+                    [ HA.class "show-table-series" ]
                     [ H.a
                         []
                         [ H.text model.name ]
@@ -1956,7 +1956,7 @@ queryNav model name =
 buildLink: Model -> Component -> H.Html Msg
 buildLink model comp =
     H.th
-        [ HA.class "editor-values-table-series" ]
+        []
         ( if comp.ctype /= "auto"
             then
                 [ H.a
@@ -2149,7 +2149,7 @@ statePoints nbPoints forceDraw=
 editTable : Model -> H.Html Msg
 editTable model =
     let
-        class = HA.class "data-table"
+        class = HA.class "grid-edit-table"
     in
     case statePoints
             (Dict.size ( getActiveTs model ))
@@ -2173,7 +2173,7 @@ editTable model =
             H.div
                 [ class ]
                 [ H.table
-                      [ HA.class "table-style" ]
+                      [ HA.class "edit-table" ]
                       [ H.thead [ ]
                             [ H.tr [ ]
                                   [ H.th
@@ -2227,9 +2227,9 @@ divSaveDataTable filtredDict =
         H.div [] []
     else
         H.div
-            [HA.class "save-data-table"]
+            [HA.class "grid-save-table"]
             [ H.table
-                  [ HA.class "table-style" ]
+                  [ HA.class "edit-table" ]
                   [ H.thead
                         [ ]
                         [ H.tr

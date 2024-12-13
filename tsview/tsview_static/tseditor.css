@@ -1,13 +1,7 @@
-/* grid & layout */
+/* grid */
 
-/* value & edition table */
 .horizon-widget {
     grid-area: horizon-widget;
-}
-
-.status-plot {
-    grid-area: status-plot;
-    min-height: 20px;
 }
 
 .tables-edition {
@@ -19,8 +13,6 @@
     justify-content: left;
     column-gap: 50px;
 }
-
-/* stat table */
 
 .under-the-header {
     display: grid;
@@ -36,14 +28,30 @@
     grid-area: plot-and-stuffs;
 }
 
-.stat-position {
-}
 
 .stat-table-container {
     width: min-content;
     grid-area: stat-table;
 
 }
+
+.grid-edit-table {
+    grid-area: data-table;
+}
+
+.grid-save-table {
+    grid-area: save-data-table;
+}
+
+.header-tables-edition {
+    grid-area: header-tables-edition;
+    display: flex;
+    justify-content: space-between;
+    min-height:42px;
+}
+
+/* stat table */
+
 
 .stat-table {
     float: right;
@@ -75,7 +83,7 @@
     background-color: #007bff;
 }
 
-/* form for round */
+/* forms and buttons above the edition */
 
 .under-the-plot {
     display: flex;
@@ -102,48 +110,6 @@
     text-align: center;
 }
 
-.editor-values-table td {
-    text-align: right;
-}
-
-
-.table-style {
-    border-collapse: collapse;
-}
-
-
-.table-style td, .table-style th {
-    border: 1px solid #DDD;
-    padding: 5px;
-}
-
-
-.table-style tr:hover {
-    background-color: #DDD;
-}
-
-
-.table-style input:hover {
-    background-color: #DDD;
-}
-
-.table-style th {
-    padding-top: 12px;
-    padding-bottom: 12px;
-    text-align: center;
-}
-
-.table-style td:nth-child(2) {
-    padding: 0px;
-}
-
-.table-style td.control-col, .table-style th.control-col  {
-    background-color: white;
-    border: 0;
-    width: 30px;
-}
-
-
 .remove-selection {
     cursor: pointer;
     color: red;
@@ -153,28 +119,12 @@
     width: 40px;
 }
 
-.data-table {
-    grid-area: data-table;
-}
-
-.save-data-table {
-    grid-area: save-data-table;
-}
-
-.header-tables-edition {
-    grid-area: header-tables-edition;
-    display: flex;
-    justify-content: space-between;
-    min-height:42px;
-}
-
 .linear-correction{
     margin-right: 20px;
 }
 
 .for-current-diff {
     display: flex;
-
 }
 
 .save-buttons{
@@ -197,21 +147,32 @@
     color: white;
 }
 
-.invisible {
-    padding: 0.5rem 0.5rem;
-    background: white;
-    color: white;
+/* edition table */
+
+.edit-table {
+    border-collapse: collapse;
+}
+
+.edit-table td, .edit-table th {
+    border: 1px solid #DDD;
+    padding: 5px;
+}
+
+.edit-table tr:hover {
+    background-color: #DDD;
+}
+
+.edit-table th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
 }
 
 
-.table-style tr th:nth-child(2) {
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
-.table-style tr th:nth-child(2) {
-    text-align: right;
-    padding-right: 40px;
+.edit-table td.control-col, .edit-table th.control-col  {
+    background-color: white;
+    border: 0;
+    width: 30px;
 }
 
 .row-edit td {
@@ -221,34 +182,28 @@
     padding-right: 10px;
 }
 
-.row-edit input.plain {
+.row-edit input {
     padding-top: 1px;
     padding-bottom: 1px;
-    padding-right: 40px;
     border-style: none;
     text-align: right;
-    color: inherit;
+    background-color: transparent;
 }
 
+.row-edit input.plain {
+    padding-right: 40px;
+}
 
 .row-edit input.fill-under {
-    padding-top: 1px;
-    padding-bottom: 1px;
     padding-right: 15px;
-    border-style: none;
-    text-align: right;
-    color: inherit;
 }
 
-
-.table-style td button {
+.edit-table td button {
     border: 2px solid black;
     cursor: pointer;
     padding-top:0px;
     padding-bottom:0px;
-
 }
-
 
 .row-edit.selected td:nth-child(2) {
     background-color: #cae9f5;
@@ -257,11 +212,6 @@
 .row-edit.selected input {
     background-color: #cae9f5;
 }
-
-
-.focusedr input {
-}
-
 
 .row-editing {
     color: purple;
@@ -279,7 +229,19 @@
     color: red;
 }
 
-.editor-values-table-dates {
+/* show values */
+
+.show-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.show-table td {
+    text-align: right;
+}
+
+.show-table-dates {
     font-size: 0.9em;
     width:auto;
     position: sticky;
@@ -294,11 +256,4 @@
     background-color:white;
 
 }
-
-.editor-values-table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-}
-
 
