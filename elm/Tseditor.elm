@@ -151,7 +151,6 @@ type alias Model =
     -- cells interactivity
     , focus : Maybe Int
     , firstShift: Maybe Int
-    , firstDrag: Maybe Int
     , firstSelected : Maybe Int
     , lastValids: List Int
     , slope: Maybe String
@@ -832,7 +831,7 @@ update msg model =
             case model.holding.shift of
                 False -> let ( newmodel, cmd  ) = applyFocus model ( Just index )
                          in
-                            ( clearSelection newmodel True, cmd )
+                            ( clearSelection newmodel , cmd )
                 True ->
                     case model.focus of
                         Nothing -> applyFocus model ( Just index )
@@ -848,7 +847,7 @@ update msg model =
             let transformed = Dict.map
                                 (if model.holding.mouse
                                     then
-                                        case model.firstDrag of
+                                        case model.firstShift of
                                             Nothing -> (\ k v -> v)
                                             Just firstDrag ->
                                                 selectContiguous firstDrag index
@@ -858,12 +857,12 @@ update msg model =
                                 ( getActiveTs model )
                 newmodel = setOnActiveTs model transformed
             in
-                U.nocmd ( setupFirstSelected newmodel )
+                applyFocus ( setupFirstSelected newmodel ) ( Just index )
 
 
         DeselectAll keepFocus ->
              let
-                 newmodel = ( clearSelection model keepFocus )
+                 newmodel = ( clearSelection model )
               in
                 if keepFocus
                     then applyFocus { newmodel | firstShift = Nothing } model.focus
@@ -889,17 +888,19 @@ update msg model =
                                 ( getActiveTs model )
                                 indexLastValue
             in
-                ( setupNas
-                    <| setOnActiveTs
-                        model
-                            <|Dict.union
-                                (fillNas
+                applyFocus
+                    ( setupNas
+                        <| setOnActiveTs
+                            model
+                                <|Dict.union
+                                    (fillNas
+                                        ( getActiveTs model )
+                                        lastValue
+                                        ( indexLastValue )
+                                    )
                                     ( getActiveTs model )
-                                    lastValue
-                                    ( indexLastValue )
-                                )
-                                ( getActiveTs model )
-                , Cmd.none )
+                    )
+                    Nothing
 
         FillAll ->
             ( setupNas
@@ -947,12 +948,11 @@ update msg model =
             case mode of
                 On index -> U.nocmd
                                 { model | holding = { holding | mouse = True }
-                                        , firstDrag = Just index
+                                        , firstShift = Just index
                                 }
 
                 Off -> U.nocmd
-                        { model | holding = {holding | mouse = False }
-                                , firstDrag = Nothing }
+                        { model | holding = {holding | mouse = False }}
 
 
         NewRound action ->
@@ -1108,18 +1108,15 @@ applyFocus model maybeIndex =
             )
 
 
-clearSelection: Model -> Bool -> Model
-clearSelection model keepFocus =
+clearSelection: Model -> Model
+clearSelection model =
     let transformed = Dict.map
                         ( \ _ v -> { v | selected = False })
                         ( getActiveTs model )
-        focus = if keepFocus then model.focus else Nothing
     in
         setOnActiveTs
             { model | firstSelected = Nothing
-                    , firstDrag = Nothing
                     , firstShift = Nothing
-                    , focus = focus
             }
             transformed
 
@@ -2463,10 +2460,6 @@ debugView model =
                                 Nothing -> "Nothing"
                                 Just focus -> String.fromInt focus
                         )
-                , H.text  ( ", FirstDrag: " ++ case model.firstDrag of
-                                Nothing -> "Nothing"
-                                Just focus -> String.fromInt focus
-                        )
                 ] ++ ( List.map
                             (\ i -> H.text (", Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
@@ -2708,7 +2701,6 @@ init input =
                     , rawPasted = ""
                     , focus = Nothing
                     , firstShift = Nothing
-                    , firstDrag = Nothing
                     , firstSelected = Nothing
                     , holding = emptyHolding
                     , keyName = ""
