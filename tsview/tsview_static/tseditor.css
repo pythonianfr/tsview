@@ -12,7 +12,7 @@
     grid-area: tables;
     display: grid;
     grid-template:
-        "header-tables-edition header-tables-edition"
+        "data-table header-tables-edition"
         "data-table save-data-table";
     justify-content: left;
     column-gap: 50px;
@@ -177,9 +177,18 @@
     text-align: center;
 }
 
-.edit-table th:nth-child(2) {
+.edit-table .fill   {
+    text-align: right;
+    padding-right: 0px;
+}
+
+.edit-table .no-fill {
     text-align: right;
     padding-right: 50px;
+}
+
+.button-fill-all {
+    margin-left: 5px;
 }
 
 .edit-table th p {

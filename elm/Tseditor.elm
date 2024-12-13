@@ -1817,13 +1817,13 @@ buttonFillAll: Model -> List (H.Html Msg)
 buttonFillAll model =
     if model.lastValids /= []
         then [ H.button
-                    [ HA.class "bluebutton"
+                    [ HA.class "button-fill-all"
                     , HE.onClick FillAll
                     ]
-                    [ H.text "Fill all Nas ↓" ]
+                    [ H.text "All ↓" ]
              ]
         else
-            [ H.div [] [] ]
+            [ H.div [HA.class "button-fill-all"] [] ]
 
 
 viewRelevantTable: Model -> H.Html Msg
@@ -2096,13 +2096,12 @@ commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
 commonHeaderEdition model patch =
     H.div
         [ HA.class "header-tables-edition" ]
-        ( buttonFillAll model ++
-          [ H.div
-              [ HA.class "for-current-diff"]
-              ( divLinearCorrection model patch ++
-                saveButtons model patch )
-          ]
-        )
+        [ H.div
+          [ HA.class "for-current-diff"]
+          ( divLinearCorrection model patch ++
+            saveButtons model patch )
+        ]
+
 
 
 saveButtons: Model -> Dict String Entry -> List (H.Html Msg)
@@ -2192,8 +2191,11 @@ editTable model =
                                         ]
                                   , H.th
                                       [ HA.scope "col"
+                                      , if model.lastValids == []
+                                            then HA.class "no-fill"
+                                            else HA.class "fill"
                                       , HA.class "col-values"]
-                                      [ H.p
+                                      ([ H.p
                                             [ HA.class <| getCopyClass
                                                             model.statusCopy
                                                             Values
@@ -2203,7 +2205,8 @@ editTable model =
                                             ]
                                             []
                                       , H.p [] [ H.text "Values" ]
-                                        ]
+                                        ] ++ ( buttonFillAll model)
+                                        )
                                   , H.th
                                       [ HA.class "control-col" ]
                                       [ ]
