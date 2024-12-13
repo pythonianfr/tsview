@@ -246,9 +246,6 @@ viewtitle model copyclass copyevent =
             then ( "tzaware", "badge-success", "This series is time zone aware." )
             else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
 
-        valuetype =
-            M.dget "value_type" model.meta
-
         supervision =
             M.dget "supervision_status" model.meta
     in
@@ -274,11 +271,6 @@ viewtitle model copyclass copyevent =
                 , HA.title "Supervision status of the series."
                 ]
                 [ H.text supervision ]
-            , H.span
-                [ HA.class "badge badge-primary h4"
-                , HA.title "Type of the series values."
-                ]
-                [ H.text valuetype ]
             , H.span
                 [ HA.class "badge badge-secondary h4"
                 , HA.title "Name of the series source."
