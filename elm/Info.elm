@@ -253,7 +253,7 @@ viewtitle model copyclass copyevent =
             M.dget "supervision_status" model.meta
     in
     H.p
-        [ ]
+        [HA.class "series-info" ]
         [ H.i
               [ HA.class copyclass
               , HE.onClick copyevent
