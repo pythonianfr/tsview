@@ -143,7 +143,7 @@ type alias Model =
     , processedPasted: List String
     , initialCommands : Cmd Msg
     , monotonicCount : Int
-    , clipboardclass : String
+    , statusCopy : StatusCopy
     , panActive : Bool
     -- user actions
     , forceDraw : Bool
@@ -190,6 +190,8 @@ type Msg
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
+    | CopyToClipboard CopyType
+    | ResetClass CopyType
     | ActionControl ControlKey
     | NoAction
     | FillNas Int
@@ -201,8 +203,6 @@ type Msg
     | GetLastEditedData (Result Http.Error String)
     | FromZoom ZoomFromPlotly
     | NewDragMode Bool
-    | CopyNameToClipboard
-    | ResetClipboardClass
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -275,6 +275,29 @@ msgTooManyPoints nbPoints =
             ++ String.fromInt nbPoints
             ++ """) Please select a smaller time
             frame or an area on the graph."""
+
+
+type CopyType =
+    Name
+
+type alias StatusCopy =
+    { name : Bool }
+
+
+initialStatusCopy: StatusCopy
+initialStatusCopy =
+    { name = True }
+
+classClip = "bi bi-clipboard"
+classCheck = "bi bi-check2"
+
+
+getCopyClass: StatusCopy -> CopyType -> String
+getCopyClass statusCopy copyType =
+    case copyType of
+        Name -> if statusCopy.name
+                    then classClip
+                    else classCheck
 
 
 type alias Entry =
@@ -1017,16 +1040,26 @@ update msg model =
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
 
-        CopyNameToClipboard ->
-            ( { model | clipboardclass = "bi bi-check2" }
+        CopyToClipboard copyType->
+            let status = model.statusCopy
+                ( newStatus, toCopy ) =
+                    case copyType of
+                        Name -> ( { status | name = False }
+                                , model.name)
+            in
+            ( { model | statusCopy = newStatus }
             , Cmd.batch
-                [ copyToClipboard model.name
-                , T.perform (always (ResetClipboardClass)) (P.sleep 1000)
+                [ copyToClipboard toCopy
+                , T.perform (always ( ResetClass copyType )) (P.sleep 1000)
                 ]
             )
 
-        ResetClipboardClass ->
-            U.nocmd { model | clipboardclass = "bi bi-clipboard" }
+        ResetClass copyType ->
+            let status = model.statusCopy
+                newStatus = case copyType of
+                                Name -> { status | name = True }
+            in
+            U.nocmd { model | statusCopy = newStatus }
 
 
 applyFocus: Model -> Maybe Int -> ( Model, Cmd Msg )
@@ -2552,7 +2585,10 @@ view model =
                         False
                         "Series Editor"
                         ( getFromToDates model.horizon )
-            , I.viewtitle model maybeMedian CopyNameToClipboard
+            , I.viewtitle
+                model
+                ( getCopyClass model.statusCopy Name )
+                ( CopyToClipboard Name )
             ]
         , H.div
             [ HA.class "under-the-header"]
@@ -2624,7 +2660,7 @@ init input =
                     , roundValues = Nothing
                     , initialFormula = Dict.empty
                     , zoomedFormula = Nothing
-                    , clipboardclass = "bi bi-clipboard"
+                    , statusCopy = initialStatusCopy
                     , panActive = False
                     , components = []
                     , componentsData = Dict.empty

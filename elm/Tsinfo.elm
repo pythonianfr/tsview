@@ -1488,7 +1488,7 @@ view model =
                       [ I.viewdeletion model deleteEvents
                       , I.viewrenameaction model renameEvents
                       ]
-                , I.viewtitle model maybeMedian CopyNameToClipboard
+                , I.viewtitle model model.clipboardclass CopyNameToClipboard
                 ] ++
                 if model.doesnotexist
                 then

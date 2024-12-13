@@ -239,7 +239,7 @@ viewactionwidgets model convertmsg editor pagetitle bounds =
     ]
 
 
-viewtitle model maybeMedian copyevent =
+viewtitle model copyclass copyevent =
     let
         ( tzaware, tzbadge, tztitle ) =
             if tzawareseries model
@@ -255,7 +255,7 @@ viewtitle model maybeMedian copyevent =
     H.p
         [ ]
         [ H.i
-              [ HA.class model.clipboardclass
+              [ HA.class copyclass
               , HE.onClick copyevent
               ] [ ]
         , H.span
@@ -284,15 +284,6 @@ viewtitle model maybeMedian copyevent =
                 , HA.title "Name of the series source."
                 ]
                 [ H.text model.source ]
-            , case maybeMedian of
-                Nothing ->
-                    H.span [][]
-                Just median ->
-                    H.span
-                        [ HA.class "badge badge-dark h4"
-                        , HA.title "Inferred frequency."
-                        ]
-                        [ H.text median ]
             ]
         ]
 
