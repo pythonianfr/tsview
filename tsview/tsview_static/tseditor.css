@@ -171,9 +171,23 @@
 }
 
 .edit-table th {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    border: 0px;
     text-align: center;
+}
+
+.edit-table th:nth-child(2) {
+    text-align: right;
+    padding-right: 50px;
+}
+
+.edit-table th p {
+    display: inline;
+}
+
+.copy-all {
+    margin-right: 5px;
 }
 
 

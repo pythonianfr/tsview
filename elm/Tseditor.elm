@@ -2184,11 +2184,11 @@ editTable model =
                                                             model.statusCopy
                                                             Dates
                                             , HE.onClick ( CopyToClipboard Dates )
-                                            , HA.class "copy-all-dates"
+                                            , HA.class "copy-all"
                                             , HA.title "Copy dates"
                                             ]
                                             []
-                                        , H.text "Dates"
+                                      , H.p [] [ H.text "Dates" ]
                                         ]
                                   , H.th
                                       [ HA.scope "col"
@@ -2198,11 +2198,11 @@ editTable model =
                                                             model.statusCopy
                                                             Values
                                             , HE.onClick ( CopyToClipboard Values )
-                                            , HA.class "copy-all-values"
+                                            , HA.class "copy-all"
                                             , HA.title "Copy values"
                                             ]
                                             []
-                                        , H.text "Values"
+                                      , H.p [] [ H.text "Values" ]
                                         ]
                                   , H.th
                                       [ HA.class "control-col" ]
