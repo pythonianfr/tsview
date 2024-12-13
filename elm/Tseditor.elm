@@ -1742,7 +1742,7 @@ maybeRoundForm model =
     case model.seriestype of
         I.Primary ->  [ H.div
                         [ HA.class "form-round"]
-                        [ permaLink model]
+                        [ ]
                       ]
         I.Formula ->
             [ H.div
@@ -2613,6 +2613,7 @@ plotNode model =
                     ]
                     { defaultLayoutOptions | dragMode = Just dragMode
                                            , yaxis = newYaxis
+                                           , height = Just 350
                     }
                     defaultConfigOptions
                 )
@@ -2661,7 +2662,8 @@ view model =
                 ]
                 , H.div
                     [ HA.class "stat-table-container"]
-                    [ viewStatTable model ]
+                    [ H.div [ HA.class "permadiv" ] [ permaLink model ]
+                    ,viewStatTable model ]
             ]
     ]
 
