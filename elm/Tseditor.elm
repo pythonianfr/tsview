@@ -865,7 +865,9 @@ update msg model =
              let
                  newmodel = ( clearSelection model keepFocus )
               in
-                 applyFocus { newmodel | firstShift = Nothing } Nothing
+                if keepFocus
+                    then applyFocus { newmodel | firstShift = Nothing } model.focus
+                    else applyFocus { newmodel | firstShift = Nothing } Nothing
 
 
         CopySelection ->
@@ -873,7 +875,7 @@ update msg model =
                 concatened = String.join "\n" selectedValues
             in
             ( model
-            , Cmd.batch [ deselect False
+            , Cmd.batch [ deselect True
                         , copyToClipboard concatened
                         ]
             )
@@ -2432,40 +2434,41 @@ getTs model =
 
 debugView: Model -> H.Html Msg
 debugView model =
-    H.div
+    H.pre
         []
         ( if model.horizon.debug
             then
-                [ H.text "debug active"
-                , H.text (", dragMode = " ++ if model.holding.mouse
+                [ H.text " debug active "
+                , H.br [] []
+                , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
                                                     else "Off")
                 , H.br [] []
-                , H.text (", shiftHold = " ++ if model.holding.shift
+                , H.text (", shiftHold: " ++ if model.holding.shift
                                                     then "On"
                                                     else "Off")
                 , H.br [] []
-                , H.text (", controlHold = " ++ if model.holding.control
+                , H.text (", controlHold: " ++ if model.holding.control
                                                     then "On"
                                                     else "Off")
                 , H.br [] []
                 , H.br [] []
-                , H.text  ( "Key Pressed : " ++ model.keyName)
-                , H.text  ( "Focus : " ++ case model.focus of
+                , H.text  ( ", Key Pressed: " ++ model.keyName)
+                , H.text  ( ", Focus : " ++ case model.focus of
                                                 Nothing -> "Nothing"
                                                 Just focus -> String.fromInt focus
                                 )
 
-                , H.text  ( "FirstShift : " ++ case model.firstShift of
+                , H.text  ( ", FirstShift: " ++ case model.firstShift of
                                 Nothing -> "Nothing"
                                 Just focus -> String.fromInt focus
                         )
-                , H.text  ( "FirstDrag : " ++ case model.firstDrag of
+                , H.text  ( ", FirstDrag: " ++ case model.firstDrag of
                                 Nothing -> "Nothing"
                                 Just focus -> String.fromInt focus
                         )
                 ] ++ ( List.map
-                            (\ i -> H.text (" Na to fill at: " ++ String.fromInt i ))
+                            (\ i -> H.text (", Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
                        )
             else
