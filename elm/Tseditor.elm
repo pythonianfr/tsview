@@ -279,23 +279,36 @@ msgTooManyPoints nbPoints =
 
 type CopyType =
     Name
+    | Dates
+    | Values
 
 type alias StatusCopy =
-    { name : Bool }
+    { name : Bool
+    , dates: Bool
+    , values : Bool
+    }
 
 
 initialStatusCopy: StatusCopy
 initialStatusCopy =
-    { name = True }
+    { name = True
+    , dates = True
+    , values = True
+    }
 
 classClip = "bi bi-clipboard"
 classCheck = "bi bi-check2"
-
 
 getCopyClass: StatusCopy -> CopyType -> String
 getCopyClass statusCopy copyType =
     case copyType of
         Name -> if statusCopy.name
+                    then classClip
+                    else classCheck
+        Dates -> if statusCopy.dates
+                    then classClip
+                    else classCheck
+        Values -> if statusCopy.values
                     then classClip
                     else classCheck
 
@@ -1046,6 +1059,10 @@ update msg model =
                     case copyType of
                         Name -> ( { status | name = False }
                                 , model.name)
+                        Dates -> ( { status | dates = False }
+                                , packDates model )
+                        Values -> ( { status | values = False }
+                                , packValues model )
             in
             ( { model | statusCopy = newStatus }
             , Cmd.batch
@@ -1058,6 +1075,8 @@ update msg model =
             let status = model.statusCopy
                 newStatus = case copyType of
                                 Name -> { status | name = True }
+                                Dates -> { status | dates = True }
+                                Values -> { status | values = True }
             in
             U.nocmd { model | statusCopy = newStatus }
 
@@ -1164,6 +1183,22 @@ getActiveFormula model =
     case model.zoomedFormula of
         Nothing -> model.initialFormula
         Just zoom -> zoom
+
+
+packDates: Model -> String
+packDates model =
+    String.join("\n")
+        <| Dict.keys
+            ( getActiveTs model )
+
+
+packValues: Model -> String
+packValues model =
+    String.join("\n")
+        <| List.map
+            (\ e -> getValue e)
+            <| Dict.values
+                ( getActiveTs model )
 
 
 getHasCache : Model -> Cmd Msg
@@ -2143,11 +2178,33 @@ editTable model =
                       [ H.thead [ ]
                             [ H.tr [ ]
                                   [ H.th
-                                        [ HA.scope "col" ]
-                                        [ H.text "Dates" ]
+                                        [ HA.scope "col"
+                                        , HA.class "col-dates"]
+                                        [ H.p
+                                            [ HA.class <| getCopyClass
+                                                            model.statusCopy
+                                                            Dates
+                                            , HE.onClick ( CopyToClipboard Dates )
+                                            , HA.class "copy-all-dates"
+                                            , HA.title "Copy dates"
+                                            ]
+                                            []
+                                        , H.text "Dates"
+                                        ]
                                   , H.th
-                                      [ HA.scope "col" ]
-                                      [ H.text "Values" ]
+                                      [ HA.scope "col"
+                                      , HA.class "col-values"]
+                                      [ H.p
+                                            [ HA.class <| getCopyClass
+                                                            model.statusCopy
+                                                            Values
+                                            , HE.onClick ( CopyToClipboard Values )
+                                            , HA.class "copy-all-values"
+                                            , HA.title "Copy values"
+                                            ]
+                                            []
+                                        , H.text "Values"
+                                        ]
                                   , H.th
                                       [ HA.class "control-col" ]
                                       [ ]
@@ -2339,7 +2396,7 @@ buttonsFirstSelected predicat =
         else [
             H.td
                 [ HA.class "control-col"
-                , HA.class "bi bi-clipboard"
+                , HA.class classClip
                 , HA.class "copy-selection"
                 , HA.title "Copy selection"
                 , HE.onClick CopySelection
