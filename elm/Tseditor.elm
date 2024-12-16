@@ -573,6 +573,7 @@ update msg model =
                                         model.allowInferFreq
                                         ( onlyValues indexedval )
                     in
+                        applyFocus
                         ( setupNas
                             ({ model
                                     | initialTs = indexedval
@@ -582,8 +583,9 @@ update msg model =
                                                     model.horizon
                                                     indexedval
                             })
-                        ,
-                        Cmd.none )
+                        )
+                        ( Just 0 )
+
                 Err err ->
                   U.nocmd ( addError
                                 model
@@ -642,7 +644,7 @@ update msg model =
                                                     hMsg
                                                     convertMsg
                                                     model.horizon
-                moreCommands = Cmd.batch [ deselect False , commands]
+                moreCommands = Cmd.batch [ deselect True , commands]
                 default = ( { model | horizon = newModelHorizon}, moreCommands )
                 resetModel = { model | horizon = newModelHorizon
                                      , monotonicCount = model.monotonicCount + 1
@@ -669,7 +671,9 @@ update msg model =
                                          ++ getRelevantData resetModel ))
 
         SwitchForceDraw ->
-            ( flipForce model , Cmd.none)
+            applyFocus
+                ( flipForce model )
+                ( Just 0 )
 
         AllowInferFreq ->
             ({ model | allowInferFreq = True
@@ -747,7 +751,7 @@ update msg model =
         SaveEditedData ->
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , Cmd.batch [ I.getidates model "series" GetLastInsertionDates
-                        , deselect False
+                        , deselect True
                         ]
             )
 
@@ -756,15 +760,16 @@ update msg model =
                                    , intercept = Nothing
                            }
             in
-            ( setupNas
-                (setOnActiveTs model
-                    (Dict.map
-                        (\ _ e -> { e | edited = NoEdition
-                                      , raw = Nothing })
-                        ( getActiveTs newmodel ))
+            applyFocus
+                ( setupNas
+                    (setOnActiveTs model
+                        (Dict.map
+                            (\ _ e -> { e | edited = NoEdition
+                                          , raw = Nothing })
+                            ( getActiveTs newmodel ))
+                    )
                 )
-            , Cmd.none
-            )
+                ( model.focus )
 
         Correction param ->
             case param of
@@ -922,10 +927,10 @@ update msg model =
             let holding = model.holding
             in
             case key of
-                Escape Down -> ( model , deselect False )
+                Escape Down -> ( model , deselect True )
                 Escape Up -> U.nocmd model
                 Delete  Down -> ( setupNas ( deleteSelectedValues model )
-                                , deselect False
+                                , deselect True
                                 )
                 Delete Up -> U.nocmd model
                 Shift Down ->  U.nocmd { model | holding = { holding | shift = True }}
@@ -1054,7 +1059,7 @@ update msg model =
                                     }
 
                  in
-                    applyFocus newmodel model.focus
+                    applyFocus newmodel ( Just 0 )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
