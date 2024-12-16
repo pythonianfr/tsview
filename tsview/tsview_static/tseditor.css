@@ -8,15 +8,6 @@
     grid-area: horizon-widget;
 }
 
-.tables-edition {
-    grid-area: tables;
-    display: grid;
-    grid-template:
-        "data-table header-tables-edition"
-        "data-table save-data-table";
-    justify-content: left;
-    column-gap: 50px;
-}
 
 .under-the-header {
     display: grid;
@@ -39,20 +30,30 @@
 
 }
 
+
+.tables-edition {
+    display: grid;
+    grid-template: "data-table current-diff";
+    justify-content: left;
+    column-gap: 50px;
+}
+
+
 .grid-edit-table {
     grid-area: data-table;
+    margin-left: 20px;
 }
 
-.grid-save-table {
-    grid-area: save-data-table;
-}
 
-.header-tables-edition {
-    grid-area: header-tables-edition;
-    display: flex;
-    justify-content: space-between;
+.save-table {
+    grid-area: current-diff;
     min-height:42px;
 }
+
+
+.grid-save-table {
+}
+
 
 /* stat table */
 
@@ -131,8 +132,16 @@
     margin-right: 20px;
 }
 
+.linear-correction input {
+    border: 1px solid lightgrey;
+    padding: 0;
+    text-align: center;
+}
+
+
 .for-current-diff {
     display: flex;
+    justify-content: space-between;
 }
 
 .save-buttons{
@@ -140,7 +149,10 @@
 }
 
 .bluebutton {
-    padding: 0.5rem 0.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     background: #007bff;
     border: 1px solid blue;
     border-radius: 8px;
@@ -148,8 +160,10 @@
 }
 
 .greenbutton {
-    padding: 0.5rem 0.5rem;
-    background: green;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;    background: green;
     border: 1px solid green;
     border-radius: 8px;
     color: white;
@@ -161,7 +175,19 @@
     border-collapse: collapse;
 }
 
-.edit-table td, .edit-table th {
+.edit-table td {
+    border: 1px solid #DDD;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.edit-table td:nth-child(2){
+    text-align: right;
+}
+
+.edit-table th {
     border: 1px solid #DDD;
     padding: 5px;
 }
@@ -207,10 +233,6 @@
 }
 
 .row-edit td {
-    padding-top: 0px;
-    padding-bottom: 0px;
-    padding-left: 10px;
-    padding-right: 10px;
 }
 
 .row-edit input {

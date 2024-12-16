@@ -2086,20 +2086,20 @@ viewEditTable model =
     in
     H.div
         [ HA.class "tables-edition" ]
-        [ commonHeaderEdition model patch
-        , editTable model
-        , divSaveDataTable patch
+        [ editTable model
+        , commonHeaderEdition model patch
         ]
 
 
 commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
 commonHeaderEdition model patch =
     H.div
-        [ HA.class "header-tables-edition" ]
+        [ HA.class "save-table" ]
         [ H.div
           [ HA.class "for-current-diff"]
           ( divLinearCorrection model patch ++
             saveButtons model patch )
+        , divSaveDataTable patch
         ]
 
 
@@ -2257,7 +2257,8 @@ rowSave (date, entry) =
         [ ]
         [ H.td [ ] [ H.text date ]
         , H.td [ ] [ H.text (case entry.edited of
-                                Edition val -> String.fromFloat val
+                                Edition val -> formatNumber <|
+                                                    String.fromFloat val
                                 _ -> ""
                             )
                     ]
@@ -2280,7 +2281,7 @@ divLinearCorrection model filtredDict =
                    , HE.onInput (\ s ->  Correction (Slope s) )
                    ]
                    []
-                , H.text "X + "
+                , H.text ".X + "
                 , H.input
                     [ HA.class "correction"
                     , case  model.intercept of
@@ -2434,11 +2435,12 @@ getTs model =
 
 debugView: Model -> H.Html Msg
 debugView model =
-    H.pre
+    H.div
         []
         ( if model.horizon.debug
             then
-                [ H.text " debug active "
+                [ H.pre []
+                ( [ H.text " debug active "
                 , H.br [] []
                 , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
@@ -2467,6 +2469,8 @@ debugView model =
                             (\ i -> H.text (", Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
                        )
+               )
+               ]
             else
                 []
         )
