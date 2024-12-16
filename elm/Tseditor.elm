@@ -752,12 +752,16 @@ update msg model =
             )
 
         CancelEdition ->
+            let newmodel = { model | slope = Nothing
+                                   , intercept = Nothing
+                           }
+            in
             ( setupNas
                 (setOnActiveTs model
                     (Dict.map
                         (\ _ e -> { e | edited = NoEdition
                                       , raw = Nothing })
-                        ( getActiveTs model ))
+                        ( getActiveTs newmodel ))
                 )
             , Cmd.none
             )
