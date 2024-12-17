@@ -174,6 +174,7 @@ type Msg
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | HasCache ( Result Http.Error String )
+    | GotInterval ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | SwitchForceDraw
     | AllowInferFreq
@@ -215,7 +216,9 @@ type Parameter =
 
 
 type alias Statistics =
-    { start : TypeStat
+    { first: TypeStat
+    , last: TypeStat
+    , start : TypeStat
     , end: TypeStat
     , min: TypeStat
     , max: TypeStat
@@ -230,7 +233,9 @@ type alias Statistics =
     }
 
 emptyStat =
-    { start = Date Nothing
+    { first = Date Nothing
+    , last = Date Nothing
+    , start = Date Nothing
     , end = Date Nothing
     , min = Numeric Nothing
     , max = Numeric Nothing
@@ -242,6 +247,11 @@ emptyStat =
     , median = Numeric Nothing
     , p75 = Numeric Nothing
     , inferFreq = InferFreq ( Authorised Nothing )
+    }
+
+type alias Interval =
+    { from: String
+    , to: String
     }
 
 type alias Holding =
@@ -420,7 +430,6 @@ localDecoder =
     JD.map LocalStorage
         (JD.field "round" (JD.nullable JD.string))
 
-
 getPoints: Model -> Cmd Msg
 getPoints model =
     if model.seriestype == I.Primary
@@ -570,6 +579,7 @@ update msg model =
                                             (( \k _ -> (( k >= min ) && ( k <= max ))))
                                             indexedval )
                         statistics = getStatistics
+                                        model.statistics
                                         model.allowInferFreq
                                         ( onlyValues indexedval )
                     in
@@ -605,6 +615,7 @@ update msg model =
                                                     val
                                     , monotonicCount = model.monotonicCount + 1
                                     , statistics = getStatistics
+                                                    model.statistics
                                                     model.allowInferFreq
                                                     val
                               }
@@ -678,6 +689,7 @@ update msg model =
         AllowInferFreq ->
             ({ model | allowInferFreq = True
                      , statistics = getRelevantStatistics
+                                        model.statistics
                                         True
                                         ( onlyValues  model.initialTs )
                                         model.initialFormula
@@ -801,6 +813,7 @@ update msg model =
                        ( newmodel
                        , Cmd.batch ([ getHasCache newmodel
                                     , model.initialCommands
+                                    , getInterval model.baseurl model.name
                                     ])
                        )
                 Err err ->
@@ -829,6 +842,27 @@ update msg model =
 
         HasCache (Err error) ->
             doerr "hascache http" <| U.unwraperror error
+
+        GotInterval ( Ok raw ) ->
+            let decodeStuff = JD.oneOf
+                                [ JD.string
+                                , JD.map (\ _ -> "isABool" ) JD.bool ]
+            in
+            case JD.decodeString ( JD.list decodeStuff ) raw of
+                Ok payLoad ->
+                    case payLoad of
+                        [ _, first, last ] ->
+                            let stat = model.statistics
+                                newstat = { stat | first = Date ( Just first )
+                                                 , last = Date (Just last )
+                                          }
+                            in
+                                ( { model | statistics = newstat }
+                                , Cmd.none )
+                        _ -> ( model, Cmd.none )
+                Err err -> doerr "gotinterval decode" <| JD.errorToString err
+
+        GotInterval ( Err err) -> doerr "gotinterval http" <| U.unwraperror err
 
         Paste payload ->
             let
@@ -1029,6 +1063,7 @@ update msg model =
                                                , monotonicCount = model.monotonicCount + 1
                                                , forceDraw = False
                                                , statistics = getRelevantStatistics
+                                                                model.statistics
                                                                 model.allowInferFreq
                                                                 ( onlyValues  model.initialTs )
                                                                 model.initialFormula
@@ -1052,6 +1087,7 @@ update msg model =
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                                             , monotonicCount = model.monotonicCount + 1
                                             , statistics = getRelevantStatistics
+                                                                model.statistics
                                                                 model.allowInferFreq
                                                                 ( onlyValues zoomedTs )
                                                                  formulaTs
@@ -1209,6 +1245,8 @@ packValues model =
                 ( getActiveTs model )
 
 
+
+
 getHasCache : Model -> Cmd Msg
 getHasCache model =
     Http.get
@@ -1220,6 +1258,18 @@ getHasCache model =
         , expect = Http.expectString HasCache
         }
 
+
+getInterval: String -> String -> Cmd Msg
+getInterval baseUrl name =
+      Http.get
+        { url =
+               UB.crossOrigin
+               baseUrl
+                [ "api", "series", "metadata" ]
+                [ UB.string "name" name
+                , UB.string "type" "interval" ]
+        , expect = Http.expectString GotInterval
+        }
 
 onlyJustValues: Dict String ( Maybe Float ) -> List Float
 onlyJustValues series =
@@ -1239,37 +1289,38 @@ onlyValues series =
         series
 
 
-getStatistics: Bool -> Dict String ( Maybe Float )-> Statistics
-getStatistics allowInfer series =
+getStatistics: Statistics -> Bool -> Dict String ( Maybe Float )-> Statistics
+getStatistics previous allowInfer series =
     let dates = List.sort ( Dict.keys series )
         values = List.sort <| onlyJustValues series
         length = List.length values
     in
-        { start = Date <| List.head dates
-        , end = Date <| List.last dates
-        , min = Numeric <| Stat.minimum values
-        , max = Numeric <| Stat.maximum values
-        , count = Count length
-        , nas = Count <| ( List.length dates ) - length
-        , sum = if length == 0
-                    then Numeric Nothing
-                    else Numeric ( Just ( List.sum values ))
-        , mean = Numeric <| Stat.mean values
-        , p25 = Numeric <| Statistics.quantile 0.25 values
-        , median = Numeric <| Stat.median values
-        , p75 = Numeric <| Statistics.quantile 0.75 values
-        , inferFreq = InferFreq <| if ( length < maxPoints || allowInfer )
-                        then (Authorised ( medianValue ( Dict.keys series)) )
-                        else Blocked
+        { previous
+            |start = Date <| List.head dates
+            , end = Date <| List.last dates
+            , min = Numeric <| Stat.minimum values
+            , max = Numeric <| Stat.maximum values
+            , count = Count length
+            , nas = Count <| ( List.length dates ) - length
+            , sum = if length == 0
+                        then Numeric Nothing
+                        else Numeric ( Just ( List.sum values ))
+            , mean = Numeric <| Stat.mean values
+            , p25 = Numeric <| Statistics.quantile 0.25 values
+            , median = Numeric <| Stat.median values
+            , p75 = Numeric <| Statistics.quantile 0.75 values
+            , inferFreq = InferFreq <| if ( length < maxPoints || allowInfer )
+                            then (Authorised ( medianValue ( Dict.keys series)) )
+                            else Blocked
         }
 
 
-getRelevantStatistics: Bool ->Dict String ( Maybe Float ) -> Dict String ( Maybe  Float )
-                        -> Statistics
-getRelevantStatistics allowInfer series formula =
+getRelevantStatistics: Statistics -> Bool -> Dict String ( Maybe Float )
+                            -> Dict String ( Maybe  Float ) -> Statistics
+getRelevantStatistics previous allowInfer series formula =
     if Dict.isEmpty series
-        then getStatistics allowInfer formula
-        else getStatistics allowInfer series
+        then getStatistics previous allowInfer formula
+        else getStatistics previous allowInfer series
 
 
 getCurrentValue: Entry -> Maybe Float
@@ -2478,6 +2529,11 @@ debugView model =
                             (\ i -> H.text (", Na to fill at: " ++ String.fromInt i ))
                             model.lastValids
                        )
+                  ++ [ H.text "Errors: " ]
+                  ++  ( List.map
+                            (\ e -> H.text e)
+                            model.errors
+                       )
                )
                ]
             else
@@ -2569,6 +2625,8 @@ viewStatTable model =
         [ H.th
             [HA.colspan 3]
             [ H.text "Data Info"]
+        , partialRow "First" model.statistics.first
+        , partialRow "Last" model.statistics.last
         , partialRow "Start" model.statistics.start
         , partialRow "End" model.statistics.end
         , partialRow "Min" model.statistics.min
