@@ -8,7 +8,6 @@ import Html.Attributes as HA
 import Http
 import Json.Decode as Decode
 import Catalog
-import KeywordSelector
 import SeriesSelector
 import Time
 import Url.Builder as UB
@@ -81,7 +80,7 @@ update msg model =
             if String.length xm < 2 then
                 []
             else
-                KeywordSelector.select xm xs |> List.take 20
+                List.filter (U.fragmentsmatcher xm) xs |> List.take 20
 
     in
         case msg of

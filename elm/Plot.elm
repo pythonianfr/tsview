@@ -10,7 +10,6 @@ import Html.Events as HE
 import Http
 import Catalog
 import Json.Decode as Decode
-import KeywordSelector
 import Plotter exposing
     ( Series
     , defaultLayoutOptions
@@ -156,7 +155,7 @@ update msg model =
             then
                 []
             else
-                KeywordSelector.select xm xs |> List.take 20
+                List.filter (U.fragmentsmatcher xm) xs |> List.take 20
     in
     case msg of
         GotCatalog catmsg ->
