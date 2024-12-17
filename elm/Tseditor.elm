@@ -2072,18 +2072,24 @@ roundNumber round number =
 
 formatNumber: String -> String
 formatNumber number =
-    let parts = String.split "." number
+    let negative = String.startsWith "-" number
+        absolute = if negative
+                    then String.replace "-" "" number
+                    else number
+        parts = String.split "." absolute
     in
       case parts of
           [] -> ""
-          [x] ->  String.reverse
-                    <| addSpace
-                        <| String.reverse x
+          [x] ->  ( restoreSign negative )
+                    <| String.reverse
+                        <| addSpace
+                            <| String.reverse x
           x :: xs ->
             String.concat
-                [ String.reverse
-                    <| addSpace
-                        <| String.reverse x
+                [( restoreSign negative )
+                    <| String.reverse
+                        <| addSpace
+                            <| String.reverse x
                 , "."
                 , String.concat xs
                 ]
@@ -2112,6 +2118,14 @@ addSpaceRec parts counter result =
                     addSpaceRec
                         xs ( counter - 1 )
                         ( List.append result [ x ])
+
+
+restoreSign: Bool -> String -> String
+restoreSign negative number =
+    if negative
+        then String.concat [ "-",  number ]
+        else number
+
 
 currentDiff: Model -> Dict String Entry
 currentDiff model =
