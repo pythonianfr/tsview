@@ -683,7 +683,7 @@ update msg model =
 
         SwitchForceDraw ->
             applyFocus
-                ( flipForce model )
+                ( setupNas ( flipForce model ))
                 ( Just 0 )
 
         AllowInferFreq ->
@@ -1095,7 +1095,7 @@ update msg model =
                                     }
 
                  in
-                    applyFocus newmodel ( Just 0 )
+                    applyFocus ( setupNas newmodel ) ( Just 0 )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
