@@ -671,7 +671,8 @@ update msg model =
                                                     convertMsg
                                                     model.horizon
                 moreCommands = Cmd.batch [ deselect True , commands]
-                default = ( { model | horizon = newModelHorizon}, moreCommands )
+                ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
+                default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
                 resetModel = { model | horizon = newModelHorizon
                                      , monotonicCount = model.monotonicCount + 1
                                      , series = case  model.series of
@@ -1904,8 +1905,7 @@ maybeRoundForm model =
         I.Formula ->
             [ H.div
                 [ HA.class "form-round"]
-                [ permaLink model
-                , H.text "Decimals : "
+                [ H.text "Decimals : "
                  ,H.button
                     [ HA.class "increment-round"
                     , HE.onClick ( NewRound Less )]
