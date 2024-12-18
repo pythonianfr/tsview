@@ -168,7 +168,7 @@ initHorizon baseUrl min max debug status =
     , plotStatus = status
     , horizonBounds = Nothing
     , dataBounds = Nothing
-    , queryBounds = buildBounds min max
+    , queryBounds = completeDates ( buildBounds min max )
     , zoomBounds = Nothing
     , zoomY = Nothing
     , editBounds = False
@@ -262,6 +262,20 @@ viewdate model =
     case result of
         Nothing -> ( "yyyy-mm-dd", "yyyy-mm-dd",  False )
         Just (from, to, fromZoom ) -> (cropDate from, cropDate to, fromZoom)
+
+
+completeDates: Maybe ( String, String ) -> Maybe ( String, String )
+completeDates bounds =
+    case bounds of
+        Nothing -> Nothing
+        Just ( min, max ) -> Just (completeDate min, completeDate max)
+
+
+completeDate: String -> String
+completeDate date =
+    if String.length date == 10
+        then date ++ " 00:00:00"
+        else date
 
 setStatusPlot: HorizonModel -> PlotStatus ->HorizonModel
 setStatusPlot model status =
@@ -386,13 +400,15 @@ updateHorizon msg convertMsg model =
 
             EditDateValidate ->
                 let
-                    newmodel = { frameModel | queryBounds = Just ( Maybe.withDefault
-                                                                ""
-                                                                model.editedBounds.from
-                                                            , Maybe.withDefault
+                    newmodel = { frameModel | queryBounds = completeDates
+                                                            <| Just
+                                                                ( Maybe.withDefault
+                                                                    ""
+                                                                    model.editedBounds.from
+                                                                , Maybe.withDefault
                                                                 ""
                                                                 model.editedBounds.to
-                                                            )
+                                                                )
                                             , editBounds = False
                                             , editedBounds = { from = Nothing, to = Nothing }
                                             , horizon = Disabled

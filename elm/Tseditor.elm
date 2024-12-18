@@ -569,10 +569,14 @@ update msg model =
                 Ok val ->
                     let
                         indexedval =
-                            Dict.fromList
-                                <| List.indexedMap
-                                        reindex
-                                        (Dict.toList val)
+                            cropTs
+                                ( Dict.fromList
+                                    <| List.indexedMap
+                                            reindex
+                                            (Dict.toList val)
+                                )
+                                ( getFetchBounds model.horizon )
+
                         zoomTs = case model.horizon.zoomBounds of
                                     Nothing -> Nothing
                                     Just ( min, max ) ->
@@ -611,16 +615,19 @@ update msg model =
             case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val -> ( { model | series = Naked { initialTs = val, zoomTs = Nothing }
+                Ok val -> let ts = cropTs val ( getFetchBounds model.horizon )
+                          in
+                          ( { model | series = Naked { initialTs = ts
+                                                     , zoomTs = Nothing }
                                     , horizon = updateHorizonFromData
-                                                    model.horizon
-                                                    val
+                                                model.horizon
+                                                ts
                                     , monotonicCount = model.monotonicCount + 1
                                     , statistics = getStatistics
-                                                    model.statistics
-                                                    model.allowInferFreq
-                                                    val
-                              }
+                                                model.statistics
+                                                model.allowInferFreq
+                                                ts
+                          }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
                                         { model | horizon = setStatusPlot
@@ -1312,6 +1319,36 @@ setOnEdtitionTs model patch =
                                   , zoomTs = Just patch }
             in
             { model | series = ToEdit ts }
+
+
+getLastNaive: List String -> String
+getLastNaive dates =
+    case List.maximum dates of
+        Nothing -> "No Last"
+        Just lastDate
+            -> let mNaive = List.head
+                            <| String.split
+                                "+"
+                                lastDate
+               in case mNaive of
+                   Nothing -> "No Last"
+                   Just naive -> String.replace "T" " " naive
+
+
+cropTs: Dict String e -> (String, String) ->  Dict String e
+cropTs ts bounds =
+    let naive = getLastNaive ( Dict.keys ts )
+    in
+       if naive == ( Tuple.second bounds )
+            then removeLast ts
+            else ts
+
+
+removeLast: Dict String e -> Dict String e
+removeLast series =
+    case List.reverse ( Dict.toList series ) of
+        [] -> series
+        x :: xs -> Dict.fromList ( List.reverse xs )
 
 
 packDates: Series -> String
@@ -2568,6 +2605,11 @@ debugView model =
                 [ H.pre []
                 ( [ H.text " debug active "
                 , H.br [] []
+                , H.text ("Last Date: " ++ ( getLastNaive <| case model.series of
+                                                                Naked series -> Dict.keys series.initialTs
+                                                                ToEdit series -> Dict.keys series.initialTs
+                                            )
+                          )
                 , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
                                                     else "Off")
