@@ -132,8 +132,7 @@ type alias Model =
     , horizon : HorizonModel
     -- data
     , insertion_dates : Array String
-    , initialTs: Dict String Entry
-    , zoomedTs : Maybe ( Dict String Entry )
+    , series : Series
     , statistics: Statistics
     , roundStat: Int
     , roundValues: Maybe Int
@@ -159,8 +158,6 @@ type alias Model =
     , keyName: String
     , holding: Holding
     -- show-values for formula
-    , initialFormula : Dict String (Maybe Float)
-    , zoomedFormula : Maybe ( Dict String (Maybe Float) )
     , components : List Component
     , componentsData: Dict String Series
     }
@@ -204,6 +201,17 @@ type Msg
     | FromZoom ZoomFromPlotly
     | NewDragMode Bool
 
+
+
+type alias SeriesNaked = Dict String (Maybe Float)
+type alias SeriesToEdit = Dict String Entry
+
+type Series =
+    Naked { initialTs: SeriesNaked, zoomTs: Maybe SeriesNaked }
+    | ToEdit { initialTs: SeriesToEdit, zoomTs: Maybe SeriesToEdit }
+
+emptySeries: Series
+emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
 
 convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
@@ -360,7 +368,7 @@ type DragMode =
     On Int
     | Off
 
-type alias Series = Dict String (Maybe Float)
+--type alias Series = Dict String (Maybe Float)
 
 
 type Method
@@ -548,15 +556,6 @@ addError: Model -> String -> String -> Model
 addError model tag error = U.adderror model (tag ++ " -> " ++ error)
 
 
-restrictOnZoom: Dict String a -> Maybe (String, String) -> Maybe ( Dict String a )
-restrictOnZoom ts zoomBounds =
-     case zoomBounds of
-         Nothing -> Nothing
-         Just ( min, max ) -> Just ( Dict.filter
-                                    ((\key _ -> (( key >= min ) && ( key <= max ))))
-                                    ts )
-
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     let
@@ -571,23 +570,26 @@ update msg model =
                     let
                         indexedval =
                             Dict.fromList
-                                <| List.indexedMap reindex (Dict.toList val)
+                                <| List.indexedMap
+                                        reindex
+                                        (Dict.toList val)
                         zoomTs = case model.horizon.zoomBounds of
                                     Nothing -> Nothing
-                                    Just ( min, max ) -> Just  (
-                                        Dict.filter
-                                            (( \k _ -> (( k >= min ) && ( k <= max ))))
-                                            indexedval )
+                                    Just ( min, max ) ->
+                                        Just
+                                            <| Dict.filter
+                                                    (( \k _ -> (( k >= min ) && ( k <= max ))))
+                                                    indexedval
+                        series = ToEdit { initialTs = indexedval, zoomTs = zoomTs }
                         statistics = getStatistics
                                         model.statistics
                                         model.allowInferFreq
-                                        ( onlyValues indexedval )
+                                        ( onlyActiveValues series )
                     in
                         applyFocus
                         ( setupNas
                             ({ model
-                                    | initialTs = indexedval
-                                    , zoomedTs = zoomTs
+                                    | series = series
                                     , statistics = statistics
                                     , horizon = updateHorizonFromData
                                                     model.horizon
@@ -609,7 +611,7 @@ update msg model =
             case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val -> ( { model | initialFormula = val
+                Ok val -> ( { model | series = Naked { initialTs = val, zoomTs = Nothing }
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     val
@@ -621,7 +623,10 @@ update msg model =
                               }
                            , getComponents model )
                 Err err -> U.nocmd ( addError
-                                        { model | horizon = setStatusPlot model.horizon Failure }
+                                        { model | horizon = setStatusPlot
+                                                                model.horizon
+                                                                Failure
+                                        }
                                         "got value data decode"
                                         ( JD.errorToString err ))
 
@@ -643,7 +648,10 @@ update msg model =
              case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val ->  let newCD = Dict.insert name val model.componentsData
+                Ok val ->  let newCD = Dict.insert
+                                        name
+                                        ( Naked { initialTs = val, zoomTs = Nothing} )
+                                        model.componentsData
                            in
                                U.nocmd { model | componentsData = newCD }
                 Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
@@ -659,13 +667,17 @@ update msg model =
                 default = ( { model | horizon = newModelHorizon}, moreCommands )
                 resetModel = { model | horizon = newModelHorizon
                                      , monotonicCount = model.monotonicCount + 1
-                                     , zoomedTs = Nothing
-                                     , zoomedFormula = Nothing}
+                                     , series = case  model.series of
+                                                    Naked series -> Naked { initialTs = series.initialTs
+                                                                          , zoomTs = Nothing}
+                                                    ToEdit series -> ToEdit { initialTs = series.initialTs
+                                                                            , zoomTs = Nothing}
+                             }
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
                 ModuleHorizon.Frame _ -> ( { resetModel | forceDraw = False
-                                                      , firstSelected = Nothing
+                                                        , firstSelected = Nothing
                                            }
                                          , moreCommands )
                 ModuleHorizon.FromLocalStorage _ ->
@@ -688,11 +700,10 @@ update msg model =
 
         AllowInferFreq ->
             ({ model | allowInferFreq = True
-                     , statistics = getRelevantStatistics
+                     , statistics = getStatistics
                                         model.statistics
                                         True
-                                        ( onlyValues  model.initialTs )
-                                        model.initialFormula
+                                        ( onlyActiveValues model.series )
              }
             , Cmd.none
             )
@@ -706,9 +717,9 @@ update msg model =
                             else Just rawstring
             in
             ( setupNas
-                <| setOnActiveTs model
+                <| setOnEdtitionTs model
                         <| patchWithValue
-                            (getActiveTs model)
+                            ( getEditionTs model.series )
                             ( date, edition )
                             raw
             , Cmd.none )
@@ -743,11 +754,15 @@ update msg model =
                             Dict.fromList
                                 <| List.indexedMap reindex (Dict.toList val)
                         patched =
-                            Dict.union (getActiveTs model) indexedval
+                            Dict.union
+                                ( getEditionTs model.series )
+                                indexedval
 
                         newmodel =
                              { model
-                                | horizon = updateHorizonFromData model.horizon patched
+                                | horizon = updateHorizonFromData
+                                                model.horizon
+                                                patched
                             }
                     in
                     ( newmodel
@@ -774,11 +789,11 @@ update msg model =
             in
             applyFocus
                 ( setupNas
-                    (setOnActiveTs model
+                    (setOnEdtitionTs model
                         (Dict.map
                             (\ _ e -> { e | edited = NoEdition
                                           , raw = Nothing })
-                            ( getActiveTs newmodel ))
+                            ( getEditionTs newmodel.series ))
                     )
                 )
                 ( model.focus )
@@ -868,7 +883,7 @@ update msg model =
             let
                 newtimeSeries = applyPastedDict model payload
             in
-            U.nocmd ( setOnActiveTs model newtimeSeries )
+            U.nocmd ( setOnEdtitionTs model newtimeSeries )
 
         ClickCell index ->
             case model.holding.shift of
@@ -897,8 +912,8 @@ update msg model =
                                     else
                                         ( flipSelection index )
                                 )
-                                ( getActiveTs model )
-                newmodel = setOnActiveTs model transformed
+                                ( getEditionTs model.series )
+                newmodel = setOnEdtitionTs model transformed
             in
                 applyFocus ( setupFirstSelected newmodel ) ( Just index )
 
@@ -913,7 +928,7 @@ update msg model =
 
 
         CopySelection ->
-            let selectedValues = getSelectedValues model
+            let selectedValues = getSelectedValues model.series
                 concatened = String.join "\n" selectedValues
             in
             ( model
@@ -928,29 +943,29 @@ update msg model =
         FillNas indexLastValue ->
             let
                 lastValue = getLastValue
-                                ( getActiveTs model )
+                                ( getEditionTs model.series )
                                 indexLastValue
             in
                 applyFocus
                     ( setupNas
-                        <| setOnActiveTs
+                        <| setOnEdtitionTs
                             model
                                 <|Dict.union
                                     (fillNas
-                                        ( getActiveTs model )
+                                        ( getEditionTs model.series )
                                         lastValue
                                         ( indexLastValue )
                                     )
-                                    ( getActiveTs model )
+                                    ( getEditionTs model.series )
                     )
                     Nothing
 
         FillAll ->
             ( setupNas
-                <| setOnActiveTs
+                <| setOnEdtitionTs
                         model
                         <| fillAllNas
-                            ( getActiveTs model )
+                            ( getEditionTs model.series )
                             model.lastValids
             , Cmd.none
             )
@@ -963,7 +978,11 @@ update msg model =
             case key of
                 Escape Down -> ( model , deselect True )
                 Escape Up -> U.nocmd model
-                Delete  Down -> ( setupNas ( deleteSelectedValues model )
+                Delete  Down -> ( setupNas <| setOnEdtitionTs
+                                                model
+                                                <| deleteSelectedValues
+                                                   model.series
+
                                 , deselect True
                                 )
                 Delete Up -> U.nocmd model
@@ -1057,41 +1076,32 @@ update msg model =
                         model.horizon
                     newmodel =
                         case zoomDates of
-                            Nothing -> { model | horizon = { horizonmodel | zoomBounds = Nothing}
-                                               , zoomedTs = Nothing
-                                               , zoomedFormula = Nothing
-                                               , monotonicCount = model.monotonicCount + 1
-                                               , forceDraw = False
-                                               , statistics = getRelevantStatistics
-                                                                model.statistics
-                                                                model.allowInferFreq
-                                                                ( onlyValues  model.initialTs )
-                                                                model.initialFormula
+                            Nothing ->
+                                let newSeries = resetZoom model.series
+                                in
+                                { model | horizon = { horizonmodel | zoomBounds = Nothing}
+                                                    , series = newSeries
+                                                    , monotonicCount = model.monotonicCount + 1
+                                                    , forceDraw = False
+                                                    , statistics = getStatistics
+                                                                    model.statistics
+                                                                    model.allowInferFreq
+                                                                    ( onlyActiveValues  newSeries )
                                         }
                             Just (minDate, maxDate)
-                                -> let zoomedTs =  newZoom
+                                -> let newSeries =  newZoom
                                                         minDate
                                                         maxDate
-                                                        model.initialTs
-                                                        model.zoomedTs
-                                                        model.panActive
-                                       formulaTs = newZoom
-                                                        minDate
-                                                        maxDate
-                                                        model.initialFormula
-                                                        model.zoomedFormula
+                                                        model.series
                                                         model.panActive
                                   in
-                                    { model | zoomedTs = Just zoomedTs
-                                            , zoomedFormula = Just formulaTs
+                                    { model | series = newSeries
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                                             , monotonicCount = model.monotonicCount + 1
-                                            , statistics = getRelevantStatistics
+                                            , statistics = getStatistics
                                                                 model.statistics
                                                                 model.allowInferFreq
-                                                                ( onlyValues zoomedTs )
-                                                                 formulaTs
-
+                                                                ( onlyActiveValues  newSeries )
                                     }
 
                  in
@@ -1105,11 +1115,11 @@ update msg model =
                 ( newStatus, toCopy ) =
                     case copyType of
                         Name -> ( { status | name = False }
-                                , model.name)
+                                  , model.name)
                         Dates -> ( { status | dates = False }
-                                , packDates model )
+                                   , packDates model.series )
                         Values -> ( { status | values = False }
-                                , packValues model )
+                                    , packValues model.series )
             in
             ( { model | statusCopy = newStatus }
             , Cmd.batch
@@ -1157,9 +1167,9 @@ clearSelection: Model -> Model
 clearSelection model =
     let transformed = Dict.map
                         ( \ _ v -> { v | selected = False })
-                        ( getActiveTs model )
+                        ( getEditionTs model.series )
     in
-        setOnActiveTs
+        setOnEdtitionTs
             { model | firstSelected = Nothing
                     , firstShift = Nothing
             }
@@ -1194,8 +1204,29 @@ flipForce model =
     }
 
 
-newZoom: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
-newZoom minDate maxDate initial zoom pan =
+newZoom: String -> String -> Series -> Bool -> Series
+newZoom minDate maxDate series pan =
+    case series of
+        Naked ts -> Naked { initialTs = ts.initialTs
+                          , zoomTs = Just <| newZoomT
+                                                minDate
+                                                maxDate
+                                                ts.initialTs
+                                                ts.zoomTs
+                                                pan
+                          }
+        ToEdit ts -> ToEdit { initialTs = ts.initialTs
+                            , zoomTs = Just <| newZoomT
+                                                minDate
+                                                maxDate
+                                                ts.initialTs
+                                                ts.zoomTs
+                                                pan
+                            }
+
+
+newZoomT: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
+newZoomT minDate maxDate initial zoom pan =
     case zoom of
         Nothing -> ( Dict.filter
                         ((\key _ -> ((key >= minDate) && (key <= maxDate))))
@@ -1208,43 +1239,98 @@ newZoom minDate maxDate initial zoom pan =
                     else zoomTs) )
 
 
-getActiveTs: Model -> Dict String Entry
-getActiveTs model =
-    case model.zoomedTs of
-        Nothing -> model.initialTs
-        Just zoom -> zoom
+
+justValues: Dict String ( Maybe Float ) -> List Float
+justValues series =
+     List.concat
+        <| List.map
+            (\ (k, v) -> case v of
+                            Nothing -> []
+                            Just val -> [ val ]
+            )
+            (Dict.toList series)
 
 
-setOnActiveTs: Model -> Dict String Entry -> Model
-setOnActiveTs model patch =
-    case model.zoomedTs  of
-        Nothing -> { model | initialTs = patch}
-        Just _ -> { model | zoomedTs = Just patch}
+resetZoom: Series -> Series
+resetZoom series =
+    case series of
+        Naked ts -> Naked { initialTs = ts.initialTs
+                          , zoomTs = Nothing}
+        ToEdit ts -> ToEdit { initialTs = ts.initialTs
+                            , zoomTs = Nothing}
+
+onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
+onlyValues series =
+    Dict.map
+        (\ k e -> e.value )
+        series
+
+onlyActiveValues : Series -> Dict String ( Maybe Float )
+onlyActiveValues series =
+    case series of
+        Naked ts ->
+            case ts.zoomTs of
+                Nothing -> ts.initialTs
+                Just zoom -> zoom
+        ToEdit ts ->
+            case ts.zoomTs of
+                Nothing -> onlyValues ts.initialTs
+                Just zoom -> onlyValues zoom
 
 
-getActiveFormula: Model -> Dict String ( Maybe Float)
-getActiveFormula model =
-    case model.zoomedFormula of
-        Nothing -> model.initialFormula
-        Just zoom -> zoom
+onlyActiveKeys : Series -> List String
+onlyActiveKeys series =
+    case series of
+        Naked ts ->
+            case ts.zoomTs of
+                Nothing -> Dict.keys ts.initialTs
+                Just zoom -> Dict.keys zoom
+        ToEdit ts ->
+            case ts.zoomTs of
+                Nothing -> Dict.keys ts.initialTs
+                Just zoom -> Dict.keys zoom
 
 
-packDates: Model -> String
-packDates model =
+getEditionTs: Series -> SeriesToEdit
+getEditionTs series =
+    case series of
+        Naked ts -> Dict.empty
+        ToEdit ts ->
+            case ts.zoomTs of
+                Nothing -> ts.initialTs
+                Just zoom -> zoom
+
+setOnEdtitionTs: Model -> SeriesToEdit -> Model
+setOnEdtitionTs model patch =
+    case model.series of
+        Naked _ -> model
+        ToEdit series ->
+            let ts = case series.zoomTs of
+                        Nothing -> { initialTs = patch
+                                    , zoomTs = Nothing }
+                        Just _ -> { initialTs = series.initialTs
+                                  , zoomTs = Just patch }
+            in
+            { model | series = ToEdit ts }
+
+
+packDates: Series -> String
+packDates series =
     String.join("\n")
-        <| Dict.keys
-            ( getActiveTs model )
+        ( onlyActiveKeys series )
+
+myFloat mf =
+ case mf of
+    Nothing -> ""
+    Just f -> String.fromFloat f
 
 
-packValues: Model -> String
-packValues model =
+packValues: Series -> String
+packValues series =
     String.join("\n")
         <| List.map
-            (\ e -> getValue e)
-            <| Dict.values
-                ( getActiveTs model )
-
-
+            myFloat
+            ( Dict.values ( onlyActiveValues series ))
 
 
 getHasCache : Model -> Cmd Msg
@@ -1271,28 +1357,11 @@ getInterval baseUrl name =
         , expect = Http.expectString GotInterval
         }
 
-onlyJustValues: Dict String ( Maybe Float ) -> List Float
-onlyJustValues series =
-     List.concat
-        <| List.map
-            (\ (k, v) -> case v of
-                            Nothing -> []
-                            Just val -> [ val ]
-            )
-            (Dict.toList series)
-
-
-onlyValues: Dict String Entry -> Dict String ( Maybe Float )
-onlyValues series =
-    Dict.map
-        (\ k e -> e.value )
-        series
-
 
 getStatistics: Statistics -> Bool -> Dict String ( Maybe Float )-> Statistics
 getStatistics previous allowInfer series =
     let dates = List.sort ( Dict.keys series )
-        values = List.sort <| onlyJustValues series
+        values = List.sort <| justValues series
         length = List.length values
     in
         { previous
@@ -1315,14 +1384,6 @@ getStatistics previous allowInfer series =
         }
 
 
-getRelevantStatistics: Statistics -> Bool -> Dict String ( Maybe Float )
-                            -> Dict String ( Maybe  Float ) -> Statistics
-getRelevantStatistics previous allowInfer series formula =
-    if Dict.isEmpty series
-        then getStatistics previous allowInfer formula
-        else getStatistics previous allowInfer series
-
-
 getCurrentValue: Entry -> Maybe Float
 getCurrentValue entry =
     case entry.edited of
@@ -1332,38 +1393,36 @@ getCurrentValue entry =
         Error _ -> Nothing
 
 
-getSelectedValues: Model -> List String
-getSelectedValues model =
-    List.map
-        (\ e ->  case (getCurrentValue e) of
-                    Nothing -> ""
-                    Just val -> String.fromFloat val
+getSelectedValues: Series -> List String
+getSelectedValues series =
+        List.map
+            (\ e ->  case (getCurrentValue e) of
+                        Nothing -> ""
+                        Just val -> String.fromFloat val
+            )
+            <| List.filter
+                (\ e -> e.selected )
+                ( Dict.values ( getEditionTs series ))
+
+
+deleteSelectedValues: Series -> SeriesToEdit
+deleteSelectedValues series =
+    Dict.map
+        (\ k e ->  if e.selected
+                    then
+                        { e | edited = Deletion
+                            , raw = Nothing
+                        }
+                    else e
         )
-        <| List.filter
-            (\ e -> e.selected )
-            ( Dict.values ( getActiveTs model ))
-
-
-deleteSelectedValues: Model -> Model
-deleteSelectedValues model =
-    setOnActiveTs
-        model
-        <| Dict.map
-                (\ k e ->  if e.selected
-                            then
-                                { e | edited = Deletion
-                                    , raw = Nothing
-                                }
-                            else e
-                )
-                ( getActiveTs model )
+        ( getEditionTs series )
 
 
 setupNas: Model -> Model
 setupNas model =
     { model | lastValids = findLastValid
                             ( Dict.toList
-                                ( getActiveTs model )
+                                ( getEditionTs model.series )
                             )
                             False
                             []
@@ -1382,7 +1441,7 @@ firstSelected entries =
 
 setupFirstSelected: Model -> Model
 setupFirstSelected model =
-    let ( _, first ) = firstSelected ( Dict.values (getActiveTs model))
+    let ( _, first ) = firstSelected ( Dict.values (getEditionTs model.series))
     in
         { model | firstSelected = first }
 
@@ -1484,11 +1543,11 @@ selectContiguous from to =
 
 setContiguousSelection: Model -> Int -> Int -> Model
 setContiguousSelection model from index =
-    setOnActiveTs
+    setOnEdtitionTs
         model
         <| Dict.map
             ( selectContiguous from index )
-            ( getActiveTs model )
+            ( getEditionTs model.series )
 
 
 flipSelection : Int -> (a -> Entry -> Entry )
@@ -1538,7 +1597,7 @@ arrowActionT model increment =
         Nothing -> U.nocmd model
         Just focus ->
             let ( minIndex, maxIndex ) = getLimitIndexes
-                                            ( getActiveTs model )
+                                            ( getEditionTs model.series )
                 bound = bounded minIndex maxIndex
             in
             case model.holding.shift of
@@ -1630,6 +1689,7 @@ parseInput value =
 applyPastedDict : Model -> PasteType -> Dict String Entry
 applyPastedDict model payload =
     let
+        editionTs = getEditionTs model.series
         newValues =
             List.map
                 parseInput
@@ -1640,7 +1700,7 @@ applyPastedDict model payload =
                 (\entry -> entry.index)
                 (Dict.get
                     (payload.index)
-                    ( getActiveTs model )
+                    editionTs
                 )
         listIndex =
             List.range
@@ -1650,7 +1710,7 @@ applyPastedDict model payload =
             Dict.keys
                 (Dict.filter
                      (\_ value -> List.member value.index listIndex)
-                     ( getActiveTs model )
+                     editionTs
                 )
         copyPastedDict = buildCopyPasteDict
                             listDates
@@ -1664,9 +1724,9 @@ applyPastedDict model payload =
                                 dict
         )
         (\_ _ dict -> dict)
-        ( getActiveTs model )
+        editionTs
         copyPastedDict
-        ( getActiveTs model )
+        editionTs
 
 
 updateEntry : Edited ->  Maybe String -> Maybe Entry -> Maybe Entry
@@ -1903,7 +1963,7 @@ viewValueTable model =
 
 bodyShowValue: Model -> H.Html Msg
 bodyShowValue model =
-    let nbPoints = List.length (Dict.toList ( getActiveFormula model ))
+    let nbPoints = List.length ( onlyActiveKeys model.series )
     in
     if nbPoints < maxPoints ||
        model.forceDraw
@@ -1931,9 +1991,8 @@ datesValue model =
 datesFormula: Model -> Set String
 datesFormula model =
     Set.fromList
-        ( List.map
-            (\ (date, _) -> date)
-            ( Dict.toList ( getActiveTs model ) ))
+        <| Dict.keys
+            ( onlyActiveValues model.series )
 
 
 datesComponents: Model -> Set String
@@ -1948,12 +2007,12 @@ datesComponents model =
 
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
-    let allDates = ( Dict.keys
-                    ( Maybe.withDefault
-                            Dict.empty
-                            ( Dict.get
-                                comp.name
-                                model.componentsData )))
+    let allDates = onlyActiveKeys
+                        <| Maybe.withDefault
+                            emptySeries
+                                <| Dict.get
+                                    comp.name
+                                    model.componentsData
         bounds = getFromToDates model.horizon
     in
     case bounds of
@@ -1972,14 +2031,16 @@ buildRow model date =
             [ H.th
                 [HA.class "show-table-dates"]
                 [ H.text date ]
-            , H.td [] [ H.text ( printValue model.roundValues
-                                    ( Maybe.withDefault
-                                          Nothing
-                                          ( Dict.get
+            , H.td [] [ H.text
+                            <| printValue
+                                model.roundValues
+                                <| Maybe.withDefault
+                                    Nothing
+                                    <| Dict.get
                                             date
-                                            ( getActiveFormula model ) )
-                                    ))
-                        ]]
+                                            ( onlyActiveValues model.series )
+                        ]
+            ]
             ( addComponentCells model date ) )
 
 
@@ -2045,11 +2106,14 @@ addComponentCells model date =
                                    Nothing
                                    <| Dict.get
                                         date
-                                        <| Maybe.withDefault
-                                            Dict.empty
-                                              <|Dict.get
-                                                    comp.name
-                                                    model.componentsData ])
+                                        <| onlyActiveValues
+                                            <| Maybe.withDefault
+                                                emptySeries
+                                                  <|Dict.get
+                                                        comp.name
+                                                        model.componentsData
+                            ]
+        )
         model.components
 
 
@@ -2133,7 +2197,7 @@ currentDiff model =
         (\ _ e -> { e | edited = ( linearCorrection model e.edited )})
         ( Dict.filter
             (\_ entry -> entry.edited  /= NoEdition )
-            ( getActiveTs model )
+            ( getEditionTs model.series )
         )
 
 
@@ -2225,7 +2289,7 @@ editTable model =
         class = HA.class "grid-edit-table"
     in
     case statePoints
-            (Dict.size ( getActiveTs model ))
+            (Dict.size ( getEditionTs model.series ))
             model.forceDraw
     of
         NoPoint
@@ -2292,7 +2356,8 @@ editTable model =
                       , H.tbody [ ]
                           <| List.map
                                 (viewrow model)
-                                (Dict.toList ( getActiveTs model ))
+                                <| Dict.toList
+                                    ( getEditionTs model.series )
                       ]
                 , nodeTriggerPastable model
                 ]
@@ -2491,20 +2556,7 @@ buttonsFirstSelected predicat =
 
 isEmpty: Model -> Bool
 isEmpty model =
-    if model.seriestype == I.Primary
-    then Dict.isEmpty ( getActiveTs model )
-    else Dict.isEmpty ( getActiveFormula model )
-
-
-getTs: Model -> ( List String, List ( Maybe Float ))
-getTs model =
-    if model.seriestype == I.Primary
-    then
-        (( Dict.keys ( getActiveTs model ) )
-        , ( List.map (\x -> x.value) (Dict.values ( getActiveTs model ) )))
-    else
-        (( Dict.keys ( getActiveFormula model ) )
-        , ( Dict.values ( getActiveFormula model ) ))
+    List.length ( onlyActiveKeys model.series ) == 0
 
 
 debugView: Model -> H.Html Msg
@@ -2668,7 +2720,8 @@ displayStatus model =
 
 plotNode: Model -> H.Html Msg
 plotNode model =
-    let ( dates, values ) = getTs model
+    let dates = onlyActiveKeys model.series
+        values = Dict.values ( onlyActiveValues model.series )
         diff = currentDiff model
         dragMode =
             if model.panActive
@@ -2795,13 +2848,10 @@ init input =
                     , holding = emptyHolding
                     , keyName = ""
                     , lastValids = []
-                    , initialTs = Dict.empty
-                    , zoomedTs = Nothing
+                    , series = emptySeries
                     , statistics = emptyStat
                     , roundStat = 2
                     , roundValues = Nothing
-                    , initialFormula = Dict.empty
-                    , zoomedFormula = Nothing
                     , statusCopy = initialStatusCopy
                     , panActive = False
                     , components = []
