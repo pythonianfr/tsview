@@ -29,9 +29,10 @@ module Info exposing
 import Array exposing (Array)
 import Dict exposing (Dict)
 import Horizon exposing
-    ( getFromToDates
-    , horizonview
+    ( horizonview
+    , HorizonModel
     )
+import Horizon as ModuleHorizon
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -194,11 +195,22 @@ viewerrors model =
     else H.span [ ] [ ]
 
 
+tzawareseries: { a | meta: Dict String M.MetaVal }-> Bool
 tzawareseries model =
     (M.dget "tzaware" model.meta) == "true"
 
 
-viewactionwidgets model convertmsg editor pagetitle bounds =
+type alias PartialModel a =
+    { a | seriestype: SeriesType
+        , name: String
+        , horizon: HorizonModel
+        , baseurl: String
+        , meta: Dict String M.MetaVal
+    }
+
+viewactionwidgets: PartialModel a -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg)
+                    -> Bool -> String -> Maybe (String, String) -> List ( H.Html msg )
+viewactionwidgets model convertmsg permalink editor pagetitle bounds =
     let
         editorlabel =
             case model.seriestype of
@@ -221,6 +233,12 @@ viewactionwidgets model convertmsg editor pagetitle bounds =
         convertmsg
         "action-center"
         ( tzawareseries model )
+    , H.div
+        [ HA.class "action-right" ]
+        ( case permalink of
+            Nothing -> []
+            Just link -> [ link ]
+        )
     , H.div [ HA.class "action-right" ]
         [ H.a [ HA.href <| UB.crossOrigin model.baseurl
                     [ if editor then "tseditor" else "tsinfo" ]

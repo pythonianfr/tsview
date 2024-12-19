@@ -1481,6 +1481,7 @@ view model =
                       <| (I.viewactionwidgets
                             model
                             convertMsg
+                            Nothing
                             True
                             "Series Info"
                             ( getFromToDates model.horizon )

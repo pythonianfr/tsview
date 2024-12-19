@@ -1892,7 +1892,7 @@ permaLink model =
         , HA.target "_blank"
         , HA.class "permalink"
         ]
-        [ H.text "Permalink"]
+        [ H.text "permalink"]
 
 
 maybeRoundForm: Model -> List ( H.Html Msg )
@@ -2814,9 +2814,6 @@ plotNode model =
 
 view : Model -> H.Html Msg
 view model =
-    let
-        maybeMedian = Nothing
-    in
     H.div
         [HA.class "tseditor"
         , HE.onMouseUp (Drag Off)
@@ -2827,6 +2824,7 @@ view model =
                   <| I.viewactionwidgets
                         model
                         convertMsg
+                        ( Just ( permaLink model ))
                         False
                         "Series Editor"
                         ( getFromToDates model.horizon )
@@ -2853,8 +2851,7 @@ view model =
                 ]
                 , H.div
                     [ HA.class "stat-table-container"]
-                    [ H.div [ HA.class "permadiv" ] [ permaLink model ]
-                    ,viewStatTable model ]
+                    [ viewStatTable model ]
             ]
     ]
 
