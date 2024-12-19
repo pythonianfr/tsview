@@ -1970,17 +1970,17 @@ nodeTriggerPastable model =
     [ ]
 
 
-buttonFillAll: Model -> List (H.Html Msg)
+buttonFillAll: Model -> H.Html Msg
 buttonFillAll model =
     if model.lastValids /= []
-        then [ H.button
+        then H.button
                     [ HA.class "button-fill-all"
                     , HE.onClick FillAll
+                    , HA.title "Forward-fill on all selection"
                     ]
                     [ H.text "All ↓" ]
-             ]
         else
-            [ H.div [HA.class "button-fill-all"] [] ]
+             H.div [HA.class "button-fill-all"] []
 
 
 viewRelevantTable: Model -> H.Html Msg
@@ -2370,7 +2370,9 @@ editTable model =
                                             then HA.class "no-fill"
                                             else HA.class "fill"
                                       , HA.class "col-values"]
-                                      ([ H.p
+                                      [ H.div
+                                        []
+                                        [ H.p
                                             [ HA.class <| getCopyClass
                                                             model.statusCopy
                                                             Values
@@ -2379,9 +2381,10 @@ editTable model =
                                             , HA.title "Copy values"
                                             ]
                                             []
-                                      , H.p [] [ H.text "Values" ]
-                                        ] ++ ( buttonFillAll model)
-                                        )
+                                        , H.p [] [ H.text "Values" ]
+                                        ]
+                                      , buttonFillAll model
+                                      ]
                                   , H.th
                                       [ HA.class "control-col" ]
                                       [ ]
@@ -2681,8 +2684,8 @@ type Freq =
     Blocked
     | Authorised ( Maybe String )
 
-rowStat : Int -> String -> TypeStat -> H.Html Msg
-rowStat round name statistic  =
+rowStat : Int -> String -> Maybe String -> TypeStat -> H.Html Msg
+rowStat round name mTitle statistic  =
     let content = case statistic of
                     Numeric num ->
                         case num of
@@ -2711,7 +2714,12 @@ rowStat round name statistic  =
                                                 Just f -> [ H.text f ]
     in
         H.tr
-            []
+             ( case mTitle of
+                    Nothing ->
+                        [ ]
+                    Just title ->
+                        [ HA.title title ]
+            )
             [ H.td
                 []
                 [H.text name]
@@ -2733,20 +2741,20 @@ viewStatTable model =
         [ H.th
             [HA.colspan 3]
             [ H.text "Data Info"]
-        , partialRow "First" model.statistics.first
-        , partialRow "Last" model.statistics.last
-        , partialRow "Start" model.statistics.start
-        , partialRow "End" model.statistics.end
-        , partialRow "Min" model.statistics.min
-        , partialRow "Max" model.statistics.max
-        , partialRow "Sum" model.statistics.sum
-        , partialRow "Count" model.statistics.count
-        , partialRow "NaNs" model.statistics.nas
-        , partialRow "Mean" model.statistics.mean
-        , partialRow "P25" model.statistics.p25
-        , partialRow "P50" model.statistics.median
-        , partialRow "P75" model.statistics.p75
-        , partialRow "Freq" model.statistics.inferFreq
+        , partialRow "First" ( Just "Lower bound of whole series" ) model.statistics.first
+        , partialRow "Last" ( Just "Upper bound of whole series" ) model.statistics.last
+        , partialRow "Start" ( Just "Lower bound of selected horizon" ) model.statistics.start
+        , partialRow "End" ( Just "Upper bound of selected horizon" ) model.statistics.end
+        , partialRow "Min" Nothing model.statistics.min
+        , partialRow "Max" Nothing model.statistics.max
+        , partialRow "Sum" Nothing model.statistics.sum
+        , partialRow "Count" Nothing model.statistics.count
+        , partialRow "NaNs" Nothing model.statistics.nas
+        , partialRow "Mean" Nothing model.statistics.mean
+        , partialRow "P25" Nothing model.statistics.p25
+        , partialRow "P50" Nothing model.statistics.median
+        , partialRow "P75" Nothing model.statistics.p75
+        , partialRow "Freq" Nothing model.statistics.inferFreq
         ]
 
 
@@ -2791,7 +2799,7 @@ plotNode model =
                         "edition"
                         ( Dict.keys diff )
                         ( diffToFloat ( Dict.values diff ))
-                        "lines+markers"
+                        "markers"
                         defaultTraceOptions
                     ]
                     { defaultLayoutOptions | dragMode = Just dragMode
