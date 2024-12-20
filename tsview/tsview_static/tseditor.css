@@ -305,6 +305,11 @@
     z-index:50;
 }
 
+.show-table th p {
+    display: inline;
+}
+
+
 .editor-values-table-series {
     position: sticky;
     top:0px;

@@ -2087,12 +2087,30 @@ headerShowValue model =
         []
         [ H.tr
             []
-            ( [ H.th [ HA.class "show-table-dates" ] []
+            ( [ H.th
+                [ HA.class "show-table-dates" ]
+                 [ H.p
+                    [ HA.class <| getCopyClass
+                                    model.statusCopy
+                                    Dates
+                    , HE.onClick ( CopyToClipboard Dates )
+                    , HA.class "copy-all"
+                    , HA.title "Copy dates"
+                    ]
+                    []
+                , H.p [] [ H.text "Dates" ]             ]
               , H.th
                     [ HA.class "show-table-series" ]
-                    [ H.a
+                    [ H.p
+                        [ HA.class <| getCopyClass
+                                        model.statusCopy
+                                        Values
+                        , HE.onClick ( CopyToClipboard Values )
+                        , HA.class "copy-all"
+                        , HA.title "Copy values"
+                        ]
                         []
-                        [ H.text model.name ]
+                    , H.p [] [ H.text "Values" ]
                     ]
               ] ++ List.map ( buildLink model ) model.components  )
         ]
