@@ -243,6 +243,7 @@ type alias CreationModel =
     , freq: FreqType
     , tz: Maybe String
     , value: Maybe Float
+    , name: String
     }
 
 initCreationModel: CreationModel
@@ -253,6 +254,7 @@ initCreationModel =
              , multiplier = Nothing }
     , tz = Nothing
     , value = Nothing
+    , name = ""
     }
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -742,7 +744,34 @@ update msg model =
                                          , Cmd.batch ([ moreCommands ]
                                          ++ getRelevantData resetModel ))
 
-        Create _ -> ( model, Cmd.none )
+        Create option ->
+            let creation = model.creation
+                freq = model.creation.freq
+                newCreation = case option of
+                    From val -> { creation | from = val }
+                    To val -> { creation | to = val }
+                    FreqMultiply val ->
+                        { creation |
+                            freq = { freq |
+                                        multiplier =
+                                            if val == ""
+                                                then Nothing
+                                                else String.toInt val
+                                    }
+                        }
+                    FreqOffset val ->
+                        { creation |
+                            freq = { freq | offset = val }
+                        }
+                    Tz val -> { creation | tz = if val == ""
+                                                    then Nothing
+                                                    else Just val
+                              }
+                    Value val -> { creation | value = String.toFloat val }
+                    Name val -> { creation | name = val }
+            in
+                ( { model | creation = newCreation } , Cmd.none )
+
 
         SwitchForceDraw ->
             applyFocus
@@ -2050,6 +2079,7 @@ creationForm model =
                 [ HA.type_ "date"
                 , HA.id "creation-from"
                 , HA.name "from"
+                , HE.onInput ( \s -> Create ( From s ) )
                 , HA.value model.creation.from
                 ]
                 []
@@ -2060,6 +2090,7 @@ creationForm model =
                 [ HA.type_ "date"
                 , HA.id "creation-to"
                 , HA.name "to"
+                , HE.onInput ( \s -> Create ( To s ) )
                 , HA.value model.creation.to
                 ]
                 []
@@ -2069,6 +2100,7 @@ creationForm model =
             , H.input
                 [ HA.id "creation-tz"
                 , HA.name "tz"
+                , HE.onInput ( \s -> Create ( Tz s ) )
                 , HA.value
                     <| Maybe.withDefault "" model.creation.tz
                 ]
@@ -2085,6 +2117,7 @@ creationForm model =
                 , HA.min "1"
                 , HA.step "1"
                 , HA.name "offset"
+                , HE.onInput ( \s -> Create ( FreqMultiply s ) )
                 , HA.value ( case model.creation.freq.multiplier of
                                 Nothing -> ""
                                 Just n -> String.fromInt n
@@ -2097,6 +2130,7 @@ creationForm model =
             , H.input
                 [ HA.id "creation-offset"
                 , HA.name "offset"
+                , HE.onInput ( \s -> Create ( FreqOffset s ) )
                 , HA.value model.creation.freq.offset
                 ]
                 []
@@ -2110,6 +2144,7 @@ creationForm model =
                 [ HA.id "creation-value"
                 , HA.type_ "number"
                 , HA.name "value"
+                , HE.onInput ( \s -> Create ( Value s ) )
                 , HA.value ( case model.creation.value of
                                 Nothing -> ""
                                 Just f -> String.fromFloat f
@@ -2125,7 +2160,8 @@ creationForm model =
             , H.input
                 [ HA.id "creation-name"
                 , HA.name "name"
-                , HA.value model.name
+                , HE.onInput ( \s -> Create ( Name s ) )
+                , HA.value model.creation.name
                 ]
                 []
             ]
