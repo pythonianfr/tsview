@@ -683,10 +683,10 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
-        name = request.args.get('name')
-        min = request.args.get('startdate')
-        max = request.args.get('enddate')
-        debug = request.args.get('debug')
+        name = request.args.get('name', '')
+        min = request.args.get('startdate', '')
+        max = request.args.get('enddate', '')
+        debug = request.args.get('debug', '')
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
         title = f'Edit: {name}'
         return render_template(

@@ -131,6 +131,7 @@ type alias Model =
     , source : String
     , seriestype : I.SeriesType
     , horizon : HorizonModel
+    , creation: CreationModel
     -- data
     , insertion_dates : Array String
     , series : Series
@@ -174,6 +175,7 @@ type Msg
     | HasCache ( Result Http.Error String )
     | GotInterval ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
+    | Create CreationOptions
     | SwitchForceDraw
     | AllowInferFreq
     | InputChanged String String
@@ -216,8 +218,42 @@ emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
 
 
 type EditionMode =
-    Primary
-    | Formula
+    Creation
+    | Existing I.SeriesType
+
+type CreationOptions =
+    Name String
+    | From String
+    | To String
+    | FreqOffset String
+    | FreqMultiply String
+    | Tz String
+    | Value String
+
+
+type alias FreqType =
+    { offset: String
+    , multiplier: Maybe Int
+    }
+
+
+type alias CreationModel =
+    { from: String
+    , to: String
+    , freq: FreqType
+    , tz: Maybe String
+    , value: Maybe Float
+    }
+
+initCreationModel: CreationModel
+initCreationModel =
+    { from = ""
+    , to = ""
+    , freq = { offset = "D"
+             , multiplier = Nothing }
+    , tz = Nothing
+    , value = Nothing
+    }
 
 convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
@@ -301,9 +337,9 @@ msgTooManyPoints nbPoints =
 
 
 type CopyType =
-    Name
-    | Dates
-    | Values
+    CopyName
+    | CopyDates
+    | CopyValues
 
 type alias StatusCopy =
     { name : Bool
@@ -325,13 +361,13 @@ classCheck = "bi bi-check2"
 getCopyClass: StatusCopy -> CopyType -> String
 getCopyClass statusCopy copyType =
     case copyType of
-        Name -> if statusCopy.name
+        CopyName -> if statusCopy.name
                     then classClip
                     else classCheck
-        Dates -> if statusCopy.dates
+        CopyDates -> if statusCopy.dates
                     then classClip
                     else classCheck
-        Values -> if statusCopy.values
+        CopyValues -> if statusCopy.values
                     then classClip
                     else classCheck
 
@@ -447,8 +483,9 @@ localDecoder =
 getPoints: Model -> Cmd Msg
 getPoints model =
     case model.mode of
-        Primary -> getSeries model GotEditData "supervision" GET model.name
-        Formula ->  getSeries model GotValueData "state" GET model.name
+        Existing I.Primary -> getSeries model GotEditData "supervision" GET model.name
+        Existing I.Formula ->  getSeries model GotValueData "state" GET model.name
+        Creation -> Cmd.none
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
@@ -698,14 +735,14 @@ update msg model =
                     -- we want to fire the commands AFTER getting the metadata:
                     -- we store these commands in the model -.-
                     ( { resetModel | initialCommands = moreCommands }
-                    , Cmd.batch ([ M.getsysmetadata
-                                        model.baseurl
-                                        model.name
-                                        GotMetadata
-                                        "series"]))
+                    , commandStart resetModel
+
+                    )
                 ModuleHorizon.Fetch _ -> ( resetModel
                                          , Cmd.batch ([ moreCommands ]
                                          ++ getRelevantData resetModel ))
+
+        Create _ -> ( model, Cmd.none )
 
         SwitchForceDraw ->
             applyFocus
@@ -838,8 +875,8 @@ update msg model =
                        newmodel = { model | meta = allmeta
                                           , seriestype = seriestype
                                           , mode = case seriestype of
-                                              I.Primary -> Primary
-                                              I.Formula -> Formula
+                                              I.Primary -> Existing I.Primary
+                                              I.Formula -> Existing I.Formula
                                           , monotonicCount = model.monotonicCount + 1
                                   }
                    in
@@ -1132,11 +1169,11 @@ update msg model =
             let status = model.statusCopy
                 ( newStatus, toCopy ) =
                     case copyType of
-                        Name -> ( { status | name = False }
+                        CopyName -> ( { status | name = False }
                                   , model.name)
-                        Dates -> ( { status | dates = False }
+                        CopyDates -> ( { status | dates = False }
                                    , packDates model.series )
-                        Values -> ( { status | values = False }
+                        CopyValues -> ( { status | values = False }
                                     , packValues model.series )
             in
             ( { model | statusCopy = newStatus }
@@ -1149,9 +1186,9 @@ update msg model =
         ResetClass copyType ->
             let status = model.statusCopy
                 newStatus = case copyType of
-                                Name -> { status | name = True }
-                                Dates -> { status | dates = True }
-                                Values -> { status | values = True }
+                                CopyName -> { status | name = True }
+                                CopyDates -> { status | dates = True }
+                                CopyValues -> { status | values = True }
             in
             U.nocmd { model | statusCopy = newStatus }
 
@@ -1709,12 +1746,13 @@ arrowActionT model increment =
 getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
     case model.mode of
-        Primary ->
+        Existing I.Primary ->
             [ getPoints model
             , I.getidates model "series" InsertionDates
             ]
-        Formula ->
+        Existing I.Formula ->
             [ getPoints model ]
+        Creation -> [ Cmd.none ]
 
 
 parseInput : String -> Edited
@@ -1908,11 +1946,8 @@ permaLink model =
 maybeRoundForm: Model -> List ( H.Html Msg )
 maybeRoundForm model =
     case model.mode of
-        Primary ->  [ H.div
-                        [ HA.class "form-round"]
-                        [ ]
-                      ]
-        Formula ->
+        Existing I.Primary ->  []
+        Existing I.Formula ->
             [ H.div
                 [ HA.class "form-round"]
                 [ H.text "Decimals : "
@@ -1935,7 +1970,8 @@ maybeRoundForm model =
                     , HE.onClick ( NewRound Remove )]
                     [ H.text "X" ]
                 ]
-                ]
+            ]
+        Creation -> []
 
 
 printRound: Maybe Int -> String
@@ -1996,8 +2032,104 @@ buttonFillAll model =
 viewRelevantTable: Model -> H.Html Msg
 viewRelevantTable model =
     case model.mode of
-        Primary -> viewEditTable model
-        Formula -> viewValueTable model
+        Existing I.Primary -> viewEditTable model
+        Existing I.Formula -> viewValueTable model
+        Creation -> creationForm model
+
+
+creationForm: Model -> H.Html Msg
+creationForm model =
+    H.form
+        []
+        [ H.fieldset
+            []
+            [ H.label
+                [HA.for "creation-from"]
+                [H.text "From: "]
+            , H.input
+                [ HA.type_ "date"
+                , HA.id "creation-from"
+                , HA.name "from"
+                , HA.value model.creation.from
+                ]
+                []
+            , H.label
+                [HA.for "creation-to"]
+                [H.text "To: "]
+            , H.input
+                [ HA.type_ "date"
+                , HA.id "creation-to"
+                , HA.name "to"
+                , HA.value model.creation.to
+                ]
+                []
+            , H.label
+                [ HA.for "creation-tz" ]
+                [ H.text "Timezone: " ]
+            , H.input
+                [ HA.id "creation-tz"
+                , HA.name "tz"
+                , HA.value
+                    <| Maybe.withDefault "" model.creation.tz
+                ]
+                []
+            ]
+        , H.fieldset
+            []
+            [ H.label
+                [ HA.for "creation-multiplier"]
+                [ H.text "Frequency: " ]
+            , H.input
+                [ HA.id "creation-multiplier"
+                , HA.type_ "number"
+                , HA.min "1"
+                , HA.step "1"
+                , HA.name "offset"
+                , HA.value ( case model.creation.freq.multiplier of
+                                Nothing -> ""
+                                Just n -> String.fromInt n
+                           )
+                ]
+                []
+            , H.label
+                [ HA.for "creation-offset"]
+                [ ]
+            , H.input
+                [ HA.id "creation-offset"
+                , HA.name "offset"
+                , HA.value model.creation.freq.offset
+                ]
+                []
+            ]
+        , H.fieldset
+            []
+            [ H.label
+                [ HA.for "creation-value"]
+                [ H.text "Value: " ]
+            , H.input
+                [ HA.id "creation-value"
+                , HA.type_ "number"
+                , HA.name "value"
+                , HA.value ( case model.creation.value of
+                                Nothing -> ""
+                                Just f -> String.fromFloat f
+                           )
+                ]
+                []
+            ]
+        , H.fieldset
+            []
+            [ H.label
+                [ HA.for "creation-name"]
+                [ H.text "Name: " ]
+            , H.input
+                [ HA.id "creation-name"
+                , HA.name "name"
+                , HA.value model.name
+                ]
+                []
+            ]
+        ]
 
 
 viewValueTable: Model -> H.Html Msg
@@ -2102,8 +2234,8 @@ headerShowValue model =
                  [ H.p
                     [ HA.class <| getCopyClass
                                     model.statusCopy
-                                    Dates
-                    , HE.onClick ( CopyToClipboard Dates )
+                                    CopyDates
+                    , HE.onClick ( CopyToClipboard CopyDates )
                     , HA.class "copy-all"
                     , HA.title "Copy dates"
                     ]
@@ -2114,8 +2246,8 @@ headerShowValue model =
                     [ H.p
                         [ HA.class <| getCopyClass
                                         model.statusCopy
-                                        Values
-                        , HE.onClick ( CopyToClipboard Values )
+                                        CopyValues
+                        , HE.onClick ( CopyToClipboard CopyValues )
                         , HA.class "copy-all"
                         , HA.title "Copy values"
                         ]
@@ -2384,8 +2516,8 @@ editTable model =
                                         [ H.p
                                             [ HA.class <| getCopyClass
                                                             model.statusCopy
-                                                            Dates
-                                            , HE.onClick ( CopyToClipboard Dates )
+                                                            CopyDates
+                                            , HE.onClick ( CopyToClipboard CopyDates )
                                             , HA.class "copy-all"
                                             , HA.title "Copy dates"
                                             ]
@@ -2403,8 +2535,8 @@ editTable model =
                                         [ H.p
                                             [ HA.class <| getCopyClass
                                                             model.statusCopy
-                                                            Values
-                                            , HE.onClick ( CopyToClipboard Values )
+                                                            CopyValues
+                                            , HE.onClick ( CopyToClipboard CopyValues )
                                             , HA.class "copy-all"
                                             , HA.title "Copy values"
                                             ]
@@ -2789,7 +2921,7 @@ viewStatTable model =
 displayStatus: Model -> H.Html Msg
 displayStatus model =
     if model.horizon.plotStatus == None
-      then H.text "The graph is loading, please wait"
+      then H.text ""
       else if isEmpty model && (model.horizon.plotStatus == Success)
            then H.text """It seems there is no data to display in this
                         interval, select another one."""
@@ -2858,8 +2990,8 @@ view model =
                         ( getFromToDates model.horizon )
             , I.viewtitle
                 model
-                ( getCopyClass model.statusCopy Name )
-                ( CopyToClipboard Name )
+                ( getCopyClass model.statusCopy CopyName )
+                ( CopyToClipboard CopyName )
             ]
         , H.div
             [ HA.class "under-the-header"]
@@ -2884,6 +3016,19 @@ view model =
     ]
 
 
+commandStart: Model -> Cmd Msg
+commandStart model =
+    case model.mode of
+        Existing _ -> Cmd.batch
+                        [ M.getsysmetadata
+                            model.baseurl
+                            model.name
+                            GotMetadata
+                            "series"
+                        , getsource model.baseurl model.name
+                        ]
+        Creation -> Cmd.none
+
 
 type alias Input =
     { baseurl : String
@@ -2899,7 +3044,9 @@ init input =
      ({ baseurl = input.baseurl
                     , errors = [ ]
                     , name = input.name
-                    , mode = Primary
+                    , mode = if input.name == ""
+                                then Creation
+                                else Existing I.Primary
                     , meta = Dict.empty
                     , source = ""
                     , seriestype = I.Primary
@@ -2908,7 +3055,8 @@ init input =
                                     input.min
                                     input.max
                                     input.debug
-                                    Loading
+                                    None
+                    , creation = initCreationModel
                     , initialCommands = Cmd.none
                     , forceDraw = False
                     , allowInferFreq = False
@@ -2933,7 +3081,7 @@ init input =
                     , components = []
                     , componentsData = Dict.empty
                     }
-    , getsource input.baseurl input.name -- The chain of command is triggerd by "FromLocalStorage" Msg
+    , Cmd.none
     )
 
 
