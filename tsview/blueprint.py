@@ -29,7 +29,8 @@ from sqlhelp import select
 
 from tshistory import (
     search,
-    util
+    util,
+    http,
 )
 from tshistory.config import configuration
 
@@ -699,6 +700,28 @@ def tsview(tsa):
             flags_menu=flags_menu,
             title=title,
         )
+
+    @bp.route('/generate-ts')
+    def generate_ts():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        fromdate = request.args.get('from')
+        todate = request.args.get('to')
+        tz = request.args.get('tz')
+        value = request.args.get('value')
+        freq = request.args.get('freq')
+        index = pd.date_range(
+            start = fromdate,
+            end = todate,
+            tz=tz,
+            freq=freq,
+        )
+        values = [value] * len(index)
+        ts = pd.Series(values, index=index)
+        return make_response(
+                    http.util.series_to_json(ts)
+                )
 
     @bp.route('/formula-components')
     def formula_components():
