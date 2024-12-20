@@ -126,6 +126,7 @@ type ControlKey =
 type alias Model =
     { baseurl : String
     , name : String
+    , mode: EditionMode
     , meta : M.StdMetadata
     , source : String
     , seriestype : I.SeriesType
@@ -212,6 +213,11 @@ type Series =
 
 emptySeries: Series
 emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
+
+
+type EditionMode =
+    Primary
+    | Formula
 
 convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
@@ -440,9 +446,9 @@ localDecoder =
 
 getPoints: Model -> Cmd Msg
 getPoints model =
-    if model.seriestype == I.Primary
-        then getSeries model GotEditData "supervision" GET model.name
-        else getSeries model GotValueData "state" GET model.name
+    case model.mode of
+        Primary -> getSeries model GotEditData "supervision" GET model.name
+        Formula ->  getSeries model GotValueData "state" GET model.name
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
@@ -826,10 +832,14 @@ update msg model =
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                   let newmodel = { model | meta = allmeta
-                                          , seriestype = if Dict.member "formula" allmeta
+                   let seriestype = if Dict.member "formula" allmeta
                                                             then I.Formula
                                                             else  I.Primary
+                       newmodel = { model | meta = allmeta
+                                          , seriestype = seriestype
+                                          , mode = case seriestype of
+                                              I.Primary -> Primary
+                                              I.Formula -> Formula
                                           , monotonicCount = model.monotonicCount + 1
                                   }
                    in
@@ -1698,12 +1708,12 @@ arrowActionT model increment =
 
 getRelevantData : Model -> List (Cmd Msg)
 getRelevantData model =
-    if model.seriestype == I.Primary
-        then
+    case model.mode of
+        Primary ->
             [ getPoints model
             , I.getidates model "series" InsertionDates
             ]
-        else
+        Formula ->
             [ getPoints model ]
 
 
@@ -1897,12 +1907,12 @@ permaLink model =
 
 maybeRoundForm: Model -> List ( H.Html Msg )
 maybeRoundForm model =
-    case model.seriestype of
-        I.Primary ->  [ H.div
+    case model.mode of
+        Primary ->  [ H.div
                         [ HA.class "form-round"]
                         [ ]
                       ]
-        I.Formula ->
+        Formula ->
             [ H.div
                 [ HA.class "form-round"]
                 [ H.text "Decimals : "
@@ -1985,9 +1995,9 @@ buttonFillAll model =
 
 viewRelevantTable: Model -> H.Html Msg
 viewRelevantTable model =
-    if model.seriestype == I.Primary
-        then viewEditTable model
-        else viewValueTable model
+    case model.mode of
+        Primary -> viewEditTable model
+        Formula -> viewValueTable model
 
 
 viewValueTable: Model -> H.Html Msg
@@ -2889,6 +2899,7 @@ init input =
      ({ baseurl = input.baseurl
                     , errors = [ ]
                     , name = input.name
+                    , mode = Primary
                     , meta = Dict.empty
                     , source = ""
                     , seriestype = I.Primary
