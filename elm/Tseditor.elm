@@ -2191,9 +2191,32 @@ viewRelevantTable model =
     case model.mode of
         Existing I.Primary -> viewEditTable model
         Existing I.Formula -> viewValueTable model
-        Creation Form -> creationForm model
-        Creation Edit -> viewEditTable model
+        Creation Form -> H.div [] [ nameForm model, creationForm model ]
+        Creation Edit -> H.div [] [ nameForm model, viewEditTable model ]
 
+
+checkMandatory: String -> String
+checkMandatory s =
+    if s == ""
+    then "mandatory"
+    else ""
+
+nameForm: Model -> H.Html Msg
+nameForm model =
+    H.fieldset
+        []
+        [ H.label
+            [ HA.for "creation-name"]
+            [ H.text "Name: " ]
+        , H.input
+            [ HA.id "creation-name"
+            , HA.class ( checkMandatory model.creation.name )
+            , HA.name "name"
+            , HE.onInput ( \s -> Create ( Name s ) )
+            , HA.value model.creation.name
+            ]
+            []
+        ]
 
 creationForm: Model -> H.Html Msg
 creationForm model =
@@ -2207,6 +2230,7 @@ creationForm model =
             , H.input
                 [ HA.type_ "date"
                 , HA.id "creation-from"
+                , HA.class  ( checkMandatory model.creation.from )
                 , HA.name "from"
                 , HE.onInput ( \s -> Create ( From s ) )
                 , HA.value model.creation.from
@@ -2218,6 +2242,7 @@ creationForm model =
             , H.input
                 [ HA.type_ "date"
                 , HA.id "creation-to"
+                , HA.class  ( checkMandatory model.creation.to )
                 , HA.name "to"
                 , HE.onInput ( \s -> Create ( To s ) )
                 , HA.value model.creation.to
@@ -2258,6 +2283,7 @@ creationForm model =
                 [ ]
             , H.input
                 [ HA.id "creation-offset"
+                , HA.class ( checkMandatory model.creation.freq.offset )
                 , HA.name "offset"
                 , HE.onInput ( \s -> Create ( FreqOffset s ) )
                 , HA.value model.creation.freq.offset
@@ -2278,19 +2304,6 @@ creationForm model =
                                 Nothing -> ""
                                 Just f -> String.fromFloat f
                            )
-                ]
-                []
-            ]
-        , H.fieldset
-            []
-            [ H.label
-                [ HA.for "creation-name"]
-                [ H.text "Name: " ]
-            , H.input
-                [ HA.id "creation-name"
-                , HA.name "name"
-                , HE.onInput ( \s -> Create ( Name s ) )
-                , HA.value model.creation.name
                 ]
                 []
             ]

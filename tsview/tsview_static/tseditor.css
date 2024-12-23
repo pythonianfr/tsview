@@ -2,6 +2,10 @@
     margin-bottom: 0px;
 }
 
+.mandatory {
+    background-color: pink;
+}
+
 /* grid */
 
 .horizon-widget {
