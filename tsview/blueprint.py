@@ -709,7 +709,7 @@ def tsview(tsa):
         fromdate = request.args.get('from')
         todate = request.args.get('to')
         tz = request.args.get('tz')
-        value = request.args.get('value')
+        value = request.args.get('value', np.nan)
         freq = request.args.get('freq')
         index = pd.date_range(
             start = fromdate,
@@ -717,7 +717,7 @@ def tsview(tsa):
             tz=tz,
             freq=freq,
         )
-        values = [value] * len(index)
+        values = [float(value)] * len(index)
         ts = pd.Series(values, index=index)
         return make_response(
                     http.util.series_to_json(ts)

@@ -7,6 +7,7 @@ import Browser.Events exposing
     ( onKeyDown
     , onKeyUp
     )
+import Browser.Navigation
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
 import Maybe.Extra as Maybe
@@ -170,6 +171,7 @@ type Msg
     | GotValueData (Result Http.Error String)
     | GotComponents (Result Http.Error String)
     | GotComponentData String (Result Http.Error String)
+    | GotGenerated (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | HasCache ( Result Http.Error String )
@@ -180,9 +182,9 @@ type Msg
     | AllowInferFreq
     | InputChanged String String
     | SaveEditedData
+    | Saved (Result Http.Error String)
     | CancelEdition
     | Correction Parameter
-    | GotEditedData (Result Http.Error String)
     | Paste PasteType
     | SelectRow Int
     | DeselectAll Bool
@@ -218,8 +220,12 @@ emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
 
 
 type EditionMode =
-    Creation
+    Creation CreationMode
     | Existing I.SeriesType
+
+type CreationMode =
+    Form
+    | Edit
 
 type CreationOptions =
     Name String
@@ -229,6 +235,7 @@ type CreationOptions =
     | FreqMultiply String
     | Tz String
     | Value String
+    | Preview
 
 
 type alias FreqType =
@@ -391,6 +398,34 @@ emptyEntry = Entry
                 0
                 False
 
+
+asEdited: Maybe Float -> Edited
+asEdited value =
+    case value of
+        Nothing -> Deletion
+        Just v -> Edition v
+
+
+dressSeries: SeriesNaked -> Dict String Entry
+dressSeries series =
+    Dict.fromList
+        <| List.indexedMap
+            (\ idx (k, v) -> ( k
+                             , { value = v
+                               , override = False
+                               , edited = asEdited v
+                               , raw = case v of
+                                        Nothing -> Nothing
+                                        Just val -> Just
+                                                      <| String.fromFloat val
+                               , index = idx
+                               , selected = False
+                               }
+                             )
+            )
+            ( Dict.toList series )
+
+
 type Edited =
     Edition Float
     | NoEdition
@@ -487,7 +522,7 @@ getPoints model =
     case model.mode of
         Existing I.Primary -> getSeries model GotEditData "supervision" GET model.name
         Existing I.Formula ->  getSeries model GotValueData "state" GET model.name
-        Creation -> Cmd.none
+        Creation _ -> Cmd.none
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
@@ -550,6 +585,37 @@ getRelevantComponent model component =
                 "eval_formula"
                 POST
                 component.name
+
+
+printFreq: FreqType -> String
+printFreq freq =
+    let offset = freq.offset
+    in
+    case freq.multiplier of
+        Nothing -> offset
+        Just nb -> String.fromInt nb ++ offset
+
+
+getGeneratedTs: Model -> Cmd Msg
+getGeneratedTs model =
+    Http.get
+    { url = (UB.crossOrigin model.baseurl
+                [ "generate-ts" ]
+                (( [ UB.string "from" model.creation.from
+                  , UB.string "to" model.creation.to
+                  , UB.string "freq" ( printFreq model.creation.freq )
+                  ] ++ case model.creation.tz of
+                       Nothing -> []
+                       Just tz -> [ UB.string "tz" tz ]
+                )
+                   ++ case model.creation.value of
+                       Nothing -> []
+                       Just value ->
+                        [ UB.string "value" ( String.fromFloat value )]
+                )
+    )
+    , expect = Http.expectString GotGenerated }
+
 
 
 getsource : String -> String -> Cmd Msg
@@ -708,7 +774,24 @@ update msg model =
                                U.nocmd { model | componentsData = newCD }
                 Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotComponentData name (Err _) -> ( model, Cmd.none )
+        GotComponentData name (Err _) -> U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+
+        GotGenerated ( Ok rawdata ) ->
+             case JD.decodeString
+                    (JD.dict (JD.maybe JD.float))
+                    rawdata of
+                Ok val ->  U.nocmd
+                            { model | series =
+                                        ToEdit { initialTs = dressSeries val
+                                               , zoomTs = Nothing
+                                               }
+                                    , mode = Creation Edit
+                            }
+                Err err -> U.nocmd
+                            { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotGenerated (Err err) -> U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
@@ -744,6 +827,7 @@ update msg model =
                                          , Cmd.batch ([ moreCommands ]
                                          ++ getRelevantData resetModel ))
 
+
         Create option ->
             let creation = model.creation
                 freq = model.creation.freq
@@ -769,8 +853,28 @@ update msg model =
                               }
                     Value val -> { creation | value = String.toFloat val }
                     Name val -> { creation | name = val }
+                    Preview -> creation
+                command = case option of
+                    Preview -> getGeneratedTs model
+                    _ -> Cmd.none
+                tzawarness = case newCreation.tz of
+                                Nothing -> False
+                                Just _ -> True
+                horizon = model.horizon
+                newHorirzon = { horizon | timeZone =
+                                            Maybe.withDefault
+                                            ""
+                                            creation.tz
+                               }
             in
-                ( { model | creation = newCreation } , Cmd.none )
+                ( { model | creation = newCreation
+                          , name = newCreation.name
+                          , meta = Dict.fromList
+                                    [( "tzaware", M.MBool tzawarness )
+                                    ,( "tzaware", M.MBool tzawarness )]
+                          , horizon = newHorirzon
+                  }
+                , command )
 
 
         SwitchForceDraw ->
@@ -856,10 +960,18 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
+            let command = case model.mode of
+                            Existing _ -> Cmd.batch
+                                            [ I.getidates model "series" GetLastInsertionDates
+                                            , deselect True
+                                            ]
+                            Creation _ -> Cmd.batch
+                                            [ patchEditedData model
+                                            , deselect True
+                                            ]
+            in
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
-            , Cmd.batch [ I.getidates model "series" GetLastInsertionDates
-                        , deselect True
-                        ]
+            , command
             )
 
         CancelEdition ->
@@ -883,16 +995,25 @@ update msg model =
                 Slope value ->  U.nocmd { model | slope = Just value}
                 Intercept value -> U.nocmd { model | intercept = Just value}
 
-        GotEditedData (Ok _) ->
-            ( { model | monotonicCount = model.monotonicCount + 1
-                      , slope = Nothing
-                      , intercept = Nothing
-              }
-            , Cmd.batch
-                  ( getRelevantData model)
-            )
+        Saved (Ok _) ->
+            case model.mode of
+                Existing _ ->
+                    ( { model | monotonicCount = model.monotonicCount + 1
+                              , slope = Nothing
+                              , intercept = Nothing
+                      }
+                    , Cmd.batch
+                          ( getRelevantData model)
+                    )
+                Creation _ -> ( model
+                              , Browser.Navigation.load
+                                    <| UB.crossOrigin
+                                            model.baseurl
+                                            [ "tseditor" ]
+                                            [ UB.string "name" model.name ]
+                              )
 
-        GotEditedData (Err _) ->
+        Saved (Err _) ->
             U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure )}
 
         GotMetadata (Ok result) ->
@@ -1781,7 +1902,7 @@ getRelevantData model =
             ]
         Existing I.Formula ->
             [ getPoints model ]
-        Creation -> [ Cmd.none ]
+        Creation _ -> [ Cmd.none ]
 
 
 parseInput : String -> Edited
@@ -1877,20 +1998,23 @@ patchEditedData model =
     Http.request
         { method = "PATCH"
         , body = Http.jsonBody <| JE.object
-                 [ ("name", JE.string model.name )
+                 ([ ("name", JE.string model.name )
                  , ("author" , JE.string "webui" )
                  , ("tzaware", JE.bool tzaware )
                  , ("series", encodeEditedData patch )
                  , ("supervision", JE.bool True )
-                 , ("tzone", JE.string model.horizon.timeZone)
                  , ("keepnans", JE.bool True)
-                 ]
+                 ] ++ if tzaware
+                        then [( "tzone", JE.string model.horizon.timeZone )]
+                        else []
+                 )
+
         , headers = [ ]
         , timeout = Nothing
         , tracker = Nothing
         , url = UB.crossOrigin model.baseurl
                 [ "api", "series", "state" ] [ ]
-        , expect = Http.expectString GotEditedData
+        , expect = Http.expectString Saved
         }
 
 
@@ -2000,7 +2124,7 @@ maybeRoundForm model =
                     [ H.text "X" ]
                 ]
             ]
-        Creation -> []
+        Creation _ -> []
 
 
 printRound: Maybe Int -> String
@@ -2017,8 +2141,12 @@ printStatus plotstatus =
             "Saving ... please wait"
         Success ->
             "Save"
-        _ ->
+        None ->
+            "Save"
+        Failure ->
             "Saving Impossible"
+
+
 
 msgTooManyPointsWithButton: Int -> H.Html Msg
 msgTooManyPointsWithButton nbPoints =
@@ -2063,12 +2191,13 @@ viewRelevantTable model =
     case model.mode of
         Existing I.Primary -> viewEditTable model
         Existing I.Formula -> viewValueTable model
-        Creation -> creationForm model
+        Creation Form -> creationForm model
+        Creation Edit -> viewEditTable model
 
 
 creationForm: Model -> H.Html Msg
 creationForm model =
-    H.form
+    H.div
         []
         [ H.fieldset
             []
@@ -2116,7 +2245,7 @@ creationForm model =
                 , HA.type_ "number"
                 , HA.min "1"
                 , HA.step "1"
-                , HA.name "offset"
+                , HA.name "multiplier"
                 , HE.onInput ( \s -> Create ( FreqMultiply s ) )
                 , HA.value ( case model.creation.freq.multiplier of
                                 Nothing -> ""
@@ -2165,6 +2294,9 @@ creationForm model =
                 ]
                 []
             ]
+        , H.button
+            [ HE.onClick ( Create Preview ) ]
+            [ H.text "Preview" ]
         ]
 
 
@@ -3063,7 +3195,7 @@ commandStart model =
                             "series"
                         , getsource model.baseurl model.name
                         ]
-        Creation -> Cmd.none
+        Creation _ -> Cmd.none
 
 
 type alias Input =
@@ -3081,7 +3213,7 @@ init input =
                     , errors = [ ]
                     , name = input.name
                     , mode = if input.name == ""
-                                then Creation
+                                then Creation Form
                                 else Existing I.Primary
                     , meta = Dict.empty
                     , source = ""
