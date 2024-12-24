@@ -98,6 +98,7 @@ type alias HorizonModel =
     , dateRef: String
     , inferredFreq : Bool
     , timeZone : String
+    , timezones : List String
     , hasCache: Bool
     , viewNoCache: Bool
     , horizonChoices: List String
@@ -134,6 +135,8 @@ type alias Zoom =
     }
 
 
+timezones = ["UTC", "CET", "Europe/London"]
+
 updateZoom: HorizonModel -> Zoom -> Zoom
 updateZoom model newZoom =
     case newZoom.x of
@@ -162,6 +165,7 @@ initHorizon baseUrl min max debug status =
     , dateRef = "yyyy-mm-dd"
     , inferredFreq = False
     , timeZone = "UTC"
+    , timezones = timezones
     , hasCache = True
     , viewNoCache = False
     , horizonChoices = []
@@ -747,7 +751,7 @@ tzonedropdown model convertmsg =
         [ HE.on "change" (D.andThen decodeTimeZone HE.targetValue)
         , HA.disabled ( model.plotStatus == Loading )
         ]
-        (List.map (renderTimeZone model.timeZone) ["UTC", "CET", "GMT"])
+        ( List.map (renderTimeZone model.timeZone) model.timezones )
 
 
 loadingStatus: HorizonModel -> H.Html msg
