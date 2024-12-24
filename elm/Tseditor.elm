@@ -123,6 +123,8 @@ type ControlKey =
     | Enter Action
     | Other String Action
 
+naiveTag: String
+naiveTag = "Naive"
 
 type alias Model =
     { baseurl : String
@@ -250,12 +252,17 @@ type alias CreationModel =
     { from: String
     , to: String
     , freq: FreqType
-    , tz: Maybe String
+    , tz: TzSelector
     , value: Maybe Float
     , name: String
     , nameValid: Bool
     , mandatoryValid: Bool
     }
+
+type TzSelector =
+    Unchanged
+    | Naive
+    | Selected String
 
 initCreationModel: CreationModel
 initCreationModel =
@@ -263,7 +270,7 @@ initCreationModel =
     , to = ""
     , freq = { offset = "D"
              , multiplier = Nothing }
-    , tz = Nothing
+    , tz = Unchanged
     , value = Nothing
     , name = ""
     , nameValid = False
@@ -629,8 +636,9 @@ getGeneratedTs model =
                   , UB.string "to" model.creation.to
                   , UB.string "freq" ( printFreq model.creation.freq )
                   ] ++ case model.creation.tz of
-                       Nothing -> []
-                       Just tz -> [ UB.string "tz" tz ]
+                       Naive -> []
+                       Selected tz -> [ UB.string "tz" tz ]
+                       Unchanged -> [ UB.string "tz" model.horizon.timeZone ]
                 )
                    ++ case model.creation.value of
                        Nothing -> []
@@ -879,9 +887,9 @@ update msg model =
                         { creation |
                             freq = { freq | offset = val }
                         }
-                    Tz val -> { creation | tz = if val == ""
-                                                    then Nothing
-                                                    else Just val
+                    Tz val -> { creation | tz = if val == naiveTag
+                                                    then Naive
+                                                    else Selected val
                               }
                     Value val -> { creation | value = String.toFloat val }
                     Name val -> { creation | name = val
@@ -901,21 +909,14 @@ update msg model =
                     Preview -> getGeneratedTs model
                     _ -> Cmd.none
                 tzawarness = case validatedCreation.tz of
-                                Nothing -> False
-                                Just _ -> True
-                horizon = model.horizon
-                newHorirzon = { horizon | timeZone =
-                                            Maybe.withDefault
-                                            ""
-                                            creation.tz
-                               }
+                                Naive -> False
+                                _ -> True
             in
                 ( { model | creation = validatedCreation
                           , name = validatedCreation.name
                           , meta = Dict.fromList
                                     [( "tzaware", M.MBool tzawarness )
                                     ,( "tzaware", M.MBool tzawarness )]
-                          , horizon = newHorirzon
                   }
                 , command )
 
@@ -2310,14 +2311,7 @@ creationForm model =
             , H.label
                 [ HA.for "creation-tz" ]
                 [ H.text "Timezone: " ]
-            , H.input
-                [ HA.id "creation-tz"
-                , HA.name "tz"
-                , HE.onInput ( \s -> Create ( Tz s ) )
-                , HA.value
-                    <| Maybe.withDefault "" model.creation.tz
-                ]
-                []
+            , tzoneDropdown model.horizon.timezones model.creation.tz model.horizon.timeZone
             ]
         , H.fieldset
             []
@@ -2373,6 +2367,46 @@ creationForm model =
             ]
             [ H.text "Preview" ]
         ]
+
+
+tzoneDropdown : List String-> TzSelector -> String -> H.Html Msg
+tzoneDropdown choices selected fromHorizon=
+    let
+        decodeTimeZone : String -> JD.Decoder Msg
+        decodeTimeZone timeZone =
+            JD.succeed (Create (Tz timeZone))
+
+    in
+    H.select
+        [ HE.on "change" (JD.andThen decodeTimeZone HE.targetValue)
+        , HA.id "creation-tz"
+        , HA.name "tz"
+        ]
+        ( List.map (renderTimeZone selected fromHorizon ) ( naiveTag::choices ))
+
+
+renderTimeZone : TzSelector -> String -> String -> H.Html msg
+renderTimeZone selectedTz fromHorizon timeZone =
+    case selectedTz of
+        Selected tz ->
+            H.option
+                [ HA.value timeZone
+                , HA.selected ( tz == timeZone )
+                ]
+                [ H.text timeZone ]
+        Unchanged ->
+             H.option
+                [ HA.value timeZone
+                , HA.selected ( fromHorizon == timeZone )
+                ]
+                [ H.text timeZone ]
+        Naive ->
+             H.option
+                [ HA.value timeZone
+                , HA.selected ( naiveTag == timeZone )
+                ]
+                [ H.text timeZone ]
+
 
 
 viewValueTable: Model -> H.Html Msg
