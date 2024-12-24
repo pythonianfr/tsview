@@ -723,6 +723,16 @@ def tsview(tsa):
                     http.util.series_to_json(ts)
                 )
 
+    @bp.route('/serve-offsets')
+    def serve_offsets():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+        values = pd.offsets.__all__
+        aliases  = [ eval('pd.offsets.' + v + '().freqstr') for v in values ]
+        return make_response(
+            json.dumps(aliases)
+        )
+
     @bp.route('/formula-components')
     def formula_components():
         from tshistory_formula.helper import (

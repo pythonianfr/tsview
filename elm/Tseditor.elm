@@ -133,6 +133,7 @@ type alias Model =
     , meta : M.StdMetadata
     , source : String
     , catalog : Maybe ( List String )
+    , offsets : List String
     , seriestype : I.SeriesType
     , horizon : HorizonModel
     , creation: CreationModel
@@ -178,6 +179,7 @@ type Msg
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
+    | GotOffsets (Result Http.Error String)
     | HasCache ( Result Http.Error String )
     | GotInterval ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
@@ -273,7 +275,7 @@ initCreationModel: CreationModel
 initCreationModel =
     { from = ""
     , to = ""
-    , freq = { offset = "D"
+    , freq = { offset = "h"
              , multiplier = Nothing }
     , tz = Unchanged
     , value = Nothing
@@ -671,6 +673,15 @@ getCatalog model =
         , url = UB.crossOrigin model.baseurl
               [ "api", "series", "catalog" ]
               [ UB.string "allsources" "false" ]
+        }
+
+getOffsets: Model -> Cmd Msg
+getOffsets model =
+    Http.get
+        { expect = Http.expectString GotOffsets
+        , url = UB.crossOrigin model.baseurl
+              [ "serve-offsets" ]
+              []
         }
 
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
@@ -1113,6 +1124,16 @@ update msg model =
 
         GotCatalog (Err err) ->
             doerr "gotcatalog http" <| U.unwraperror err
+
+        GotOffsets (Ok raw) ->
+            case JD.decodeString (JD.list JD.string) raw of
+                Ok offsets ->
+                    U.nocmd { model | offsets = offsets }
+                Err err ->
+                    doerr "gotoffsets decode" <| JD.errorToString err
+
+        GotOffsets (Err err) ->
+            doerr "gotoffsets http" <| U.unwraperror err
 
         HasCache (Ok rawhascache) ->
             let model_horizon = model.horizon
@@ -2345,14 +2366,7 @@ creationForm model =
             , H.label
                 [ HA.for "creation-offset"]
                 [ ]
-            , H.input
-                [ HA.id "creation-offset"
-                , HA.class ( checkMandatory model.creation.freq.offset )
-                , HA.name "offset"
-                , HE.onInput ( \s -> Create ( FreqOffset s ) )
-                , HA.value model.creation.freq.offset
-                ]
-                []
+            , offsetDropdown model
             ]
         , H.fieldset
             []
@@ -2396,7 +2410,7 @@ tzoneDropdown choices selected fromHorizon=
         ( List.map (renderTimeZone selected fromHorizon ) ( naiveTag::choices ))
 
 
-renderTimeZone : TzSelector -> String -> String -> H.Html msg
+renderTimeZone : TzSelector -> String -> String -> H.Html Msg
 renderTimeZone selectedTz fromHorizon timeZone =
     case selectedTz of
         Selected tz ->
@@ -2418,6 +2432,30 @@ renderTimeZone selectedTz fromHorizon timeZone =
                 ]
                 [ H.text timeZone ]
 
+
+offsetDropdown: Model -> H.Html Msg
+offsetDropdown model =
+    let
+        decodeValue : String -> JD.Decoder Msg
+        decodeValue offset =
+            JD.succeed (Create (FreqOffset offset))
+
+    in
+    H.select
+        [ HE.on "change" (JD.andThen decodeValue HE.targetValue)
+        , HA.id "creation-offset"
+        , HA.name "offset"
+        ]
+        ( List.map (renderOffset model.creation.freq.offset ) model.offsets )
+
+
+renderOffset : String -> String ->H.Html Msg
+renderOffset selected offset =
+        H.option
+            [ HA.value offset
+            , HA.selected ( offset == selected )
+            ]
+            [ H.text offset ]
 
 
 viewValueTable: Model -> H.Html Msg
@@ -3319,7 +3357,9 @@ commandStart model =
                             "series"
                         , getsource model.baseurl model.name
                         ]
-        Creation _ -> getCatalog model
+        Creation _ -> Cmd.batch [ getCatalog model
+                                , getOffsets model
+                                ]
 
 
 type alias Input =
@@ -3341,6 +3381,7 @@ init input =
                                 else Existing I.Primary
                     , meta = Dict.empty
                     , catalog = Nothing
+                    , offsets = []
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon
