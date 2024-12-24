@@ -52,7 +52,7 @@ from tsview.menu import definition as menu_spec
 from tsview.moment import ConfigurationError
 from tsview.icons import definition as icons_definition
 from tsview.horizon import Horizon
-
+from tsview.pd_offsets import OFFSETS
 
 def primary_names(tsa):
     cat = list(tsa.catalog(
@@ -727,10 +727,8 @@ def tsview(tsa):
     def serve_offsets():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-        values = pd.offsets.__all__
-        aliases  = [ eval('pd.offsets.' + v + '().freqstr') for v in values ]
         return make_response(
-            json.dumps(aliases)
+            json.dumps(OFFSETS)
         )
 
     @bp.route('/formula-components')
