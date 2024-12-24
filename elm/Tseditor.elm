@@ -255,7 +255,7 @@ type alias CreationModel =
     , tz: TzSelector
     , value: Maybe Float
     , name: String
-    , nameValid: Bool
+    , nameStatus: NameStatus
     , mandatoryValid: Bool
     }
 
@@ -263,6 +263,11 @@ type TzSelector =
     Unchanged
     | Naive
     | Selected String
+
+type NameStatus =
+    Valid
+    | Invalid
+    | Missing
 
 initCreationModel: CreationModel
 initCreationModel =
@@ -273,7 +278,7 @@ initCreationModel =
     , tz = Unchanged
     , value = Nothing
     , name = ""
-    , nameValid = False
+    , nameStatus = Missing
     , mandatoryValid = False
     }
 
@@ -893,12 +898,15 @@ update msg model =
                               }
                     Value val -> { creation | value = String.toFloat val }
                     Name val -> { creation | name = val
-                                           , nameValid = case model.catalog of
-                                                            Nothing -> False
+                                           , nameStatus = case model.catalog of
+                                                            Nothing -> Invalid
                                                             Just cat ->
-                                                                not <| List.member
-                                                                        val
-                                                                        cat
+                                                                if List.member val cat
+                                                                    then Invalid
+                                                                    else
+                                                                        if val == ""
+                                                                            then Missing
+                                                                            else Valid
                                 }
                     Preview -> creation
                 validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= "" &&
@@ -2255,6 +2263,14 @@ checkMandatory s =
     then "mandatory"
     else ""
 
+className: NameStatus -> String
+className status =
+    case status of
+        Missing -> "mandatory"
+        Invalid -> "invalid"
+        Valid -> "valid"
+
+
 nameForm: Model -> H.Html Msg
 nameForm model =
     H.fieldset
@@ -2264,12 +2280,7 @@ nameForm model =
             [ H.text "Name: " ]
         , H.input
             [ HA.id "creation-name"
-            , HA.class  ( if model.name == ""
-                            then "mandatory"
-                            else if model.creation.nameValid
-                                then "valid"
-                                else "invalid"
-                        )
+            , HA.class ( className model.creation.nameStatus )
             , HA.name "name"
             , HA.autocomplete False
             , HE.onInput ( \s -> Create ( Name s ) )
@@ -2734,8 +2745,9 @@ saveButtons model patch =
                   [ HA.class "greenbutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick SaveEditedData
-                  , HA.disabled ( model.horizon.plotStatus == Loading ||
-                                  not model.creation.nameValid
+                  , HA.disabled (  model.horizon.plotStatus == Loading
+                                || model.creation.nameStatus == Invalid
+                                || model.creation.nameStatus == Missing
                                 )
                   ]
                   [ H.text ( printStatus model.horizon.plotStatus ) ]
