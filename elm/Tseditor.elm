@@ -132,8 +132,6 @@ type alias Model =
     , mode: EditionMode
     , meta : M.StdMetadata
     , source : String
-    , catalog : Maybe ( List String )
-    , offsets : List String
     , seriestype : I.SeriesType
     , horizon : HorizonModel
     , creation: CreationModel
@@ -259,6 +257,8 @@ type alias CreationModel =
     , name: String
     , nameStatus: NameStatus
     , mandatoryValid: Bool
+    , catalog : Maybe ( List String )
+    , offsets : List String
     }
 
 type TzSelector =
@@ -282,6 +282,8 @@ initCreationModel =
     , name = ""
     , nameStatus = Missing
     , mandatoryValid = False
+    , catalog = Nothing
+    , offsets = []
     }
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -909,7 +911,7 @@ update msg model =
                               }
                     Value val -> { creation | value = String.toFloat val }
                     Name val -> { creation | name = val
-                                           , nameStatus = case model.catalog of
+                                           , nameStatus = case model.creation.catalog of
                                                             Nothing -> Invalid
                                                             Just cat ->
                                                                 if List.member val cat
@@ -1118,7 +1120,9 @@ update msg model =
         GotCatalog (Ok raw) ->
             case JD.decodeString catalogDecoder raw of
                 Ok catalog ->
-                    U.nocmd { model | catalog = Just catalog }
+                    let creation = model.creation
+                    in
+                    U.nocmd { model | creation = { creation | catalog = Just catalog}}
                 Err err ->
                     doerr "gotcatalog decode" <| JD.errorToString err
 
@@ -1128,7 +1132,9 @@ update msg model =
         GotOffsets (Ok raw) ->
             case JD.decodeString (JD.list JD.string) raw of
                 Ok offsets ->
-                    U.nocmd { model | offsets = offsets }
+                    let creation = model.creation
+                    in
+                    U.nocmd { model | creation = { creation | offsets = offsets}}
                 Err err ->
                     doerr "gotoffsets decode" <| JD.errorToString err
 
@@ -2446,7 +2452,7 @@ offsetDropdown model =
         , HA.id "creation-offset"
         , HA.name "offset"
         ]
-        ( List.map (renderOffset model.creation.freq.offset ) model.offsets )
+        ( List.map (renderOffset model.creation.freq.offset ) model.creation.offsets )
 
 
 renderOffset : String -> String ->H.Html Msg
@@ -3380,8 +3386,6 @@ init input =
                                 then Creation Form
                                 else Existing I.Primary
                     , meta = Dict.empty
-                    , catalog = Nothing
-                    , offsets = []
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon
