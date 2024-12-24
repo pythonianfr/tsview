@@ -130,6 +130,7 @@ type alias Model =
     , mode: EditionMode
     , meta : M.StdMetadata
     , source : String
+    , catalog : Maybe ( List String )
     , seriestype : I.SeriesType
     , horizon : HorizonModel
     , creation: CreationModel
@@ -174,6 +175,7 @@ type Msg
     | GotGenerated (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
+    | GotCatalog (Result Http.Error String)
     | HasCache ( Result Http.Error String )
     | GotInterval ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
@@ -251,6 +253,8 @@ type alias CreationModel =
     , tz: Maybe String
     , value: Maybe Float
     , name: String
+    , nameValid: Bool
+    , mandatoryValid: Bool
     }
 
 initCreationModel: CreationModel
@@ -262,6 +266,8 @@ initCreationModel =
     , tz = Nothing
     , value = Nothing
     , name = ""
+    , nameValid = False
+    , mandatoryValid = False
     }
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -517,6 +523,24 @@ localDecoder =
     JD.map LocalStorage
         (JD.field "round" (JD.nullable JD.string))
 
+
+onlyNames: Dict String ( List ( List String )) -> List String
+onlyNames catalog =
+    List.map
+        (\ l -> Maybe.withDefault "" ( List.head l ))
+        <| Maybe.withDefault
+            []
+            ( List.head ( Dict.values catalog ))
+
+
+catalogDecoder : JD.Decoder ( List String )
+catalogDecoder =
+    JD.map
+        onlyNames
+        <| JD.dict
+            ( JD.list (JD.list JD.string ))
+
+
 getPoints: Model -> Cmd Msg
 getPoints model =
     case model.mode of
@@ -627,6 +651,14 @@ getsource baseurl name =
               [ UB.string "name" name ]
         }
 
+getCatalog: Model -> Cmd Msg
+getCatalog model =
+    Http.get
+        { expect = Http.expectString GotCatalog
+        , url = UB.crossOrigin model.baseurl
+              [ "api", "series", "catalog" ]
+              [ UB.string "allsources" "false" ]
+        }
 
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
 encodeBodyEvalFormula formula from to =
@@ -852,12 +884,23 @@ update msg model =
                                                     else Just val
                               }
                     Value val -> { creation | value = String.toFloat val }
-                    Name val -> { creation | name = val }
+                    Name val -> { creation | name = val
+                                           , nameValid = case model.catalog of
+                                                            Nothing -> False
+                                                            Just cat ->
+                                                                not <| List.member
+                                                                        val
+                                                                        cat
+                                }
                     Preview -> creation
+                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= "" &&
+                                                                      newCreation.to /= ""
+                                    }
+
                 command = case option of
                     Preview -> getGeneratedTs model
                     _ -> Cmd.none
-                tzawarness = case newCreation.tz of
+                tzawarness = case validatedCreation.tz of
                                 Nothing -> False
                                 Just _ -> True
                 horizon = model.horizon
@@ -867,8 +910,8 @@ update msg model =
                                             creation.tz
                                }
             in
-                ( { model | creation = newCreation
-                          , name = newCreation.name
+                ( { model | creation = validatedCreation
+                          , name = validatedCreation.name
                           , meta = Dict.fromList
                                     [( "tzaware", M.MBool tzawarness )
                                     ,( "tzaware", M.MBool tzawarness )]
@@ -1051,6 +1094,16 @@ update msg model =
 
         GotSource (Err err) ->
             doerr "gotsource http" <| U.unwraperror err
+
+        GotCatalog (Ok raw) ->
+            case JD.decodeString catalogDecoder raw of
+                Ok catalog ->
+                    U.nocmd { model | catalog = Just catalog }
+                Err err ->
+                    doerr "gotcatalog decode" <| JD.errorToString err
+
+        GotCatalog (Err err) ->
+            doerr "gotcatalog http" <| U.unwraperror err
 
         HasCache (Ok rawhascache) ->
             let model_horizon = model.horizon
@@ -2210,8 +2263,14 @@ nameForm model =
             [ H.text "Name: " ]
         , H.input
             [ HA.id "creation-name"
-            , HA.class ( checkMandatory model.creation.name )
+            , HA.class  ( if model.name == ""
+                            then "mandatory"
+                            else if model.creation.nameValid
+                                then "valid"
+                                else "invalid"
+                        )
             , HA.name "name"
+            , HA.autocomplete False
             , HE.onInput ( \s -> Create ( Name s ) )
             , HA.value model.creation.name
             ]
@@ -2308,7 +2367,10 @@ creationForm model =
                 []
             ]
         , H.button
-            [ HE.onClick ( Create Preview ) ]
+            [ HE.onClick ( Create Preview )
+            , HA.disabled ( not model.creation.mandatoryValid )
+            , HA.class "bluebutton custom-button"
+            ]
             [ H.text "Preview" ]
         ]
 
@@ -2628,17 +2690,19 @@ saveButtons model patch =
             [ H.div
                 [ HA.class "save-buttons" ]
                 [ H.button
-                  [ HA.class "bluebutton"
+                  [ HA.class "bluebutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick CancelEdition
                   , HA.disabled (model.horizon.plotStatus == Loading)
                   ]
                   [ H.text "Cancel" ]
                 , H.button
-                  [ HA.class "greenbutton"
+                  [ HA.class "greenbutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick SaveEditedData
-                  , HA.disabled (model.horizon.plotStatus == Loading)
+                  , HA.disabled ( model.horizon.plotStatus == Loading ||
+                                  not model.creation.nameValid
+                                )
                   ]
                   [ H.text ( printStatus model.horizon.plotStatus ) ]
                 ]
@@ -2889,6 +2953,7 @@ viewrow model ( date, entry ) =
                   , HA.class ("pastable " ++ rowstyle)
                   , if fillUnder then HA.class "fill-under" else HA.class "plain"
                   , HA.placeholder "enter your value"
+                  , HA.autocomplete False
                   , HA.value ( formatNumber ( getValue entry ))
                   , HE.onInput (InputChanged date)
                   , HA.attribute "index" date
@@ -3208,7 +3273,7 @@ commandStart model =
                             "series"
                         , getsource model.baseurl model.name
                         ]
-        Creation _ -> Cmd.none
+        Creation _ -> getCatalog model
 
 
 type alias Input =
@@ -3229,6 +3294,7 @@ init input =
                                 then Creation Form
                                 else Existing I.Primary
                     , meta = Dict.empty
+                    , catalog = Nothing
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon

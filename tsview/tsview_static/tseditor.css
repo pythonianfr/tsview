@@ -6,6 +6,10 @@
     background-color: pink;
 }
 
+.invalid {
+    background-color: red;
+}
+
 /* grid */
 
 .horizon-widget {
@@ -162,6 +166,7 @@
     border: 1px solid blue;
     border-radius: 8px;
     color: white;
+    cursor: pointer;
 }
 
 .greenbutton {
@@ -172,6 +177,13 @@
     border: 1px solid green;
     border-radius: 8px;
     color: white;
+    cursor: pointer;
+}
+
+.custom-button:disabled {
+    cursor: auto;
+    background-color: #B0B0B0;
+    border: 1px solid black;
 }
 
 /* edition table */
