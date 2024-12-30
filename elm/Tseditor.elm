@@ -131,6 +131,7 @@ type alias Model =
     , name : String
     , mode: EditionMode
     , meta : M.StdMetadata
+    , exist: Bool
     , source : String
     , seriestype : I.SeriesType
     , horizon : HorizonModel
@@ -1088,6 +1089,7 @@ update msg model =
                                                             then I.Formula
                                                             else  I.Primary
                        newmodel = { model | meta = allmeta
+                                          , exist = True
                                           , seriestype = seriestype
                                           , mode = case seriestype of
                                               I.Primary -> Existing I.Primary
@@ -1099,13 +1101,19 @@ update msg model =
                        , Cmd.batch ([ getHasCache newmodel
                                     , model.initialCommands
                                     , getInterval model.baseurl model.name
+                                    , getsource model.baseurl model.name
                                     ])
                        )
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
         GotMetadata (Err err) ->
-            doerr "gotmeta http" <| U.unwraperror err
+            case err of
+                Http.BadStatus code ->
+                    if code == 404
+                        then U.nocmd { model | exist = False }
+                        else doerr "gotmeta http" <| U.unwraperror err
+                _ -> doerr "gotmeta http" <| U.unwraperror err
 
         GotSource (Ok rawsource) ->
             case JD.decodeString JD.string rawsource of
@@ -2312,7 +2320,7 @@ className status =
 nameForm: Model -> H.Html Msg
 nameForm model =
     H.fieldset
-        []
+        [ HA.class "creation-form" ]
         [ H.label
             [ HA.for "creation-name"]
             [ H.text "Name: " ]
@@ -3271,6 +3279,10 @@ displayStatus model =
                         interval, select another one."""
            else H.text ""
 
+msgDoesNotExist =
+     H.div
+        []
+        [ H.text "Series does not exists. Check your url."]
 
 plotNode: Model -> H.Html Msg
 plotNode model =
@@ -3344,9 +3356,11 @@ view model =
                 [ H.div
                     [ HA.class "status-plot" ]
                     [ displayStatus model ]
-                , H.div
-                    [ HA.id "plot" ]
-                    [ ]
+                , case model.mode of
+                    Existing _ -> if model.exist
+                                    then H.div [ HA.id "plot" ] [ ]
+                                    else msgDoesNotExist
+                    _ -> H.div [ HA.id "plot" ] [ ]
                 , plotNode model
                 , debugView model
                 , underThePlot model
@@ -3363,14 +3377,11 @@ view model =
 commandStart: Model -> Cmd Msg
 commandStart model =
     case model.mode of
-        Existing _ -> Cmd.batch
-                        [ M.getsysmetadata
+        Existing _ -> M.getsysmetadata
                             model.baseurl
                             model.name
                             GotMetadata
                             "series"
-                        , getsource model.baseurl model.name
-                        ]
         Creation _ -> Cmd.batch [ getCatalog model
                                 , getOffsets model
                                 ]
@@ -3394,6 +3405,7 @@ init input =
                                 then Creation Form
                                 else Existing I.Primary
                     , meta = Dict.empty
+                    , exist = False
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon
