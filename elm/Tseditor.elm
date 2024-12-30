@@ -2236,6 +2236,13 @@ printStatus plotstatus =
             "Saving Impossible"
 
 
+disableSave: Model -> Bool
+disableSave model =
+    case model.mode of
+        Creation _ -> model.creation.nameStatus == Invalid
+                      || model.creation.nameStatus == Missing
+        _ -> False
+
 
 msgTooManyPointsWithButton: Int -> H.Html Msg
 msgTooManyPointsWithButton nbPoints =
@@ -2789,10 +2796,7 @@ saveButtons model patch =
                   [ HA.class "greenbutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick SaveEditedData
-                  , HA.disabled (  model.horizon.plotStatus == Loading
-                                || model.creation.nameStatus == Invalid
-                                || model.creation.nameStatus == Missing
-                                )
+                  , HA.disabled ( disableSave model )
                   ]
                   [ H.text ( printStatus model.horizon.plotStatus ) ]
                 ]
