@@ -2,14 +2,6 @@
     margin-bottom: 0px;
 }
 
-.mandatory {
-    background-color: pink;
-}
-
-.invalid {
-    background-color: red;
-}
-
 /* grid */
 
 .horizon-widget {
@@ -100,6 +92,14 @@
 
 /* creation form */
 
+.creation-form {
+    margin-top: 20px;
+}
+
+.creation-form input, .creation-form select {
+    height: 2em;
+}
+
 .creation-form .valid {
     border: solid 2px green;
 }
@@ -113,11 +113,21 @@
     background-color: lightcoral;
 }
 
-.creation-form input.mandatory, textarea.mandatory{
+.creation-form input:not(input[type=date]).mandatory{
     background-image: radial-gradient(#F00 15%, transparent 16%), radial-gradient(#F00 15%, transparent 16%);
     background-size: 1.5em 1.5em;
     background-position: right;
     background-repeat: no-repeat;
+}
+
+
+.creation-form input[type=date].mandatory{
+    color: #F00;
+}
+
+#creation-multiplier, #creation-value {
+    text-align: right;
+    width: 4rem;
 }
 
 /* forms and buttons above the edition */

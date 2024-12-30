@@ -2299,8 +2299,17 @@ viewRelevantTable model =
     case model.mode of
         Existing I.Primary -> viewEditTable model
         Existing I.Formula -> viewValueTable model
-        Creation Form -> H.div [] [ nameForm model, creationForm model ]
-        Creation Edit -> H.div [] [ nameForm model, viewEditTable model ]
+        Creation Form -> H.table
+                            [ HA.class "creation-form" ]
+                            [ nameForm model
+                            , creationForm model
+                            ]
+        Creation Edit -> H.div
+                            [ ]
+                            [ H.table
+                                [ HA.class "creation-form" ]
+                                [ nameForm model ]
+                            , viewEditTable model ]
 
 
 checkMandatory: String -> String
@@ -2320,7 +2329,7 @@ className status =
 nameForm: Model -> H.Html Msg
 nameForm model =
     H.fieldset
-        [ HA.class "creation-form" ]
+        [ ]
         [ H.label
             [ HA.for "creation-name"]
             [ H.text "Name: " ]
@@ -2347,6 +2356,7 @@ creationForm model =
             , H.input
                 [ HA.type_ "date"
                 , HA.id "creation-from"
+                , HA.class "input-date"
                 , HA.class  ( checkMandatory model.creation.from )
                 , HA.name "from"
                 , HE.onInput ( \s -> Create ( From s ) )
@@ -2359,6 +2369,7 @@ creationForm model =
             , H.input
                 [ HA.type_ "date"
                 , HA.id "creation-to"
+                , HA.class "input-date"
                 , HA.class  ( checkMandatory model.creation.to )
                 , HA.name "to"
                 , HE.onInput ( \s -> Create ( To s ) )
@@ -2380,6 +2391,7 @@ creationForm model =
                 , HA.type_ "number"
                 , HA.min "1"
                 , HA.step "1"
+                , HA.placeholder "1"
                 , HA.name "multiplier"
                 , HE.onInput ( \s -> Create ( FreqMultiply s ) )
                 , HA.value ( case model.creation.freq.multiplier of
@@ -2402,6 +2414,7 @@ creationForm model =
                 [ HA.id "creation-value"
                 , HA.type_ "number"
                 , HA.name "value"
+                , HA.placeholder "NaN"
                 , HE.onInput ( \s -> Create ( Value s ) )
                 , HA.value ( case model.creation.value of
                                 Nothing -> ""
