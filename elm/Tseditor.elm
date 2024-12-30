@@ -1169,7 +1169,11 @@ update msg model =
                                 ( { model | statistics = newstat }
                                 , Cmd.none )
                         _ -> ( model, Cmd.none )
-                Err err -> doerr "gotinterval decode" <| JD.errorToString err
+                Err err ->
+                    -- special case when the interval is not defined (all nas)
+                    if raw == ""
+                        then  ( model, Cmd.none )
+                        else doerr "gotinterval decode" <| JD.errorToString err
 
         GotInterval ( Err err) -> doerr "gotinterval http" <| U.unwraperror err
 
