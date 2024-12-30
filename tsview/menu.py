@@ -43,6 +43,12 @@ def definition(**extra_urls):
                     'id': 'timeseries-quickview'
                 },
                 {
+                    'label': 'Create',
+                    'icone': 'bi bi-pencil',
+                    'target': '/tseditor',
+                    'id': 'timeseries-create'
+                },
+                {
                     'label': 'Delete',
                     'icone': 'bi bi-trash',
                     'target': '/tsdelete',

@@ -688,7 +688,7 @@ def tsview(tsa):
         min = request.args.get('startdate', '')
         max = request.args.get('enddate', '')
         debug = request.args.get('debug', '')
-        flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
+        flags_menu = json.dumps([homeurl(), 'timeseries-create'])
         title = f'Edit: {name}'
         return render_template(
             'tseditor.html',
