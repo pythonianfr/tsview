@@ -2301,9 +2301,8 @@ viewRelevantTable model =
         Existing I.Formula -> viewValueTable model
         Creation Form -> H.table
                             [ HA.class "creation-form" ]
-                            [ nameForm model
-                            , creationForm model
-                            ]
+                            ( [ nameForm model ] ++ ( creationForm model ) )
+
         Creation Edit -> H.div
                             [ ]
                             [ H.table
@@ -2328,109 +2327,155 @@ className status =
 
 nameForm: Model -> H.Html Msg
 nameForm model =
-    H.fieldset
+    H.tr
         [ ]
-        [ H.label
-            [ HA.for "creation-name"]
-            [ H.text "Name: " ]
-        , H.input
-            [ HA.id "creation-name"
-            , HA.class ( className model.creation.nameStatus )
-            , HA.name "name"
-            , HA.autocomplete False
-            , HE.onInput ( \s -> Create ( Name s ) )
-            , HA.value model.creation.name
+        [ H.td
+            [ ]
+            [ H.label
+                [ HA.for "creation-name"]
+                [ H.text "Name " ]
             ]
-            []
+        , H.td
+            [ ]
+            [ H.input
+                [ HA.id "creation-name"
+                , HA.class ( className model.creation.nameStatus )
+                , HA.name "name"
+                , HA.autocomplete False
+                , HE.onInput ( \s -> Create ( Name s ) )
+                , HA.value model.creation.name
+                ]
+                []
+            ]
         ]
 
-creationForm: Model -> H.Html Msg
+creationForm: Model -> List ( H.Html Msg )
 creationForm model =
-    H.div
-        []
-        [ H.fieldset
+        [ H.tr
             []
-            [ H.label
-                [HA.for "creation-from"]
-                [H.text "From: "]
-            , H.input
-                [ HA.type_ "date"
-                , HA.id "creation-from"
-                , HA.class "input-date"
-                , HA.class  ( checkMandatory model.creation.from )
-                , HA.name "from"
-                , HE.onInput ( \s -> Create ( From s ) )
-                , HA.value model.creation.from
-                ]
+            [ H.td
                 []
-            , H.label
-                [HA.for "creation-to"]
-                [H.text "To: "]
-            , H.input
-                [ HA.type_ "date"
-                , HA.id "creation-to"
-                , HA.class "input-date"
-                , HA.class  ( checkMandatory model.creation.to )
-                , HA.name "to"
-                , HE.onInput ( \s -> Create ( To s ) )
-                , HA.value model.creation.to
+                [ H.label
+                    [HA.for "creation-from"]
+                    [H.text "From "]
                 ]
+            , H.td
                 []
-            , H.label
-                [ HA.for "creation-tz" ]
-                [ H.text "Timezone: " ]
-            , tzoneDropdown model.horizon.timezones model.creation.tz model.horizon.timeZone
+                [ H.input
+                    [ HA.type_ "date"
+                    , HA.id "creation-from"
+                    , HA.class "input-date"
+                    , HA.class  ( checkMandatory model.creation.from )
+                    , HA.name "from"
+                    , HE.onInput ( \s -> Create ( From s ) )
+                    , HA.value model.creation.from
+                    ]
+                    []
+                ]
             ]
-        , H.fieldset
+        , H.tr
             []
-            [ H.label
-                [ HA.for "creation-multiplier"]
-                [ H.text "Frequency: " ]
-            , H.input
-                [ HA.id "creation-multiplier"
-                , HA.type_ "number"
-                , HA.min "1"
-                , HA.step "1"
-                , HA.placeholder "1"
-                , HA.name "multiplier"
-                , HE.onInput ( \s -> Create ( FreqMultiply s ) )
-                , HA.value ( case model.creation.freq.multiplier of
-                                Nothing -> ""
-                                Just n -> String.fromInt n
-                           )
-                ]
-                []
-            , H.label
-                [ HA.for "creation-offset"]
+            [ H.td
                 [ ]
-            , offsetDropdown model
-            ]
-        , H.fieldset
-            []
-            [ H.label
-                [ HA.for "creation-value"]
-                [ H.text "Value: " ]
-            , H.input
-                [ HA.id "creation-value"
-                , HA.type_ "number"
-                , HA.name "value"
-                , HA.placeholder "NaN"
-                , HE.onInput ( \s -> Create ( Value s ) )
-                , HA.value ( case model.creation.value of
-                                Nothing -> ""
-                                Just f -> String.fromFloat f
-                           )
+                [ H.label
+                    [HA.for "creation-to"]
+                    [H.text "To "]
                 ]
+            , H.td
+                [ ]
+                [ H.input
+                    [ HA.type_ "date"
+                    , HA.id "creation-to"
+                    , HA.class "input-date"
+                    , HA.class  ( checkMandatory model.creation.to )
+                    , HA.name "to"
+                    , HE.onInput ( \s -> Create ( To s ) )
+                    , HA.value model.creation.to
+                    ]
+                    []
+                ]
+            ]
+        , H.tr
+            [ ]
+            [ H.td
+                [ ]
+                [ H.label
+                    [ HA.for "creation-tz" ]
+                    [ H.text "Timezone " ]
+                ]
+            , H.td
+                [ ]
+                [ tzoneDropdown
+                    model.horizon.timezones
+                    model.creation.tz
+                    model.horizon.timeZone
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                [ ]
+                [ H.label
+                    [ HA.for "creation-multiplier"]
+                    [ H.text "Frequency " ]
+                ]
+            , H.td
+                [ ]
+                [ H.input
+                    [ HA.id "creation-multiplier"
+                    , HA.type_ "number"
+                    , HA.min "1"
+                    , HA.step "1"
+                    , HA.placeholder "1"
+                    , HA.name "multiplier"
+                    , HE.onInput ( \s -> Create ( FreqMultiply s ) )
+                    , HA.value ( case model.creation.freq.multiplier of
+                                    Nothing -> ""
+                                    Just n -> String.fromInt n
+                               )
+                    ]
+                    []
+                , offsetDropdown model
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
                 []
+                [ H.label
+                    [ HA.for "creation-value"]
+                    [ H.text "Value " ]
+                ]
+            , H.td
+                []
+                [ H.input
+                    [ HA.id "creation-value"
+                    , HA.type_ "number"
+                    , HA.name "value"
+                    , HA.placeholder "NaN"
+                    , HE.onInput ( \s -> Create ( Value s ) )
+                    , HA.value ( case model.creation.value of
+                                    Nothing -> ""
+                                    Just f -> String.fromFloat f
+                               )
+                    ]
+                    []
+                ]
             ]
-        , H.button
-            [ HE.onClick ( Create Preview )
-            , HA.disabled ( not model.creation.mandatoryValid )
-            , HA.class "bluebutton custom-button"
+        , H.tr
+            []
+            [ H.td [] []
+            , H.td
+                []
+                [ H.button
+                    [ HE.onClick ( Create Preview )
+                    , HA.disabled ( not model.creation.mandatoryValid )
+                    , HA.class "bluebutton custom-button"
+                    ]
+                    [ H.text "Preview" ]
+                ]
             ]
-            [ H.text "Preview" ]
         ]
-
 
 tzoneDropdown : List String-> TzSelector -> String -> H.Html Msg
 tzoneDropdown choices selected fromHorizon=

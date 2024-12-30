@@ -94,10 +94,19 @@
 
 .creation-form {
     margin-top: 20px;
+    margin-left: 20px;
+}
+
+.creation-form td:nth-child(2){
+    text-align: right;
 }
 
 .creation-form input, .creation-form select {
     height: 2em;
+}
+
+.creation-form select {
+    text-align: right;
 }
 
 .creation-form .valid {
