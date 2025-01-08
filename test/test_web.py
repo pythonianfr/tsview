@@ -130,6 +130,8 @@ def test_series_metadata_and_formulas(client, tsa):
             'foo': 'bar',
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
+            'left': '2022-01-01T00:00:00',
+            'right': '2022-01-03T00:00:00',
             'supervision_status': 'unsupervised',
             'tablename': 'base',
             'tzaware': False,
@@ -221,6 +223,8 @@ def test_group_formulas(client, tsa):
         'base': {
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
+            'left': '2022-01-01T00:00:00',
+            'right': '2022-01-05T00:00:00',
             'tzaware': False,
             'value_dtype': '<f8',
             'value_type': 'float64'
