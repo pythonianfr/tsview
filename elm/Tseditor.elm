@@ -453,8 +453,26 @@ type Edited =
 
 type alias Component =
     { name: String
-    , ctype: String
+    , cType: CType
+    , open: Bool
     }
+
+
+type CType =
+    Primary
+    | Formula
+    | Auto
+
+
+applyType: String -> CType
+applyType strType =
+    if strType == "auto"
+    then Auto
+    else if strType == "formula"
+    then Formula
+    else Primary
+
+
 
 type alias PasteType =
     { text: String
@@ -527,9 +545,12 @@ dataDecoder =
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
-    JD.list (JD.map2 Component
-                (JD.field "name" JD.string)
-                (JD.field "type" JD.string))
+    JD.list (JD.map3 Component
+                ( JD.field "name" JD.string )
+                ( JD.map applyType ( JD.field "type" JD.string ))
+                ( JD.succeed False )
+            )
+
 
 localDecoder : JD.Decoder LocalStorage
 localDecoder =
@@ -604,23 +625,22 @@ getDataComponents model =
                     model.components )
 
 
-
 getRelevantComponent : Model -> Component -> Cmd Msg
 getRelevantComponent model component =
-    if component.ctype /= "auto"
-        then
-            getSeries
-                model
-                ( GotComponentData component.name )
-                "state"
-                GET
-                component.name
-        else
+    case component.cType of
+        Auto ->
             getSeries
                 model
                 ( GotComponentData component.name )
                 "eval_formula"
                 POST
+                component.name
+        _ ->
+            getSeries
+                model
+                ( GotComponentData component.name )
+                "state"
+                GET
                 component.name
 
 
@@ -2653,15 +2673,15 @@ buildLink: Model -> Component -> H.Html Msg
 buildLink model comp =
     H.th
         []
-        ( if comp.ctype /= "auto"
-            then
+        ( case comp.cType of
+            Auto ->
+                [ H.p [] [ H.text comp.name ]]
+            _ ->
                 [ H.a
                     [ HA.href ( UB.crossOrigin model.baseurl
                                     [ "tseditor" ]
                                     ( queryNav model comp.name ))]
                     [ H.text comp.name ]]
-            else
-                [ H.p [] [ H.text comp.name ]]
         )
 
 
