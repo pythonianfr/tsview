@@ -37,6 +37,7 @@ type MetaVal
     | MFloat Float
     | MBool Bool
     | MList (List MetaVal)
+    | Mnull String
 
 
 showbool b =
@@ -50,6 +51,7 @@ metavaltostring mv =
         MFloat f -> String.fromFloat f
         MBool b -> showbool b
         MList l -> String.join ", " <| List.map metavaltostring l
+        Mnull s -> ""
 
 
 type alias StdMetadata =
@@ -101,6 +103,7 @@ decodemetaval =
         , D.map MInt D.int
         , D.map MFloat D.float
         , D.map MBool D.bool
+        , D.map Mnull (D.null "")
         -- terminal unprocessed node (only for the deprecated index_names entry)
         , D.map MList (D.list (D.lazy (\_  -> decodemetaval)))
         ]

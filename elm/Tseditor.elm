@@ -180,7 +180,6 @@ type Msg
     | GotCatalog (Result Http.Error String)
     | GotOffsets (Result Http.Error String)
     | HasCache ( Result Http.Error String )
-    | GotInterval ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | Create CreationOptions
     | SwitchForceDraw
@@ -331,10 +330,6 @@ emptyStat =
     , inferFreq = InferFreq ( Authorised Nothing )
     }
 
-type alias Interval =
-    { from: String
-    , to: String
-    }
 
 type alias Holding =
     { mouse: Bool
@@ -1088,7 +1083,19 @@ update msg model =
                    let seriestype = if Dict.member "formula" allmeta
                                                             then I.Formula
                                                             else  I.Primary
+
+                       first = Date <| case Dict.get "left" allmeta of
+                                        Just (M.MString val) -> Just val
+                                        _ -> Nothing
+                       last = Date <| case Dict.get "right" allmeta of
+                                        Just (M.MString val) -> Just val
+                                        _ -> Nothing
+                       stat = model.statistics
+                       newstat = { stat | first = first
+                                        , last = last
+                                 }
                        newmodel = { model | meta = allmeta
+                                          , statistics = newstat
                                           , exist = True
                                           , seriestype = seriestype
                                           , mode = case seriestype of
@@ -1100,7 +1107,6 @@ update msg model =
                        ( newmodel
                        , Cmd.batch ([ getHasCache newmodel
                                     , model.initialCommands
-                                    , getInterval model.baseurl model.name
                                     , getsource model.baseurl model.name
                                     ])
                        )
@@ -1159,31 +1165,6 @@ update msg model =
 
         HasCache (Err error) ->
             doerr "hascache http" <| U.unwraperror error
-
-        GotInterval ( Ok raw ) ->
-            let decodeStuff = JD.oneOf
-                                [ JD.string
-                                , JD.map (\ _ -> "isABool" ) JD.bool ]
-            in
-            case JD.decodeString ( JD.list decodeStuff ) raw of
-                Ok payLoad ->
-                    case payLoad of
-                        [ _, first, last ] ->
-                            let stat = model.statistics
-                                newstat = { stat | first = Date ( Just first )
-                                                 , last = Date (Just last )
-                                          }
-                            in
-                                ( { model | statistics = newstat }
-                                , Cmd.none )
-                        _ -> ( model, Cmd.none )
-                Err err ->
-                    -- special case when the interval is not defined (all nas)
-                    if raw == ""
-                        then  ( model, Cmd.none )
-                        else doerr "gotinterval decode" <| JD.errorToString err
-
-        GotInterval ( Err err) -> doerr "gotinterval http" <| U.unwraperror err
 
         Paste payload ->
             let
@@ -1678,19 +1659,6 @@ getHasCache model =
               [ "api", "cache", "series-has-cache" ]
               [ UB.string "name" model.name ]
         , expect = Http.expectString HasCache
-        }
-
-
-getInterval: String -> String -> Cmd Msg
-getInterval baseUrl name =
-      Http.get
-        { url =
-               UB.crossOrigin
-               baseUrl
-                [ "api", "series", "metadata" ]
-                [ UB.string "name" name
-                , UB.string "type" "interval" ]
-        , expect = Http.expectString GotInterval
         }
 
 

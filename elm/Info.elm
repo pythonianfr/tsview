@@ -184,6 +184,7 @@ metatype val =
                 M.MFloat _ -> "float"
                 M.MBool _ -> "bool"
                 M.MList _ -> "list"
+                M.Mnull _ -> "null"
 
 
 viewerrors model =
