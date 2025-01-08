@@ -173,7 +173,7 @@ type Msg
     = GotEditData (Result Http.Error String)
     | GotValueData (Result Http.Error String)
     | GotComponents (Result Http.Error String)
-    | GotComponentData String (Result Http.Error String)
+    | GotComponentData CType String (Result Http.Error String)
     | GotGenerated (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
@@ -631,14 +631,21 @@ getRelevantComponent model component =
         Auto ->
             getSeries
                 model
-                ( GotComponentData component.name )
+                ( GotComponentData Auto component.name )
                 "eval_formula"
                 POST
                 component.name
-        _ ->
+        Primary ->
             getSeries
                 model
-                ( GotComponentData component.name )
+                ( GotComponentData Primary component.name )
+                "supervision"
+                GET
+                component.name
+        Formula ->
+            getSeries
+                model
+                ( GotComponentData Formula component.name )
                 "state"
                 GET
                 component.name
@@ -837,19 +844,42 @@ update msg model =
 
         GotComponents (Err _) -> ( model, Cmd.none )
 
-        GotComponentData name (Ok rawdata) ->
-             case JD.decodeString
-                    (JD.dict (JD.maybe JD.float))
-                    rawdata of
-                Ok val ->  let newCD = Dict.insert
-                                        name
-                                        ( Naked { initialTs = val, zoomTs = Nothing} )
-                                        model.componentsData
-                           in
-                               U.nocmd { model | componentsData = newCD }
-                Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+        GotComponentData cType name (Ok rawdata) ->
+            case cType of
+                Formula ->
+                 case JD.decodeString
+                        (JD.dict (JD.maybe JD.float))
+                        rawdata of
+                    Ok val ->  let newCD = Dict.insert
+                                            name
+                                            ( Naked { initialTs = val, zoomTs = Nothing })
+                                            model.componentsData
+                               in
+                                   U.nocmd { model | componentsData = newCD }
+                    Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                Primary ->
+                    case JD.decodeString dataDecoder rawdata of
+                        Ok val ->
+                            let indexedval =
+                                    cropTs
+                                        ( Dict.fromList
+                                            <| List.indexedMap
+                                                    reindex
+                                                    (Dict.toList val)
+                                        )
+                                        ( getFetchBounds model.horizon )
+                                newCD = Dict.insert
+                                            name
+                                            ( ToEdit { initialTs = indexedval, zoomTs = Nothing })
+                                            model.componentsData
+                            in
+                                U.nocmd { model | componentsData = newCD }
+                        Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                Auto -> U.nocmd model
 
-        GotComponentData name (Err _) -> U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+
+        GotComponentData cType name (Err _) ->
+            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotGenerated ( Ok rawdata ) ->
              case JD.decodeString
