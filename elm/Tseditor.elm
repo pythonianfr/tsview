@@ -498,14 +498,15 @@ separator raw =
 pasteditems : String -> List String
 pasteditems raw =
     let
+        removespace = String.replace " " "" raw
         sep =
             separator raw
     in
     case sep of
         Nothing ->
-            [ raw ]
+            [ removespace ]
         Just s ->
-            String.split s raw
+            String.split s removespace
 
 
 -- series decoder
