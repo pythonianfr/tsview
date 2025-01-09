@@ -1280,7 +1280,7 @@ update msg model =
 
         FillNas indexLastValue ->
             let
-                lastValue = getLastValue
+                lastValue = getValueFromIndex
                                 ( getEditionTs model.series )
                                 indexLastValue
             in
@@ -1742,7 +1742,7 @@ getStatistics previous allowInfer series =
 getCurrentValue: Entry -> Maybe Float
 getCurrentValue entry =
     case entry.edited of
-        Edition value -> Just value
+        Edition edition -> Just edition
         Deletion -> Nothing
         NoEdition -> entry.value
         Error _ -> Nothing
@@ -1819,32 +1819,41 @@ findLastValid series previousIsValue found =
                         else ( findLastValid xs True found )
 
 
-fillNas: Dict String  Entry  -> Float -> Int -> Dict String Entry
+fillNas: Dict String Entry -> Float -> Int -> Dict String Entry
 fillNas series lastValue indexLastValue =
-    Dict.fromList
-        <|recFillNas
-                ( List.filter
-                    (\ (_, e) -> e.index > indexLastValue)
-                    ( Dict.toList series )
-                )
-                lastValue
-                []
+    let nbNas = getNbNas series indexLastValue
+    in
+        Dict.map
+            ( applyValue lastValue indexLastValue nbNas )
+            series
 
 
-recFillNas: List (String,  Entry)  -> Float -> List (String,  Entry)  -> List (String,  Entry)
-recFillNas series lastValue result =
-    case series of
-        [] -> result
-        (k, entry) :: xs ->
-            case getCurrentValue entry of
-                Just _ -> result
-                Nothing -> List.concat[
-                            [(k, {entry | edited = Edition lastValue})]
-                            , recFillNas
-                                xs
-                                lastValue
-                                result
-                            ]
+applyValue: Float -> Int -> Int -> String -> Entry -> Entry
+applyValue lastValue indexLastValue nbNas date entry =
+    if entry.index > indexLastValue && entry.index <= indexLastValue + nbNas
+        then { entry | edited = Edition lastValue }
+        else entry
+
+
+getNbNas: Dict String  Entry -> Int -> Int
+getNbNas series index =
+    let values = List.map
+                    getCurrentValue
+                    <| List.filter
+                        ( \ e -> e.index > index )
+                        ( Dict.values series )
+    in
+        findNbNas values 0
+
+
+findNbNas: List ( Maybe Float ) -> Int -> Int
+findNbNas values nb =
+    case values of
+        [] -> nb
+        x :: xs ->
+            case x of
+                Nothing -> findNbNas xs ( nb + 1 )
+                Just _ -> nb
 
 
 fillAllNas : Dict String  Entry -> List Int -> Dict String  Entry
@@ -1852,22 +1861,20 @@ fillAllNas series idxNa =
     case idxNa of
         [] -> series
         x :: xs ->
-            let lastValue = getLastValue series x
+            let lastValue = getValueFromIndex series x
             in
-                Dict.union
+                ( fillAllNas
                     ( fillNas
                         series
                         lastValue
                         x
                     )
-                    ( fillAllNas
-                        series
-                        xs
-                    )
+                    xs
+                )
 
 
-getLastValue: Dict String  Entry -> Int -> Float
-getLastValue series indexNa =
+getValueFromIndex: Dict String  Entry -> Int -> Float
+getValueFromIndex series indexNa =
     let
         entry = Maybe.withDefault
                     emptyEntry
