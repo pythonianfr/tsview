@@ -417,6 +417,34 @@ emptyEntry = Entry
                 False
 
 
+type alias Basic =
+    { raw : Maybe String
+    , value : Maybe Float
+    , override : Bool
+    , indexRow: String
+    , indexCol: String
+    }
+
+emptyBasic : Basic
+emptyBasic =
+    { raw = Nothing
+    , value = Nothing
+    , override = False
+    , indexRow = ""
+    , indexCol = ""
+    }
+
+type alias XyBasic =
+    { value : Maybe Float
+    , override : Bool
+    , who: String
+    , when: String
+    , col: Int
+    , row: Int
+    }
+
+
+
 asEdited: Maybe Float -> Edited
 asEdited value =
     case value of
@@ -2584,13 +2612,184 @@ bodyShowValue model =
     then
         H.tbody
             []
-            ( List.map
-                ( buildRow model )
-                ( datesValue model ))
+            ( buildTable ( cartesianData ( mergeData model )))
+
     else
         H.p
             []
             [ msgTooManyPointsWithButton nbPoints ]
+
+
+buildTable: Dict ( Int, Int ) ( Maybe Basic ) -> List ( H.Html Msg )
+buildTable cartDict =
+    let coords = Dict.keys cartDict
+        xs = List.map Tuple.second coords
+        ys = List.map Tuple.first coords
+        minX = Maybe.withDefault 0 <| List.minimum xs
+        maxX = Maybe.withDefault 0 <| List.maximum xs
+        minY = Maybe.withDefault 0 <| List.minimum ys
+        maxY = Maybe.withDefault 0 <| List.maximum ys
+    in
+        List.map
+            ( buildCartRow cartDict minX maxX )
+            ( List.range minY maxY )
+
+
+
+buildCartRow: Dict ( Int, Int ) ( Maybe Basic ) -> Int -> Int -> Int -> H.Html Msg
+buildCartRow cartDict minX maxX  iRow =
+    H.tr
+        []
+        <| List.map
+            ( buildCell cartDict iRow )
+            ( List.range minX maxX )
+
+
+buildCell: Dict ( Int, Int ) ( Maybe Basic ) -> Int -> Int -> H.Html Msg
+buildCell cartDict iRow iCol =
+    let value = case Dict.get ( iRow, iCol ) cartDict of
+                    Nothing -> ""
+                    Just smthing ->
+                        case smthing of
+                            Nothing -> ""
+                            Just rec ->
+                                case rec.value of
+                                    Nothing -> ""
+                                    Just val -> String.fromFloat val
+   in
+    H.td
+        []
+        [   H.input
+                [ HA.value value ]
+                []
+        ]
+
+
+
+cartesianDataRec:  List ( List ( Maybe Basic )) ->  List ( Maybe Basic ) -> Int -> Int -> Dict ( Int, Int ) ( Maybe Basic ) -> Dict ( Int, Int ) ( Maybe Basic )
+cartesianDataRec mergedData currentRow i j myDict =
+        if j == 0
+        then
+            case mergedData of
+                [] -> myDict
+                row :: rows ->
+                    case row of
+                        [] -> myDict
+                        cell :: cells ->
+                            cartesianDataRec
+                                rows
+                                cells
+                                i
+                                ( j + 1 )
+                                (Dict.insert (i, j) cell myDict)
+
+        else
+          case currentRow of
+                [] -> cartesianDataRec
+                        mergedData
+                        []
+                        ( i + 1 )
+                        0
+                        myDict
+                cell :: cells ->
+                    cartesianDataRec
+                        mergedData
+                        cells
+                        i
+                        ( j + 1 )
+                        (Dict.insert (i, j) cell myDict)
+
+
+cartesianData:List ( List ( Maybe Basic ))-> Dict ( Int, Int )  ( Maybe Basic )
+cartesianData mergedData =
+    cartesianDataRec mergedData [] 0 0 Dict.empty
+
+
+mergeData: Model -> List ( List ( Maybe Basic ))
+mergeData model =
+    List.map
+        ( builRowBasic model )
+        ( datesValue model )
+
+
+compNames : List Component -> List String
+compNames components =
+    List.map
+        (\ c -> c.name )
+        components
+
+
+compInfos :  List Component -> Dict String Series -> List ( String , Series)
+compInfos components componentsData =
+    List.map
+        ( \ name -> ( name
+                    , Maybe.withDefault
+                        emptySeries
+                        <| Dict.get name componentsData
+                    )
+        )
+        ( compNames components )
+
+
+builRowBasic: Model -> String -> List  ( Maybe Basic )
+builRowBasic model date =
+    let formula = getBasic date ( "formula", model.series )
+        components = List.map
+                        ( getBasic date )
+                        ( compInfos model.components model.componentsData )
+
+    in ( [ Just {emptyBasic | raw = Just date }] ++ [ formula ] ++ components )
+
+
+
+getBasic: String ->  ( String , Series ) -> ( Maybe Basic )
+getBasic date ( name, series ) =
+    let defaultBasic = { raw = Nothing
+                       , value = Just 0
+                       , override = False
+                       , indexRow = date
+                       , indexCol = name
+                       }
+    in
+    case series of
+        Naked ts ->
+            case ts.zoomTs of
+                Just zoomTs ->
+                    case Dict.get date zoomTs of
+                        Just value -> Just { defaultBasic | value = value
+                                                          , raw = Maybe.andMap
+                                                                    value
+                                                                    (Just String.fromFloat)
+                                           }
+                        Nothing -> Nothing
+                Nothing ->
+                    case Dict.get date ts.initialTs of
+                        Just value -> Just { defaultBasic | value = value
+                                                          , raw = Maybe.andMap
+                                                                    value
+                                                                    (Just String.fromFloat)
+                                            }
+                        Nothing -> Nothing
+        ToEdit ts ->
+            case ts.zoomTs of
+                Just zoomTs ->
+                        let entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
+                        in
+                         Just { defaultBasic | value = entry.value
+                                             , raw = Maybe.andMap
+                                                        entry.value
+                                                        (Just String.fromFloat)
+                                              , override = entry.override
+                              }
+                Nothing ->
+                        let entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
+                        in
+                          Just { defaultBasic | value = entry.value
+                                               , override = entry.override
+                                               , raw = Maybe.andMap
+                                                        entry.value
+                                                        (Just String.fromFloat)
+                               }
 
 
 datesValue: Model -> List String
