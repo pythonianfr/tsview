@@ -420,6 +420,7 @@ emptyEntry = Entry
 type alias Basic =
     { raw : Maybe String
     , value : Maybe Float
+    , editable: Bool
     , override : Bool
     , indexRow: String
     , indexCol: String
@@ -429,20 +430,11 @@ emptyBasic : Basic
 emptyBasic =
     { raw = Nothing
     , value = Nothing
+    , editable = False
     , override = False
     , indexRow = ""
     , indexCol = ""
     }
-
-type alias XyBasic =
-    { value : Maybe Float
-    , override : Bool
-    , who: String
-    , when: String
-    , col: Int
-    , row: Int
-    }
-
 
 
 asEdited: Maybe Float -> Edited
@@ -2597,22 +2589,15 @@ renderOffset selected offset =
 
 viewValueTable: Model -> H.Html Msg
 viewValueTable model =
-    H.table
-        [HA.class "table talbe-sm show-table"]
-          [ headerShowValue model
-          , bodyShowValue model ]
-
-
-bodyShowValue: Model -> H.Html Msg
-bodyShowValue model =
     let nbPoints = List.length ( onlyActiveKeys model.series )
     in
     if nbPoints < maxPoints ||
        model.forceDraw
     then
-        H.tbody
-            []
-            ( buildTable ( cartesianData ( mergeData model )))
+        buildTable
+            ( cartesianData ( mergeData model ))
+            ( headerShowValue model )
+            ( getIndexedDates model )
 
     else
         H.p
@@ -2620,8 +2605,21 @@ bodyShowValue model =
             [ msgTooManyPointsWithButton nbPoints ]
 
 
-buildTable: Dict ( Int, Int ) ( Maybe Basic ) -> List ( H.Html Msg )
-buildTable cartDict =
+getIndexedDates: Model -> Dict Int ( H.Html Msg )
+getIndexedDates model =
+    Dict.fromList
+        <|List.indexedMap
+            Tuple.pair
+            <| List.map
+                ( \d ->  H.th
+                            [HA.class "show-table-dates"]
+                            [ H.text d ]
+                )
+                ( datesValue model )
+
+
+buildTable: Dict ( Int, Int ) ( Maybe Basic ) -> List ( H.Html Msg ) -> Dict Int ( H.Html Msg ) -> H.Html Msg
+buildTable cartDict header rowDict =
     let coords = Dict.keys cartDict
         xs = List.map Tuple.second coords
         ys = List.map Tuple.first coords
@@ -2630,37 +2628,57 @@ buildTable cartDict =
         minY = Maybe.withDefault 0 <| List.minimum ys
         maxY = Maybe.withDefault 0 <| List.maximum ys
     in
-        List.map
-            ( buildCartRow cartDict minX maxX )
-            ( List.range minY maxY )
+        H.table
+        [ HA.class "multi-table edit-table"]
+        [ H.thead
+            []
+            header
+        , H.tbody
+            []
+            ( List.map
+                ( buildCartRow cartDict rowDict minX maxX )
+                ( List.range minY maxY ) )
+        ]
 
 
-
-buildCartRow: Dict ( Int, Int ) ( Maybe Basic ) -> Int -> Int -> Int -> H.Html Msg
-buildCartRow cartDict minX maxX  iRow =
-    H.tr
-        []
-        <| List.map
-            ( buildCell cartDict iRow )
-            ( List.range minX maxX )
+buildCartRow: Dict ( Int, Int ) ( Maybe Basic ) ->  Dict Int ( H.Html Msg ) -> Int -> Int -> Int -> H.Html Msg
+buildCartRow cartDict rowDict minX maxX  iRow =
+    let indexRow = Dict.get iRow rowDict
+        restRow =  List.map
+                    ( buildCell cartDict iRow )
+                    ( List.range minX maxX )
+    in
+    case indexRow of
+        Just index ->
+            H.tr
+                [ HA.class "row-edit" ]
+                ( [ index ] ++ restRow  )
+        Nothing ->
+             H.tr
+                []
+                restRow
 
 
 buildCell: Dict ( Int, Int ) ( Maybe Basic ) -> Int -> Int -> H.Html Msg
 buildCell cartDict iRow iCol =
-    let value = case Dict.get ( iRow, iCol ) cartDict of
-                    Nothing -> ""
+    let basic = case Dict.get ( iRow, iCol ) cartDict of
+                    Nothing -> emptyBasic
                     Just smthing ->
                         case smthing of
-                            Nothing -> ""
-                            Just rec ->
-                                case rec.value of
-                                    Nothing -> ""
-                                    Just val -> String.fromFloat val
+                            Nothing -> emptyBasic
+                            Just rec -> rec
+        value = case basic.raw of
+                    Nothing -> ""
+                    Just raw -> raw
    in
     H.td
-        []
+        [if basic.editable
+                    then HA.class "editable"
+                    else HA.class "non-editable"]
         [   H.input
-                [ HA.value value ]
+                [ HA.value value
+                , HA.readonly True
+                 ]
                 []
         ]
 
@@ -2738,7 +2756,7 @@ builRowBasic model date =
                         ( getBasic date )
                         ( compInfos model.components model.componentsData )
 
-    in ( [ Just {emptyBasic | raw = Just date }] ++ [ formula ] ++ components )
+    in ([ formula ] ++ components )
 
 
 
@@ -2746,6 +2764,7 @@ getBasic: String ->  ( String , Series ) -> ( Maybe Basic )
 getBasic date ( name, series ) =
     let defaultBasic = { raw = Nothing
                        , value = Just 0
+                       , editable = False
                        , override = False
                        , indexRow = date
                        , indexCol = name
@@ -2780,6 +2799,7 @@ getBasic date ( name, series ) =
                                                         entry.value
                                                         (Just String.fromFloat)
                                               , override = entry.override
+                                              , editable = True
                               }
                 Nothing ->
                         let entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
@@ -2789,6 +2809,7 @@ getBasic date ( name, series ) =
                                                , raw = Maybe.andMap
                                                         entry.value
                                                         (Just String.fromFloat)
+                                               , editable = True
                                }
 
 
@@ -2857,10 +2878,8 @@ buildRow model date =
             ( addComponentCells model date ) )
 
 
-headerShowValue: Model -> H.Html Msg
+headerShowValue: Model -> List ( H.Html Msg )
 headerShowValue model =
-    H.thead
-        []
         [ H.tr
             []
             ( [ H.th

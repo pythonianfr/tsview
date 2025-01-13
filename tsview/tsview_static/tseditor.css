@@ -252,7 +252,11 @@
 }
 
 .edit-table tr:hover:not(th) {
-    background-color: #DDD;
+    background-color:  #ebf0fa;
+}
+
+.multi-table .non-editable
+{   background-color:  #f2f2f2;
 }
 
 .edit-table th {
@@ -341,6 +345,7 @@
 .row-invalid {
     color: red;
 }
+
 
 /* show values */
 
