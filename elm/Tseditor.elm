@@ -32,6 +32,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
 import Json.Decode as JD
+import Json.Decode.Pipeline exposing (required, hardcoded)
 import List.Extra as List
 import List.Statistics as Stat
 import Maybe.Extra as Maybe
@@ -154,10 +155,10 @@ type alias Model =
     , forceDraw : Bool
     , allowInferFreq : Bool
     -- cells interactivity
-    , focus : Maybe Int
-    , firstShift: Maybe Int
-    , firstSelected : Maybe Int
-    , lastValids: List Int
+    , focus : Maybe ( Int, Int )
+    , firstShift: Maybe ( Int, Int )
+    , firstSelected : Maybe ( Int, Int )
+    , lastValids: List ( Int, Int )
     , slope: Maybe String
     , intercept: Maybe String
     -- keyboard/mouse
@@ -190,9 +191,9 @@ type Msg
     | CancelEdition
     | Correction Parameter
     | Paste PasteType
-    | SelectRow Int
+    | SelectRow ( Int, Int )
     | DeselectAll Bool
-    | ClickCell Int
+    | ClickCell Int Int
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
@@ -200,7 +201,7 @@ type Msg
     | ResetClass CopyType
     | ActionControl ControlKey
     | NoAction
-    | FillNas Int
+    | FillNas ( Int, Int)
     | FillAll
     | FromLocal String
     | NewRound ActionRound
@@ -398,42 +399,93 @@ getCopyClass statusCopy copyType =
                     then classClip
                     else classCheck
 
+--
+--type alias Entry =
+--    { value : Maybe Float
+--    , override : Bool
+--    , edited : Edited
+--    , raw: Maybe String
+--    , index : Int
+--    , selected: Bool
+--    }
+--
+--emptyEntry = Entry
+--                Nothing
+--                False
+--                NoEdition
+--                Nothing
+--                0
+--                False
 
-type alias Entry =
+
+type alias BaseSupervision =
     { value : Maybe Float
     , override : Bool
-    , edited : Edited
-    , raw: Maybe String
-    , index : Int
-    , selected: Bool
     }
 
-emptyEntry = Entry
-                Nothing
-                False
-                NoEdition
-                Nothing
-                0
-                False
+
+baseToEntry: BaseSupervision -> Entry
+baseToEntry base =
+     { raw = Nothing
+        , value = base.value
+        , edited = NoEdition
+        , editable = True
+        , override = base.override
+        , indexRow = ""
+        , indexCol = ""
+        , position = ( 0, 0 )
+        , selected = False
+    }
 
 
-type alias Basic =
+type alias Entry =
     { raw : Maybe String
     , value : Maybe Float
+    , edited : Edited
     , editable: Bool
     , override : Bool
     , indexRow: String
     , indexCol: String
+    , position: ( Int, Int )
+    , selected: Bool
+    }
+
+emptyEntry : Basic
+emptyEntry =
+    { raw = Nothing
+    , value = Nothing
+    , edited = NoEdition
+    , editable = False
+    , override = False
+    , indexRow = ""
+    , indexCol = ""
+    , position = ( 0, 0 )
+    , selected = False
+    }
+
+type alias Basic =
+    { raw : Maybe String
+    , value : Maybe Float
+    , edited : Edited
+    , editable: Bool
+    , override : Bool
+    , indexRow: String
+    , indexCol: String
+    , position: ( Int, Int )
+    , selected: Bool
     }
 
 emptyBasic : Basic
 emptyBasic =
     { raw = Nothing
     , value = Nothing
+    , edited = NoEdition
     , editable = False
     , override = False
     , indexRow = ""
     , indexCol = ""
+    , position = ( 0, 0 )
+    , selected = False
     }
 
 
@@ -452,12 +504,15 @@ dressSeries series =
                              , { value = v
                                , override = False
                                , edited = asEdited v
+                               , editable = True
                                , raw = case v of
                                         Nothing -> Nothing
                                         Just val -> Just
                                                       <| String.fromFloat val
-                               , index = idx
+                               , indexCol = "generated"
+                               , indexRow = k
                                , selected = False
+                               , position = ( idx , 0)
                                }
                              )
             )
@@ -500,7 +555,7 @@ type alias PasteType =
     }
 
 type DragMode =
-    On Int
+    On ( Int, Int)
     | Off
 
 --type alias Series = Dict String (Maybe Float)
@@ -549,19 +604,16 @@ pasteditems raw =
 
 -- series decoder
 
-entryDecoder : JD.Decoder Entry
+entryDecoder : JD.Decoder BaseSupervision
 entryDecoder =
-    JD.map6 Entry
+    JD.map2 BaseSupervision
         (JD.field "series" (JD.maybe JD.float))
         (JD.field "markers" JD.bool)
-        (JD.succeed NoEdition)
-        (JD.succeed Nothing)
-        (JD.succeed 0)
-        (JD.succeed False)
+
 
 dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
-    JD.dict entryDecoder
+    ( JD.dict ( JD.map baseToEntry entryDecoder ))
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
@@ -761,7 +813,7 @@ reindex increment keyvalue =
         data = Tuple.second keyvalue
     in
     ( Tuple.first keyvalue
-    , { data | index = increment }
+    , { data | position = ( increment, 0 ) }
     )
 
 
@@ -813,7 +865,7 @@ update msg model =
                                                     indexedval
                             })
                         )
-                        ( Just 0 )
+                        ( Just ( 0, 0 ) )
 
                 Err err ->
                   U.nocmd ( addError
@@ -1012,7 +1064,7 @@ update msg model =
         SwitchForceDraw ->
             applyFocus
                 ( setupNas ( flipForce model ))
-                ( Just 0 )
+                ( Just (0 , 0 ))
 
         AllowInferFreq ->
             ({ model | allowInferFreq = True
@@ -1238,42 +1290,44 @@ update msg model =
             doerr "hascache http" <| U.unwraperror error
 
         Paste payload ->
-            let
-                newtimeSeries = applyPastedDict model payload
-            in
-            U.nocmd ( setOnEdtitionTs model newtimeSeries )
+            U.nocmd model
+            --let
+            --    newtimeSeries = applyPastedDict model payload
+            --in
+            --U.nocmd ( setOnEdtitionTs model newtimeSeries )
 
-        ClickCell index ->
+        ClickCell iRow iCol ->
             case model.holding.shift of
-                False -> let ( newmodel, cmd  ) = applyFocus model ( Just index )
+                False -> let ( newmodel, cmd  ) = applyFocus model ( Just ( iRow, iCol ) )
                          in
                             ( clearSelection newmodel , cmd )
-                True ->
-                    case model.focus of
-                        Nothing -> applyFocus model ( Just index )
-                        Just focus ->
-                            let newmodel = setContiguousSelection
-                                                model
-                                                focus
-                                                index
-                            in
-                                U.nocmd  newmodel
+                True ->  U.nocmd model
+                    --case model.focus of
+                    --    Nothing -> applyFocus model ( Just ( iRow, iCol ) )
+                    --    Just ( i, j ) ->
+                    --        let newmodel = setContiguousSelection
+                    --                            model
+                    --                            ( i, j )
+                    --                            ( iRow, iCol )
+                    --        in
+                    --            U.nocmd newmodel
 
-        SelectRow index ->
-            let transformed = Dict.map
-                                (if model.holding.mouse
-                                    then
-                                        case model.firstShift of
-                                            Nothing -> (\ k v -> v)
-                                            Just firstDrag ->
-                                                selectContiguous firstDrag index
-                                    else
-                                        ( flipSelection index )
-                                )
-                                ( getEditionTs model.series )
-                newmodel = setOnEdtitionTs model transformed
-            in
-                applyFocus ( setupFirstSelected newmodel ) ( Just index )
+        SelectRow position ->
+            U.nocmd model
+            --let transformed = Dict.map
+            --                    (if model.holding.mouse
+            --                        then
+            --                            case model.firstShift of
+            --                                Nothing -> (\ k v -> v)
+            --                                Just firstDrag ->
+            --                                    selectContiguous firstDrag position
+            --                        else
+            --                            ( flipSelection position )
+            --                    )
+            --                    ( getEditionTs model.series )
+            --    newmodel = setOnEdtitionTs model transformed
+            --in
+            --    applyFocus ( setupFirstSelected newmodel ) ( Just position )
 
 
         DeselectAll keepFocus ->
@@ -1299,34 +1353,36 @@ update msg model =
             ( model, T.perform identity ( T.succeed CopySelection ))
 
         FillNas indexLastValue ->
-            let
-                lastValue = getValueFromIndex
-                                ( getEditionTs model.series )
-                                indexLastValue
-            in
-                applyFocus
-                    ( setupNas
-                        <| setOnEdtitionTs
-                            model
-                                <|Dict.union
-                                    (fillNas
-                                        ( getEditionTs model.series )
-                                        lastValue
-                                        ( indexLastValue )
-                                    )
-                                    ( getEditionTs model.series )
-                    )
-                    Nothing
+            U.nocmd model
+            --let
+            --    lastValue = getValueFromIndex
+            --                    ( getEditionTs model.series )
+            --                    indexLastValue
+            --in
+            --    applyFocus
+            --        ( setupNas
+            --            <| setOnEdtitionTs
+            --                model
+            --                    <|Dict.union
+            --                        (fillNas
+            --                            ( getEditionTs model.series )
+            --                            lastValue
+            --                            ( indexLastValue )
+            --                        )
+            --                        ( getEditionTs model.series )
+            --        )
+            --        Nothing
 
         FillAll ->
-            ( setupNas
-                <| setOnEdtitionTs
-                        model
-                        <| fillAllNas
-                            ( getEditionTs model.series )
-                            model.lastValids
-            , Cmd.none
-            )
+             U.nocmd model
+            --( setupNas
+            --    <| setOnEdtitionTs
+            --            model
+            --            <| fillAllNas
+            --                ( getEditionTs model.series )
+            --                model.lastValids
+            --, Cmd.none
+            --)
 
         NoAction -> U.nocmd model
 
@@ -1348,13 +1404,15 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
-                ArrowDown Down -> arrowAction model 1
-                ArrowUp Down -> arrowAction model -1
-                PageDown Down -> arrowAction model 30
-                PageUp Down -> arrowAction model -30
+                ArrowDown Down -> arrowAction model ( 1, 0)
+                ArrowUp Down -> arrowAction model ( -1, 0)
+                PageDown Down -> arrowAction model ( 30, 0)
+                PageUp Down -> arrowAction model ( -30, 0)
                 Enter Down -> case model.focus of
                     Nothing -> U.nocmd model
-                    Just index -> applyFocus model ( Just ( index - 1 ))
+                    Just index -> let ( i , j ) = index
+                                  in
+                                  applyFocus model ( Just ( ( i - 1 ), j ))
                 ArrowDown Up -> U.nocmd model
                 ArrowUp Up -> U.nocmd model
                 PageDown Up -> U.nocmd model
@@ -1463,7 +1521,7 @@ update msg model =
                                     }
 
                  in
-                    applyFocus ( setupNas newmodel ) ( Just 0 )
+                    applyFocus ( setupNas newmodel ) ( Just ( 0, 0 ) )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1496,7 +1554,7 @@ update msg model =
             U.nocmd { model | statusCopy = newStatus }
 
 
-applyFocus: Model -> Maybe Int -> ( Model, Cmd Msg )
+applyFocus: Model -> Maybe ( Int, Int ) -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
         newModel = { model | focus = maybeIndex }
@@ -1539,8 +1597,9 @@ deselect keepFocus =
     T.perform identity (T.succeed ( DeselectAll keepFocus ))
 
 
-idEntry: Int -> String
-idEntry = (\ idx -> "e-" ++ ( String.fromInt idx ))
+idEntry: ( Int, Int ) -> String
+idEntry ( i, j ) =
+    "e-" ++ ( String.fromInt i ) ++ "-"++ ( String.fromInt j )
 
 
 patchWithValue: Dict String Entry -> (String , Edited) -> Maybe String -> Dict String Entry
@@ -1793,24 +1852,26 @@ deleteSelectedValues series =
         ( getEditionTs series )
 
 
-setupNas: Model -> Model
-setupNas model =
-    { model | lastValids = findLastValid
-                            ( Dict.toList
-                                ( getEditionTs model.series )
-                            )
-                            False
-                            []
-    }
+--setupNas: Model -> Model
+--setupNas model =
+--    { model | lastValids = findLastValid
+--                            ( Dict.toList
+--                                ( getEditionTs model.series )
+--                            )
+--                            False
+--                            []
+--    }
 
+setupNas model = model
 
-firstSelected: List Entry -> ( List Entry, Maybe Int)
+-- a simplifier
+firstSelected: List Entry -> ( List Entry, Maybe ( Int, Int  ))
 firstSelected entries =
     case entries of
         [] -> ( [], Nothing )
         x::xs ->
             if x.selected
-                then ( [], Just x.index )
+                then ( [], Just x.position )
                 else firstSelected xs
 
 
@@ -1821,79 +1882,83 @@ setupFirstSelected model =
         { model | firstSelected = first }
 
 
-findLastValid: List (String,  Entry) -> Bool -> List Int -> List Int
-findLastValid series previousIsValue found =
-    case series of
-        [] -> found
-        (k, val) :: xs ->
-            if previousIsValue
-                then
-                if getCurrentValue val == Nothing
-                    then  List.concat [ [ val.index - 1]
-                                       , ( findLastValid xs False found )
-                                       ]
-                    else ( findLastValid xs True found )
-                else
-                    if getCurrentValue val == Nothing
-                        then ( findLastValid xs False found )
-                        else ( findLastValid xs True found )
+-- a simplifier
+--findLastValid: List (String,  Entry) -> Bool -> List ( Int, Int ) -> List ( Int, Int )
+--findLastValid series previousIsValue found =
+--    case series of
+--        [] -> found
+--        (k, val) :: xs ->
+--            if previousIsValue
+--                then
+--                if getCurrentValue val == Nothing
+--                    then  List.concat [ [ ( Tuple.first val.position - 1
+--                                          , Tuple.second val.position
+--                                          )
+--                                      ]
+--                                       , ( findLastValid xs False found )
+--                                       ]
+--                    else ( findLastValid xs True found )
+--                else
+--                    if getCurrentValue val == Nothing
+--                        then ( findLastValid xs False found )
+--                        else ( findLastValid xs True found )
+
+--
+--fillNas: Dict String Entry -> Float -> ( Int, Int ) -> Dict String Entry
+--fillNas series lastValue indexLastValue =
+--    let nbNas = getNbNas series indexLastValue
+--    in
+--        Dict.map
+--            ( applyValue lastValue indexLastValue nbNas )
+--            series
 
 
-fillNas: Dict String Entry -> Float -> Int -> Dict String Entry
-fillNas series lastValue indexLastValue =
-    let nbNas = getNbNas series indexLastValue
-    in
-        Dict.map
-            ( applyValue lastValue indexLastValue nbNas )
-            series
+--applyValue: Float -> Int -> Int -> String -> Entry -> Entry
+--applyValue lastValue indexLastValue nbNas date entry =
+--    if entry.index > indexLastValue && entry.index <= indexLastValue + nbNas
+--        then { entry | edited = Edition lastValue }
+--        else entry
 
 
-applyValue: Float -> Int -> Int -> String -> Entry -> Entry
-applyValue lastValue indexLastValue nbNas date entry =
-    if entry.index > indexLastValue && entry.index <= indexLastValue + nbNas
-        then { entry | edited = Edition lastValue }
-        else entry
+--getNbNas: Dict String  Entry -> ( Int,  Int ) -> ( Int,  Int )
+--getNbNas series index =
+--    let values = List.map
+--                    getCurrentValue
+--                    <| List.filter
+--                        ( \ e -> e.index > index )
+--                        ( Dict.values series )
+--    in
+--        findNbNas values 0
+
+--
+--findNbNas: List ( Maybe Float ) -> Int -> Int
+--findNbNas values nb =
+--    case values of
+--        [] -> nb
+--        x :: xs ->
+--            case x of
+--                Nothing -> findNbNas xs ( nb + 1 )
+--                Just _ -> nb
 
 
-getNbNas: Dict String  Entry -> Int -> Int
-getNbNas series index =
-    let values = List.map
-                    getCurrentValue
-                    <| List.filter
-                        ( \ e -> e.index > index )
-                        ( Dict.values series )
-    in
-        findNbNas values 0
+--fillAllNas : Dict String  Entry -> List ( Int, Int ) -> Dict String  Entry
+--fillAllNas series idxNa =
+--    case idxNa of
+--        [] -> series
+--        x :: xs ->
+--            let lastValue = getValueFromIndex series x
+--            in
+--                ( fillAllNas
+--                    ( fillNas
+--                        series
+--                        lastValue
+--                        x
+--                    )
+--                    xs
+--                )
 
 
-findNbNas: List ( Maybe Float ) -> Int -> Int
-findNbNas values nb =
-    case values of
-        [] -> nb
-        x :: xs ->
-            case x of
-                Nothing -> findNbNas xs ( nb + 1 )
-                Just _ -> nb
-
-
-fillAllNas : Dict String  Entry -> List Int -> Dict String  Entry
-fillAllNas series idxNa =
-    case idxNa of
-        [] -> series
-        x :: xs ->
-            let lastValue = getValueFromIndex series x
-            in
-                ( fillAllNas
-                    ( fillNas
-                        series
-                        lastValue
-                        x
-                    )
-                    xs
-                )
-
-
-getValueFromIndex: Dict String  Entry -> Int -> Float
+getValueFromIndex: Dict String  Entry -> ( Int, Int ) -> Float
 getValueFromIndex series indexNa =
     let
         entry = Maybe.withDefault
@@ -1901,45 +1966,45 @@ getValueFromIndex series indexNa =
                         <| List.head
                             <|Dict.values
                                 <|Dict.filter
-                                    ( \ _ e -> e.index == indexNa  )
+                                    ( \ _ e -> e.position == indexNa  )
                                     series
     in
         Maybe.withDefault 0 ( getCurrentValue entry )
 
 
-selectContiguous: Int -> Int -> ( a -> Entry -> Entry )
-selectContiguous from to =
-        if to < from
-            then   ( \ _ v ->
-                        { v | selected =
-                            ( ( v.index >= to ) && ( v.index <= from ))
-                        }
-                    )
-            else
-                    ( \ _ v ->
-                        { v | selected =
-                            ( ( v.index <= to ) && ( v.index >= from ))
-                        }
-                    )
+--selectContiguous: ( Int, Int ) -> ( Int, Int ) -> (( Int, Int ) -> Basic -> Basic )
+--selectContiguous ( iFrom, jFrom ) ( iTo, jTo ) =
+--    let minRow = min iFrom iTo
+--        maxRow = max iFrom iTo
+--        minCol = min jFrom jTo
+--        maxCol = max jFrom jTo
+--    in
+--        ( \ _ v ->
+--            { v | selected =
+--                ( ( v.indexRow >= minRow ) && (v.indexRow <= maxRow )
+--                && ( v.indexCol >= minCol ) && (v.indexCol <= maxCol )
+--                )
+--            }
+--        )
 
 
-setContiguousSelection: Model -> Int -> Int -> Model
-setContiguousSelection model from index =
-    setOnEdtitionTs
-        model
-        <| Dict.map
-            ( selectContiguous from index )
-            ( getEditionTs model.series )
+--setContiguousSelection: Model -> ( Int , Int ) -> ( Int , Int ) -> Model
+--setContiguousSelection model cursorFrom cursorIndex =
+--    setOnEdtitionTs
+--        model
+--        <| Dict.map
+--            ( selectContiguous cursorFrom cursorIndex )
+--            ( getEditionTs model.series )
 
 
-flipSelection : Int -> (a -> Entry -> Entry )
-flipSelection index =
+flipSelection : ( Int, Int ) -> (a -> Entry -> Entry )
+flipSelection position =
      ( \ _ v ->
         { v | selected = if v.selected
-                        then if ( v.index == index )
+                        then if ( v.position == position )
                                 then False
                                 else True
-                        else if ( v.index == index )
+                        else if ( v.position == position )
                                 then True
                                 else False
         }
@@ -1955,89 +2020,98 @@ bounded minValue maxValue value =
             else value
 
 
-getLimitIndexes: Dict String Entry -> ( Int, Int )
-getLimitIndexes series =
-    let indexes = List.map
-                    ( \ e -> e.index )
-                    <| Dict.values series
-    in
-    ( Maybe.withDefault 0 ( List.minimum indexes )
-    , Maybe.withDefault 0 (List.maximum indexes )
-    )
+--getLimitIndexes: Dict String Entry -> ( Int, Int )
+--getLimitIndexes series =
+--    let indexes = List.map
+--                    ( \ e -> e.index )
+--                    <| Dict.values series
+--    in
+--    ( Maybe.withDefault 0 ( List.minimum indexes )
+--    , Maybe.withDefault 0 (List.maximum indexes )
+--    )
 
 
-arrowAction: Model -> Int -> ( Model, Cmd Msg )
+arrowAction: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
 arrowAction model increment =
     let ( newmodel, cmd ) = arrowActionT model increment
     in
         ( setupFirstSelected newmodel , cmd )
 
 
-arrowActionT: Model -> Int -> ( Model, Cmd Msg )
+addIncrement: ( Int, Int ) -> ( Int, Int ) -> ( Int, Int )
+addIncrement position increment =
+    let ( pR, pC ) = position
+        ( iR, iC ) = increment
+    in ( pR + iR, pC + iC)
+
+
+arrowActionT: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
 arrowActionT model increment =
       case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
-            let ( minIndex, maxIndex ) = getLimitIndexes
-                                            ( getEditionTs model.series )
-                bound = bounded minIndex maxIndex
-            in
+            --let ( minIndex, maxIndex ) = getLimitIndexes
+            --                                ( getEditionTs model.series )
+            --    bound = bounded minIndex maxIndex
+            --in
             case model.holding.shift of
                 False -> case model.holding.control of
                             False -> applyFocus
                                         model
-                                        ( Just ( bound ( focus + increment )))
-                            True -> case increment > 0 of
-                                        True -> applyFocus
-                                                    model
-                                                    ( Just maxIndex )
-                                        False -> applyFocus
-                                                    model
-                                                    ( Just minIndex )
+                                        ( Just  ( addIncrement focus increment ))
+                            True -> U.nocmd model
+                                --case increment > 0 of
+                                --        True -> applyFocus
+                                --                    model
+                                --                    ( Just maxIndex )
+                                --        False -> applyFocus
+                                --                    model
+                                --                    ( Just minIndex )
                 True ->
-                    case model.holding.control of
-                        False ->
-                            case model.firstShift of
-                                Nothing ->
-                                    applyFocus
-                                         ( setContiguousSelection
-                                                { model | firstShift = Just focus
-                                                }
-                                                ( bound ( focus + increment ))
-                                                focus
-                                         )
-                                         ( Just ( bound ( focus + increment )))
-                                Just firstShift ->
-                                     applyFocus
-                                         ( setContiguousSelection
-                                                { model | focus =  Just ( bound (focus + increment ))}
-                                                ( bound ( focus + increment ))
-                                                ( firstShift )
-                                         )
-                                         ( Just ( bound (focus + increment ) ))
-                        True ->
-                            let relevantBound = if increment > 0
-                                                    then maxIndex
-                                                    else minIndex
-                            in
-                            case model.firstShift of
-                                Nothing ->
-                                    applyFocus
-                                         ( setContiguousSelection
-                                                { model | firstShift = Just focus
-                                                }
-                                                relevantBound
-                                                focus
-                                         )
-                                         ( Just relevantBound)
-                                Just firstShift ->
-                                     applyFocus
-                                         ( setContiguousSelection
-                                                { model | focus =  Just relevantBound }
-                                                relevantBound
-                                                ( firstShift )
-                                         )
-                                         ( Just relevantBound )
+                    U.nocmd model
+                    --case model.holding.control of
+                    --    False ->
+                    --        case model.firstShift of
+                    --            Nothing ->
+                    --                applyFocus
+                    --                     ( setContiguousSelection
+                    --                            { model | firstShift = Just focus
+                    --                            }
+                    --                            ( bound ( focus + increment ))
+                    --                            focus
+                    --                     )
+                    --                     ( Just ( bound ( focus + increment )))
+                    --            Just firstShift ->
+                    --                 applyFocus
+                    --                     ( setContiguousSelection
+                    --                            { model | focus =  Just ( bound (focus + increment ))}
+                    --                            ( bound ( focus + increment ))
+                    --                            ( firstShift )
+                    --                     )
+                    --                     ( Just ( bound (focus + increment ) ))
+                    --    True ->
+                    --        let relevantBound = if increment > 0
+                    --                                then maxIndex
+                    --                                else minIndex
+                    --        in
+                    --        case model.firstShift of
+                    --            Nothing ->
+                    --                applyFocus
+                    --                     ( setContiguousSelection
+                    --                            { model | firstShift = Just focus
+                    --                            }
+                    --                            relevantBound
+                    --                            focus
+                    --                     )
+                    --                     ( Just relevantBound)
+                    --            Just firstShift ->
+                    --                 applyFocus
+                    --                     ( setContiguousSelection
+                    --                            { model | focus =  Just relevantBound }
+                    --                            relevantBound
+                    --                            ( firstShift )
+                    --                     )
+                    --                     ( Just relevantBound )
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -2069,47 +2143,47 @@ parseInput value =
                     Error value
 
 
-applyPastedDict : Model -> PasteType -> Dict String Entry
-applyPastedDict model payload =
-    let
-        editionTs = getEditionTs model.series
-        newValues =
-            List.map
-                parseInput
-                (pasteditems payload.text)
-        firstIndex =
-            Maybe.unwrap
-                0
-                (\entry -> entry.index)
-                (Dict.get
-                    (payload.index)
-                    editionTs
-                )
-        listIndex =
-            List.range
-                firstIndex
-                (firstIndex + (List.length newValues) - 1)
-        listDates =
-            Dict.keys
-                (Dict.filter
-                     (\_ value -> List.member value.index listIndex)
-                     editionTs
-                )
-        copyPastedDict = buildCopyPasteDict
-                            listDates
-                            newValues
-    in
-    Dict.merge
-        (\_ _ dict -> dict)
-        (\key _ value dict -> Dict.update
-                                key
-                                (updateEntry value Nothing)
-                                dict
-        )
-        (\_ _ dict -> dict)
-        editionTs
-        copyPastedDict
-        editionTs
+--applyPastedDict : Model -> PasteType -> Dict String Entry
+--applyPastedDict model payload =
+--    let
+--        editionTs = getEditionTs model.series
+--        newValues =
+--            List.map
+--                parseInput
+--                (pasteditems payload.text)
+--        firstIndex =
+--            Maybe.unwrap
+--                0
+--                (\entry -> entry.index)
+--                (Dict.get
+--                    (payload.index)
+--                    editionTs
+--                )
+--        listIndex =
+--            List.range
+--                firstIndex
+--                (firstIndex + (List.length newValues) - 1)
+--        listDates =
+--            Dict.keys
+--                (Dict.filter
+--                     (\_ value -> List.member value.index listIndex)
+--                     editionTs
+--                )
+--        copyPastedDict = buildCopyPasteDict
+--                            listDates
+--                            newValues
+--    in
+--    Dict.merge
+--        (\_ _ dict -> dict)
+--        (\key _ value dict -> Dict.update
+--                                key
+--                                (updateEntry value Nothing)
+--                                dict
+--        )
+--        (\_ _ dict -> dict)
+--        editionTs
+--        copyPastedDict
+--        editionTs
 
 
 updateEntry : Edited ->  Maybe String -> Maybe Entry -> Maybe Entry
@@ -2586,23 +2660,33 @@ renderOffset selected offset =
             ]
             [ H.text offset ]
 
+-- Main table
 
 viewValueTable: Model -> H.Html Msg
 viewValueTable model =
     let nbPoints = List.length ( onlyActiveKeys model.series )
     in
-    if nbPoints < maxPoints ||
-       model.forceDraw
-    then
-        buildTable
+    case statePoints nbPoints model.forceDraw
+    of
+        NoPoint
+            ->  H.div [][ ]
+        TooMuchPoints nb ->
+            H.div
+                [ ]
+                [ msgTooManyPointsWithButton nb
+                -- for some reason an existing input help
+                -- to apply the method from a blank page
+                , H.input
+                    [ HA.class "pastable"
+                    , HA.hidden True]
+                    []
+                , nodeTriggerPastable model
+                ]
+        Drawable ->
+            buildTable
             ( cartesianData ( mergeData model ))
             ( headerShowValue model )
             ( getIndexedDates model )
-
-    else
-        H.p
-            []
-            [ msgTooManyPointsWithButton nbPoints ]
 
 
 getIndexedDates: Model -> Dict Int ( H.Html Msg )
@@ -2621,12 +2705,12 @@ getIndexedDates model =
 buildTable: Dict ( Int, Int ) ( Maybe Basic ) -> List ( H.Html Msg ) -> Dict Int ( H.Html Msg ) -> H.Html Msg
 buildTable cartDict header rowDict =
     let coords = Dict.keys cartDict
-        xs = List.map Tuple.second coords
-        ys = List.map Tuple.first coords
-        minX = Maybe.withDefault 0 <| List.minimum xs
-        maxX = Maybe.withDefault 0 <| List.maximum xs
-        minY = Maybe.withDefault 0 <| List.minimum ys
-        maxY = Maybe.withDefault 0 <| List.maximum ys
+        rows = List.map Tuple.first coords
+        cols = List.map Tuple.second coords
+        minRow = Maybe.withDefault 0 <| List.minimum rows
+        maxRow = Maybe.withDefault 0 <| List.maximum rows
+        minCol = Maybe.withDefault 0 <| List.minimum cols
+        maxCol = Maybe.withDefault 0 <| List.maximum cols
     in
         H.table
         [ HA.class "multi-table edit-table"]
@@ -2636,17 +2720,17 @@ buildTable cartDict header rowDict =
         , H.tbody
             []
             ( List.map
-                ( buildCartRow cartDict rowDict minX maxX )
-                ( List.range minY maxY ) )
+                ( buildCartRow cartDict rowDict minCol maxCol )
+                ( List.range minRow maxRow ) )
         ]
 
 
 buildCartRow: Dict ( Int, Int ) ( Maybe Basic ) ->  Dict Int ( H.Html Msg ) -> Int -> Int -> Int -> H.Html Msg
-buildCartRow cartDict rowDict minX maxX  iRow =
+buildCartRow cartDict rowDict minCol maxCol iRow =
     let indexRow = Dict.get iRow rowDict
         restRow =  List.map
                     ( buildCell cartDict iRow )
-                    ( List.range minX maxX )
+                    ( List.range minCol maxCol )
     in
     case indexRow of
         Just index ->
@@ -2672,9 +2756,12 @@ buildCell cartDict iRow iCol =
                     Just raw -> raw
    in
     H.td
-        [if basic.editable
-                    then HA.class "editable"
-                    else HA.class "non-editable"]
+        [ if basic.editable
+            then HA.class "editable"
+            else HA.class "non-editable"
+        , HA.id (idEntry (iRow, iCol) )
+        , HE.onClick ( ClickCell iRow iCol )
+        ]
         [   H.input
                 [ HA.value value
                 , HA.readonly True
@@ -2764,10 +2851,13 @@ getBasic: String ->  ( String , Series ) -> ( Maybe Basic )
 getBasic date ( name, series ) =
     let defaultBasic = { raw = Nothing
                        , value = Just 0
+                       , edited = NoEdition
                        , editable = False
                        , override = False
                        , indexRow = date
                        , indexCol = name
+                       , position = ( 0, 0 )
+                       , selected = False
                        }
     in
     case series of
@@ -3327,11 +3417,11 @@ viewrow model ( date, entry ) =
         isFirstSelected = case model.firstSelected of
                             Nothing -> False
                             Just first ->
-                                if entry.index == first
+                                if entry.position == first
                                     then True
                                     else False
-        focused = entry.index == Maybe.withDefault -1 model.focus
-        fillUnder = List.member entry.index  model.lastValids
+        focused = entry.position == Maybe.withDefault (-1, -1 ) model.focus
+        fillUnder = False -- List.member entry.index  model.lastValids
     in
     H.tr
         ([ HA.class "row-edit"
@@ -3341,13 +3431,13 @@ viewrow model ( date, entry ) =
         , if focused
             then HA.class "focused"
             else HA.class ""
-        , HE.onClick ( ClickCell entry.index )
-        , HE.onDoubleClick (SelectRow entry.index)
-        , HE.onMouseDown ( Drag ( On entry.index ))
+        --, HE.onClick ( ClickCell entry.index )
+        , HE.onDoubleClick (SelectRow entry.position)
+        , HE.onMouseDown ( Drag ( On entry.position ))
         ] ++
             if model.holding.mouse
-                then [ HE.onMouseEnter (SelectRow entry.index)
-                     , HE.onMouseLeave (SelectRow entry.index)
+                then [ HE.onMouseEnter (SelectRow entry.position)
+                     , HE.onMouseLeave (SelectRow entry.position)
                      ]
                 else []
         )
@@ -3357,9 +3447,9 @@ viewrow model ( date, entry ) =
          , H.td
             [ ]
             ([ H.input
-                  [ HA.id (idEntry entry.index )
-                  , HA.class ("pastable " ++ rowstyle)
-                  , if fillUnder then HA.class "fill-under" else HA.class "plain"
+                  [ -- HA.id (idEntry entry.index )
+                   HA.class ("pastable " ++ rowstyle)
+                  --, if fillUnder then HA.class "fill-under" else HA.class "plain"
                   , HA.placeholder "enter your value"
                   , HA.autocomplete False
                   , HA.value ( formatNumber ( getValue entry ))
@@ -3377,13 +3467,14 @@ viewrow model ( date, entry ) =
 
 fillButton: Entry -> Bool -> List ( H.Html Msg )
 fillButton entry fillUnder =
-    case fillUnder of
-        True -> [ H.button
-                    [ HA.title "Fill"
-                    , HE.onClick ( FillNas ( entry.index ) )]
-                    [ H.text "↓" ]
-                ]
-        False -> []
+    []
+    --case fillUnder of
+    --    True -> [ H.button
+    --                [ HA.title "Fill"
+    --                , HE.onClick ( FillNas ( entry.index ) )]
+    --                [ H.text "↓" ]
+    --            ]
+    --    False -> []
 
 buttonsFirstSelected: Bool -> List (H.Html Msg)
 buttonsFirstSelected predicat =
@@ -3443,15 +3534,15 @@ debugView model =
                 , H.text  ( ", Key Pressed: " ++ model.keyName)
                 , H.text  ( ", Focus : " ++ case model.focus of
                                                 Nothing -> "Nothing"
-                                                Just focus -> String.fromInt focus
+                                                Just focus -> String.fromInt ( Tuple.first focus )
                                 )
 
                 , H.text  ( ", FirstShift: " ++ case model.firstShift of
                                 Nothing -> "Nothing"
-                                Just focus -> String.fromInt focus
+                                Just focus -> String.fromInt (Tuple.first focus )
                         )
                 ] ++ ( List.map
-                            (\ i -> H.text (", Na to fill at: " ++ String.fromInt i ))
+                            (\ i -> H.text (", Na to fill at: " ++ String.fromInt (Tuple.first i )))
                             model.lastValids
                        )
                   ++ [ H.text "Errors: " ]
