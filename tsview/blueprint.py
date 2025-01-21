@@ -194,6 +194,10 @@ def tsview(tsa):
             title = appname.title()
         )
 
+    @bp.route('/ping')
+    def ping():
+        return jsonify({'status': 'ok'})
+
     @bp.route('/tsview')
     def home():
         if not has_roles('admin', 'rw', 'ro'):

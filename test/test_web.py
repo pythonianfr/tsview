@@ -15,6 +15,11 @@ from tsview.util import format_formula
 DATADIR = Path(__file__).parent / 'data'
 
 
+def test_ping(client):
+    res = client.get('/ping')
+    assert res.json == {'status': 'ok'}
+
+
 def test_log(client, tsa):
     series = pd.Series(
         [1, 2, 3],
