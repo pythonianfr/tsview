@@ -82,10 +82,6 @@ setup(name='tsview',
           'tsview_templates/*'
       ]},
       entry_points={
-          'tshistory.subcommands': [
-              'view=tsview.cli:view',
-              'view-init=tsview.cli:init_horizon',
-          ],
           'tshistory.migrate.Migrator': [
               'migrator=tsview.migrate:Migrator'
           ],

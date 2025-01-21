@@ -6,6 +6,7 @@ from tshistory.migrate import (
 from tsview import __version__
 from tsview.util import initialize_horizon
 
+
 class Migrator(_Migrator):
     _order = 4
     _package_version = __version__
