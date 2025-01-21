@@ -771,16 +771,6 @@ postData query =
         }
 
 
---reindex : Int -> ( String, Entry ) -> ( String, Entry )
---reindex increment keyvalue =
---    let
---        data = Tuple.second keyvalue
---    in
---    ( Tuple.first keyvalue
---    , { data | position = ( increment, 0 ) }
---    )
-
-
 addError: Model -> String -> String -> Model
 addError model tag error = U.adderror model (tag ++ " -> " ++ error)
 
@@ -893,7 +883,9 @@ update msg model =
                                             name
                                             ( ToEdit { initialTs = indexedval, zoomTs = Nothing })
                                             model.componentsData
-                                newModel = { model | componentsData = newCD }
+                                newModel = { model | componentsData = newCD
+                                                   , monotonicCount = model.monotonicCount + 1
+                                            }
                             in
                                 U.nocmd ( buildCoord newModel )
                         Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
@@ -905,7 +897,9 @@ update msg model =
                                             name
                                             ( Naked { initialTs = val, zoomTs = Nothing })
                                             model.componentsData
-                                   newModel = { model | componentsData = newCD }
+                                   newModel = { model | componentsData = newCD
+                                                      , monotonicCount = model.monotonicCount + 1
+                                              }
                                in
                                    U.nocmd ( buildCoord newModel )
                     Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
@@ -1248,7 +1242,7 @@ update msg model =
             doerr "hascache http" <| U.unwraperror error
 
         Paste payload ->
-            U.nocmd model
+            U.nocmd { model | rawPasted = payload.text }
             --let
             --    newtimeSeries = applyPastedDict model payload
             --in
@@ -1549,18 +1543,6 @@ deselect keepFocus =
 idEntry: ( Int, Int ) -> String
 idEntry ( i, j ) =
     "e-" ++ ( String.fromInt i ) ++ "-"++ ( String.fromInt j )
-
-
-patchWithValue: Dict String Entry -> (String , Edited) -> Maybe String -> Dict String Entry
-patchWithValue series (date, edition) raw =
-    let
-        newentry =
-            updateEntry edition raw
-    in
-        Dict.update
-            date
-            newentry
-            series
 
 
 flipForce: Model -> Model
@@ -2641,10 +2623,14 @@ viewValueTable model =
                 , nodeTriggerPastable model
                 ]
         Drawable ->
-            buildTable
-            model
-            ( headerShowValue model )
-            ( getIndexedDates model )
+            H.div
+                []
+                [ buildTable
+                    model
+                    ( headerShowValue model )
+                    ( getIndexedDates model )
+                , nodeTriggerPastable model
+                ]
 
 
 getIndexedDates: Model -> Dict Int ( H.Html Msg )
@@ -2747,8 +2733,7 @@ buildCell model cartDict iRow iCol =
         debug = model.horizon.debug
    in
     H.td
-        ([ HA.class "pastable"
-        , if entry.editable
+        ([ if entry.editable
             then HA.class "editable"
             else HA.class "non-editable"
         , if focused
@@ -2772,6 +2757,9 @@ buildCell model cartDict iRow iCol =
         )
         ( [   H.input
                 [ HA.id (idEntry (iRow, iCol) )
+                , HA.class "pastable"
+                , HA.attribute "index" "toto"
+                , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                 , HA.value value
                 , HE.onInput ( InputChanged iRow iCol )
                 , HA.readonly ( not entry.editable )
@@ -2956,26 +2944,6 @@ datesComponent model comp =
                                 (\ date -> (date >= min) && (date <= max))
                                 allDates )
 
-
-buildRow : Model -> String -> H.Html Msg
-buildRow model date =
-    H.tr
-        []
-        ( List.append
-            [ H.th
-                [HA.class "show-table-dates"]
-                [ H.text date ]
-            , H.td [] [ H.text
-                            <| printValue
-                                model.roundValues
-                                <| Maybe.withDefault
-                                    Nothing
-                                    <| Dict.get
-                                            date
-                                            ( onlyActiveValues model.series )
-                        ]
-            ]
-            ( addComponentCells model date ) )
 
 
 headerShowValue: Model -> List ( H.Html Msg )
@@ -3561,6 +3529,8 @@ debugView model =
             then
                 [ H.pre []
                 ( [ H.text " debug active "
+                , H.br [] []
+                , H.text ( "Raw pasted : " ++ model.rawPasted )
                 , H.br [] []
                 , H.text ("Last Date: " ++ ( getLastNaive <| case model.series of
                                                                 Naked series -> Dict.keys series.initialTs
