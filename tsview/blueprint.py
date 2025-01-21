@@ -777,9 +777,8 @@ def tsview(tsa):
     def serve_menu():
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
-        full_url = url_for('tsview.home', _external=True)
-        full_url = full_url[:full_url.rindex('/')]
-        dashboard_url = full_url.replace('refinery', 'dashboard')
+        cfg = configuration()
+        dashboard_url = cfg['dashboard']['dashboards']
         return json.dumps(
             menu_spec(
                 dashboard_url=dashboard_url
