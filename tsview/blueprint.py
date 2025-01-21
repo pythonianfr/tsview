@@ -524,6 +524,7 @@ def tsview(tsa):
             'queryeditor.html',
             homeurl=homeurl(),
             spec=json.dumps(_queryspec()),
+            name=json.dumps(request.args.get('name')),
             flags_menu=flags_menu,
             title=title,
         )

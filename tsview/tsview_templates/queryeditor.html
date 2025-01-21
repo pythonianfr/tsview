@@ -29,7 +29,8 @@
              node: document.getElementById('app'),
              flags: {
                  baseurl : "{{ homeurl }}",
-                 jsonSpec : {{ spec | safe }}
+                 jsonSpec : {{ spec | safe }},
+                 basketName : {{ name | safe }}
              }
          });
         </script>

@@ -4,6 +4,8 @@ import Maybe.Extra as Maybe
 
 import Browser
 import Dict
+import Either
+import Maybe.Extra as Maybe
 import Filter exposing
     ( FilterNode(..)
     , Value(..)
@@ -628,11 +630,12 @@ view model =
 type alias Input =
     { baseurl : String
     , jsonSpec : JD.Value
+    , basketName : JD.Value
     }
 
 
 init : Input -> ( Model, Cmd Msg )
-init { baseurl, jsonSpec } =
+init { baseurl, jsonSpec, basketName } =
    let
         (widget, widgetCmd) = Widget.init
             { urlPrefix = baseurl
@@ -644,7 +647,10 @@ init { baseurl, jsonSpec } =
    { baseurl = baseurl
    , errors = []
    , baskets = []
-   , name = Nothing
+   , name = JD.decodeValue (JD.maybe JD.string) basketName
+        |> Either.fromResult
+        |> Either.toMaybe
+        |> Maybe.join
    , basket = Nothing
    , savedBasket = Nothing
    , creating = False
