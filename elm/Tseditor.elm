@@ -28,6 +28,7 @@ import Horizon exposing
 import Horizon as ModuleHorizon
 import Http
 import Html as H
+import Html exposing (Attribute)
 import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
@@ -96,6 +97,12 @@ keyToType action keyValue =
     if keyValue == "ArrowDown"
     then ArrowDown action
     else
+    if keyValue == "ArrowLeft"
+    then ArrowLeft action
+    else
+    if keyValue == "ArrowRight"
+    then ArrowRight action
+    else
     if keyValue == "PageDown"
     then PageDown action
     else
@@ -119,6 +126,8 @@ type ControlKey =
     | Shift Action
     | ArrowUp Action
     | ArrowDown Action
+    | ArrowLeft Action
+    | ArrowRight Action
     | PageUp Action
     | PageDown Action
     | Enter Action
@@ -1343,6 +1352,8 @@ update msg model =
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
                 ArrowDown Down -> arrowAction model ( 1, 0)
                 ArrowUp Down -> arrowAction model ( -1, 0)
+                ArrowLeft Down -> arrowAction model ( 0, -1)
+                ArrowRight Down -> arrowAction model ( 0, 1)
                 PageDown Down -> arrowAction model ( 30, 0)
                 PageUp Down -> arrowAction model ( -30, 0)
                 Enter Down -> case model.focus of
@@ -1352,6 +1363,8 @@ update msg model =
                                   applyFocus model ( Just ( ( i - 1 ), j ))
                 ArrowDown Up -> U.nocmd model
                 ArrowUp Up -> U.nocmd model
+                ArrowLeft Up -> U.nocmd model
+                ArrowRight Up -> U.nocmd model
                 PageDown Up -> U.nocmd model
                 PageUp Up -> U.nocmd model
                 Enter Up -> U.nocmd model
@@ -1782,6 +1795,7 @@ deleteSelectedValues model =
                                 then
                                     { e | edition = Deletion
                                         , raw = Nothing
+                                        , value = Nothing
                                     }
                                 else e
                     )
@@ -1859,17 +1873,16 @@ getNbNas coordData position =
                     isVoid
                     <| Dict.values
                         <| Dict.filter
-                            (\ (i, j) _ -> j == iCol )
+                            (\ (i, j) _ -> j == iCol && i > iRow )
                             coordData
     in
-        findNbNas values 4
+        findNbNas values 0
+
 
 isVoid: Entry -> Bool
 isVoid entry =
-    case entry.edition of
-        Deletion -> True
-        NoEdition -> True
-        _ -> False
+   getCurrentValue entry == Nothing
+
 
 findNbNas: List Bool -> Int -> Int
 findNbNas values nb =
@@ -1935,7 +1948,7 @@ selectContiguous ( iFrom, jFrom ) ( iTo, jTo ) =
         maxCol = max jFrom jTo
     in
         ( \ ( row, col  ) v ->
-             { v | selected = row >= minRow && row <= maxRow && col <= minCol && col >= maxCol }
+             { v | selected = row >= minRow && row <= maxRow && col >= minCol && col <= maxCol }
         )
 
 
@@ -2731,6 +2744,7 @@ buildCell model cartDict iRow iCol =
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = entry.selected
         fillUnder =  List.member ( iRow, iCol )  model.lastValids
+        debug = model.horizon.debug
    in
     H.td
         ([ HA.class "pastable"
@@ -2746,6 +2760,7 @@ buildCell model cartDict iRow iCol =
         , if fillUnder
             then HA.class "fill-under"
             else HA.class "plain"
+        , debugClass debug entry
         , HE.onClick ( ClickCell iRow iCol )
         , HE.onDoubleClick (SelectRow ( iRow, iCol ))
         , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
@@ -3498,6 +3513,45 @@ isEmpty: Model -> Bool
 isEmpty model =
     List.length ( onlyActiveKeys model.series ) == 0
 
+displayCoord: ( Int, Int ) -> String
+displayCoord (i, j) =
+    "(" ++ (String.fromInt i) ++ " , " ++ (String.fromInt j) ++ ")"
+
+
+debugClass: Bool -> Entry -> Attribute msg
+debugClass debug entry =
+    if not debug
+        then HA.class ""
+        else
+            HA.class ( "raw-"
+                     ++ displayRaw entry.raw
+                     ++ " value-"
+                     ++ displayValue entry.value
+                     ++ " "
+                     ++ displayEdition entry.edition
+                     )
+
+
+displayRaw: Maybe String -> String
+displayRaw raw =
+    case raw of
+        Nothing -> "Nothing"
+        Just r -> r
+
+displayValue: Maybe Float -> String
+displayValue value =
+    case value of
+        Nothing -> "Nothing"
+        Just v -> String.fromFloat v
+
+displayEdition: Edited -> String
+displayEdition edited =
+    case edited of
+        Edition value -> "Edition-" ++ String.fromFloat value
+        NoEdition -> "NoEdition"
+        Deletion -> "Deletion"
+        Error e -> "Error-" ++ e
+
 
 debugView: Model -> H.Html Msg
 debugView model =
@@ -3529,15 +3583,15 @@ debugView model =
                 , H.text  ( ", Key Pressed: " ++ model.keyName)
                 , H.text  ( ", Focus : " ++ case model.focus of
                                                 Nothing -> "Nothing"
-                                                Just focus -> String.fromInt ( Tuple.first focus )
+                                                Just focus -> displayCoord focus
                                 )
 
                 , H.text  ( ", FirstShift: " ++ case model.firstShift of
                                 Nothing -> "Nothing"
-                                Just focus -> String.fromInt (Tuple.first focus )
+                                Just first -> displayCoord first
                         )
                 ] ++ ( List.map
-                            (\ i -> H.text (", Na to fill at: " ++ String.fromInt (Tuple.first i )))
+                            (\ i -> H.text (", Na to fill at: " ++ ( displayCoord i )))
                             model.lastValids
                        )
                   ++ [ H.text "Errors: " ]
