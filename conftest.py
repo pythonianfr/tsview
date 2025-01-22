@@ -5,7 +5,7 @@ import webtest
 from pytest_sa_pg import db
 from sqlalchemy import create_engine
 
-from tshistory import api
+from tshistory import api, testutil
 from tshistory.http.util import nosecurity
 from tshistory_refinery import schema, tsio
 
@@ -41,10 +41,16 @@ class WebTester(webtest.TestApp):
 
 @pytest.fixture(scope='session')
 def tsa(engine):
-    return api.timeseries(
-        str(engine.url),
-        sources={}
+    conf = (
+        f'[dburi]\n'
+        f'test = {engine.url}\n'
     )
+
+    with testutil.tempconfig(conf.encode()):
+        yield api.timeseries(
+            str(engine.url),
+            sources={}
+        )
 
 
 @pytest.fixture(scope='session')
