@@ -36,6 +36,7 @@ import Json.Decode as JD
 import Json.Decode.Pipeline exposing (required, hardcoded)
 import List.Extra as List
 import List.Statistics as Stat
+import Markdown
 import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
@@ -3521,8 +3522,26 @@ displayEdition edited =
         Error e -> "Error-" ++ e
 
 
+splitRaw: String -> String
+splitRaw raw =
+    String.join
+        "-"
+        (List.map
+            String.fromInt
+            ( List.map
+                Char.toCode
+                ( String.toList raw )
+            )
+        )
+
 debugView: Model -> H.Html Msg
 debugView model =
+    let option =  { githubFlavored = Just { tables = True, breaks = False }
+                    , defaultHighlighting = Nothing
+                    , sanitize = False -- The important part.
+                    , smartypants = False
+                    }
+    in
     H.div
         []
         ( if model.horizon.debug
@@ -3530,7 +3549,8 @@ debugView model =
                 [ H.pre []
                 ( [ H.text " debug active "
                 , H.br [] []
-                , H.text ( "Raw pasted : " ++ model.rawPasted )
+                , H.text ( "Raw pasted : " ++ splitRaw model.rawPasted )
+                , ( Markdown.toHtmlWith option [] model.rawPasted )
                 , H.br [] []
                 , H.text ("Last Date: " ++ ( getLastNaive <| case model.series of
                                                                 Naked series -> Dict.keys series.initialTs
