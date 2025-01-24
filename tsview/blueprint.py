@@ -782,7 +782,7 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
         cfg = configuration()
-        dashboard_url = cfg['dashboard']['dashboards']
+        dashboard_url = cfg['dashboard'].get('dashboards', '/dashboards')
         return json.dumps(
             menu_spec(
                 dashboard_url=dashboard_url
