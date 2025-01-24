@@ -553,6 +553,10 @@ separator raw =
     else Nothing
 
 
+tab = "\t"
+return = "\n"
+
+
 pasteditems : String -> List String
 pasteditems raw =
     let
@@ -1292,8 +1296,7 @@ update msg model =
 
 
         CopySelection ->
-            let selectedValues = getSelectedValues model.series
-                concatened = String.join "\n" selectedValues
+            let concatened = cellsToString model.coordData
             in
             ( model
             , Cmd.batch [ deselect True
@@ -1912,6 +1915,37 @@ fillAllNas coordData idxNas =
 --        { model | firstSelected = first }
 
 --
+
+cellsToString: Dict ( Int, Int ) Entry -> String
+cellsToString coordData =
+    let selected = Dict.filter
+                    (\ k v -> v.selected)
+                    coordData
+        (( minRow, maxRow ), ( minCol, maxCol )) = getBounds selected
+        boundCol = ( minCol, maxCol )
+    in
+        String.join
+            return
+            <| List.map
+                ( rowToString selected boundCol )
+                ( List.range minRow maxRow )
+
+
+rowToString: Dict ( Int, Int ) Entry -> ( Int, Int )-> Int -> String
+rowToString coordData ( minCol, maxCol ) iRow =
+    String.join
+        tab
+        <| List.map
+            ( extractValue coordData iRow )
+            ( List.range minCol maxCol )
+
+
+extractValue: Dict ( Int, Int ) Entry -> Int -> Int -> String
+extractValue coordData iRow iCol =
+    case Dict.get ( iRow, iCol ) coordData of
+        Nothing -> ""
+        Just entry -> getValue entry
+
 
 getValueFromIndex: Dict ( Int, Int ) Entry -> ( Int, Int ) -> Float
 getValueFromIndex coordData position =
