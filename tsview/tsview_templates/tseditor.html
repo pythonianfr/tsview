@@ -37,35 +37,29 @@
              }
          });
 
-         function applyCopyPaste () {
-             var myinputs = document.getElementsByClassName("pastable")
-             for (var i = 0; i < myinputs.length; i++) {
-                 let myinput = myinputs[i]
-                 myinput.onpaste = e => {
+         class BatchCopy extends HTMLElement {
+              constructor() {
+                super();
+              }
+              connectedCallback() {
+                this.onpaste = e => {
                      e.preventDefault();
                      const clipboardData = e.clipboardData || window.clipboardData;
                      const text = clipboardData.getData('text') || "";
-                     const index = myinput.getAttribute('id')
+                     const index = this.getAttribute('index')
                      const newEvent = new CustomEvent("pastewithdata", {
                          detail: {
                              text: text.trim(),
                              index: index
                          }
                      });
-                     myinput.dispatchEvent(newEvent);
+                     this.dispatchEvent(newEvent);
                      return false;
                  };
-             };}
-
-         class EvalJs extends HTMLElement {
-             static get observedAttributes() {
-                 return ['myjs'];
-             }
-             attributeChangedCallback(name, oldValue, newValue) {
-                 eval(newValue);
-             }
+              }
          }
-         window.customElements.define('eval-js', EvalJs);
+         window.customElements.define('batch-copy', BatchCopy);
+
 
          // port to copy something to the clipboard
          var clipboard = function (value) {

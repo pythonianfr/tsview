@@ -158,7 +158,6 @@ type alias Model =
     , rawPasted: String
     , processedPasted: List String
     , initialCommands : Cmd Msg
-    , monotonicCount : Int
     , statusCopy : StatusCopy
     , panActive : Bool
     -- user actions
@@ -867,7 +866,6 @@ update msg model =
                                     , horizon = updateHorizonFromData
                                                 model.horizon
                                                 ts
-                                    , monotonicCount = model.monotonicCount + 1
                                     , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
@@ -911,7 +909,6 @@ update msg model =
                                             ( ToEdit { initialTs = indexedval, zoomTs = Nothing })
                                             model.componentsData
                                 newModel = { model | componentsData = newCD
-                                                   , monotonicCount = model.monotonicCount + 1
                                             }
                             in
                                 U.nocmd ( buildCoord newModel )
@@ -925,7 +922,6 @@ update msg model =
                                             ( Naked { initialTs = val, zoomTs = Nothing })
                                             model.componentsData
                                    newModel = { model | componentsData = newCD
-                                                      , monotonicCount = model.monotonicCount + 1
                                               }
                                in
                                    U.nocmd ( buildCoord newModel )
@@ -961,7 +957,6 @@ update msg model =
                 ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
                 default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
                 resetModel = { model | horizon = newModelHorizon
-                                     , monotonicCount = model.monotonicCount + 1
                                      , series = case  model.series of
                                                     Naked series -> Naked { initialTs = series.initialTs
                                                                           , zoomTs = Nothing}
@@ -1161,8 +1156,7 @@ update msg model =
         Saved (Ok _) ->
             case model.mode of
                 Existing _ ->
-                    ( { model | monotonicCount = model.monotonicCount + 1
-                              , slope = Nothing
+                    ( { model | slope = Nothing
                               , intercept = Nothing
                       }
                     , Cmd.batch
@@ -1203,7 +1197,6 @@ update msg model =
                                           , mode = case seriestype of
                                               I.Primary -> Existing I.Primary
                                               I.Formula -> Existing I.Formula
-                                          , monotonicCount = model.monotonicCount + 1
                                   }
                    in
                        ( newmodel
@@ -1471,7 +1464,6 @@ update msg model =
                                 in
                                 { model | horizon = { horizonmodel | zoomBounds = Nothing}
                                                     , series = newSeries
-                                                    , monotonicCount = model.monotonicCount + 1
                                                     , forceDraw = False
                                                     , statistics = getStatistics
                                                                     model.statistics
@@ -1487,7 +1479,6 @@ update msg model =
                                   in
                                     { model | series = newSeries
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
-                                            , monotonicCount = model.monotonicCount + 1
                                             , statistics = getStatistics
                                                                 model.statistics
                                                                 model.allowInferFreq
@@ -1577,9 +1568,7 @@ idEntry ( i, j ) =
 
 flipForce: Model -> Model
 flipForce model =
-    { model | forceDraw = not model.forceDraw
-            , monotonicCount = model.monotonicCount + 1
-    }
+    { model | forceDraw = not model.forceDraw }
 
 
 newZoom: String -> String -> Series -> Bool -> Series
@@ -2380,18 +2369,6 @@ msgTooManyPointsWithButton nbPoints =
         ]
 
 
-nodeTriggerPastable: Model -> H.Html Msg
-nodeTriggerPastable model =
-    H.node "eval-js"
-    [ HA.attribute
-          "myjs"
-          ( "applyCopyPaste("
-             ++ String.fromInt model.monotonicCount
-             ++ ");")
-    ]
-    [ ]
-
-
 buttonFillAll: Model -> H.Html Msg
 buttonFillAll model =
     if model.lastValids /= []
@@ -2664,15 +2641,7 @@ viewValueTable model =
         TooMuchPoints nb ->
             H.div
                 [ ]
-                [ msgTooManyPointsWithButton nb
-                -- for some reason an existing input help
-                -- to apply the method from a blank page
-                , H.input
-                    [ HA.class "pastable"
-                    , HA.hidden True]
-                    []
-                , nodeTriggerPastable model
-                ]
+                [ msgTooManyPointsWithButton nb ]
         Drawable ->
             H.div
                 []
@@ -2680,7 +2649,6 @@ viewValueTable model =
                     model
                     ( headerShowValue model )
                     ( getIndexedDates model )
-                , nodeTriggerPastable model
                 ]
 
 
@@ -2807,11 +2775,16 @@ buildCell model cartDict iRow iCol =
                 else []
           ++ debugAttributes debug entry
         )
-        ( [   H.input
+        [
+        H.node "batch-copy"
+        [ HA.attribute "index" (idEntry (iRow, iCol) )
+        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+        ]
+        ([   H.input
                 [ HA.id (idEntry (iRow, iCol) )
-                , HA.class "pastable"
+           --     , HA.class "pastable"
                 , HA.class statusClass
-                , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+          --      , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                 , HA.value value
                 , HA.autocomplete False
                 , HE.onInput ( InputChanged iRow iCol )
@@ -2820,6 +2793,7 @@ buildCell model cartDict iRow iCol =
                 []
         ] ++ ( fillButton ( iRow, iCol ) fillUnder )
         )
+        ]
 
 
 
@@ -3275,7 +3249,6 @@ editTable model =
                     [ HA.class "pastable"
                     , HA.hidden True]
                     []
-                , nodeTriggerPastable model
                 ]
         Drawable ->
             H.div
@@ -3333,7 +3306,6 @@ editTable model =
                           --      <| Dict.toList
                           --          ( getEditionTs model.series )
                       ]
-                , nodeTriggerPastable model
                 ]
 
 
@@ -3904,7 +3876,6 @@ init input =
                     , slope = Nothing
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
-                    , monotonicCount = 0
                     , rawPasted = ""
                     , focus = Nothing
                     , firstShift = Nothing
