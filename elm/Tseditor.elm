@@ -547,28 +547,50 @@ pasteWithDataDecoder =
         JD.map2 PasteType textDecoder indexDecoder
 
 
-separator raw =
+separatorReturn raw =
     if String.contains "\r\n" raw then Just "\r\n" -- windows
     else if String.contains "\n" raw then Just "\n" -- unix
     else Nothing
 
 
+parsePasted : String -> List ( List String )
+parsePasted raw =
+    let
+        removedSpace = String.replace " " "" raw
+        sepR =
+            separatorReturn raw
+    in
+    case sepR of
+        Nothing ->
+            [ splitByTab removedSpace ]
+        Just s ->
+            List.map
+                splitByTab
+                <| String.split s removedSpace
+
+
+getPos: String -> ( Int, Int )
+getPos s =
+    case String.split "-" s of
+        [] -> ( 0, 0 )
+        [ e ] -> ( 0, 0 )
+        [ e, i ] -> ( 0, 0 )
+        [ e, i, j ] -> ( Maybe.withDefault
+                            0
+                            ( String.toInt i ),
+                         Maybe.withDefault
+                            0
+                            ( String.toInt j ))
+        _ -> ( 0, 0 )
+
+
+splitByTab: String -> List String
+splitByTab s =
+    String.split tab s
+
+
 tab = "\t"
 return = "\n"
-
-
-pasteditems : String -> List String
-pasteditems raw =
-    let
-        removespace = String.replace " " "" raw
-        sep =
-            separator raw
-    in
-    case sep of
-        Nothing ->
-            [ removespace ]
-        Just s ->
-            String.split s removespace
 
 
 -- series decoder
@@ -1247,11 +1269,15 @@ update msg model =
             doerr "hascache http" <| U.unwraperror error
 
         Paste payload ->
-            U.nocmd { model | rawPasted = payload.text }
-            --let
-            --    newtimeSeries = applyPastedDict model payload
-            --in
-            --U.nocmd ( setOnEdtitionTs model newtimeSeries )
+            let parsed = parsePasted payload.text
+                coordPatch = cartesianDataRec parsed [] 0 0 Dict.empty
+                corner = getPos payload.index
+                merged = pasteRectangle model.coordData coordPatch corner
+            in
+            U.nocmd { model | rawPasted = payload.text
+                            , coordData = merged
+                    }
+
 
         ClickCell iRow iCol ->
             case model.holding.shift of
@@ -2118,47 +2144,37 @@ parseInput value =
                     Error value
 
 
---applyPastedDict : Model -> PasteType -> Dict String Entry
---applyPastedDict model payload =
---    let
---        editionTs = getEditionTs model.series
---        newValues =
---            List.map
---                parseInput
---                (pasteditems payload.text)
---        firstIndex =
---            Maybe.unwrap
---                0
---                (\entry -> entry.index)
---                (Dict.get
---                    (payload.index)
---                    editionTs
---                )
---        listIndex =
---            List.range
---                firstIndex
---                (firstIndex + (List.length newValues) - 1)
---        listDates =
---            Dict.keys
---                (Dict.filter
---                     (\_ value -> List.member value.index listIndex)
---                     editionTs
---                )
---        copyPastedDict = buildCopyPasteDict
---                            listDates
---                            newValues
---    in
---    Dict.merge
---        (\_ _ dict -> dict)
---        (\key _ value dict -> Dict.update
---                                key
---                                (updateEntry value Nothing)
---                                dict
---        )
---        (\_ _ dict -> dict)
---        editionTs
---        copyPastedDict
---        editionTs
+pasteRectangle: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Entry
+pasteRectangle base patch ( cornerRow, cornerCol ) =
+    let translatedPatch = Dict.fromList
+                            <| List.map
+                                (\ (( i, j ), v ) ->
+                                    (( i + cornerRow, j + cornerCol ), v ))
+                                ( Dict.toList patch )
+    in
+        Dict.merge
+            ( \_ _ dict -> dict )
+            ( \ position entryBase sPatch dict ->
+                if entryBase.editable
+                    then
+                        Dict.insert
+                            position
+                            (patchEntry entryBase sPatch)
+                            dict
+                    else dict
+            )
+            ( \_ _ dict -> dict )
+            base
+            translatedPatch
+            base
+
+
+patchEntry: Entry -> String -> Entry
+patchEntry entry s =
+    { entry | raw = Just s
+            , edition = parseInput s
+    }
+
 
 
 updateEntry : Edited ->  Maybe String -> Maybe Entry -> Maybe Entry
@@ -2780,7 +2796,6 @@ buildCell model cartDict iRow iCol =
         , if fillUnder
             then HA.class "fill-under"
             else HA.class "plain"
-        , debugClass debug entry
         , HE.onClick ( ClickCell iRow iCol )
         , HE.onDoubleClick (SelectRow ( iRow, iCol ))
         , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
@@ -2789,11 +2804,11 @@ buildCell model cartDict iRow iCol =
                      , HE.onMouseLeave ( SelectRow ( iRow, iCol ) )
                      ]
                 else []
+          ++ debugAttributes debug entry
         )
         ( [   H.input
                 [ HA.id (idEntry (iRow, iCol) )
                 , HA.class "pastable"
-                , HA.attribute "index" "toto"
                 , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                 , HA.value value
                 , HE.onInput ( InputChanged iRow iCol )
@@ -2805,7 +2820,7 @@ buildCell model cartDict iRow iCol =
 
 
 
-cartesianDataRec:  List ( List Entry ) ->  List Entry -> Int -> Int -> Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
+cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
 cartesianDataRec mergedData currentRow i j myDict =
         if j == 0
         then
@@ -3521,18 +3536,15 @@ displayCoord (i, j) =
     "(" ++ (String.fromInt i) ++ " , " ++ (String.fromInt j) ++ ")"
 
 
-debugClass: Bool -> Entry -> Attribute msg
-debugClass debug entry =
+debugAttributes: Bool -> Entry -> List ( Attribute msg )
+debugAttributes debug entry =
     if not debug
-        then HA.class ""
+        then [ ]
         else
-            HA.class ( "raw-"
-                     ++ displayRaw entry.raw
-                     ++ " value-"
-                     ++ displayValue entry.value
-                     ++ " "
-                     ++ displayEdition entry.edition
-                     )
+            [ HA.attribute  "raw" ( displayRaw entry.raw )
+            , HA.attribute "value" ( displayValue entry.value )
+            , HA.attribute "edition" ( displayEdition entry.edition )
+            ]
 
 
 displayRaw: Maybe String -> String

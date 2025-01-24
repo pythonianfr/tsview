@@ -45,7 +45,7 @@
                      e.preventDefault();
                      const clipboardData = e.clipboardData || window.clipboardData;
                      const text = clipboardData.getData('text') || "";
-                     const index = myinput.getAttribute('index')
+                     const index = myinput.getAttribute('id')
                      const newEvent = new CustomEvent("pastewithdata", {
                          detail: {
                              text: text.trim(),
