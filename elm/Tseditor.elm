@@ -2781,6 +2781,7 @@ buildCell model cartDict iRow iCol =
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = entry.selected
         fillUnder =  List.member ( iRow, iCol )  model.lastValids
+        statusClass = cellStyle entry
         debug = model.horizon.debug
    in
     H.td
@@ -2809,8 +2810,10 @@ buildCell model cartDict iRow iCol =
         ( [   H.input
                 [ HA.id (idEntry (iRow, iCol) )
                 , HA.class "pastable"
+                , HA.class statusClass
                 , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
                 , HA.value value
+                , HA.autocomplete False
                 , HE.onInput ( InputChanged iRow iCol )
                 , HA.readonly ( not entry.editable )
                  ]
@@ -3424,17 +3427,17 @@ getValue entry =
                         entry.value
         Just stuff -> stuff
 
-rowStyle: Entry -> String
-rowStyle entry =
+cellStyle: Entry -> String
+cellStyle entry =
         case entry.edition of
-            Edition _ -> "row-editing"
-            Deletion -> "row-editing"
-            Error _ -> "row-invalid"
+            Edition _ -> "editing"
+            Deletion -> "editing"
+            Error _ -> "invalid"
             NoEdition ->
                 if entry.override
-                 then "row-override"
+                 then "override"
                  else if Maybe.isNothing entry.value
-                      then "row-nan"
+                      then "nan"
                       else ""
 
 

@@ -1,9 +1,22 @@
 .series-info {
     margin-bottom: 0px;
 }
-.focused {background-color:red;}
 
-.selected {background-color:green;}
+.editing {
+    color: purple;
+}
+
+.nan {
+    color: maroon;
+}
+
+.override {
+    color: blue;
+}
+
+.invalid {
+    color: red;
+}
 
 /* grid */
 
@@ -262,6 +275,16 @@
 {   background-color:  #f2f2f2;
 }
 
+.multi-table .selected {
+    background-color: #cae9f5;
+}
+
+.multi-table .selected input {
+    background-color: #cae9f5;
+}
+
+
+
 .edit-table th {
     padding-top: 5px;
     padding-bottom: 5px;
@@ -299,9 +322,6 @@
     width: 30px;
 }
 
-.row-edit td {
-}
-
 .row-edit input {
     padding-top: 1px;
     padding-bottom: 1px;
@@ -331,22 +351,6 @@
 
 .row-edit.selected input {
     background-color: #cae9f5;
-}
-
-.row-editing {
-    color: purple;
-}
-
-.row-nan {
-    color: maroon;
-}
-
-.row-override {
-    color: blue;
-}
-
-.row-invalid {
-    color: red;
 }
 
 
