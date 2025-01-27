@@ -1,5 +1,6 @@
 module Queryeditor exposing ( main )
 
+import Array
 import Maybe.Extra as Maybe
 
 import Browser
@@ -23,9 +24,12 @@ import Lisp
 import Metadata as M
 import Url.Builder as UB
 import Util as U
+import AssocList as Assoc
 import HtmlExtra as HEX
 
+import Editor.Type as ET
 import Editor.UI.Widget as Widget
+import Editor.UI.Tree as UITree
 
 
 type alias Series =
@@ -181,6 +185,19 @@ update msg model =
         SelectedBasket Nothing ->
             let
                 (wid, cmd) = Widget.setFormula Nothing model.editorWidget
+
+                editor = model.editorWidget.editionTree.editor
+
+                byAndCmd =
+                    Assoc.get
+                        (ET.returnTypeFromString editor.returnTypeStr)
+                        editor.spec
+                    |> Maybe.andThen (Assoc.get "by.and")
+                    |> Maybe.withDefault ET.voidOperator
+                    |> UITree.SelectOperator
+                    |> UITree.EditEntry
+                    |> UITree.EditNode Array.empty
+                    |> U.sendCmd Widget.EditionTreeMsg
             in
             ( { model
                 | name = Nothing
@@ -192,7 +209,7 @@ update msg model =
                 , editorWidget = wid
                 , series = []
               }
-            , Cmd.map WidgetMsg cmd
+            , Cmd.map WidgetMsg <| Cmd.batch [ cmd, byAndCmd ]
             )
 
         SelectedBasket (Just name) ->
