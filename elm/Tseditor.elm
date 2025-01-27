@@ -164,6 +164,7 @@ type alias Model =
     , forceDraw : Bool
     , allowInferFreq : Bool
     -- cells interactivity
+    , selection : Maybe Box
     , focus : Maybe ( Int, Int )
     , firstShift: Maybe ( Int, Int )
     , firstSelected : Maybe ( Int, Int )
@@ -233,6 +234,7 @@ type Series =
 emptySeries: Series
 emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
 
+type alias Box = (( Int, Int ) , ( Int, Int ))
 
 type EditionMode =
     Creation CreationMode
@@ -424,7 +426,6 @@ type alias Entry =
     , override : Bool
     , indexRow: String
     , indexCol: String
-    , selected: Bool
     }
 
 
@@ -437,7 +438,6 @@ baseToEntry base =
         , override = base.override
         , indexRow = ""
         , indexCol = ""
-        , selected = False
     }
 
 
@@ -450,7 +450,6 @@ emptyEntry =
     , override = False
     , indexRow = ""
     , indexCol = ""
-    , selected = False
     }
 
 
@@ -476,7 +475,6 @@ dressSeries series =
                                                       <| String.fromFloat val
                                , indexCol = "generated"
                                , indexRow = k
-                               , selected = False
                                }
                              )
             )
@@ -1281,26 +1279,24 @@ update msg model =
                     case model.focus of
                         Nothing -> applyFocus model ( Just ( iRow, iCol ) )
                         Just ( i, j ) ->
-                            let newmodel = setContiguousSelection
-                                                model
-                                                ( i, j )
-                                                ( iRow, iCol )
+                            let newmodel = { model |
+                                                selection =
+                                                    Just <| extendSelection
+                                                            ( Just ( i, j ))
+                                                            ( iRow, iCol )
+                                            }
                             in
                                 U.nocmd newmodel
 
         SelectRow position ->
-            let transformed = Dict.map
-                                (if model.holding.mouse
-                                    then
-                                        case model.firstShift of
-                                            Nothing -> (\ k v -> v)
-                                            Just firstDrag ->
-                                                selectContiguous firstDrag position
-                                    else
-                                        ( flipSelection position )
-                                )
-                                model.coordData
-                newmodel = { model | coordData = transformed }
+            let selection = if model.holding.mouse
+                                then extendSelection
+                                        model.firstShift
+                                        position
+
+                                else pointToBox position
+
+                newmodel = { model | selection = Just selection }
             in
                 applyFocus ( setupFirstSelected newmodel ) ( Just position )
 
@@ -1315,7 +1311,9 @@ update msg model =
 
 
         CopySelection ->
-            let concatened = cellsToString model.coordData
+            let concatened = cellsToString
+                                model.coordData
+                                model.selection
             in
             ( model
             , Cmd.batch [ deselect True
@@ -1546,13 +1544,9 @@ applyFocus model maybeIndex =
 
 clearSelection: Model -> Model
 clearSelection model =
-    let transformed = Dict.map
-                        ( \ _ v -> { v | selected = False })
-                        model.coordData
-    in
-        {  model | firstSelected = Nothing
-                , firstShift = Nothing
-                , coordData = transformed
+    {  model | firstSelected = Nothing
+             , firstShift = Nothing
+             , selection = Nothing
         }
 
 
@@ -1777,32 +1771,78 @@ getCurrentValue entry =
         Error _ -> Nothing
 
 
-getSelectedValues: Series -> List String
-getSelectedValues series =
-        List.map
-            (\ e ->  case (getCurrentValue e) of
-                        Nothing -> ""
-                        Just val -> String.fromFloat val
-            )
-            <| List.filter
-                (\ e -> e.selected )
-                ( Dict.values ( getEditionTs series ))
+applyOnFilter: Dict comparable b -> ( comparable -> Bool ) -> ( b -> b ) -> Dict comparable b
+applyOnFilter dict filter action =
+    let contractFilter = (\ k _ -> filter k)
+        contractAction = (\ _ v -> action v )
+        transformed = Dict.map
+                        contractAction
+                        ( Dict.filter contractFilter dict )
+    in
+        Dict.union
+            transformed
+            dict
+
+
+keyInSelection :  (( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> Bool
+keyInSelection ((minRow, maxRow) , ( minCol, maxCol )) ( row, col ) =
+    row >= minRow && row <= maxRow && col >= minCol && col <= maxCol
+
+
+getSelected: Dict ( Int, Int ) b -> Maybe Box ->  Dict ( Int, Int ) b
+getSelected coordData selection =
+    case selection of
+        Nothing -> Dict.empty
+        Just box -> Dict.filter
+                        (\ k _ -> ( keyInSelection box) k)
+                        coordData
+
+
+applyOnSelection: Dict ( Int, Int ) b -> ( b -> b ) -> Maybe Box -> Dict ( Int, Int ) b
+applyOnSelection coordData action selection =
+    case selection of
+        Nothing -> coordData
+        Just box ->
+            applyOnFilter
+                coordData
+                ( keyInSelection box )
+                action
 
 
 deleteSelectedValues: Model -> Model
 deleteSelectedValues model =
-    let newCoord = Dict.map
-                    (\ k e ->  if e.selected
-                                then
-                                    { e | edition = Deletion
-                                        , raw = Nothing
-                                        , value = Nothing
-                                    }
-                                else e
-                    )
+    let delete = (\ e ->  if e.editable
+                            then { e | edition = Deletion
+                                     , raw = Nothing
+                                     , value = Nothing
+                                 }
+                            else e
+                 )
+        newCoord = applyOnSelection
                     model.coordData
+                    delete
+                    model.selection
     in
         { model | coordData = newCoord }
+
+
+pointToBox: ( Int, Int ) -> Box
+pointToBox ( pRow, pCol ) =
+    (( pRow, pRow ), ( pCol, pCol ))
+
+
+extendSelection: Maybe ( Int, Int ) -> ( Int, Int ) -> Box
+extendSelection firstShift ( pRow, pCol ) =
+    case firstShift of
+        Nothing -> pointToBox ( pRow, pCol )
+        Just ( sRow, sCol ) ->
+            let minCol = min sCol pCol
+                maxCol = max sCol pCol
+                minRow = min sRow pRow
+                maxRow = max sRow pRow
+            in
+                (( minRow, maxRow ), ( minCol, maxCol ))
+
 
 setupNas model =
     let coordData = model.coordData
@@ -1931,11 +1971,9 @@ fillAllNas coordData idxNas =
 
 --
 
-cellsToString: Dict ( Int, Int ) Entry -> String
-cellsToString coordData =
-    let selected = Dict.filter
-                    (\ k v -> v.selected)
-                    coordData
+cellsToString: Dict ( Int, Int ) Entry -> Maybe Box -> String
+cellsToString coordData selection =
+    let selected = getSelected coordData selection
         (( minRow, maxRow ), ( minCol, maxCol )) = getBounds selected
         boundCol = ( minCol, maxCol )
     in
@@ -1970,40 +2008,6 @@ getValueFromIndex coordData position =
                     ( Dict.get position coordData )
     in
         Maybe.withDefault 0 ( getCurrentValue entry )
-
-
-selectContiguous: ( Int, Int ) -> ( Int, Int ) -> (( Int, Int ) -> Entry -> Entry )
-selectContiguous ( iFrom, jFrom ) ( iTo, jTo ) =
-    let minRow = min iFrom iTo
-        maxRow = max iFrom iTo
-        minCol = min jFrom jTo
-        maxCol = max jFrom jTo
-    in
-        ( \ ( row, col  ) v ->
-             { v | selected = row >= minRow && row <= maxRow && col >= minCol && col <= maxCol }
-        )
-
-
-setContiguousSelection: Model -> ( Int , Int ) -> ( Int , Int ) -> Model
-setContiguousSelection model cursorFrom cursorIndex =
-    { model | coordData = Dict.map
-                            ( selectContiguous cursorFrom cursorIndex )
-                            model.coordData
-    }
-
-
-flipSelection : ( Int, Int ) -> (( Int, Int ) -> Entry -> Entry )
-flipSelection position =
-     ( \ index v ->
-        { v | selected = if v.selected
-                        then if ( index == position )
-                                then False
-                                else True
-                        else if ( index == position )
-                                then True
-                                else False
-        }
-    )
 
 
 bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
@@ -2064,20 +2068,19 @@ arrowActionT model increment =
                             case model.firstShift of
                                 Nothing ->
                                     applyFocus
-                                         ( setContiguousSelection
-                                                { model | firstShift = Just focus
-                                                }
-                                                ( bound ( addP focus increment ))
-                                                focus
-                                         )
+                                         { model | firstShift = Just focus
+                                                 , selection = Just <| extendSelection
+                                                                        ( Just focus )
+                                                                        ( bound ( addP focus increment ))
+                                         }
                                          ( Just ( bound ( addP focus increment )))
                                 Just firstShift ->
                                      applyFocus
-                                         ( setContiguousSelection
-                                                { model | focus =  Just ( bound ( addP focus increment ))}
-                                                ( bound (addP focus increment ))
-                                                ( firstShift )
-                                         )
+                                         { model | firstShift =  Just firstShift
+                                                 , selection = Just <| extendSelection
+                                                                         ( Just ( bound (addP focus increment )))
+                                                                         ( firstShift )
+                                         }
                                          ( Just ( bound (addP focus increment ) ))
                         True ->
                             let relevantBound = if incrementRow > 0
@@ -2087,20 +2090,19 @@ arrowActionT model increment =
                             case model.firstShift of
                                 Nothing ->
                                     applyFocus
-                                         ( setContiguousSelection
-                                                { model | firstShift = Just focus
-                                                }
-                                                ( relevantBound, focusCol )
-                                                focus
-                                         )
+                                         { model | firstShift = Just focus
+                                                 , selection = Just <| extendSelection
+                                                                         ( Just ( relevantBound, focusCol ))
+                                                                         focus
+                                         }
                                          ( Just ( relevantBound, focusCol ))
                                 Just ( rowShift, colShift ) ->
                                      applyFocus
-                                         ( setContiguousSelection
-                                                { model | focus =  Just ( relevantBound, colShift )}
-                                                ( relevantBound, colShift )
-                                                ( rowShift, colShift )
-                                         )
+                                        { model | firstShift = Just ( relevantBound, colShift )
+                                                 , selection = Just <| extendSelection
+                                                                         (Just ( relevantBound, colShift ))
+                                                                         ( rowShift, colShift )
+                                         }
                                          ( Just ( relevantBound, colShift ))
 
 
@@ -2385,7 +2387,7 @@ buttonFillAll model =
 viewRelevantTable: Model -> H.Html Msg
 viewRelevantTable model =
     case model.mode of
-        Existing I.Primary -> viewEditTable model
+        Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
         Creation Form -> H.table
                             [ HA.class "creation-form" ]
@@ -2747,7 +2749,9 @@ buildCell model cartDict iRow iCol =
                     Just content -> content
         value = getValue entry
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
-        selected = entry.selected
+        selected = case model.selection of
+                    Nothing -> False
+                    Just box -> keyInSelection box ( iRow, iCol )
         fillUnder =  List.member ( iRow, iCol )  model.lastValids
         statusClass = cellStyle entry
         debug = model.horizon.debug
@@ -2882,7 +2886,6 @@ getEntry date ( name, series ) =
                        , override = False
                        , indexRow = date
                        , indexCol = name
-                       , selected = False
                        }
     in
     case series of
@@ -3510,6 +3513,12 @@ displayCoord: ( Int, Int ) -> String
 displayCoord (i, j) =
     "(" ++ (String.fromInt i) ++ " , " ++ (String.fromInt j) ++ ")"
 
+displayBox: Maybe Box -> String
+displayBox selection =
+    case selection of
+        Nothing -> "Nothing"
+        Just (rows, cols) ->  ( displayCoord rows ) ++ ( displayCoord cols )
+
 
 debugAttributes: Bool -> Entry -> List ( Attribute msg )
 debugAttributes debug entry =
@@ -3592,6 +3601,8 @@ debugView model =
                 , H.br [] []
                 , H.br [] []
                 , H.text  ( ", Key Pressed: " ++ model.keyName)
+                , H.br [] []
+                , H.text (", Selectionbox: " ++ displayBox model.selection )
                 , H.text  ( ", Focus : " ++ case model.focus of
                                                 Nothing -> "Nothing"
                                                 Just focus -> displayCoord focus
@@ -3877,6 +3888,7 @@ init input =
                     , insertion_dates = Array.empty
                     , processedPasted = [ ]
                     , rawPasted = ""
+                    , selection = Nothing
                     , focus = Nothing
                     , firstShift = Nothing
                     , firstSelected = Nothing
