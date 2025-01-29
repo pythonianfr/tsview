@@ -73,7 +73,7 @@ toKey : Action -> String -> Msg
 toKey action keyValue =
     case String.uncons keyValue of
         Just ( char, "" ) ->
-            NoAction
+            Typing char
         _ ->
             ActionControl ( keyToType action keyValue )
 
@@ -213,6 +213,7 @@ type Msg
     | CopyToClipboard CopyType
     | ResetClass CopyType
     | ActionControl ControlKey
+    | Typing Char
     | NoAction
     | FillNas ( Int, Int)
     | FillAll
@@ -1413,6 +1414,20 @@ update msg model =
                 PageUp Up -> U.nocmd model
                 Enter Up -> U.nocmd model
                 Other keyName action -> U.nocmd { model | keyName = keyName }
+
+        Typing char ->
+            case model.currentInput of
+                Just active -> U.nocmd model
+                Nothing ->
+                    case model.focus of
+                        Nothing ->  U.nocmd model
+                        Just ( i, j ) ->
+                             ({ model | currentInput = Just ( i, j ) }
+                             , T.perform
+                                identity
+                                ( T.succeed ( InputChanged i j ( String.fromChar char )))
+                             )
+
 
         Drag mode ->
             let holding = model.holding
