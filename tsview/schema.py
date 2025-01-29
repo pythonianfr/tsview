@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from sqlhelp import sqlfile
+from tshistory.schema import kvapi
+from tsview import __version__
 
 
 SCHEMA = Path(__file__).parent / 'schema.sql'
@@ -23,3 +25,6 @@ class TsviewSchema():
             if not hasschema:
                 cn.execute('create schema "tsview"')
                 cn.execute(sqlfile(SCHEMA, ns="tsview"))
+
+        kvstore = kvapi.kvstore(str(engine.url), namespace=f'{self.namespace}-kvstore')
+        kvstore.set('tshistory-supervision-version', __version__)
