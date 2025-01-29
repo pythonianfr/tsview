@@ -179,6 +179,7 @@ type alias Model =
     , components : List Component
     , componentsData: Dict String Series
     , coordData: Dict ( Int, Int ) Entry
+    , diff : Dict String SeriesNaked
     }
 
 
@@ -1062,12 +1063,13 @@ update msg model =
                             then Nothing
                             else Just rawstring
             in
-            ( setupNas
-                <| updateCoordData
-                    model
-                    ( row, col )
-                    raw
-                    edition
+            ( applyDiff
+                <|setupNas
+                    <| updateCoordData
+                        model
+                        ( row, col )
+                        raw
+                        edition
             , Cmd.none )
 
         GetLastInsertionDates (Ok rawdates) ->
@@ -1268,9 +1270,9 @@ update msg model =
                 corner = getPos payload.index
                 merged = pasteRectangle model.coordData coordPatch corner
             in
-            U.nocmd { model | rawPasted = payload.text
-                            , coordData = merged
-                    }
+            U.nocmd <| applyDiff { model | rawPasted = payload.text
+                                         , coordData = merged
+                                 }
 
 
         ClickCell iRow iCol ->
@@ -2193,6 +2195,103 @@ parseInput value =
                     Error value
 
 
+cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
+cartesianDataRec mergedData currentRow i j myDict =
+        if j == 0
+        then
+            case mergedData of
+                [] -> myDict
+                row :: rows ->
+                    case row of
+                        [] -> myDict
+                        cell :: cells ->
+                            cartesianDataRec
+                                rows
+                                cells
+                                i
+                                ( j + 1 )
+                                (Dict.insert (i, j) cell myDict)
+
+        else
+          case currentRow of
+                [] -> cartesianDataRec
+                        mergedData
+                        []
+                        ( i + 1 )
+                        0
+                        myDict
+                cell :: cells ->
+                    cartesianDataRec
+                        mergedData
+                        cells
+                        i
+                        ( j + 1 )
+                        (Dict.insert (i, j) cell myDict)
+
+
+cartesianData: List ( List Entry )-> Dict ( Int, Int ) Entry
+cartesianData mergedData =
+    cartesianDataRec mergedData [] 0 0 Dict.empty
+
+
+mergeData: Model ->  List String -> List ( List Entry )
+mergeData model dates =
+    List.map
+        ( builRowBasic model )
+        dates
+
+
+compNames : List Component -> List String
+compNames components =
+    List.map
+        (\ c -> c.name )
+        components
+
+
+compInfos :  List Component -> Dict String Series -> List ( String , Series)
+compInfos components componentsData =
+    List.map
+        ( \ name -> ( name
+                    , Maybe.withDefault
+                        emptySeries
+                        <| Dict.get name componentsData
+                    )
+        )
+        ( compNames components )
+
+
+builRowBasic: Model -> String -> List  Entry
+builRowBasic model date =
+    let formula = getEntry date ( "formula", model.series )
+        components = List.map
+                        ( getEntry date )
+                        ( compInfos model.components model.componentsData )
+    in ([ formula ] ++ components )
+
+
+applyDiff: Model -> Model
+applyDiff model =
+    { model | diff = currentDiff model.components model.coordData }
+
+
+currentDiff: List Component -> Dict ( Int, Int ) Entry -> Dict String SeriesNaked
+currentDiff components coordData =
+    Dict.fromList
+        <| List.map
+            ( \name -> ( name, ( extractComponent ( Dict.values coordData ) name )) )
+            ( List.map (\e -> e.name ) components )
+
+
+extractComponent: List Entry -> String -> SeriesNaked
+extractComponent entries name =
+    Dict.fromList
+    <| List.map
+        (\ e -> ( e.indexRow, getCurrentValue e))
+        <| List.filter
+            ( \ e -> e.edition /= NoEdition && e.indexCol == name )
+            entries
+
+
 pasteRectangle: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Entry
 pasteRectangle base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
@@ -2254,7 +2353,7 @@ patchEditedData model =
         patch = filterAndConvert
                     <| Dict.map
                         ( \ _ e -> e.edition )
-                        ( currentDiff model )
+                        ( currentDiffOld model )
     in
     Http.request
         { method = "PATCH"
@@ -2884,80 +2983,6 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             ]
 
 
-cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
-cartesianDataRec mergedData currentRow i j myDict =
-        if j == 0
-        then
-            case mergedData of
-                [] -> myDict
-                row :: rows ->
-                    case row of
-                        [] -> myDict
-                        cell :: cells ->
-                            cartesianDataRec
-                                rows
-                                cells
-                                i
-                                ( j + 1 )
-                                (Dict.insert (i, j) cell myDict)
-
-        else
-          case currentRow of
-                [] -> cartesianDataRec
-                        mergedData
-                        []
-                        ( i + 1 )
-                        0
-                        myDict
-                cell :: cells ->
-                    cartesianDataRec
-                        mergedData
-                        cells
-                        i
-                        ( j + 1 )
-                        (Dict.insert (i, j) cell myDict)
-
-
-cartesianData: List ( List Entry )-> Dict ( Int, Int ) Entry
-cartesianData mergedData =
-    cartesianDataRec mergedData [] 0 0 Dict.empty
-
-
-mergeData: Model ->  List String -> List ( List Entry )
-mergeData model dates =
-    List.map
-        ( builRowBasic model )
-        dates
-
-
-compNames : List Component -> List String
-compNames components =
-    List.map
-        (\ c -> c.name )
-        components
-
-
-compInfos :  List Component -> Dict String Series -> List ( String , Series)
-compInfos components componentsData =
-    List.map
-        ( \ name -> ( name
-                    , Maybe.withDefault
-                        emptySeries
-                        <| Dict.get name componentsData
-                    )
-        )
-        ( compNames components )
-
-
-builRowBasic: Model -> String -> List  Entry
-builRowBasic model date =
-    let formula = getEntry date ( "formula", model.series )
-        components = List.map
-                        ( getEntry date )
-                        ( compInfos model.components model.componentsData )
-
-    in ([ formula ] ++ components )
-
 
 
 getEntry: String ->  ( String , Series ) -> Entry
@@ -3222,8 +3247,8 @@ restoreSign negative number =
         else number
 
 
-currentDiff: Model -> Dict String Entry
-currentDiff model =
+currentDiffOld: Model -> Dict String Entry
+currentDiffOld model =
     Dict.map
         (\ _ e -> { e | edition = ( linearCorrection model e.edition )})
         ( Dict.filter
@@ -3251,7 +3276,7 @@ entryToFloat entry =
 viewEditTable : Model -> H.Html Msg
 viewEditTable model =
     let
-        patch = currentDiff model
+        patch = currentDiffOld model
     in
     H.div
         [ HA.class "tables-edition" ]
@@ -3839,7 +3864,7 @@ plotNode: Model -> H.Html Msg
 plotNode model =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
-        diff = currentDiff model
+        diff = currentDiffOld model
         dragMode =
             if model.panActive
             then "pan"
@@ -3992,6 +4017,7 @@ init input =
                     , components = []
                     , componentsData = Dict.empty
                     , coordData = Dict.empty
+                    , diff = Dict.empty
                     }
     , Cmd.none
     )
