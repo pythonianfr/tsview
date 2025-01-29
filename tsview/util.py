@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 
 from psyl.lisp import parse, pretty
 
-from tsview.schema import TsviewSchema
+from tsview.schema import tsview_schema
 from tsview.horizon import Horizon
 
 
@@ -206,7 +206,7 @@ def plot_to_htmldiv(data, layout=None, divid=None):
 # migration
 def initialize_horizon(db_uri, force=False):
     engine = create_engine(db_uri)
-    TsviewSchema().create(engine, reset=force)
+    tsview_schema().create(engine, reset=force)
     api = Horizon(engine)
     def_1 = {
         'fromdate': '(shifted (today ) #:days -15)',
