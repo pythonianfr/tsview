@@ -2807,6 +2807,7 @@ buildCell model cartDict iRow iCol =
                     Just content -> content
         statusClass = cellStyle entry
         value = getValue entry
+        valueCropped = printValue model.roundValues <| String.toFloat value
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = case model.selection of
                     Nothing -> False
@@ -2848,13 +2849,19 @@ buildCell model cartDict iRow iCol =
         [ HA.attribute "index" (idEntry (iRow, iCol) )
         , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
         ]
-        ( ( contextualInput ( iRow, iCol ) statusClass value ( entry.editable && active ))
+        ( ( contextualInput
+            ( iRow, iCol )
+            statusClass
+            value
+            valueCropped
+            ( entry.editable && active )
+        )
           ++ ( fillButton ( iRow, iCol ) fillUnder )
         )
         ]
 
 
-contextualInput ( iRow, iCol ) statusClass value editable =
+contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
     if editable
         then
             [ H.input
@@ -2870,12 +2877,11 @@ contextualInput ( iRow, iCol ) statusClass value editable =
             [ H.input
                     [ HA.id (idEntry (iRow, iCol) )
                     , HA.class statusClass
-                    , HA.value value
+                    , HA.value valueCropped
                     , HA.readonly True
                     ]
                     [ ]
             ]
-
 
 
 cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
