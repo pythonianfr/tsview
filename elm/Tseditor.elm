@@ -111,7 +111,7 @@ keyToType action keyValue =
     then PageUp action
     else
     if keyValue == "Enter"
-    then ArrowDown action
+    then Enter action
     else Other keyValue action
 
 
@@ -169,6 +169,7 @@ type alias Model =
     , firstShift: Maybe ( Int, Int )
     , firstSelected : Maybe ( Int, Int )
     , lastValids: List ( Int, Int )
+    , currentInput : Maybe ( Int, Int )
     , slope: Maybe String
     , intercept: Maybe String
     -- keyboard/mouse
@@ -205,6 +206,7 @@ type Msg
     | SelectRow ( Int, Int )
     | DeselectAll Bool
     | ClickCell Int Int
+    | ActivateCell Int Int
     | Drag DragMode
     | CopySelection
     | CopyFromBrowser Bool
@@ -1274,7 +1276,14 @@ update msg model =
             case model.holding.shift of
                 False -> let ( newmodel, cmd  ) = applyFocus model ( Just ( iRow, iCol ) )
                          in
-                            ( clearSelection newmodel , cmd )
+                            case model.currentInput of
+                                Nothing -> ( clearSelection newmodel , cmd )
+                                Just current ->
+                                    if current == ( iRow, iCol )
+                                    then
+                                        ( newmodel , cmd )
+                                    else
+                                        ( clearSelection newmodel , cmd )
                 True ->
                     case model.focus of
                         Nothing -> applyFocus model ( Just ( iRow, iCol ) )
@@ -1287,6 +1296,15 @@ update msg model =
                                             }
                             in
                                 U.nocmd newmodel
+
+
+        ActivateCell iRow iCol ->
+            case Dict.get (iRow, iCol ) model.coordData of
+                Nothing -> U.nocmd model
+                Just entry -> if entry.editable
+                                then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
+                                else U.nocmd { model | currentInput = Nothing }
+
 
         SelectRow position ->
             let selection = if model.holding.mouse
@@ -1353,6 +1371,8 @@ update msg model =
 
         ActionControl ( key ) ->
             let holding = model.holding
+                notEditing = model.currentInput == Nothing
+                cond = conditionnalAction model notEditing
             in
             case key of
                 Escape Down -> ( model , deselect True )
@@ -1365,17 +1385,26 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
-                ArrowDown Down -> arrowAction model ( 1, 0)
-                ArrowUp Down -> arrowAction model ( -1, 0)
-                ArrowLeft Down -> arrowAction model ( 0, -1)
-                ArrowRight Down -> arrowAction model ( 0, 1)
-                PageDown Down -> arrowAction model ( 30, 0)
-                PageUp Down -> arrowAction model ( -30, 0)
+                ArrowDown Down -> cond (arrowAction model ( 1, 0))
+                ArrowUp Down -> cond <| arrowAction model ( -1, 0)
+                ArrowLeft Down -> cond <| arrowAction model ( 0, -1)
+                ArrowRight Down -> cond <| arrowAction model ( 0, 1)
+                PageDown Down -> cond <| arrowAction model ( 30, 0)
+                PageUp Down -> cond <| arrowAction model ( -30, 0)
                 Enter Down -> case model.focus of
                     Nothing -> U.nocmd model
-                    Just index -> let ( i , j ) = index
-                                  in
-                                  applyFocus model ( Just ( ( i - 1 ), j ))
+                    Just ( i , j ) ->
+                        case model.currentInput of
+                            Nothing -> U.nocmd { model | currentInput = Just ( i , j )}
+                            Just active ->
+                                if active == ( i , j )
+                                then
+                                  applyFocus
+                                    { model | currentInput = Just ( i + 1 , j )}
+                                    ( Just ( ( i + 1 ), j ))
+                                else
+                                    U.nocmd { model | currentInput = Just ( i , j )}
+
                 ArrowDown Up -> U.nocmd model
                 ArrowUp Up -> U.nocmd model
                 ArrowLeft Up -> U.nocmd model
@@ -1547,6 +1576,7 @@ clearSelection model =
     {  model | firstSelected = Nothing
              , firstShift = Nothing
              , selection = Nothing
+             , currentInput = Nothing
         }
 
 
@@ -2021,6 +2051,13 @@ simpleBound minValue maxValue value =
     else if value > maxValue
         then maxValue
         else value
+
+
+conditionnalAction: Model -> Bool -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+conditionnalAction model condition action =
+    if condition
+        then action
+        else U.nocmd model
 
 
 arrowAction: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
@@ -2747,14 +2784,17 @@ buildCell model cartDict iRow iCol =
     let entry = case Dict.get ( iRow, iCol ) cartDict of
                     Nothing -> emptyEntry
                     Just content -> content
+        statusClass = cellStyle entry
         value = getValue entry
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = case model.selection of
                     Nothing -> False
                     Just box -> keyInSelection box ( iRow, iCol )
         fillUnder =  List.member ( iRow, iCol )  model.lastValids
-        statusClass = cellStyle entry
         debug = model.horizon.debug
+        active = case model.currentInput of
+                    Nothing -> False
+                    Just position -> (iRow, iCol) == position
    in
     H.td
         ([ if entry.editable
@@ -2769,8 +2809,11 @@ buildCell model cartDict iRow iCol =
         , if fillUnder
             then HA.class "fill-under"
             else HA.class "plain"
+        , if active
+            then HA.class "active"
+            else HA.class ""
         , HE.onClick ( ClickCell iRow iCol )
-        , HE.onDoubleClick (SelectRow ( iRow, iCol ))
+        , HE.onDoubleClick (ActivateCell iRow iCol )
         , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
         ] ++  if model.holding.mouse
                 then [ HE.onMouseEnter ( SelectRow ( iRow, iCol ) )
@@ -2784,20 +2827,33 @@ buildCell model cartDict iRow iCol =
         [ HA.attribute "index" (idEntry (iRow, iCol) )
         , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
         ]
-        ([   H.input
-                [ HA.id (idEntry (iRow, iCol) )
-           --     , HA.class "pastable"
-                , HA.class statusClass
-          --      , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
-                , HA.value value
-                , HA.autocomplete False
-                , HE.onInput ( InputChanged iRow iCol )
-                , HA.readonly ( not entry.editable )
-                 ]
-                []
-        ] ++ ( fillButton ( iRow, iCol ) fillUnder )
+        ( ( contextualInput ( iRow, iCol ) statusClass value ( entry.editable && active ))
+          ++ ( fillButton ( iRow, iCol ) fillUnder )
         )
         ]
+
+
+contextualInput ( iRow, iCol ) statusClass value editable =
+    if editable
+        then
+            [ H.input
+                    [ HA.id (idEntry (iRow, iCol) )
+                    , HA.class statusClass
+                    , HA.value value
+                    , HA.autocomplete False
+                    , HE.onInput ( InputChanged iRow iCol )
+                     ]
+                    [ ]
+            ]
+        else
+            [ H.input
+                    [ HA.id (idEntry (iRow, iCol) )
+                    , HA.class statusClass
+                    , HA.value value
+                    , HA.readonly True
+                    ]
+                    [ ]
+            ]
 
 
 
@@ -3612,6 +3668,10 @@ debugView model =
                                 Nothing -> "Nothing"
                                 Just first -> displayCoord first
                         )
+                , H.text  ( ", current Active: " ++ case model.currentInput of
+                                Nothing -> "Nothing"
+                                Just active -> displayCoord active
+                        )
                 ] ++ ( List.map
                             (\ i -> H.text (", Na to fill at: " ++ ( displayCoord i )))
                             model.lastValids
@@ -3892,6 +3952,7 @@ init input =
                     , focus = Nothing
                     , firstShift = Nothing
                     , firstSelected = Nothing
+                    , currentInput = Just (1, 1)
                     , holding = emptyHolding
                     , keyName = ""
                     , lastValids = []

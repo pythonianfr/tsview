@@ -219,7 +219,7 @@
     padding-top: 0;
     padding-bottom: 0;
     padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-right: 0.5rem;sh
     background: #007bff;
     border: 1px solid blue;
     border-radius: 8px;
@@ -351,6 +351,10 @@
 
 .row-edit.selected input {
     background-color: #cae9f5;
+}
+
+.row-edit .active {
+    box-shadow: inset 0px 0px 7px;
 }
 
 
