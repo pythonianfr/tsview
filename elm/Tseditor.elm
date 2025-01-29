@@ -1386,7 +1386,7 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
-                ArrowDown Down -> cond (arrowAction model ( 1, 0))
+                ArrowDown Down -> cond <| arrowAction model ( 1, 0)
                 ArrowUp Down -> cond <| arrowAction model ( -1, 0)
                 ArrowLeft Down -> cond <| arrowAction model ( 0, -1)
                 ArrowRight Down -> cond <| arrowAction model ( 0, 1)
@@ -2089,17 +2089,32 @@ addP position increment =
     in ( pR + iR, pC + iC)
 
 
+extremum: ( Int, Int ) -> ( Int, Int ) -> (( Int, Int ), ( Int, Int )) -> ( Int, Int )
+extremum ( fRow, fCol ) ( iRow, iCol ) ( ( minRow, maxRow ), ( minCol, maxCol )) =
+    let col = if iCol == 0
+                then fCol
+                else if iCol > 0
+                    then maxCol
+                    else minCol
+        row = if iRow == 0
+                then fRow
+                else if iRow > 0
+                    then maxRow
+                    else minRow
+    in
+        ( row, col )
+
+
 arrowActionT: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
 arrowActionT model increment =
     let coordDict = model.coordData
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordDict
         bound = bounded ( ( minRow, maxRow ), ( minCol, maxCol ))
-        ( incrementRow, incrementCol ) =  increment
     in
     case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
-            let ( focusRow, focusCol ) = focus
+            let extrem = extremum focus increment (( minRow, maxRow ), ( minCol, maxCol ))
             in
             case model.holding.shift of
                 False -> case model.holding.control of
@@ -2107,13 +2122,9 @@ arrowActionT model increment =
                                         model
                                         ( Just  ( bound ( addP focus increment )))
                             True ->
-                                case incrementRow > 0 of
-                                    True -> applyFocus
-                                                model
-                                                ( Just ( minRow, focusCol ))
-                                    False -> applyFocus
-                                                model
-                                                ( Just ( maxRow, focusCol ))
+                                applyFocus
+                                    model
+                                    ( Just extrem)
                 True ->
                     case model.holding.control of
                         False ->
@@ -2135,27 +2146,22 @@ arrowActionT model increment =
                                          }
                                          ( Just ( bound (addP focus increment ) ))
                         True ->
-                            let relevantBound = if incrementRow > 0
-                                                    then maxRow
-                                                    else minRow
-                            in
                             case model.firstShift of
                                 Nothing ->
                                     applyFocus
                                          { model | firstShift = Just focus
                                                  , selection = Just <| extendSelection
-                                                                         ( Just ( relevantBound, focusCol ))
+                                                                         ( Just extrem )
                                                                          focus
                                          }
-                                         ( Just ( relevantBound, focusCol ))
+                                         ( Just extrem)
                                 Just ( rowShift, colShift ) ->
                                      applyFocus
-                                        { model | firstShift = Just ( relevantBound, colShift )
-                                                 , selection = Just <| extendSelection
-                                                                         (Just ( relevantBound, colShift ))
+                                        { model | selection = Just <| extendSelection
+                                                                         (Just extrem)
                                                                          ( rowShift, colShift )
                                          }
-                                         ( Just ( relevantBound, colShift ))
+                                         ( Just extrem)
 
 
 getRelevantData : Model -> List (Cmd Msg)
