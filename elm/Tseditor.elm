@@ -1424,11 +1424,18 @@ update msg model =
                     case model.focus of
                         Nothing ->  U.nocmd model
                         Just ( i, j ) ->
-                             ({ model | currentInput = Just ( i, j ) }
-                             , T.perform
-                                identity
-                                ( T.succeed ( InputChanged i j ( String.fromChar char )))
-                             )
+                            let current = Maybe.withDefault
+                                            emptyEntry
+                                            ( Dict.get ( i, j ) model.coordData )
+                            in
+                            if not current.editable
+                                then U.nocmd model
+                                else
+                                 ({ model | currentInput = Just ( i, j ) }
+                                 , T.perform
+                                    identity
+                                    ( T.succeed ( InputChanged i j ( String.fromChar char )))
+                                 )
 
 
         Drag mode ->
@@ -2853,6 +2860,11 @@ updateCoordData model position raw edition =
     let previous = Maybe.withDefault
                     emptyEntry
                     ( Dict.get position model.coordData )
+    in
+        if not previous.editable
+            then model
+            else
+    let
         newCoord = Dict.insert
                     position
                     { previous | raw = raw
