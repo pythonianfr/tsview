@@ -73,7 +73,7 @@ toKey : Action -> String -> Msg
 toKey action keyValue =
     case String.uncons keyValue of
         Just ( char, "" ) ->
-            Typing char
+            Typing action char
         _ ->
             ActionControl ( keyToType action keyValue )
 
@@ -88,6 +88,9 @@ keyToType action keyValue =
     else
     if keyValue == "Control"
     then Control action
+    else
+    if keyValue == "Meta"
+    then Meta action
     else
     if keyValue == "Shift"
     then Shift action
@@ -124,6 +127,7 @@ type ControlKey =
     Escape Action
     | Delete Action
     | Control Action
+    | Meta Action
     | Shift Action
     | ArrowUp Action
     | ArrowDown Action
@@ -214,7 +218,7 @@ type Msg
     | CopyToClipboard CopyType
     | ResetClass CopyType
     | ActionControl ControlKey
-    | Typing Char
+    | Typing Action Char
     | NoAction
     | FillNas ( Int, Int)
     | FillAll
@@ -352,12 +356,15 @@ type alias Holding =
     { mouse: Bool
     , control: Bool
     , shift : Bool
+    , meta: Bool
     }
 
+emptyHolding: Holding
 emptyHolding =
     { mouse = False
     , control = False
     , shift = False
+    , meta = False
     }
 
 type ActionRound =
@@ -1270,9 +1277,10 @@ update msg model =
                 corner = getPos payload.index
                 merged = pasteRectangle model.coordData coordPatch corner
             in
-            U.nocmd <| applyDiff { model | rawPasted = payload.text
-                                         , coordData = merged
-                                 }
+            U.nocmd <| setupNas
+                        <| applyDiff { model | rawPasted = payload.text
+                                              , coordData = merged
+                                     }
 
 
         ClickCell iRow iCol ->
@@ -1388,6 +1396,8 @@ update msg model =
                 Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
                 Control Down -> U.nocmd { model | holding = { holding | control = True }}
                 Control Up -> U.nocmd { model | holding = { holding | control = False }}
+                Meta Down -> U.nocmd { model | holding = { holding | meta = True }}
+                Meta Up -> U.nocmd { model | holding = { holding | meta = False }}
                 ArrowDown Down -> cond <| arrowAction model ( 1, 0)
                 ArrowUp Down -> cond <| arrowAction model ( -1, 0)
                 ArrowLeft Down -> cond <| arrowAction model ( 0, -1)
@@ -1417,25 +1427,31 @@ update msg model =
                 Enter Up -> U.nocmd model
                 Other keyName action -> U.nocmd { model | keyName = keyName }
 
-        Typing char ->
-            case model.currentInput of
-                Just active -> U.nocmd model
-                Nothing ->
-                    case model.focus of
-                        Nothing ->  U.nocmd model
-                        Just ( i, j ) ->
-                            let current = Maybe.withDefault
-                                            emptyEntry
-                                            ( Dict.get ( i, j ) model.coordData )
-                            in
-                            if not current.editable
-                                then U.nocmd model
-                                else
-                                 ({ model | currentInput = Just ( i, j ) }
-                                 , T.perform
-                                    identity
-                                    ( T.succeed ( InputChanged i j ( String.fromChar char )))
-                                 )
+        Typing action char ->
+            case action of
+                Up -> U.nocmd model
+                Down ->
+                    if model.holding.control || model.holding.meta
+                        then U.nocmd model
+                        else
+                            case model.currentInput of
+                                Just active -> U.nocmd model
+                                Nothing ->
+                                    case model.focus of
+                                        Nothing ->  U.nocmd model
+                                        Just ( i, j ) ->
+                                            let current = Maybe.withDefault
+                                                            emptyEntry
+                                                            ( Dict.get ( i, j ) model.coordData )
+                                            in
+                                            if not current.editable
+                                                then U.nocmd model
+                                                else
+                                                 ({ model | currentInput = Just ( i, j ) }
+                                                 , T.perform
+                                                    identity
+                                                    ( T.succeed ( InputChanged i j ( String.fromChar char )))
+                                                 )
 
 
         Drag mode ->
