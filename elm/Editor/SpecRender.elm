@@ -47,7 +47,17 @@ renderLiteralType t = case t of
 
     T.TimestampString -> "Timestamp"
 
-    T.SeriesName -> "SeriesName"
+    T.Proposal proposalType -> case proposalType of
+        T.SeriesName ->  "SeriesName"
+
+        T.Source -> "Source"
+
+        T.MetaKey -> "MetaKey"
+
+        T.CachePolicy -> "CachePolicy"
+
+        T.BasketName -> "BasketName"
+
 
 renderOperatorOutputType : T.OperatorOutputType -> String
 renderOperatorOutputType (T.OperatorOutputType s) = s

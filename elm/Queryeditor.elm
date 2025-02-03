@@ -638,7 +638,7 @@ view model =
     H.div
         [ ]
         [ H.div
-            [ HA.class "main-content" ]
+            [ HA.class "main-content formula_editor" ]
             [ H.div [ HA.class "baskets", HA.style "margin" ".5em" ] <|
                 viewedition model
             ]]

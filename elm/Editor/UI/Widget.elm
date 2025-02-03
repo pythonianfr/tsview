@@ -119,7 +119,7 @@ view model =
         annotations =
             Tree.getParserErrors model.editionTree  |> Maybe.map getAnnotations
 
-    in H.article [ HA.class "main" ]
+    in H.article [ HA.class "main formula_editor" ]
     [ H.div
         [ HA.class "code_left" ]
         [ CodeEditor.viewEdition model.codeEditor annotations

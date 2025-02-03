@@ -56,7 +56,7 @@ literalParser literalType = case literalType of
 
     T.TimestampString -> PE.stringParser |> PE.map T.TimestampExpr
 
-    T.SeriesName -> PE.stringParser |> PE.map T.StringExpr
+    T.Proposal _ -> PE.stringParser |> PE.map T.StringExpr
 
 
 literalTypeParser : Parser c x T.LiteralType
@@ -75,8 +75,16 @@ literalTypeParser = asks .toToken <| \toToken -> PA.oneOf
     , PA.succeed T.TimestampString |. PA.keyword (toToken "TimestampString")
     , PA.succeed T.TimestampString |. PA.keyword (toToken "Timestamp")
 
-    , PA.succeed T.SeriesName |. PA.keyword (toToken "seriesname") -- py
-    , PA.succeed T.SeriesName |. PA.keyword (toToken "SeriesName")
+    , PA.succeed (T.Proposal T.SeriesName) |. PA.keyword (toToken "seriesname") -- py
+    , PA.succeed (T.Proposal T.SeriesName) |. PA.keyword (toToken "SeriesName")
+
+    , PA.succeed (T.Proposal T.Source) |. PA.keyword (toToken "Source")
+
+    , PA.succeed (T.Proposal T.MetaKey) |. PA.keyword (toToken "MetaKey")
+
+    , PA.succeed (T.Proposal T.CachePolicy) |. PA.keyword (toToken "CachePolicy")
+
+    , PA.succeed (T.Proposal T.BasketName) |. PA.keyword (toToken "BasketName")
     ]
 
 operatorOutputTypeParser : Parser c x T.OperatorOutputType

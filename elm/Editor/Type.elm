@@ -16,14 +16,20 @@ type alias KAssoc a = Assoc.Dict Key a
 
 -- Spec description
 
+type ProposalType
+    = SeriesName
+    | Source
+    | MetaKey
+    | CachePolicy
+    | BasketName
+
 type LiteralType
     = Bool
     | Int
     | Number
     | String
     | TimestampString
-    | SeriesName
-
+    | Proposal ProposalType
 
 type OperatorOutputType
     = OperatorOutputType String

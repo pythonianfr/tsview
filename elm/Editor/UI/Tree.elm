@@ -48,10 +48,12 @@ import Editor.UI.Type exposing (..)
 
 type alias TreePath = Array.Array Int
 
+type alias Proposals = Assoc.Dict T.ProposalType (List String)
+
 type alias RowEnv =
     { treePath : TreePath
     , defaultValue : Maybe T.LiteralExpr
-    , seriesNames : List String
+    , proposals : Proposals
     }
 
 type alias Reader a = Reader.Reader RowEnv a
@@ -83,7 +85,7 @@ type EditAction
 
 type alias Model =
     { editor : Editor
-    , seriesNames : List String
+    , proposals : Proposals
     , specErrors : T.SpecErrors
     }
 
@@ -96,7 +98,7 @@ type Msg
     = EditNode TreePath EditAction
     | TreeEdited T.FormulaCode
     | Edit T.FormulaCode
-    | GotSeriesNames (Result Http.Error (List String))
+    | GotProposals T.ProposalType (Result Http.Error (List String))
 
 
 type alias HMsg = Html Msg
@@ -161,7 +163,7 @@ updateInput s ({literalType} as input) =
        T.TimestampString ->
            O.assign value_ (setStr T.TimestampExpr) input
 
-       T.SeriesName ->
+       T.Proposal _ ->
            O.assign value_ (setStr T.StringExpr) input
 
        T.Bool -> case s of
@@ -323,10 +325,11 @@ updateNode editAction tree = ask <| \editor -> case editAction of
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = case msg of
-    GotSeriesNames (Ok xs) ->
-        { model  | seriesNames = xs } |> withNoCmd
+    GotProposals proposalType (Ok xs) ->
+        let proposals = Assoc.insert proposalType xs model.proposals
+        in { model  | proposals = proposals } |> withNoCmd
 
-    GotSeriesNames (Err _) ->
+    GotProposals _ (Err _) ->
         model |> withNoCmd
 
     EditNode treePath editAction -> model
@@ -426,8 +429,8 @@ renderClosedSelector {value} {selectedItem} toMsg =
         ]
 
 renderOpenSelector :
-    Input -> SelectorInput -> List String -> (SelectorAction -> Msg) -> HMsg
-renderOpenSelector input {keywords, selectedItem } rawItems toMsg =
+    SelectorInput -> List String -> (SelectorAction -> Msg) -> HMsg
+renderOpenSelector {keywords, selectedItem } rawItems toMsg =
     let
         limitResults xs =
             let len = List.length xs
@@ -458,7 +461,7 @@ renderOpenSelector input {keywords, selectedItem } rawItems toMsg =
             [ H.text x ]
 
     in H.span
-    [ HA.class "series_dropdown"
+    [ HA.class "proposal_dropdown"
     ]
     [ H.input
         [ HA.value keywords
@@ -471,7 +474,7 @@ renderOpenSelector input {keywords, selectedItem } rawItems toMsg =
         ]
         [ H.text <| Util.fromCharCode 10060 ]
     , H.div
-        [ HA.class "series_dropdown_menu"
+        [ HA.class "proposal_dropdown_menu"
         , HA.style "min-width" (String.fromInt width ++ "ch")
         ]
         [ H.div
@@ -480,16 +483,20 @@ renderOpenSelector input {keywords, selectedItem } rawItems toMsg =
         ]
     ]
 
-renderSeriesName : Input -> Reader HMsg
-renderSeriesName ({userInput} as input) = ask <| \{seriesNames, treePath} ->
+renderProposals : T.ProposalType -> Input -> Reader HMsg
+renderProposals proposalType ({userInput} as input) =
+    ask <| \{proposals, treePath} ->
     let
         selectorInput = decodeSelectorInputFromUserInput userInput
 
         toMsg : SelectorAction -> Msg
         toMsg msg = msg |> SelectorAction |> EditEntry |> EditNode treePath
 
+        proposalList =
+            Assoc.get proposalType proposals |> Maybe.withDefault []
+
     in if selectorInput.isOpen || Maybe.isNothing input.value then
-        renderOpenSelector input selectorInput seriesNames toMsg
+        renderOpenSelector selectorInput proposalList toMsg
     else
         renderClosedSelector input selectorInput toMsg
 
@@ -498,7 +505,7 @@ renderNode node = case node of
     Primitive (PInput ({literalType} as x)) -> case literalType of
         T.Bool -> renderCheckInput x
 
-        T.SeriesName -> renderSeriesName x
+        T.Proposal proposalType -> renderProposals proposalType  x
 
         _ -> renderInput x
 
@@ -713,14 +720,14 @@ renderHRow {expandNode, indent, prefixNode, entryNodes} =
     ]
 
 view : Model -> HMsg
-view {editor, seriesNames} =
+view {editor, proposals} =
     let
         col cls txt =
             H.header [ HA.class cls ] [ H.text txt ]
 
     in O.review treeRoot_ editor.root
         |> renderTree 0
-        |> RE.run (RowEnv Array.empty Nothing seriesNames)
+        |> RE.run (RowEnv Array.empty Nothing proposals)
         |> O.assign (o OE.listHead_ prefixNode_) HX.nothing
         |> List.map renderHRow
         |> List.concat
@@ -809,12 +816,12 @@ init_ formulaCode returnTypeStr (errs, spec) =
         (initEditor spec returnTypeStr)
         (\code -> buildEditor spec returnTypeStr code |> updateFormula)
         formulaCode
-    , seriesNames = []
+    , proposals = Assoc.empty
     , specErrors = errs
     }
 
-getSeriesNames : String -> Cmd Msg
-getSeriesNames urlPrefix = Http.get
+getSeriesName : String -> Cmd Msg
+getSeriesName urlPrefix = Http.get
     { url = UB.crossOrigin
         urlPrefix
         [ "api", "series", "find" ]
@@ -822,15 +829,68 @@ getSeriesNames urlPrefix = Http.get
         , UB.string "meta" "false"
         ]
     , expect = Http.expectJson
-        GotSeriesNames
+        (GotProposals T.SeriesName)
         (JD.list (JD.field "name" JD.string))
     }
+
+getSource : String -> Cmd Msg
+getSource urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "series", "sources" ]
+        []
+    , expect = Http.expectJson
+        (GotProposals T.Source)
+        (JD.list JD.string)
+    }
+
+getMetaKey : String -> Cmd Msg
+getMetaKey urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "series", "metadata-keys" ]
+        []
+    , expect = Http.expectJson
+        (GotProposals T.MetaKey)
+        (JD.list JD.string)
+    }
+
+getCachePolicy : String -> Cmd Msg
+getCachePolicy urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "cache", "policies" ]
+        []
+    , expect = Http.expectJson
+        (GotProposals T.CachePolicy)
+        (JD.list JD.string)
+    }
+
+getBasketName : String -> Cmd Msg
+getBasketName urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "series", "baskets" ]
+        []
+    , expect = Http.expectJson
+        (GotProposals T.BasketName)
+        (JD.list JD.string)
+    }
+
+getProposals : String -> Cmd Msg
+getProposals urlPrefix = Cmd.batch
+    [ getSeriesName urlPrefix
+    , getSource urlPrefix
+    , getMetaKey urlPrefix
+    , getCachePolicy urlPrefix
+    , getBasketName urlPrefix
+    ]
 
 init : Flags -> (Model, Cmd Msg)
 init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
     parseSpecValue {reduce = True} jsonSpec
         |> init_ formulaCode returnTypeStr
-        |> withCmd (getSeriesNames urlPrefix)
+        |> withCmd (getProposals urlPrefix)
 
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
@@ -917,7 +977,7 @@ initModel {jsonSpec, formulaCode} =
             (buildEditor spec "Series" formulaDev)
             (buildEditor spec "Series")
             formulaCode
-        , seriesNames = []
+        , proposals = Assoc.empty
         , specErrors = errs
         }
 
