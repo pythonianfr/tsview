@@ -23,7 +23,7 @@ def engine(request):
         'log_timezone': 'UTC'}
     )
     e = create_engine(DBURI)
-    schema.refinery_schema().create(e, reset=True, rework=True)
+    schema.refinery_schema().create(e)
     return e
 
 
