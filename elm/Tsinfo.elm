@@ -24,6 +24,7 @@ import Horizon exposing
     , PlotStatus(..)
     , ZoomFromPlotly
     , extractDates
+    , extractValues
     , getFromToDates
     , getFetchBounds
     , initHorizon
@@ -32,6 +33,7 @@ import Horizon exposing
     , updateHorizonFromData
     , extractZoomDates
     , setStatusPlot
+    , updateZoom
     )
 import Horizon as HorizonModule
 import Html as H
@@ -951,14 +953,17 @@ update msg model =
                     else U.nocmd newmodel
 
 
-        FromZoom range ->
+        FromZoom zoom ->
             let
                 horizonmodel = model.horizon
-                bounds = ( extractZoomDates range).x
+                newZoom = updateZoom
+                                model.horizon
+                                ( extractZoomDates zoom )
+                rangeX = newZoom.x
             in
             if model.historyMode
             then
-                case bounds of
+                case rangeX of
                     Nothing -> U.nocmd { model
                                             | historyPlots = Dict.empty
                                             , lastIdates = Array.empty
@@ -981,7 +986,9 @@ update msg model =
 
             else
                 U.nocmd { model | horizon =
-                            { horizonmodel | zoomBounds = bounds }}
+                            { horizonmodel | zoomBounds = newZoom.x
+                                           , zoomY = newZoom.y
+                            }}
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1311,6 +1318,10 @@ viewplot model =
                             xaxis = { defaultDateAxis | range = extractDates
                                                         model.horizon.zoomBounds
                                     }
+                            , yaxis = { defaultValueAxis |
+                                            range = extractValues
+                                                        model.horizon.zoomY
+                                      }
                             , dragMode = Just ( if model.panActive
                                                              then "pan"
                                                              else "zoom" )}
