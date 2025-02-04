@@ -22,6 +22,8 @@ import ParserExtra
 import AceEditor as Ace
 import HtmlExtra as HX
 import UndoList as UL
+import Optics.Core as O exposing (o)
+import OpticsExtra as OE
 import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
 import Plotter exposing
@@ -53,6 +55,13 @@ type Msg
     | UndoMsg UndoMsg
 
 
+type alias PlotData =
+    { debouncer : Debouncer.Debouncer () ()
+    , loading : Bool
+    , series : Series
+    , errMess : Maybe String
+    }
+
 type alias Model =
     { urlPrefix : String
     , editorWidget : Widget.Model
@@ -61,9 +70,7 @@ type alias Model =
     , lastFormulaCode : Maybe String
     , savedFormulaCode : Maybe String
     , saveErrMess : Maybe String
-    , debouncer : Debouncer.Debouncer () ()
-    , plotData : Series
-    , plotErrMess : Maybe String
+    , plotData : PlotData
     }
 
 type alias SavedModel =
@@ -79,6 +86,14 @@ type alias UndoModel =
     , undoList : UndoList
     }
 
+plotData_ : O.SimpleLens ls Model PlotData
+plotData_ = O.lens .plotData <| \s a -> {s | plotData = a}
+
+loading_ : O.SimpleLens ls PlotData Bool
+loading_ = O.lens .loading <| \s a -> {s | loading = a}
+
+plotLoading_ : O.SimpleLens ls Model Bool
+plotLoading_ = o plotData_ loading_
 
 saveFormula : Model -> String -> String -> Cmd Msg
 saveFormula {urlPrefix} name code = Http.request
@@ -99,9 +114,11 @@ saveFormula {urlPrefix} name code = Http.request
     , tracker = Nothing
     }
 
-askPlotData : Cmd Msg
-askPlotData =
-    Util.sendCmd DebouncePlotData <|  Debouncer.provideInput ()
+askPlotData : Model -> (Model, Cmd Msg)
+askPlotData model =
+    ( O.assign plotLoading_ True model
+    , Util.sendCmd DebouncePlotData <|  Debouncer.provideInput ()
+    )
 
 getPlotData : Model -> Cmd Msg
 getPlotData {urlPrefix, lastFormulaCode} =
@@ -119,11 +136,32 @@ getPlotData {urlPrefix, lastFormulaCode} =
             |> Ok
             |> Util.sendCmd GotPlotData
 
+
+updatePlotData : Result Http.Error String -> PlotData -> PlotData
+updatePlotData res plotData = O.assign loading_ False <|
+    case Result.map (JD.decodeString seriesdecoder) res of
+        (Ok (Ok val)) ->
+            { plotData
+                | series = val
+                , errMess = Nothing
+            }
+
+        (Ok (Err err)) ->
+            { plotData
+                | series = Dict.empty
+                , errMess = Just (JD.errorToString err)
+            }
+
+        (Err err) ->
+            { plotData
+                | series = Dict.empty
+                , errMess = Just (unwraperror err)
+            }
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
     WidgetMsg (Widget.NewFormula formula) ->
-        { model | lastFormulaCode = formula }
-            |> CX.withCmd askPlotData
+        { model | lastFormulaCode = formula } |> askPlotData
 
     WidgetMsg x -> Tuple.mapBoth
         (\m -> { model | editorWidget = m })
@@ -160,37 +198,18 @@ update msg model = case msg of
     DebouncePlotData debMsg ->
         let
             (debModel, debCmd, emitted) =
-                Debouncer.update debMsg model.debouncer
+                Debouncer.update debMsg model.plotData.debouncer
 
             cmd = case emitted of
                 Just _ -> getPlotData model
 
                 Nothing -> Cmd.none
         in
-        { model | debouncer = debModel }
+        O.over plotData_ (\x -> { x | debouncer = debModel }) model
             |> CX.withCmd (Cmd.batch [ cmd, Cmd.map DebouncePlotData debCmd ])
 
-    GotPlotData (Ok raw) -> case JD.decodeString seriesdecoder raw of
-        Ok val ->
-            { model
-                | plotData = val
-                , plotErrMess = Nothing
-            }
-            |> CX.withNoCmd
-
-        Err err ->
-            { model
-                | plotData = Dict.empty
-                , plotErrMess = Just (JD.errorToString err)
-            }
-            |> CX.withNoCmd
-
-    GotPlotData (Err err) ->
-        { model
-            | plotData = Dict.empty
-            , plotErrMess = Just (unwraperror err)
-        }
-        |> CX.withNoCmd
+    GotPlotData res ->
+        O.over plotData_ (updatePlotData res) model |> CX.withNoCmd
 
     UndoMsg _ ->
         ( model, Cmd.none )
@@ -201,17 +220,19 @@ undoUpdate msg {model, undoList} =
         (newModel, cmd) = update msg model
 
         storeNew hasPlotData =
-            SavedModel hasPlotData { newModel | plotData = Dict.empty }
+            O.over plotData_ (\x -> { x | series = Dict.empty}) newModel
+                |> SavedModel hasPlotData
                 |> flip newSafeConcise undoList
                 |> UndoModel newModel
                 |> CX.withCmd cmd
 
         undoRedo newUndoList =
             let {hasPlotData, savedModel} = newUndoList.present
-            in
-            ( UndoModel savedModel newUndoList
-            , if hasPlotData then askPlotData else Cmd.none
-            )
+            in O.over OE.first_ (flip UndoModel newUndoList) <|
+                if hasPlotData then
+                    askPlotData savedModel
+                else
+                    (savedModel, Cmd.none)
 
     in case msg of
         WidgetMsg (Widget.NewFormula _) -> storeNew True
@@ -259,13 +280,13 @@ viewError mStr = HX.viewMaybe
     mStr
 
 viewPlot : Model -> Html Msg
-viewPlot {formulaName, plotData, plotErrMess} =
+viewPlot {formulaName, plotData} =
     let
         name = Maybe.withDefault "editor.code" formulaName
         plot = scatterplot
             name
-            (Dict.keys plotData)
-            (Dict.values plotData)
+            (Dict.keys plotData.series)
+            (Dict.values plotData.series)
             "lines"
             Plotter.defaultTraceOptions
         args = serializedPlotArgs
@@ -279,7 +300,7 @@ viewPlot {formulaName, plotData, plotErrMess} =
     H.section
         []
         [ H.node "plot-figure" [ HA.attribute "args" args ] []
-        , viewError plotErrMess
+        , viewError plotData.errMess
         ]
 
 viewSeriesInfo : Model -> Html msg
@@ -315,7 +336,7 @@ makeUndoButton msg undoList =
 view : Model -> Html Msg
 view model =
     H.div
-        [ HA.class "main-content formula_editor" ]
+        [ HA.class "main-content formula_editor" ] <|
         [ H.div
             [ HA.class "d-flex" ]
             [ H.h1
@@ -331,9 +352,18 @@ view model =
             ]
         , Widget.viewSpecErrors model.editorWidget
         , Widget.view model.editorWidget |> H.map WidgetMsg
-        , H.div [ HA.id "plot" ] []
-        , viewPlot model
-        ]
+        ] ++
+        if O.get plotLoading_ model then
+            [ H.img
+                [ HA.class "img_loading"
+                , HA.src "./tsview_static/loading_wheel.gif"
+                ]
+                []
+            ]
+        else
+            [ H.div [ HA.id "plot" ] []
+            , viewPlot model
+            ]
 
 
 type alias Formula =
@@ -370,10 +400,13 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     , lastFormulaCode = code
     , savedFormulaCode = code
     , saveErrMess = Nothing
-    , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
-        |> Debouncer.toDebouncer
-    , plotData = Dict.empty
-    , plotErrMess = Nothing
+    , plotData =
+        { debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
+            |> Debouncer.toDebouncer
+        , loading = False
+        , series = Dict.empty
+        , errMess = Nothing
+        }
     }
     |> CX.withCmd (Cmd.map WidgetMsg cmd)
 

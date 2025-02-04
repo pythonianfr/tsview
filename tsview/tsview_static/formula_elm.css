@@ -139,3 +139,10 @@ footer[class~="code_left"] {
     background-color: #fff;
     z-index: 2;
 }
+
+.img_loading {
+    height: 80px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
