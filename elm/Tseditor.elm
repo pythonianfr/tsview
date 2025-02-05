@@ -182,6 +182,8 @@ type alias Model =
     -- show-values for formula
     , components : List Component
     , coordData: Dict ( Int, Int ) Entry
+    , dates: List String
+    , columns: List String
     , diff : Dict String SeriesNaked
     }
 
@@ -491,6 +493,14 @@ dressSeries series =
             ( Dict.toList series )
 
 
+likeComp: Model -> Component
+likeComp model =
+    Component
+        model.name
+        ( asCType model.seriestype )
+        ( Just model.series )
+
+
 type Edited =
     Edition Float
     | NoEdition
@@ -504,6 +514,12 @@ type alias Component =
     , data: Maybe Series
     }
 
+
+asCType: I.SeriesType -> CType
+asCType t =
+    case t of
+        I.Primary -> Primary
+        I.Formula -> Formula
 
 type CType =
     Primary
@@ -1526,9 +1542,13 @@ update msg model =
                         case zoomDates of
                             Nothing ->
                                 let newSeries = resetZoom model.series
+                                    newComponents = List.map
+                                                        (\ c -> { c | data = Maybe.map resetZoom c.data})
+                                                        model.components
                                 in
                                 { model | horizon = { horizonmodel | zoomBounds = Nothing}
                                                     , series = newSeries
+                                                    , components = newComponents
                                                     , forceDraw = False
                                                     , statistics = getStatistics
                                                                     model.statistics
@@ -1539,10 +1559,23 @@ update msg model =
                                 -> let newSeries =  newZoom
                                                         minDate
                                                         maxDate
-                                                        model.series
                                                         model.panActive
+                                                        model.series
+
+                                       newComponents = List.map
+                                                        (\ c -> { c | data = Maybe.map
+                                                                                ( newZoom
+                                                                                    minDate
+                                                                                    maxDate
+                                                                                    model.panActive
+                                                                                )
+                                                                                c.data
+                                                                }
+                                                        )
+                                                        model.components
                                   in
                                     { model | series = newSeries
+                                            , components = newComponents
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                                             , statistics = getStatistics
                                                                 model.statistics
@@ -1633,8 +1666,8 @@ flipForce model =
     { model | forceDraw = not model.forceDraw }
 
 
-newZoom: String -> String -> Series -> Bool -> Series
-newZoom minDate maxDate series pan =
+newZoom: String -> String -> Bool -> Series ->Series
+newZoom minDate maxDate pan series =
     case series of
         Naked ts -> Naked { initialTs = ts.initialTs
                           , zoomTs = Just <| newZoomT
@@ -2267,35 +2300,45 @@ cartesianData mergedData =
     cartesianDataRec mergedData [] 0 0 Dict.empty
 
 
-mergeData: Model ->  List String -> List ( List Entry )
-mergeData model dates =
-    List.map
-        ( builRowBasic model )
-        dates
+mergeData:List Component -> ( List ( List Entry ), List String, List String )
+mergeData components =
+    let dates = List.sort
+                <| Set.toList
+                    <| List.foldl
+                            Set.union
+                            Set.empty
+                            <| List.map
+                                (\ c -> case c.data of
+                                            Nothing -> Set.empty
+                                            Just s -> Set.fromList
+                                                        <| onlyActiveKeys s
+                                )
+                                components
+        columns = List.map
+                    ( \ c -> c.name )
+                    components
+
+    in
+        ( List.map
+            ( builRowBasic components )
+            dates
+        , dates
+        , columns
+        )
 
 
-compNames : List Component -> List String
-compNames components =
-    List.map
-        (\ c -> c.name )
-        components
-
-
-
-builRowBasic: Model -> String -> List  Entry
-builRowBasic model date =
-    let formula = getEntry date ( "formula", model.series )
-        components = List.map
-                        ( getEntry date )
-                        <| List.map
-                            (\ c -> ( c.name
-                                    , Maybe.withDefault
-                                        emptySeries
-                                        c.data
-                                    )
-                            )
-                            model.components
-    in ([ formula ] ++ components )
+builRowBasic: List Component -> String -> List  Entry
+builRowBasic components date =
+        List.map
+            ( getEntry date )
+            <| List.map
+                (\ c -> ( c.name
+                        , Maybe.withDefault
+                            emptySeries
+                            c.data
+                        )
+                )
+                components
 
 
 applyDiff: Model -> Model
@@ -2851,13 +2894,19 @@ getBounds cartDict=
 
 buildCoord: Model -> Model
 buildCoord model =
-    let dates = datesValue model
-        nbPoints = List.length dates
+    let nbPoints = List.length <| datesValue model
     in
     case statePoints nbPoints model.forceDraw of
          NoPoint -> { model | coordData = Dict.empty }
          TooMuchPoints _ -> { model | coordData = Dict.empty }
-         Drawable -> { model | coordData = ( cartesianData ( mergeData model dates ))}
+         Drawable ->
+            let allSeries = [ likeComp model ] ++ model.components
+                ( dataAsRows, dates, columns ) = mergeData allSeries
+            in
+            { model | coordData = ( cartesianData dataAsRows)
+                    , dates = dates
+                    , columns = columns
+            }
 
 
 updateCoordData: Model -> (Int, Int) -> Maybe String -> Edited -> Model
@@ -3088,15 +3137,8 @@ datesComponent model comp =
                     <| Maybe.withDefault
                             emptySeries
                             comp.data
-        bounds = getFromToDates model.horizon
     in
-    case bounds of
-        Nothing -> Set.fromList allDates
-        Just ( min, max ) -> Set.fromList
-                                ( List.filter
-                                (\ date -> (date >= min) && (date <= max))
-                                allDates )
-
+        Set.fromList allDates
 
 
 headerShowValue: Model -> List ( H.Html Msg )
@@ -3632,6 +3674,8 @@ debugAttributes debug entry =
             [ HA.attribute  "raw" ( displayRaw entry.raw )
             , HA.attribute "value" ( displayValue entry.value )
             , HA.attribute "edition" ( displayEdition entry.edition )
+            , HA.attribute "indexRow" entry.indexRow
+            , HA.attribute "indexCol" entry.indexCol
             ]
 
 
@@ -4012,6 +4056,8 @@ init input =
                     , panActive = False
                     , components = []
                     , coordData = Dict.empty
+                    , dates = []
+                    , columns = []
                     , diff = Dict.empty
                     }
     , Cmd.none
