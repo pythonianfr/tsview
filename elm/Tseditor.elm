@@ -184,7 +184,7 @@ type alias Model =
     , coordData: Dict ( Int, Int ) Entry
     , dates: List String
     , columns: List String
-    , diff : Dict String SeriesNaked
+    , diff : Dict ( Int, Int ) Entry
     }
 
 
@@ -2343,15 +2343,18 @@ builRowBasic components date =
 
 applyDiff: Model -> Model
 applyDiff model =
-    { model | diff = currentDiff model.components model.coordData }
+    { model | diff = currentDiff model.coordData }
 
 
-currentDiff: List Component -> Dict ( Int, Int ) Entry -> Dict String SeriesNaked
-currentDiff components coordData =
-    Dict.fromList
-        <| List.map
-            ( \name -> ( name, ( extractComponent ( Dict.values coordData ) name )) )
-            ( List.map (\e -> e.name ) components )
+currentDiff: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
+currentDiff coordData =
+    Dict.filter
+        (\ k e -> case e.edition of
+                    Edition _ -> True
+                    Deletion -> True
+                    _ -> False
+        )
+        coordData
 
 
 extractComponent: List Entry -> String -> SeriesNaked
@@ -2859,7 +2862,17 @@ viewValueTable model =
         Drawable ->
             H.div
                 []
-                [ buildTable
+                [
+                H.div
+                    [ HA.class "save-table" ]
+                    [ H.div
+                      [ HA.class "for-current-diff"]
+                      ( divLinearCorrection model model.diff
+                      ++ saveButtons model model.diff
+                      )
+                    , buildDiffTable model
+                    ]
+                , buildTable
                     model
                     ( headerShowValue model )
                     ( getIndexedDates model )
@@ -2927,6 +2940,40 @@ updateCoordData model position raw edition =
                     model.coordData
     in
         { model | coordData = newCoord }
+
+
+buildDiffTable: Model -> H.Html Msg
+buildDiffTable model =
+     let diff = model.diff
+         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds diff
+    in
+        H.table
+        [ HA.class "multi-table diff-table"]
+        [ H.thead
+            []
+            []
+        , H.tbody
+            []
+            ( List.map
+                ( buildDiffRow model diff minCol maxCol )
+                ( List.range minRow maxRow ) )
+        ]
+
+
+buildDiffRow model diff minCol maxCol iRow =
+    H.tr
+        []
+        <| List.map
+                ( buildDiffCell model diff minCol maxCol iRow )
+                ( List.range minCol maxCol )
+
+
+buildDiffCell model diff minCol maxCol iRow iCol =
+    let entry = case Dict.get ( iRow, iCol ) diff of
+                    Nothing -> emptyEntry
+                    Just content -> content
+    in
+        H.td [] [ H.text <| getValue entry]
 
 
 buildTable: Model -> List ( H.Html Msg ) -> Dict Int ( H.Html Msg ) -> H.Html Msg
@@ -3319,26 +3366,26 @@ viewEditTable model =
     H.div
         [ HA.class "tables-edition" ]
         [ editTable model
-        , commonHeaderEdition model patch
+        --, commonHeaderEdition model patch
         ]
 
 
-commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
-commonHeaderEdition model patch =
-    H.div
-        [ HA.class "save-table" ]
-        [ H.div
-          [ HA.class "for-current-diff"]
-          ( divLinearCorrection model patch ++
-            saveButtons model patch )
-        , divSaveDataTable patch
-        ]
+--commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
+--commonHeaderEdition model patch =
+--    H.div
+--        [ HA.class "save-table" ]
+--        [ H.div
+--          [ HA.class "for-current-diff"]
+--          ( divLinearCorrection model patch ++
+--            saveButtons model patch )
+--        , divSaveDataTable patch
+--        ]
 
 
 
-saveButtons: Model -> Dict String Entry -> List (H.Html Msg)
-saveButtons model patch =
-    if Dict.isEmpty patch
+saveButtons: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
+saveButtons model diff =
+    if Dict.isEmpty diff
         then [ ]
         else
             [ H.div
@@ -3498,7 +3545,7 @@ rowSave (date, entry) =
                     ]
         ]
 
-divLinearCorrection: Model -> Dict String Entry -> List (H.Html Msg)
+divLinearCorrection: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
 divLinearCorrection model filtredDict =
     case ( Dict.isEmpty filtredDict ) of
         False -> [
