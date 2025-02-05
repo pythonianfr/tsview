@@ -181,7 +181,6 @@ type alias Model =
     , holding: Holding
     -- show-values for formula
     , components : List Component
-    , componentsData: Dict String Series
     , coordData: Dict ( Int, Int ) Entry
     , diff : Dict String SeriesNaked
     }
@@ -502,7 +501,7 @@ type Edited =
 type alias Component =
     { name: String
     , cType: CType
-    , open: Bool
+    , data: Maybe Series
     }
 
 
@@ -619,7 +618,7 @@ componentsDecoder =
     JD.list (JD.map3 Component
                 ( JD.field "name" JD.string )
                 ( JD.map applyType ( JD.field "type" JD.string ))
-                ( JD.succeed False )
+                ( JD.succeed Nothing )
             )
 
 
@@ -913,12 +912,11 @@ update msg model =
                                     cropTs
                                         val
                                         ( getFetchBounds model.horizon )
-                                newCD = Dict.insert
+                                newCD = insertComponentData
+                                            model.components
                                             name
                                             ( ToEdit { initialTs = indexedval, zoomTs = Nothing })
-                                            model.componentsData
-                                newModel = { model | componentsData = newCD
-                                            }
+                                newModel = { model | components = newCD }
                             in
                                 U.nocmd ( buildCoord newModel )
                         Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
@@ -926,11 +924,11 @@ update msg model =
                     case JD.decodeString
                         (JD.dict (JD.maybe JD.float))
                         rawdata of
-                    Ok val ->  let newCD = Dict.insert
+                    Ok val ->  let newCD = insertComponentData
+                                            model.components
                                             name
                                             ( Naked { initialTs = val, zoomTs = Nothing })
-                                            model.componentsData
-                                   newModel = { model | componentsData = newCD
+                                   newModel = { model | components = newCD
                                               }
                                in
                                    U.nocmd ( buildCoord newModel )
@@ -1722,6 +1720,18 @@ onlyActiveKeys series =
                 Just zoom -> Dict.keys zoom
 
 
+insertComponentData: List Component -> String -> Series -> List Component
+insertComponentData components name data =
+    List.map
+        (\ comp -> if comp.name == name
+                    then { comp | data = Just data
+                         }
+                    else comp
+        )
+        components
+
+
+
 getEditionTs: Series -> SeriesToEdit
 getEditionTs series =
     case series of
@@ -2271,24 +2281,20 @@ compNames components =
         components
 
 
-compInfos :  List Component -> Dict String Series -> List ( String , Series)
-compInfos components componentsData =
-    List.map
-        ( \ name -> ( name
-                    , Maybe.withDefault
-                        emptySeries
-                        <| Dict.get name componentsData
-                    )
-        )
-        ( compNames components )
-
 
 builRowBasic: Model -> String -> List  Entry
 builRowBasic model date =
     let formula = getEntry date ( "formula", model.series )
         components = List.map
                         ( getEntry date )
-                        ( compInfos model.components model.componentsData )
+                        <| List.map
+                            (\ c -> ( c.name
+                                    , Maybe.withDefault
+                                        emptySeries
+                                        c.data
+                                    )
+                            )
+                            model.components
     in ([ formula ] ++ components )
 
 
@@ -2347,23 +2353,6 @@ patchEntry entry s =
     }
 
 
-
-updateEntry : Edited ->  Maybe String -> Maybe Entry -> Maybe Entry
-updateEntry value raw maybeEntry  =
-    case maybeEntry of
-        Nothing -> Nothing
-        Just entry ->
-             Just { entry | edition = value
-                          , raw = raw
-                  }
-
-
-buildCopyPasteDict : List String -> List Edited -> Dict String Edited
-buildCopyPasteDict listDates newValues =
-    Dict.fromList <| List.map2
-                        Tuple.pair
-                        listDates
-                        newValues
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
@@ -3096,11 +3085,9 @@ datesComponents model =
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
     let allDates = onlyActiveKeys
-                        <| Maybe.withDefault
+                    <| Maybe.withDefault
                             emptySeries
-                                <| Dict.get
-                                    comp.name
-                                    model.componentsData
+                            comp.data
         bounds = getFromToDates model.horizon
     in
     case bounds of
@@ -3180,25 +3167,6 @@ buildFormater maybeRounds =
         Nothing -> "n"
         Just round -> ",." ++ String.fromInt round ++ "f"
 
-
-addComponentCells: Model -> String -> List (H.Html Msg)
-addComponentCells model date =
-    List.map
-        ( \ comp -> H.td [] [H.text
-                            <| printValue model.roundValues
-                               <| Maybe.withDefault
-                                   Nothing
-                                   <| Dict.get
-                                        date
-                                        <| onlyActiveValues
-                                            <| Maybe.withDefault
-                                                emptySeries
-                                                  <|Dict.get
-                                                        comp.name
-                                                        model.componentsData
-                            ]
-        )
-        model.components
 
 
 printValue: Maybe Int -> Maybe Float -> String
@@ -4043,7 +4011,6 @@ init input =
                     , statusCopy = initialStatusCopy
                     , panActive = False
                     , components = []
-                    , componentsData = Dict.empty
                     , coordData = Dict.empty
                     , diff = Dict.empty
                     }
