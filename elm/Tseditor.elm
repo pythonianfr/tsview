@@ -498,7 +498,11 @@ likeComp model =
     Component
         model.name
         ( asCType model.seriestype )
-        ( Just model.series )
+        model.series
+        ( case Dict.get "tzaware" model.meta of
+                Just (M.MBool val) -> val
+                _ -> False
+        )
 
 
 type Edited =
@@ -508,10 +512,12 @@ type Edited =
     | Error String
 
 
+-- would need source & last insertion date field
 type alias Component =
     { name: String
     , cType: CType
-    , data: Maybe Series
+    , data: Series
+    , tzaware: Bool
     }
 
 
@@ -631,10 +637,11 @@ dataDecoder =
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
-    JD.list (JD.map3 Component
+    JD.list (JD.map4 Component
                 ( JD.field "name" JD.string )
                 ( JD.map applyType ( JD.field "type" JD.string ))
-                ( JD.succeed Nothing )
+                ( JD.succeed emptySeries )
+                ( JD.field "tzaware" JD.bool )
             )
 
 
@@ -1144,7 +1151,7 @@ update msg model =
         SaveEditedData ->
             let command = case model.mode of
                             Existing _ -> Cmd.batch
-                                            [ I.getidates model "series" GetLastInsertionDates True
+                                            [ patchEditedData model
                                             , deselect True
                                             ]
                             Creation _ -> Cmd.batch
@@ -1374,21 +1381,23 @@ update msg model =
                                 position
             in
                 applyFocus
-                    ( setupNas
-                        { model | coordData = fillNas
-                                                model.coordData
-                                                lastValue
-                                                position
-                        }
+                    ( applyDiff
+                        <| setupNas
+                            { model | coordData = fillNas
+                                                    model.coordData
+                                                    lastValue
+                                                    position
+                            }
                     )
                     Nothing
 
         FillAll ->
             ( setupNas
-                { model | coordData = fillAllNas
-                                        model.coordData
-                                        model.lastValids
-                }
+                <| applyDiff
+                    { model | coordData = fillAllNas
+                                            model.coordData
+                                            model.lastValids
+                    }
             , Cmd.none
             )
 
@@ -1543,7 +1552,7 @@ update msg model =
                             Nothing ->
                                 let newSeries = resetZoom model.series
                                     newComponents = List.map
-                                                        (\ c -> { c | data = Maybe.map resetZoom c.data})
+                                                        (\ c -> { c | data = resetZoom c.data})
                                                         model.components
                                 in
                                 { model | horizon = { horizonmodel | zoomBounds = Nothing}
@@ -1563,12 +1572,10 @@ update msg model =
                                                         model.series
 
                                        newComponents = List.map
-                                                        (\ c -> { c | data = Maybe.map
-                                                                                ( newZoom
-                                                                                    minDate
-                                                                                    maxDate
-                                                                                    model.panActive
-                                                                                )
+                                                        (\ c -> { c | data = newZoom
+                                                                                minDate
+                                                                                maxDate
+                                                                                model.panActive
                                                                                 c.data
                                                                 }
                                                         )
@@ -1757,7 +1764,7 @@ insertComponentData: List Component -> String -> Series -> List Component
 insertComponentData components name data =
     List.map
         (\ comp -> if comp.name == name
-                    then { comp | data = Just data
+                    then { comp | data = data
                          }
                     else comp
         )
@@ -2308,10 +2315,7 @@ mergeData components =
                             Set.union
                             Set.empty
                             <| List.map
-                                (\ c -> case c.data of
-                                            Nothing -> Set.empty
-                                            Just s -> Set.fromList
-                                                        <| onlyActiveKeys s
+                                (\ c ->  Set.fromList ( onlyActiveKeys c.data )
                                 )
                                 components
         columns = List.map
@@ -2332,11 +2336,7 @@ builRowBasic components date =
         List.map
             ( getEntry date )
             <| List.map
-                (\ c -> ( c.name
-                        , Maybe.withDefault
-                            emptySeries
-                            c.data
-                        )
+                (\ c -> ( c.name , c.data )
                 )
                 components
 
@@ -2356,15 +2356,6 @@ currentDiff coordData =
         )
         coordData
 
-
-extractComponent: List Entry -> String -> SeriesNaked
-extractComponent entries name =
-    Dict.fromList
-    <| List.map
-        (\ e -> ( e.indexRow, getCurrentValue e))
-        <| List.filter
-            ( \ e -> e.edition /= NoEdition && e.indexCol == name )
-            entries
 
 
 pasteRectangle: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Entry
@@ -2402,39 +2393,46 @@ patchEntry entry s =
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
-    let
-        tzaware =
-            case Dict.get "tzaware" model.meta of
-                Just (M.MBool val) -> val
-                _ -> False
-
-        patch = filterAndConvert
-                    <| Dict.map
-                        ( \ _ e -> e.edition )
-                        ( currentDiffOld model )
+    let allSeries = [ likeComp model ] ++ model.components
     in
-    Http.request
-        { method = "PATCH"
-        , body = Http.jsonBody <| JE.object
-                 ([ ("name", JE.string model.name )
-                 , ("author" , JE.string "webui" )
-                 , ("tzaware", JE.bool tzaware )
-                 , ("series", encodeEditedData patch )
-                 , ("supervision", JE.bool True )
-                 , ("keepnans", JE.bool True)
-                 ] ++ if tzaware
-                        then [( "tzone", JE.string model.horizon.timeZone )]
-                        else []
-                 )
+    Cmd.batch <|  List.map
+                        ( saveComponent
+                            model.baseurl
+                            model.horizon.timeZone
+                            model.diff
+                        )
+                        allSeries
 
-        , headers = [ ]
-        , timeout = Nothing
-        , tracker = Nothing
-        , url = UB.crossOrigin model.baseurl
-                [ "api", "series", "state" ] [ ]
-        , expect = Http.expectString Saved
-        }
 
+saveComponent: String -> String -> Dict ( Int, Int ) Entry -> Component -> Cmd Msg
+saveComponent baseUrl tzone diff component =
+    let name = component.name
+        tzaware = component.tzaware
+        patch = filterAndConvert diff name
+    in
+        if Dict.isEmpty patch
+            then Cmd.none
+        else
+        Http.request
+            { method = "PATCH"
+            , body = Http.jsonBody <| JE.object
+                     ([ ("name", JE.string name )
+                     , ("author" , JE.string "webui" )
+                     , ("tzaware", JE.bool tzaware )
+                     , ("series", encodeEditedData patch )
+                     , ("supervision", JE.bool True )
+                     , ("keepnans", JE.bool True)
+                     ] ++ if tzaware
+                            then [( "tzone", JE.string tzone )]
+                            else []
+                     )
+            , headers = [ ]
+            , timeout = Nothing
+            , tracker = Nothing
+            , url = UB.crossOrigin baseUrl
+                    [ "api", "series", "state" ] [ ]
+            , expect = Http.expectString Saved
+            }
 
 linearCorrection: Model -> Edited -> Edited
 linearCorrection model value =
@@ -2468,18 +2466,21 @@ linearCorrection model value =
                                 Edition ( v * slope + inter )
 
 
-filterAndConvert: Dict String Edited -> Dict String ( Maybe Float )
-filterAndConvert editedData =
+filterAndConvert: Dict ( Int, Int ) Entry -> String -> Dict String ( Maybe Float )
+filterAndConvert editedData name =
     Dict.fromList
         <| List.concat
-            <| List.map
-                    (\ (k, e) -> case e of
-                                    NoEdition -> []
-                                    Error _ -> []
-                                    Deletion -> [(k, Nothing)]
-                                    Edition val -> [(k, Just val)]
-                    )
-                    ( Dict.toList editedData )
+        <| Dict.values
+            <| Dict.map
+                (\ _ e -> case e.edition of
+                            NoEdition -> []
+                            Error _ -> []
+                            Deletion -> [(e.indexRow, Nothing)]
+                            Edition val -> [(e.indexRow, Just val)]
+                )
+                <| Dict.filter
+                    ( \ _ e  -> e.indexCol == name )
+                    editedData
 
 
 encodeEditedData : Dict String (Maybe Float) -> JE.Value
@@ -3180,10 +3181,7 @@ datesComponents model =
 
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
-    let allDates = onlyActiveKeys
-                    <| Maybe.withDefault
-                            emptySeries
-                            comp.data
+    let allDates = onlyActiveKeys comp.data
     in
         Set.fromList allDates
 

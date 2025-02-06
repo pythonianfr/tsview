@@ -759,7 +759,8 @@ def tsview(tsa):
         infos = [
             {
                 'name': name,
-                'type': tsa.type(name)
+                'type': tsa.type(name),
+                'tzaware': tsa.internal_metadata(name)['tzaware'],
             }
             for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
         ]
@@ -768,7 +769,8 @@ def tsview(tsa):
                 infos.append(
                     {
                         'name': auto[0],
-                        'type': 'auto'
+                        'type': 'auto',
+                        'tzaware': True,
                     }
                 )
         return json.dumps(infos)
