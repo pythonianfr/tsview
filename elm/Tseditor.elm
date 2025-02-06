@@ -848,14 +848,7 @@ update msg model =
                             cropTs
                                 val
                                 ( getFetchBounds model.horizon )
-
-                        zoomTs = case model.horizon.zoomBounds of
-                                    Nothing -> Nothing
-                                    Just ( min, max ) ->
-                                        Just
-                                            <| Dict.filter
-                                                    (( \k _ -> (( k >= min ) && ( k <= max ))))
-                                                    indexedval
+                        zoomTs = applyZoom model indexedval
                         series = ToEdit { initialTs = indexedval, zoomTs = zoomTs }
                         statistics = getStatistics
                                         model.statistics
@@ -890,10 +883,11 @@ update msg model =
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
                 Ok val -> let ts = cropTs val ( getFetchBounds model.horizon )
+                              zoomTs = applyZoom model val
                           in
                           ( ( buildCoord
                             { model | series = Naked { initialTs = ts
-                                                     , zoomTs = Nothing }
+                                                     , zoomTs = zoomTs }
                                     , horizon = updateHorizonFromData
                                                 model.horizon
                                                 ts
@@ -935,10 +929,11 @@ update msg model =
                                     cropTs
                                         val
                                         ( getFetchBounds model.horizon )
+                                zoomTs = applyZoom model val
                                 newCD = insertComponentData
                                             model.components
                                             name
-                                            ( ToEdit { initialTs = indexedval, zoomTs = Nothing })
+                                            ( ToEdit { initialTs = indexedval, zoomTs = zoomTs })
                                 newModel = { model | components = newCD }
                             in
                                 U.nocmd ( buildCoord newModel )
@@ -947,10 +942,11 @@ update msg model =
                     case JD.decodeString
                         (JD.dict (JD.maybe JD.float))
                         rawdata of
-                    Ok val ->  let newCD = insertComponentData
+                    Ok val ->  let zoomTs = applyZoom model val
+                                   newCD = insertComponentData
                                             model.components
                                             name
-                                            ( Naked { initialTs = val, zoomTs = Nothing })
+                                            ( Naked { initialTs = val, zoomTs = zoomTs })
                                    newModel = { model | components = newCD
                                               }
                                in
@@ -1708,6 +1704,15 @@ newZoomT minDate maxDate initial zoom pan =
                     else zoomTs) )
 
 
+applyZoom: Model -> Dict String a -> Maybe (Dict String a)
+applyZoom model series =
+    case model.horizon.zoomBounds of
+        Nothing -> Nothing
+        Just ( min, max ) ->
+            Just
+                <| Dict.filter
+                        (( \k _ -> (( k >= min ) && ( k <= max ))))
+                        series
 
 justValues: Dict String ( Maybe Float ) -> List Float
 justValues series =
