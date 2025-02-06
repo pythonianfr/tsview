@@ -1,6 +1,9 @@
 .series-info {
     margin-bottom: 0px;
 }
+.focused {background-color:red;}
+
+.selected {background-color:green;}
 
 /* grid */
 
