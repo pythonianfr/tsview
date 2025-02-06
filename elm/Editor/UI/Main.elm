@@ -51,6 +51,7 @@ type Msg
     | OnSave
     | SaveDone (Result String String)
     | DebouncePlotData (Debouncer.Msg ())
+    | GotFormulaNames (Result Http.Error (List String))
     | GotPlotData (Result Http.Error String)
     | UndoMsg UndoMsg
 
@@ -62,13 +63,17 @@ type alias PlotData =
     , errMess : Maybe String
     }
 
+type alias Register =
+    { current : Maybe String
+    , saved : Maybe String
+    }
+
 type alias Model =
     { urlPrefix : String
     , editorWidget : Widget.Model
-    , formulaName : Maybe String
-    , savedFormulaName : Maybe String
-    , lastFormulaCode : Maybe String
-    , savedFormulaCode : Maybe String
+    , formulaNameRegister : Register
+    , formulaCodeRegister : Register
+    , formulaNames : List String
     , saveErrMess : Maybe String
     , plotData : PlotData
     }
@@ -85,6 +90,23 @@ type alias UndoModel =
     { model : Model
     , undoList : UndoList
     }
+
+current_ : O.SimpleLens ls Register (Maybe String)
+current_ = O.lens .current <| \s a -> {s | current = a}
+
+saved_ : O.SimpleLens ls Register (Maybe String)
+saved_ = O.lens .saved <| \s a -> {s | saved = a}
+
+saveCurrent : Register -> Register
+saveCurrent register = { register | saved = register.current }
+
+formulaNameRegister_ : O.SimpleLens ls Model Register
+formulaNameRegister_ = O.lens .formulaNameRegister <|
+    \s a -> {s | formulaNameRegister = a}
+
+formulaCodeRegister_ : O.SimpleLens ls Model Register
+formulaCodeRegister_ = O.lens .formulaCodeRegister <|
+    \s a -> {s | formulaCodeRegister = a}
 
 plotData_ : O.SimpleLens ls Model PlotData
 plotData_ = O.lens .plotData <| \s a -> {s | plotData = a}
@@ -121,8 +143,8 @@ askPlotData model =
     )
 
 getPlotData : Model -> Cmd Msg
-getPlotData {urlPrefix, lastFormulaCode} =
-    case lastFormulaCode of
+getPlotData {urlPrefix, formulaCodeRegister} =
+    case formulaCodeRegister.current of
         Just code -> Http.get
             { url = UB.crossOrigin
                 urlPrefix
@@ -160,40 +182,39 @@ updatePlotData res plotData = O.assign loading_ False <|
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
-    WidgetMsg (Widget.NewFormula formula) ->
-        { model | lastFormulaCode = formula } |> askPlotData
+    WidgetMsg (Widget.NewFormula formula) -> model
+        |> O.assign (o formulaCodeRegister_ current_) formula
+        |> askPlotData
 
     WidgetMsg x -> Tuple.mapBoth
         (\m -> { model | editorWidget = m })
         (Cmd.map WidgetMsg)
         (Widget.update x model.editorWidget)
 
-    UpdateName "" ->
-        { model | formulaName = Nothing } |> CX.withNoCmd
+    UpdateName "" -> model
+        |> O.assign (o formulaNameRegister_ current_) Nothing
+        |> CX.withNoCmd
 
-    UpdateName formulaName ->
-        { model | formulaName = Just formulaName } |> CX.withNoCmd
+    UpdateName formulaName -> model
+        |> O.assign (o formulaNameRegister_ current_) (Just formulaName)
+        |> CX.withNoCmd
 
     OnSave ->
         ( model
         , Maybe.map2
             (saveFormula model)
-            model.formulaName
-            model.lastFormulaCode
+            model.formulaNameRegister.current
+            model.formulaCodeRegister.current
             |> Maybe.withDefault Cmd.none
         )
 
-    SaveDone (Ok _) ->
-        { model
-            | savedFormulaName = model.formulaName
-            , savedFormulaCode = model.lastFormulaCode
-            , saveErrMess = Nothing
-        } |> CX.withNoCmd
+    SaveDone (Ok _) -> { model | saveErrMess = Nothing }
+        |> O.over formulaNameRegister_ saveCurrent
+        |> O.over formulaCodeRegister_ saveCurrent
+        |> CX.withCmd (getFormulaNames model.urlPrefix)
 
-    SaveDone (Err s) ->
-        { model
-            | saveErrMess = Just s
-        } |> CX.withNoCmd
+    SaveDone (Err s) -> { model | saveErrMess = Just s }
+        |> CX.withNoCmd
 
     DebouncePlotData debMsg ->
         let
@@ -207,6 +228,12 @@ update msg model = case msg of
         in
         O.over plotData_ (\x -> { x | debouncer = debModel }) model
             |> CX.withCmd (Cmd.batch [ cmd, Cmd.map DebouncePlotData debCmd ])
+
+    GotFormulaNames (Ok xs) ->
+        { model | formulaNames = xs } |> CX.withNoCmd
+
+    GotFormulaNames (Err _) ->
+        model |> CX.withNoCmd
 
     GotPlotData res ->
         O.over plotData_ (updatePlotData res) model |> CX.withNoCmd
@@ -252,27 +279,35 @@ canSave model =
     (Widget.isReadOnly model.editorWidget) &&
     (Maybe.unwrap
         False
-        (\current -> model.savedFormulaCode /= Just current)
-        model.lastFormulaCode
+        (\current -> model.formulaCodeRegister.saved /= Just current)
+        model.formulaCodeRegister.current
     )
 
 viewSave : Model -> Html Msg
-viewSave {formulaName, saveErrMess} = H.div
-    [ HA.class "container-fluid mt-2" ]
-    [ H.input
-        [ HA.class "w-75"
-        , HA.value <| Maybe.withDefault "" formulaName
-        , HE.onInput UpdateName
+viewSave {formulaNameRegister, formulaNames, saveErrMess} =
+    let formulaName = formulaNameRegister.current
+
+        isSavedFormulaName = Maybe.unwrap
+            False
+            (\x -> List.member x formulaNames)
+            formulaName
+
+    in H.div
+        [ HA.class "container-fluid mt-2" ]
+        [ H.input
+            [ HA.class "w-75"
+            , HA.value <| Maybe.withDefault "" formulaName
+            , HE.onInput UpdateName
+            ]
+            []
+        , H.button
+            [ HA.class "btn btn-primary ml-2"
+            , HA.disabled (Maybe.isNothing formulaName)
+            , HE.onClick OnSave
+            ]
+            [ H.text <| if isSavedFormulaName then "Update" else "Create" ]
+        , viewError saveErrMess
         ]
-        []
-    , H.button
-        [ HA.class "btn btn-primary ml-2"
-        , HA.disabled (Maybe.isNothing formulaName)
-        , HE.onClick OnSave
-        ]
-        [ H.text "Save As" ]
-    , viewError saveErrMess
-    ]
 
 viewError : Maybe String -> Html msg
 viewError mStr = HX.viewMaybe
@@ -280,9 +315,9 @@ viewError mStr = HX.viewMaybe
     mStr
 
 viewPlot : Model -> Html Msg
-viewPlot {formulaName, plotData} =
+viewPlot {formulaNameRegister, plotData} =
     let
-        name = Maybe.withDefault "editor.code" formulaName
+        name = Maybe.withDefault "editor.code" formulaNameRegister.current
         plot = scatterplot
             name
             (Dict.keys plotData.series)
@@ -304,14 +339,15 @@ viewPlot {formulaName, plotData} =
         ]
 
 viewSeriesInfo : Model -> Html msg
-viewSeriesInfo model = flip HX.viewMaybe model.savedFormulaName <| \name ->
-    let
-        href = UB.crossOrigin
-            model.urlPrefix
-            [ "tsinfo" ]
-            [ UB.string "name" name ]
+viewSeriesInfo model =
+    flip HX.viewMaybe model.formulaNameRegister.saved <| \name ->
+        let
+            href = UB.crossOrigin
+                model.urlPrefix
+                [ "tsinfo" ]
+                [ UB.string "name" name ]
 
-    in H.a [ HA.href href  ] [ H.text "series info" ]
+        in H.a [ HA.href href  ] [ H.text "series info" ]
 
 makeUndoButton : UndoMsg -> UndoList -> Html Msg
 makeUndoButton msg undoList =
@@ -366,6 +402,19 @@ view model =
             ]
 
 
+getFormulaNames : String -> Cmd Msg
+getFormulaNames urlPrefix = Http.get
+    { url = UB.crossOrigin
+        urlPrefix
+        [ "api", "series", "find" ]
+        [ UB.string "query" "(by.formula '')"
+        , UB.string "meta" "false"
+        ]
+    , expect = Http.expectJson
+        GotFormulaNames
+        (JD.list (JD.field "name" JD.string))
+    }
+
 type alias Formula =
     { name : String
     , code : String
@@ -395,10 +444,15 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
     in
     { urlPrefix = urlPrefix
     , editorWidget = wid
-    , formulaName = formulaName
-    , savedFormulaName = formulaName
-    , lastFormulaCode = code
-    , savedFormulaCode = code
+    , formulaNameRegister =
+        { current = formulaName
+        , saved = formulaName
+        }
+    , formulaCodeRegister =
+        { current = code
+        , saved = code
+        }
+    , formulaNames = []
     , saveErrMess = Nothing
     , plotData =
         { debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
@@ -408,7 +462,11 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
         , errMess = Nothing
         }
     }
-    |> CX.withCmd (Cmd.map WidgetMsg cmd)
+    |> CX.withCmd (Cmd.batch
+        [ Cmd.map WidgetMsg cmd
+        , getFormulaNames urlPrefix
+        ]
+    )
 
 initModel : Model -> UndoModel
 initModel model =
