@@ -421,7 +421,7 @@ type alias Entry =
 
 baseToEntry: BaseSupervision -> Entry
 baseToEntry base =
-     { raw = Nothing
+     { raw = Maybe.map String.fromFloat base.value
         , value = base.value
         , edition = NoEdition
         , editable = True
@@ -1300,37 +1300,30 @@ update msg model =
         CopyFromBrowser _->
             ( model, T.perform identity ( T.succeed CopySelection ))
 
-        FillNas indexLastValue ->
-            U.nocmd model
-            --let
-            --    lastValue = getValueFromIndex
-            --                    ( getEditionTs model.series )
-            --                    indexLastValue
-            --in
-            --    applyFocus
-            --        ( setupNas
-            --            <| setOnEdtitionTs
-            --                model
-            --                    <|Dict.union
-            --                        (fillNas
-            --                            ( getEditionTs model.series )
-            --                            lastValue
-            --                            ( indexLastValue )
-            --                        )
-            --                        ( getEditionTs model.series )
-            --        )
-            --        Nothing
+        FillNas position ->
+            let
+                lastValue = getValueFromIndex
+                                model.coordData
+                                position
+            in
+                applyFocus
+                    ( setupNas
+                        { model | coordData = fillNas
+                                                model.coordData
+                                                lastValue
+                                                position
+                        }
+                    )
+                    Nothing
 
         FillAll ->
-             U.nocmd model
-            --( setupNas
-            --    <| setOnEdtitionTs
-            --            model
-            --            <| fillAllNas
-            --                ( getEditionTs model.series )
-            --                model.lastValids
-            --, Cmd.none
-            --)
+            ( setupNas
+                { model | coordData = fillAllNas
+                                        model.coordData
+                                        model.lastValids
+                }
+            , Cmd.none
+            )
 
         NoAction -> U.nocmd model
 
@@ -1796,18 +1789,6 @@ deleteSelectedValues model =
     in
         { model | coordData = newCoord }
 
-
---setupNas: Model -> Model
---setupNas model =
---    { model | lastValids = findLastValid
---                            ( Dict.toList
---                                ( getEditionTs model.series )
---                            )
---                            False
---                            []
---    }
-
---setupNas: Model -> Model
 setupNas model =
     let coordData = model.coordData
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordData
@@ -1853,59 +1834,68 @@ findLastValidRec entries previousIsValue found =
                         then ( findLastValidRec xs False found )
                         else ( findLastValidRec xs True found )
 
---
---fillNas: Dict String Entry -> Float -> ( Int, Int ) -> Dict String Entry
---fillNas series lastValue indexLastValue =
---    let nbNas = getNbNas series indexLastValue
---    in
---        Dict.map
---            ( applyValue lastValue indexLastValue nbNas )
---            series
+
+fillNas: Dict ( Int, Int ) Entry -> Float -> ( Int, Int ) ->  Dict ( Int, Int ) Entry
+fillNas coordData lastValue positionLastValue =
+    let nbNas = getNbNas coordData positionLastValue
+    in
+        Dict.map
+            ( applyValue positionLastValue lastValue nbNas )
+            coordData
 
 
---applyValue: Float -> Int -> Int -> String -> Entry -> Entry
---applyValue lastValue indexLastValue nbNas date entry =
---    if entry.index > indexLastValue && entry.index <= indexLastValue + nbNas
---        then { entry | edited = Edition lastValue }
---        else entry
+applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Entry -> Entry
+applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) entry =
+    if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
+        then { entry | edition = Edition lastValue
+                     , raw= Just ( String.fromFloat lastValue )}
+        else entry
 
 
---getNbNas: Dict String  Entry -> ( Int,  Int ) -> ( Int,  Int )
---getNbNas series index =
---    let values = List.map
---                    getCurrentValue
---                    <| List.filter
---                        ( \ e -> e.index > index )
---                        ( Dict.values series )
---    in
---        findNbNas values 0
+getNbNas: Dict ( Int, Int ) Entry -> ( Int,  Int ) -> Int
+getNbNas coordData position =
+    let ( iRow, iCol ) = position
+        values = List.map
+                    isVoid
+                    <| Dict.values
+                        <| Dict.filter
+                            (\ (i, j) _ -> j == iCol )
+                            coordData
+    in
+        findNbNas values 4
 
---
---findNbNas: List ( Maybe Float ) -> Int -> Int
---findNbNas values nb =
---    case values of
---        [] -> nb
---        x :: xs ->
---            case x of
---                Nothing -> findNbNas xs ( nb + 1 )
---                Just _ -> nb
+isVoid: Entry -> Bool
+isVoid entry =
+    case entry.edition of
+        Deletion -> True
+        NoEdition -> True
+        _ -> False
+
+findNbNas: List Bool -> Int -> Int
+findNbNas values nb =
+    case values of
+        [] -> nb
+        x :: xs ->
+            case x of
+                True -> findNbNas xs ( nb + 1 )
+                False -> nb
 
 
---fillAllNas : Dict String  Entry -> List ( Int, Int ) -> Dict String  Entry
---fillAllNas series idxNa =
---    case idxNa of
---        [] -> series
---        x :: xs ->
---            let lastValue = getValueFromIndex series x
---            in
---                ( fillAllNas
---                    ( fillNas
---                        series
---                        lastValue
---                        x
---                    )
---                    xs
---                )
+fillAllNas : Dict ( Int, Int ) Entry -> List ( Int, Int ) -> Dict ( Int, Int ) Entry
+fillAllNas coordData idxNas =
+    case idxNas of
+        [] -> coordData
+        x :: xs ->
+            let lastValue = getValueFromIndex coordData x
+            in
+                ( fillAllNas
+                    ( fillNas
+                        coordData
+                        lastValue
+                        x
+                    )
+                    xs
+                )
 
 
 -- a simplifier
@@ -1926,18 +1916,15 @@ findLastValidRec entries previousIsValue found =
 --        { model | firstSelected = first }
 
 --
---getValueFromIndex: Dict String  Entry -> ( Int, Int ) -> Float
---getValueFromIndex series indexNa =
---    let
---        entry = Maybe.withDefault
---                    emptyEntry
---                        <| List.head
---                            <|Dict.values
---                                <|Dict.filter
---                                    ( \ _ e -> e.position == indexNa  )
---                                    series
---    in
---        Maybe.withDefault 0 ( getCurrentValue entry )
+
+getValueFromIndex: Dict ( Int, Int ) Entry -> ( Int, Int ) -> Float
+getValueFromIndex coordData position =
+    let
+        entry = Maybe.withDefault
+                    emptyEntry
+                    ( Dict.get position coordData )
+    in
+        Maybe.withDefault 0 ( getCurrentValue entry )
 
 
 selectContiguous: ( Int, Int ) -> ( Int, Int ) -> (( Int, Int ) -> Entry -> Entry )
@@ -2259,7 +2246,7 @@ underThePlot: Model -> H.Html Msg
 underThePlot model =
     H.div
         [ HA.class "under-the-plot" ]
-        ( maybeRoundForm model )
+        ( ( maybeRoundForm model ) ++ [ buttonFillAll model ])
 
 
 permaLink: Model -> H.Html Msg
@@ -2740,9 +2727,7 @@ buildCell model cartDict iRow iCol =
     let entry = case Dict.get ( iRow, iCol ) cartDict of
                     Nothing -> emptyEntry
                     Just content -> content
-        value = case entry.raw of
-                    Nothing -> ""
-                    Just raw -> raw
+        value = getValue entry
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = entry.selected
         fillUnder =  List.member ( iRow, iCol )  model.lastValids
@@ -2849,19 +2834,19 @@ compInfos components componentsData =
 
 builRowBasic: Model -> String -> List  Entry
 builRowBasic model date =
-    let formula = getBasic date ( "formula", model.series )
+    let formula = getEntry date ( "formula", model.series )
         components = List.map
-                        ( getBasic date )
+                        ( getEntry date )
                         ( compInfos model.components model.componentsData )
 
     in ([ formula ] ++ components )
 
 
 
-getBasic: String ->  ( String , Series ) -> Entry
-getBasic date ( name, series ) =
-    let defaultBasic = { raw = Nothing
-                       , value = Just 0
+getEntry: String ->  ( String , Series ) -> Entry
+getEntry date ( name, series ) =
+    let defaultEntry = { raw = Nothing
+                       , value = Nothing
                        , edition = NoEdition
                        , editable = False
                        , override = False
@@ -2875,26 +2860,26 @@ getBasic date ( name, series ) =
             case ts.zoomTs of
                 Just zoomTs ->
                     case Dict.get date zoomTs of
-                        Just value ->  { defaultBasic | value = value
+                        Just value ->  { defaultEntry | value = value
                                                           , raw = Maybe.andMap
                                                                     value
                                                                     (Just String.fromFloat)
                                            }
-                        Nothing -> defaultBasic
+                        Nothing -> defaultEntry
                 Nothing ->
                     case Dict.get date ts.initialTs of
-                        Just value ->  { defaultBasic | value = value
+                        Just value ->  { defaultEntry | value = value
                                                           , raw = Maybe.andMap
                                                                     value
                                                                     (Just String.fromFloat)
                                             }
-                        Nothing -> defaultBasic
+                        Nothing -> defaultEntry
         ToEdit ts ->
             case ts.zoomTs of
                 Just zoomTs ->
                         let entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
                         in
-                            { defaultBasic | value = entry.value
+                            { defaultEntry | value = entry.value
                                              , raw = Maybe.andMap
                                                         entry.value
                                                         (Just String.fromFloat)
@@ -2904,7 +2889,7 @@ getBasic date ( name, series ) =
                 Nothing ->
                         let entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
                         in
-                            { defaultBasic | value = entry.value
+                            { defaultEntry | value = entry.value
                                                , override = entry.override
                                                , raw = Maybe.andMap
                                                         entry.value
@@ -3479,11 +3464,12 @@ fillButton: ( Int, Int ) -> Bool -> List ( H.Html Msg )
 fillButton position fillUnder =
     case fillUnder of
         True -> [ H.button
-                    [ HA.title "Fill"]
-                    --, HE.onClick ( FillNas ( entry.position ) )]
+                    [ HA.title "Fill"
+                    , HE.onClick ( FillNas position )]
                     [ H.text "↓" ]
                 ]
         False -> []
+
 
 buttonsFirstSelected: Bool -> List (H.Html Msg)
 buttonsFirstSelected predicat =
