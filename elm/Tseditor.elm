@@ -212,6 +212,7 @@ type Msg
     | SelectRow ( Int, Int )
     | DeselectAll Bool
     | ClickCell Int Int
+    | UnFocus
     | ActivateCell Int Int
     | Drag DragMode
     | CopySelection
@@ -1299,6 +1300,7 @@ update msg model =
                                               , coordData = merged
                                      }
 
+        UnFocus -> U.nocmd { model | focus = Nothing }
 
         ClickCell iRow iCol ->
             case model.holding.shift of
@@ -3553,7 +3555,9 @@ divLinearCorrection model filtredDict =
     case ( Dict.isEmpty filtredDict ) of
         False -> [
             H.div
-                [ HA.class "linear-correction"]
+                [ HA.class "linear-correction"
+                , HE.onClick UnFocus
+                ]
                 [ H.text "Y = "
                 , H.input
                     [ HA.class "correction"
@@ -4001,7 +4005,9 @@ view model =
         , HE.onMouseUp (Drag Off)
         ]
         [ H.div
-            [ HA.class "header-with-horizon"]
+            [ HA.class "header-with-horizon"
+            , HE.onClick UnFocus
+            ]
             [ H.div [ HA.class "action-container" ]
                   <| I.viewactionwidgets
                         model
