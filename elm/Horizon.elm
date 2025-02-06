@@ -346,12 +346,9 @@ updateHorizon msg convertMsg model =
             case D.decodeString localstoragedecoder rawdata of
                 Ok datadict ->
                     let enrichdatadict = toHorizonType datadict
-                    in
-                    let newdatadict  = case model.queryBounds of
+                        newdatadict  = case model.queryBounds of
                             Nothing ->  enrichdatadict
                             Just _ -> { enrichdatadict | horizon = Disabled }
-                    in
-                    let
                         newmodel = updatefromlocalstorage
                                         newdatadict
                                         model
@@ -833,8 +830,7 @@ debugInfo model =
 horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
     let ( min, max, fromZoom ) = viewdate model
-    in
-    let classZoom = ( if fromZoom then " from-zoom" else "" )
+        classZoom = ( if fromZoom then " from-zoom" else "" )
     in
     H.div
         [ HA.class klass ]
