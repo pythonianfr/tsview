@@ -298,7 +298,9 @@ update msg model =
                 ModuleHorizon.Frame _ -> ( resetModel
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
-                                                    , Cmd.batch ([ commands]))
+                                                    , Cmd.batch
+                                                        <| [ commands
+                                                           , fetchseries resetModel False])
                 ModuleHorizon.Fetch _ -> ( resetModel
                         , Cmd.batch ([ commands
                                      , fetchseries resetModel True ]))
@@ -597,7 +599,6 @@ main =
                                 model.baseurl
                                 "series" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
-                            , fetchseries model False
                             ])
                )
 
