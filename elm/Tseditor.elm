@@ -1178,8 +1178,8 @@ update msg model =
 
         Correction param ->
             case param of
-                Slope value ->  U.nocmd { model | slope = Just value}
-                Intercept value -> U.nocmd { model | intercept = Just value}
+                Slope value ->  U.nocmd ( applyDiff { model | slope = Just value })
+                Intercept value -> U.nocmd ( applyDiff { model | intercept = Just value })
 
         Saved (Ok _) ->
             case model.mode of
@@ -2124,7 +2124,7 @@ extractValue: Dict ( Int, Int ) Entry -> Int -> Int -> String
 extractValue coordData iRow iCol =
     case Dict.get ( iRow, iCol ) coordData of
         Nothing -> ""
-        Just entry -> getValue entry
+        Just entry -> showValue entry
 
 
 getValueFromIndex: Dict ( Int, Int ) Entry -> ( Int, Int ) -> Float
@@ -2350,18 +2350,20 @@ builRowBasic components date =
 
 applyDiff: Model -> Model
 applyDiff model =
-    { model | diff = currentDiff model.coordData }
+    { model | diff = currentDiff model model.coordData }
 
 
-currentDiff: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
-currentDiff coordData =
-    Dict.filter
-        (\ k e -> case e.edition of
-                    Edition _ -> True
-                    Deletion -> True
-                    _ -> False
-        )
-        coordData
+currentDiff: Model -> Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
+currentDiff model coordData =
+    Dict.map
+    (\ _ e -> { e | edition = ( linearCorrection model e.edition )})
+        <| Dict.filter
+            (\ _ e -> case e.edition of
+                        Edition _ -> True
+                        Deletion -> True
+                        _ -> False
+            )
+            coordData
 
 
 
@@ -3026,7 +3028,7 @@ buildCell model cartDict iRow iCol =
                     Nothing -> emptyEntry
                     Just content -> content
         statusClass = cellStyle entry
-        value = getValue entry
+        value = showValue entry
         valueCropped = printValue model.roundValues <| String.toFloat value
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = case model.selection of
@@ -3586,12 +3588,9 @@ divLinearCorrection model filtredDict =
             [ ]
 
 
-
-getValue: Entry -> String
+getValue : Entry -> String
 getValue entry =
-    case entry.raw of
-        Nothing->
-            case entry.edition of
+     case entry.edition of
                 Edition v -> String.fromFloat v
                 Error s -> s
                 Deletion -> ""
@@ -3600,7 +3599,13 @@ getValue entry =
                         ""
                         String.fromFloat
                         entry.value
+
+showValue: Entry -> String
+showValue entry =
+    case entry.raw of
+        Nothing-> getValue entry
         Just stuff -> stuff
+
 
 cellStyle: Entry -> String
 cellStyle entry =
@@ -3801,6 +3806,11 @@ debugView model =
                                                     then "On"
                                                     else "Off")
                 , H.br [] []
+                , H.text ( "correction : "
+                         ++  ( displayRaw model.slope )
+                         ++ " / "
+                         ++ ( displayRaw model.intercept )
+                         )
                 , H.br [] []
                 , H.text  ( ", Key Pressed: " ++ model.keyName)
                 , H.br [] []
