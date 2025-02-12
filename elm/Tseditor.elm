@@ -2314,7 +2314,7 @@ cartesianData mergedData =
     cartesianDataRec mergedData [] 0 0 Dict.empty
 
 
-mergeData:List Component -> ( List ( List Entry ), List String, List String )
+mergeData: List Component -> ( List ( List Entry ), List String, List String )
 mergeData components =
     let dates = List.sort
                 <| Set.toList
@@ -2952,30 +2952,75 @@ updateCoordData model position raw edition =
         { model | coordData = newCoord }
 
 
+getIndexes: Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> ( Dict Int String, Dict Int String )
+getIndexes coordData bounds =
+    let (( minRow, maxRow ), ( minCol, maxCol )) = bounds
+        dates = List.map
+                (\ iRow -> ( iRow , ( findEntry (iRow, minCol) ( 0, 1 ) coordData bounds ).indexRow ) )
+                ( List.range minRow maxRow )
+        columns = List.map
+                (\ iCol -> ( iCol, ( findEntry (minRow, iCol) ( 1, 0 ) coordData bounds).indexCol ) )
+                ( List.range minCol maxCol )
+    in
+        ( Dict.fromList dates, Dict.fromList columns )
+
+
+findEntry: ( Int, Int ) ->  ( Int, Int ) -> Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> Entry
+findEntry ( iRow,  iCol ) increment coordData bounds =
+    let (( _, maxRow ), ( _, maxCol )) = bounds
+    in
+    if iRow > maxRow || iCol > maxCol
+        then emptyEntry
+        else
+    case Dict.get (iRow, iCol) coordData of
+        Just e -> e
+        Nothing -> findEntry ( addP (iRow, iCol) increment ) increment coordData bounds
+
+
 buildDiffTable: Model -> H.Html Msg
 buildDiffTable model =
      let diff = model.diff
-         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds diff
+         (( minRow, maxRow ), ( minCol, maxCol )) = getBounds diff
+         ( dates, columns ) = getIndexes diff ( ( minRow, maxRow ), ( minCol, maxCol ))
     in
         H.table
-        [ HA.class "multi-table diff-table"]
+        [ HA.class "diff-table"]
         [ H.thead
             []
-            []
+            [ H.tr
+                []
+                ([ H.th [] [] ] ++ List.map
+                    ( \ iCol ->  H.th
+                                    []
+                                    [ H.text <|
+                                            Maybe.withDefault
+                                                ""
+                                                ( Dict.get iCol columns )
+                                    ]
+                    )
+                    ( List.range minCol maxCol )
+                )
+            ]
         , H.tbody
             []
             ( List.map
-                ( buildDiffRow model diff minCol maxCol )
+                ( buildDiffRow model diff minCol maxCol dates )
                 ( List.range minRow maxRow ) )
         ]
 
 
-buildDiffRow model diff minCol maxCol iRow =
+buildDiffRow model diff minCol maxCol dates iRow  =
     H.tr
         []
-        <| List.map
+        ( [ H.th [] [ H.text <|
+                        Maybe.withDefault
+                            ""
+                            ( Dict.get iRow dates )
+                    ]
+            ] ++  List.map
                 ( buildDiffCell model diff minCol maxCol iRow )
                 ( List.range minCol maxCol )
+        )
 
 
 buildDiffCell model diff minCol maxCol iRow iCol =
@@ -3730,7 +3775,7 @@ debugAttributes debug entry =
     if not debug
         then [ ]
         else
-            [ HA.attribute  "raw" ( displayRaw entry.raw )
+            [ HA.attribute "raw" ( displayRaw entry.raw )
             , HA.attribute "value" ( displayValue entry.value )
             , HA.attribute "edition" ( displayEdition entry.edition )
             , HA.attribute "indexRow" entry.indexRow
