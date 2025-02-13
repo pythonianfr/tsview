@@ -983,13 +983,15 @@ update msg model =
                 moreCommands = Cmd.batch [ deselect True , commands]
                 ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
                 default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
-                resetModel = { model | horizon = newModelHorizon
-                                     , series = case  model.series of
+                resetModel = setupNas
+                            <| cleanDiff
+                            <| { model | horizon = newModelHorizon
+                                       , series = case  model.series of
                                                     Naked series -> Naked { initialTs = series.initialTs
                                                                           , zoomTs = Nothing}
                                                     ToEdit series -> ToEdit { initialTs = series.initialTs
                                                                             , zoomTs = Nothing}
-                             }
+                              }
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
@@ -1398,7 +1400,7 @@ update msg model =
             case key of
                 Escape Down -> ( model , deselect True )
                 Escape Up -> U.nocmd model
-                Delete  Down -> ( setupNas ( deleteSelectedValues model )
+                Delete  Down -> ( applyDiff ( setupNas ( deleteSelectedValues model ))
                                 , deselect True
                                 )
                 Delete Up -> U.nocmd model
