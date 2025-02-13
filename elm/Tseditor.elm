@@ -1392,7 +1392,7 @@ update msg model =
             case key of
                 Escape Down -> ( model , deselect True )
                 Escape Up -> U.nocmd model
-                Delete  Down -> ( applyDiff ( deleteSelectedValues model )
+                Delete  Down -> ( applyDiff ( deleteFocus ( deleteSelectedValues model ))
                                 , deselect True
                                 )
                 Delete Up -> U.nocmd model
@@ -1947,6 +1947,21 @@ deleteSelectedValues model =
     in
         { model | coordData = newCoord }
 
+
+deleteFocus: Model -> Model
+deleteFocus model =
+    case model.focus of
+        Nothing -> model
+        Just focus -> {
+            model | coordData =
+                        applyOnFilter
+                            model.coordData
+                            ( \ k  -> k == focus)
+                            ( \ e -> { e | edition = Deletion
+                                         , raw = Nothing
+                                     }
+                            )
+                        }
 
 pointToBox: ( Int, Int ) -> Box
 pointToBox ( pRow, pCol ) =
