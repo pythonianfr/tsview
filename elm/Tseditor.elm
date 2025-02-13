@@ -1161,20 +1161,9 @@ update msg model =
             )
 
         CancelEdition ->
-            let newmodel = { model | slope = Nothing
-                                   , intercept = Nothing
-                           }
-            in
             applyFocus
-                ( setupNas
-                    (setOnEdtitionTs model
-                        (Dict.map
-                            (\ _ e -> { e | edition = NoEdition
-                                          , raw = Nothing })
-                            ( getEditionTs newmodel.series ))
-                    )
-                )
-                ( model.focus )
+                ( setupNas ( cleanDiff model ))
+                model.focus
 
         Correction param ->
             case param of
@@ -1767,6 +1756,18 @@ onlyActiveKeys series =
                 Just zoom -> Dict.keys zoom
 
 
+cleanDiff: Model -> Model
+cleanDiff model =
+      { model | diff = Dict.empty
+              , coordData = Dict.map
+                                (\ _ e -> { e | edition = NoEdition
+                                              , raw = Nothing })
+                                model.coordData
+              , slope = Nothing
+              , intercept = Nothing
+      }
+
+
 insertComponentData: List Component -> String -> Series -> List Component
 insertComponentData components name data =
     List.map
@@ -1941,7 +1942,6 @@ deleteSelectedValues model =
     let delete = (\ e ->  if e.editable
                             then { e | edition = Deletion
                                      , raw = Nothing
-                                     , value = Nothing
                                  }
                             else e
                  )
@@ -3778,6 +3778,7 @@ debugAttributes debug entry =
             [ HA.attribute "raw" ( displayRaw entry.raw )
             , HA.attribute "value" ( displayValue entry.value )
             , HA.attribute "edition" ( displayEdition entry.edition )
+            , HA.attribute "override"  <| if entry.override then "True" else "False"
             , HA.attribute "indexRow" entry.indexRow
             , HA.attribute "indexCol" entry.indexCol
             ]
