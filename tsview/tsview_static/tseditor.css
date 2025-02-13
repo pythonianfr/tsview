@@ -254,8 +254,9 @@
     border: 1px solid #DDD;
     padding-top: 0px;
     padding-bottom: 0px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 0px;
+    padding-right: 0px;
+    text-align: right;
 }
 
 .edit-table td:nth-child(2){
@@ -271,19 +272,45 @@
     background-color:  #ebf0fa;
 }
 
-.multi-table .non-editable
+.edit-table .non-editable
 {   background-color:  #f2f2f2;
 }
 
-.multi-table .selected {
+.edit-table .selected {
     background-color: #cae9f5;
 }
 
-.multi-table .selected input {
+.edit-table input {
+    padding-top: 1px;
+    padding-bottom: 1px;
+    border-style: none;
+    text-align: right;
+    background-color: transparent;
+}
+
+.edit-table .selected input {
     background-color: #cae9f5;
 }
 
+.edit-table .fill-under input {
+    padding-right: 5px;
+    width: 137px;
 
+}
+
+.edit-table .editable.plain input {
+    padding-right: 5px;
+    width: 177px;
+}
+
+.fill-button {
+    color: red;
+   float: right;
+}
+
+.edit-table .active {
+    box-shadow: inset 0px 0px 7px;
+}
 
 .edit-table th {
     padding-top: 5px;
@@ -296,11 +323,6 @@
     justify-content: space-between;
     padding-right: 0px;
     display: flex;
-}
-
-.edit-table .no-fill {
-    text-align: left;
-    padding-right: 50px;
 }
 
 .button-fill-all {
@@ -316,28 +338,6 @@
 }
 
 
-.edit-table td.control-col, .edit-table th.control-col  {
-    background-color: white;
-    border: 0;
-    width: 30px;
-}
-
-.row-edit input {
-    padding-top: 1px;
-    padding-bottom: 1px;
-    border-style: none;
-    text-align: right;
-    background-color: transparent;
-}
-
-.row-edit input.plain {
-    padding-right: 40px;
-}
-
-.row-edit input.fill-under {
-    padding-right: 15px;
-}
-
 .edit-table td button {
     border: 2px solid black;
     cursor: pointer;
@@ -345,29 +345,10 @@
     padding-bottom:0px;
 }
 
-.row-edit.selected td:nth-child(2) {
-    background-color: #cae9f5;
-}
-
-.row-edit.selected input {
-    background-color: #cae9f5;
-}
-
-.row-edit .active {
-    box-shadow: inset 0px 0px 7px;
-}
-
-
-/* show values */
-
-.show-table {
+.edit-table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
-}
-
-.show-table td {
-    text-align: right;
 }
 
 .show-table-dates {
@@ -378,11 +359,6 @@
     background-color:white;
     z-index:50;
 }
-
-.show-table th p {
-    display: inline;
-}
-
 
 .editor-values-table-series {
     position: sticky;

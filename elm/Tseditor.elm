@@ -3054,7 +3054,7 @@ buildTable model header rowDict =
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds cartDict
     in
         H.table
-        [ HA.class "multi-table edit-table show-table"]
+        [ HA.class "edit-table"]
         [ H.thead
             []
             header
@@ -3274,7 +3274,7 @@ headerShowValue model =
                     []
                 , H.p [] [ H.text "Dates" ]             ]
               , H.th
-                    [ HA.class "show-table-series" ]
+                    [ ]
                     [ H.p
                         [ HA.class <| getCopyClass
                                         model.statusCopy
@@ -3743,6 +3743,7 @@ fillButton position fillUnder =
     case fillUnder of
         True -> [ H.button
                     [ HA.title "Fill"
+                    , HA.class "fill-button"
                     , HE.onClick ( FillNas position )]
                     [ H.text "↓" ]
                 ]
