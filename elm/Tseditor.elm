@@ -857,7 +857,6 @@ update msg model =
                                         ( onlyActiveValues series )
                     in
                         applyFocus
-                        ( setupNas
                             ( buildCoord
                                 ({ model
                                     | series = series
@@ -867,7 +866,6 @@ update msg model =
                                                     indexedval
                                 })
                             )
-                        )
                         ( Just ( 0, 0 ) )
 
                 Err err ->
@@ -983,7 +981,7 @@ update msg model =
                 moreCommands = Cmd.batch [ deselect True , commands]
                 ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
                 default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
-                resetModel = setupNas
+                resetModel = buildCoord
                             <| cleanDiff
                             <| { model | horizon = newModelHorizon
                                        , series = case  model.series of
@@ -1069,7 +1067,7 @@ update msg model =
 
         SwitchForceDraw ->
             applyFocus
-                ( setupNas ( flipForce model ))
+                ( buildCoord ( flipForce model ))
                 ( Just (0 , 0 ))
 
         AllowInferFreq ->
@@ -1091,12 +1089,11 @@ update msg model =
                             else Just rawstring
             in
             ( applyDiff
-                <|setupNas
-                    <| updateCoordData
-                        model
-                        ( row, col )
-                        raw
-                        edition
+                <| updateCoordData
+                    model
+                    ( row, col )
+                    raw
+                    edition
             , Cmd.none )
 
         GetLastInsertionDates (Ok rawdates) ->
@@ -1164,7 +1161,7 @@ update msg model =
 
         CancelEdition ->
             applyFocus
-                ( setupNas ( cleanDiff model ))
+                ( cleanDiff model )
                 model.focus
 
         Correction param ->
@@ -1175,9 +1172,7 @@ update msg model =
         Saved (Ok _) ->
             case model.mode of
                 Existing _ ->
-                    ( { model | slope = Nothing
-                              , intercept = Nothing
-                      }
+                    ( cleanDiff model
                     , Cmd.batch
                           ( getRelevantData model)
                     )
@@ -1286,10 +1281,9 @@ update msg model =
                 corner = getPos payload.index
                 merged = pasteRectangle model.coordData coordPatch corner
             in
-            U.nocmd <| setupNas
-                        <| applyDiff { model | rawPasted = payload.text
-                                              , coordData = merged
-                                     }
+            U.nocmd <| applyDiff { model | rawPasted = payload.text
+                                         , coordData = merged
+                                  }
 
         UnFocus -> U.nocmd { model | focus = Nothing }
 
@@ -1371,22 +1365,20 @@ update msg model =
             in
                 applyFocus
                     ( applyDiff
-                        <| setupNas
-                            { model | coordData = fillNas
-                                                    model.coordData
-                                                    lastValue
-                                                    position
-                            }
+                        { model | coordData = fillNas
+                                                model.coordData
+                                                lastValue
+                                                position
+                        }
                     )
                     Nothing
 
         FillAll ->
-            ( setupNas
-                <| applyDiff
-                    { model | coordData = fillAllNas
-                                            model.coordData
-                                            model.lastValids
-                    }
+            ( applyDiff
+                { model | coordData = fillAllNas
+                                        model.coordData
+                                        model.lastValids
+                }
             , Cmd.none
             )
 
@@ -1400,7 +1392,7 @@ update msg model =
             case key of
                 Escape Down -> ( model , deselect True )
                 Escape Up -> U.nocmd model
-                Delete  Down -> ( applyDiff ( setupNas ( deleteSelectedValues model ))
+                Delete  Down -> ( applyDiff ( deleteSelectedValues model )
                                 , deselect True
                                 )
                 Delete Up -> U.nocmd model
@@ -1580,7 +1572,7 @@ update msg model =
                                     }
 
                  in
-                    applyFocus ( setupNas ( buildCoord newmodel) ) ( Just ( 0, 0 ) )
+                    applyFocus ( buildCoord newmodel) ( Just ( 0, 0 ) )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1760,6 +1752,7 @@ onlyActiveKeys series =
 
 cleanDiff: Model -> Model
 cleanDiff model =
+    setupFill
       { model | diff = Dict.empty
               , coordData = Dict.map
                                 (\ _ e -> { e | edition = NoEdition
@@ -1973,7 +1966,7 @@ extendSelection firstShift ( pRow, pCol ) =
                 (( minRow, maxRow ), ( minCol, maxCol ))
 
 
-setupNas model =
+setupFill model =
     let coordData = model.coordData
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordData
     in
@@ -1986,14 +1979,20 @@ setupNas model =
 
 findLastValidByCol: Dict (Int, Int) Entry -> Int -> List (Int, Int)
 findLastValidByCol coordData iCol =
-    findLastValidRec
-        ( Dict.toList
-            <| Dict.filter
-                    (\ ( _, j ) v -> j == iCol )
-                    coordData
-        )
-        False
-        []
+    let column = Dict.filter
+                        (\ ( _, j ) v -> j == iCol )
+                        coordData
+        editable = case List.head ( Dict.values column ) of
+                    Nothing -> False
+                    Just e -> e.editable
+    in
+        if not editable
+        then []
+        else
+        findLastValidRec
+            ( Dict.toList column )
+            False
+            []
 
 
 setupFirstSelected model = model
@@ -2352,7 +2351,7 @@ builRowBasic components date =
 
 applyDiff: Model -> Model
 applyDiff model =
-    { model | diff = currentDiff model model.coordData }
+    setupFill { model | diff = currentDiff model model.coordData }
 
 
 currentDiff: Model -> Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
@@ -2928,10 +2927,11 @@ buildCoord model =
             let allSeries = [ likeComp model ] ++ model.components
                 ( dataAsRows, dates, columns ) = mergeData allSeries
             in
-            { model | coordData = ( cartesianData dataAsRows)
-                    , dates = dates
-                    , columns = columns
-            }
+            setupFill
+                { model | coordData = ( cartesianData dataAsRows)
+                        , dates = dates
+                        , columns = columns
+                }
 
 
 updateCoordData: Model -> (Int, Int) -> Maybe String -> Edited -> Model
@@ -3039,7 +3039,7 @@ buildTable model header rowDict =
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds cartDict
     in
         H.table
-        [ HA.class "multi-table edit-table"]
+        [ HA.class "multi-table edit-table show-table"]
         [ H.thead
             []
             header
