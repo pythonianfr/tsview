@@ -3006,7 +3006,7 @@ buildDiffTable model =
             []
             [ H.tr
                 []
-                ([ H.th [] [] ] ++ List.map
+                ([ H.th [HA.class "diff-dates" ] [] ] ++ List.map
                     ( \ iCol ->  H.th
                                     []
                                     [ H.text <|
@@ -3029,11 +3029,13 @@ buildDiffTable model =
 buildDiffRow model diff minCol maxCol dates iRow  =
     H.tr
         []
-        ( [ H.th [] [ H.text <|
-                        Maybe.withDefault
-                            ""
-                            ( Dict.get iRow dates )
-                    ]
+        ( [ H.th
+            [ HA.class "diff-dates" ]
+            [ H.text <|
+                Maybe.withDefault
+                    ""
+                    ( Dict.get iRow dates )
+            ]
             ] ++  List.map
                 ( buildDiffCell model diff minCol maxCol iRow )
                 ( List.range minCol maxCol )
@@ -3162,6 +3164,7 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             [ H.input
                     [ HA.id (idEntry (iRow, iCol) )
                     , HA.class statusClass
+                    , HA.class "unselectable"
                     , HA.value valueCropped
                     , HA.readonly True
                     ]
