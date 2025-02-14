@@ -268,10 +268,6 @@
     padding: 5px;
 }
 
-.edit-table tr:hover:not(th) {
-    background-color:  #ebf0fa;
-}
-
 .edit-table .non-editable
 {   background-color:  #f2f2f2;
 }
@@ -304,7 +300,6 @@
 }
 
 .fill-button {
-    color: red;
    float: right;
 }
 
@@ -367,3 +362,11 @@
 
 }
 
+.unselectable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}

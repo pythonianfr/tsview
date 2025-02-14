@@ -3054,7 +3054,8 @@ buildTable model header rowDict =
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds cartDict
     in
         H.table
-        [ HA.class "edit-table"]
+        [ HA.class "edit-table"
+        , HA.class "unselectable"]
         [ H.thead
             []
             header
