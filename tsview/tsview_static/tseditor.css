@@ -266,6 +266,14 @@
     border: 1px solid black;
 }
 
+.wrapper-primary{
+    display: flex;
+}
+
+.separator-primary {
+    width : 100px;
+}
+
 /* edition table */
 
 .edit-table {
@@ -346,7 +354,7 @@
 }
 
 .button-fill-all {
-    margin-left: 5px;
+    height: 3ch;
 }
 
 .edit-table th p {

@@ -671,6 +671,10 @@ catalogDecoder =
             ( JD.list (JD.list JD.string ))
 
 
+isPrimary model =
+    model.mode == Existing I.Primary
+
+
 getPoints: Model -> Cmd Msg
 getPoints model =
     case model.mode of
@@ -2547,8 +2551,8 @@ permaLink model =
 maybeRoundForm: Model -> List ( H.Html Msg )
 maybeRoundForm model =
     case model.mode of
-        Existing I.Primary ->  []
-        Existing I.Formula ->
+        Creation _ -> []
+        _ ->
             [ H.div
                 [ HA.class "form-round"]
                 [ H.text "Decimals : "
@@ -2572,7 +2576,6 @@ maybeRoundForm model =
                     [ H.text "X" ]
                 ]
             ]
-        Creation _ -> []
 
 
 printRound: Maybe Int -> String
@@ -2620,7 +2623,7 @@ buttonFillAll: Model -> H.Html Msg
 buttonFillAll model =
     if model.lastValids /= []
         then H.button
-                    [ HA.class "button-fill-all"
+                    [ HA.class "bluebutton custom-button button-fill-all"
                     , HE.onClick FillAll
                     , HA.title "Forward-fill on all selection"
                     ]
@@ -2892,17 +2895,36 @@ viewValueTable model =
         Drawable ->
             H.div
                 []
-                [ forCurrentDiff model
-                , buttonShowDiff model
-                , buildTable
-                    model
-                    ( headerShowValue model )
-                    ( getIndexedDates model )
-                ]
+                (if isPrimary model
+                then
 
+                   [ H.div
+                        [ HA.class "wrapper-primary" ]
+                        [ buildTable
+                            model
+                            ( headerShowValue model )
+                            ( getIndexedDates model )
+                        , strap
+                        , forCurrentDiff model
+                        ]
+                    ]
+                else
+                    [ forCurrentDiff model
+                    , buttonShowDiff model
+                    , buildTable
+                        model
+                        ( headerShowValue model )
+                        ( getIndexedDates model )
+                    ]
+                )
+
+strap =
+    H.div
+        [ HA.class "separator-primary" ]
+        []
 
 forCurrentDiff model =
-    if not model.showDiff
+    if not model.showDiff &&  not ( isPrimary model )
     then H.div [ HA.id "placeholder-save-table" ] []
     else
     H.div
@@ -3007,7 +3029,7 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
 
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
-    if model.showDiff
+    if model.showDiff || isPrimary model
     then
         H.div [ HA.id "placeholder-btn-show-diff" ] []
     else
@@ -3488,15 +3510,17 @@ saveButtons model diff =
         else
             [ H.div
                 [ HA.class "save-buttons" ]
-                [ H.button
-                  [ HA.class "yellowbutton custom-button"
-                  , HA.attribute "type" "button"
-                  , HE.onClick ShowDiff
-                  , HA.disabled (model.horizon.plotStatus == Loading)
-                  ]
-                  [ H.text "Hide" ]
+                [ if isPrimary model
+                    then H.div [ HA.id "placeholder-hide"] []
+                    else  H.button
+                              [ HA.class "bluebutton custom-button"
+                              , HA.attribute "type" "button"
+                              , HE.onClick ShowDiff
+                              , HA.disabled (model.horizon.plotStatus == Loading)
+                              ]
+                              [ H.text "Hide" ]
                 , H.button
-                  [ HA.class "bluebutton custom-button"
+                  [ HA.class "yellowbutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick CancelEdition
                   , HA.disabled (model.horizon.plotStatus == Loading)
