@@ -167,6 +167,7 @@ type alias Model =
     -- user actions
     , forceDraw : Bool
     , allowInferFreq : Bool
+    , showDiff: Bool
     -- cells interactivity
     , selection : Maybe Box
     , focus : Maybe ( Int, Int )
@@ -203,6 +204,7 @@ type Msg
     | Create CreationOptions
     | SwitchForceDraw
     | AllowInferFreq
+    | ShowDiff
     | InputChanged Int Int String
     | SaveEditedData
     | Saved (Result Http.Error String)
@@ -1080,6 +1082,8 @@ update msg model =
             , Cmd.none
             )
 
+        ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
+
         InputChanged row col rawvalue ->
             let
                 rawstring = String.replace " " "" rawvalue
@@ -1161,7 +1165,7 @@ update msg model =
 
         CancelEdition ->
             applyFocus
-                ( cleanDiff model )
+                ( cleanDiff { model | showDiff = False} )
                 model.focus
 
         Correction param ->
@@ -2888,21 +2892,28 @@ viewValueTable model =
         Drawable ->
             H.div
                 []
-                [
-                H.div
-                    [ HA.class "save-table" ]
-                    [ H.div
-                      [ HA.class "for-current-diff"]
-                      ( divLinearCorrection model model.diff
-                      ++ saveButtons model model.diff
-                      )
-                    , buildDiffTable model
-                    ]
+                [ forCurrentDiff model
+                , buttonShowDiff model
                 , buildTable
                     model
                     ( headerShowValue model )
                     ( getIndexedDates model )
                 ]
+
+
+forCurrentDiff model =
+    if not model.showDiff
+    then H.div [ HA.id "placeholder-save-table" ] []
+    else
+    H.div
+    [ HA.class "save-table" ]
+    [ H.div
+          [ HA.class "for-current-diff"]
+          ( divLinearCorrection model model.diff
+          ++ saveButtons model model.diff
+          )
+        , buildDiffTable model
+    ]
 
 
 getIndexedDates: Model -> Dict Int ( H.Html Msg )
@@ -2992,6 +3003,20 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
     case Dict.get (iRow, iCol) coordData of
         Just e -> e
         Nothing -> findEntry ( addP (iRow, iCol) increment ) increment coordData bounds
+
+
+buttonShowDiff: Model -> H.Html Msg
+buttonShowDiff model =
+    if model.showDiff
+    then
+        H.div [ HA.id "placeholder-btn-show-diff" ] []
+    else
+        H.button
+            [ HA.class "bluebutton custom-button show-diff"
+            , HA.disabled ( Dict.isEmpty model.diff )
+            , HE.onClick ShowDiff
+            ]
+            [ H.text "Show new values" ]
 
 
 buildDiffTable: Model -> H.Html Msg
@@ -3464,6 +3489,13 @@ saveButtons model diff =
             [ H.div
                 [ HA.class "save-buttons" ]
                 [ H.button
+                  [ HA.class "yellowbutton custom-button"
+                  , HA.attribute "type" "button"
+                  , HE.onClick ShowDiff
+                  , HA.disabled (model.horizon.plotStatus == Loading)
+                  ]
+                  [ H.text "Hide" ]
+                , H.button
                   [ HA.class "bluebutton custom-button"
                   , HA.attribute "type" "button"
                   , HE.onClick CancelEdition
@@ -4169,6 +4201,7 @@ init input =
                     , initialCommands = Cmd.none
                     , forceDraw = False
                     , allowInferFreq = False
+                    , showDiff = False
                     , intercept = Nothing
                     , slope = Nothing
                     , insertion_dates = Array.empty

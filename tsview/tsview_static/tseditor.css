@@ -248,6 +248,18 @@
     cursor: pointer;
 }
 
+.yellowbutton {
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    background: #ffc107;
+    border: 1px solid green;
+    border-radius: 8px;
+    color: black;
+    cursor: pointer;
+}
+
 .custom-button:disabled {
     cursor: auto;
     background-color: #B0B0B0;
@@ -371,6 +383,10 @@
 }
 
 /* diff table */
+
+button.show-diff {
+    margin: 5px;
+}
 
 .diff-table {
    border-collapse: collapse;
