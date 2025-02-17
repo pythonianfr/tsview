@@ -4092,7 +4092,20 @@ plotNode: Model -> H.Html Msg
 plotNode model =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
-        diff = currentDiffOld model
+        diff = Dict.values ( currentDiff model model.coordData )
+        editionTrace = if model.mode == Existing I.Primary
+                        then
+                        [ scatterplot
+                                    "edition"
+                                    ( List.map
+                                        (\ e -> e.indexRow)
+                                        diff
+                                    )
+                                    ( diffToFloat diff )
+                                    "markers"
+                                    defaultTraceOptions
+                        ]
+                        else []
         dragMode =
             if model.panActive
             then "pan"
@@ -4107,7 +4120,7 @@ plotNode model =
                 "args"
                 ( serializedPlotArgs
                      "plot"
-                    [ scatterplot
+                    ( [ scatterplot
                         model.name
                         dates
                         values
@@ -4115,13 +4128,8 @@ plotNode model =
                             then "lines+markers"
                             else "lines" )
                         defaultTraceOptions
-                    , scatterplot
-                        "edition"
-                        ( Dict.keys diff )
-                        ( diffToFloat ( Dict.values diff ))
-                        "markers"
-                        defaultTraceOptions
-                    ]
+                      ] ++ editionTrace
+                    )
                     { defaultLayoutOptions | dragMode = Just dragMode
                                            , yaxis = newYaxis
                                            , height = Just 350
