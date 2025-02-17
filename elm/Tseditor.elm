@@ -2923,6 +2923,7 @@ strap =
         [ HA.class "separator-primary" ]
         []
 
+forCurrentDiff: Model -> H.Html Msg
 forCurrentDiff model =
     if not model.showDiff &&  not ( isPrimary model )
     then H.div [ HA.id "placeholder-save-table" ] []
@@ -3015,6 +3016,17 @@ getIndexes coordData bounds =
         ( Dict.fromList dates, Dict.fromList columns )
 
 
+relevantIndexes: Dict ( Int, Int ) a -> ( List Int, List Int )
+relevantIndexes coordData =
+    let keys = Dict.keys coordData
+        rows = Set.fromList ( List.map Tuple.first keys )
+        cols = Set.fromList ( List.map Tuple.second keys )
+    in
+        ( Set.toList rows,
+          Set.toList cols
+        )
+
+
 findEntry: ( Int, Int ) ->  ( Int, Int ) -> Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> Entry
 findEntry ( iRow,  iCol ) increment coordData bounds =
     let (( _, maxRow ), ( _, maxCol )) = bounds
@@ -3046,6 +3058,7 @@ buildDiffTable model =
      let diff = model.diff
          (( minRow, maxRow ), ( minCol, maxCol )) = getBounds diff
          ( dates, columns ) = getIndexes diff ( ( minRow, maxRow ), ( minCol, maxCol ))
+         ( relevantRows, relevantCols) = relevantIndexes diff
     in
         H.table
         [ HA.class "diff-table"]
@@ -3062,18 +3075,18 @@ buildDiffTable model =
                                                 ( Dict.get iCol columns )
                                     ]
                     )
-                    ( List.range minCol maxCol )
+                    relevantCols
                 )
             ]
         , H.tbody
             []
             ( List.map
-                ( buildDiffRow model diff minCol maxCol dates )
-                ( List.range minRow maxRow ) )
+                ( buildDiffRow model diff relevantCols dates )
+                relevantRows )
         ]
 
 
-buildDiffRow model diff minCol maxCol dates iRow  =
+buildDiffRow model diff relevantCols dates iRow  =
     H.tr
         []
         ( [ H.th
@@ -3084,12 +3097,12 @@ buildDiffRow model diff minCol maxCol dates iRow  =
                     ( Dict.get iRow dates )
             ]
             ] ++  List.map
-                ( buildDiffCell model diff minCol maxCol iRow )
-                ( List.range minCol maxCol )
+                ( buildDiffCell model diff iRow )
+                relevantCols
         )
 
 
-buildDiffCell model diff minCol maxCol iRow iCol =
+buildDiffCell model diff iRow iCol =
     let entry = case Dict.get ( iRow, iCol ) diff of
                     Nothing -> emptyEntry
                     Just content -> content
