@@ -416,4 +416,5 @@ button.show-diff {
     border: 1px solid #DDD;
     padding: 3px;
     text-align: right;
+    min-width: 177px
 }

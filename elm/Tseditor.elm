@@ -475,8 +475,8 @@ asEdited value =
         Just v -> Edition v
 
 
-dressSeries: SeriesNaked -> Dict String Entry
-dressSeries series =
+dressSeries: SeriesNaked -> String -> SeriesToEdit
+dressSeries series name =
     Dict.fromList
         <| List.indexedMap
             (\ idx (k, v) -> ( k
@@ -488,12 +488,19 @@ dressSeries series =
                                         Nothing -> Nothing
                                         Just val -> Just
                                                       <| String.fromFloat val
-                               , indexCol = "generated"
+                               , indexCol = name
                                , indexRow = k
                                }
                              )
             )
             ( Dict.toList series )
+
+
+nameSeries : Dict ( Int, Int ) Entry -> String -> Dict ( Int, Int ) Entry
+nameSeries series name =
+     Dict.map
+        ( \ _ e ->  { e | indexCol = name } )
+        series
 
 
 likeComp: Model -> Component
@@ -671,8 +678,9 @@ catalogDecoder =
             ( JD.list (JD.list JD.string ))
 
 
-isPrimary model =
+isSingle model =
     model.mode == Existing I.Primary
+    || model.mode == Creation Edit
 
 
 getPoints: Model -> Cmd Msg
@@ -967,12 +975,14 @@ update msg model =
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
                 Ok val ->  U.nocmd
-                            { model | series =
-                                        ToEdit { initialTs = dressSeries val
-                                               , zoomTs = Nothing
-                                               }
-                                    , mode = Creation Edit
-                            }
+                            <| applyDiff
+                                <| buildCoord
+                                    { model | series =
+                                                ToEdit { initialTs = dressSeries val model.name
+                                                       , zoomTs = Nothing
+                                                       }
+                                            , mode = Creation Edit
+                                    }
                 Err err -> U.nocmd
                             { model | errors = model.errors ++ [JD.errorToString err]}
 
@@ -1064,9 +1074,9 @@ update msg model =
             in
                 ( { model | creation = validatedCreation
                           , name = validatedCreation.name
+                          , diff = nameSeries model.diff newCreation.name
                           , meta = Dict.fromList
-                                    [( "tzaware", M.MBool tzawarness )
-                                    ,( "tzaware", M.MBool tzawarness )]
+                                    [( "tzaware", M.MBool tzawarness )]
                   }
                 , command )
 
@@ -2423,7 +2433,6 @@ patchEntry entry s =
     }
 
 
-
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
     let allSeries = [ likeComp model ] ++ model.components
@@ -2438,10 +2447,10 @@ patchEditedData model =
 
 
 saveComponent: String -> String -> Dict ( Int, Int ) Entry -> Component -> Cmd Msg
-saveComponent baseUrl tzone diff component =
+saveComponent baseUrl tzone series component =
     let name = component.name
         tzaware = component.tzaware
-        patch = filterAndConvert diff name
+        patch = filterAndConvert series name
     in
         if Dict.isEmpty patch
             then Cmd.none
@@ -2646,7 +2655,7 @@ viewRelevantTable model =
                             [ H.table
                                 [ HA.class "creation-form" ]
                                 [ nameForm model ]
-                            , viewEditTable model ]
+                            , viewValueTable model ]
 
 
 checkMandatory: String -> String
@@ -2670,7 +2679,7 @@ nameForm model =
         [ H.td
             [ ]
             [ H.label
-                [ HA.for "creation-name"]
+                [ HA.for "creation-name" ]
                 [ H.text "Name " ]
             ]
         , H.td
@@ -2680,6 +2689,7 @@ nameForm model =
                 , HA.class ( className model.creation.nameStatus )
                 , HA.name "name"
                 , HA.autocomplete False
+                , HE.onClick UnFocus
                 , HE.onInput ( \s -> Create ( Name s ) )
                 , HA.value model.creation.name
                 ]
@@ -2895,9 +2905,8 @@ viewValueTable model =
         Drawable ->
             H.div
                 []
-                (if isPrimary model
+                (if isSingle model
                 then
-
                    [ H.div
                         [ HA.class "wrapper-primary" ]
                         [ buildTable
@@ -2925,7 +2934,7 @@ strap =
 
 forCurrentDiff: Model -> H.Html Msg
 forCurrentDiff model =
-    if not model.showDiff &&  not ( isPrimary model )
+    if not model.showDiff &&  not ( isSingle model )
     then H.div [ HA.id "placeholder-save-table" ] []
     else
     H.div
@@ -3041,7 +3050,7 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
 
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
-    if model.showDiff || isPrimary model
+    if model.showDiff || isSingle model
     then
         H.div [ HA.id "placeholder-btn-show-diff" ] []
     else
@@ -3270,21 +3279,23 @@ getEntry date ( name, series ) =
                         let entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
                         in
                             { defaultEntry | value = entry.value
-                                             , raw = Maybe.andMap
+                                            , edition = entry.edition
+                                            , raw = Maybe.andMap
                                                         entry.value
                                                         (Just String.fromFloat)
-                                              , override = entry.override
-                                              , editable = True
+                                            , override = entry.override
+                                            , editable = True
                               }
                 Nothing ->
                         let entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
                         in
                             { defaultEntry | value = entry.value
-                                               , override = entry.override
-                                               , raw = Maybe.andMap
+                                           , edition = entry.edition
+                                           , override = entry.override
+                                           , raw = Maybe.andMap
                                                         entry.value
                                                         (Just String.fromFloat)
-                                               , editable = True
+                                           , editable = True
                                }
 
 
@@ -3523,7 +3534,7 @@ saveButtons model diff =
         else
             [ H.div
                 [ HA.class "save-buttons" ]
-                [ if isPrimary model
+                [ if isSingle model
                     then H.div [ HA.id "placeholder-hide"] []
                     else  H.button
                               [ HA.class "bluebutton custom-button"
@@ -4106,9 +4117,9 @@ plotNode model =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
         diff = Dict.values ( currentDiff model model.coordData )
-        editionTrace = if model.mode == Existing I.Primary
-                        then
-                        [ scatterplot
+        editionTrace = case model.mode of
+                        Existing I.Formula -> []
+                        _ -> [ scatterplot
                                     "edition"
                                     ( List.map
                                         (\ e -> e.indexRow)
@@ -4117,8 +4128,7 @@ plotNode model =
                                     ( diffToFloat diff )
                                     "markers"
                                     defaultTraceOptions
-                        ]
-                        else []
+                             ]
         dragMode =
             if model.panActive
             then "pan"
