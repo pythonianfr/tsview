@@ -2113,25 +2113,6 @@ fillAllNas coordData idxNas =
                 )
 
 
--- a simplifier
---firstSelected: List Entry -> ( List Entry, Maybe ( Int, Int  ))
---firstSelected entries =
---    case entries of
---        [] -> ( [], Nothing )
---        x::xs ->
---            if x.selected
---                then ( [], Just x.position )
---                else firstSelected xs
-
---
---setupFirstSelected: Model -> Model
---setupFirstSelected model =
---    let ( _, first ) = firstSelected ( Dict.values (getEditionTs model.series))
---    in
---        { model | firstSelected = first }
-
---
-
 cellsToString: Dict ( Int, Int ) Entry -> Maybe Box -> String
 cellsToString coordData selection =
     let selected = getSelected coordData selection
@@ -3476,16 +3457,6 @@ restoreSign negative number =
         else number
 
 
-currentDiffOld: Model -> Dict String Entry
-currentDiffOld model =
-    Dict.map
-        (\ _ e -> { e | edition = ( linearCorrection model e.edition )})
-        ( Dict.filter
-            (\_ entry -> entry.edition  /= NoEdition )
-            ( getEditionTs model.series )
-        )
-
-
 diffToFloat: List Entry -> List ( Maybe Float )
 diffToFloat entries =
     List.map
@@ -3500,31 +3471,6 @@ entryToFloat entry =
         Error _ -> Nothing
         Deletion -> Nothing
         Edition edit -> Just edit
-
-
-viewEditTable : Model -> H.Html Msg
-viewEditTable model =
-    let
-        patch = currentDiffOld model
-    in
-    H.div
-        [ HA.class "tables-edition" ]
-        [ editTable model
-        --, commonHeaderEdition model patch
-        ]
-
-
---commonHeaderEdition : Model -> Dict String Entry -> H.Html Msg
---commonHeaderEdition model patch =
---    H.div
---        [ HA.class "save-table" ]
---        [ H.div
---          [ HA.class "for-current-diff"]
---          ( divLinearCorrection model patch ++
---            saveButtons model patch )
---        , divSaveDataTable patch
---        ]
-
 
 
 saveButtons: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
@@ -3576,127 +3522,6 @@ statePoints nbPoints forceDraw=
                 then Drawable
                 else TooMuchPoints nbPoints
 
-
-editTable : Model -> H.Html Msg
-editTable model =
-    let
-        class = HA.class "grid-edit-table"
-    in
-    case statePoints
-            (Dict.size ( getEditionTs model.series ))
-            model.forceDraw
-    of
-        NoPoint
-            ->  H.div [ class ][ ]
-        TooMuchPoints nbPoints ->
-            H.div
-                [ class ]
-                [ msgTooManyPointsWithButton nbPoints
-                -- for some reason an existing input help
-                -- to apply the method from a blank page
-                , H.input
-                    [ HA.class "pastable"
-                    , HA.hidden True]
-                    []
-                ]
-        Drawable ->
-            H.div
-                [ class ]
-                [ H.table
-                      [ HA.class "edit-table" ]
-                      [ H.thead [ ]
-                            [ H.tr [ ]
-                                  [ H.th
-                                        [ HA.scope "col"
-                                        , HA.class "col-dates"]
-                                        [ H.p
-                                            [ HA.class <| getCopyClass
-                                                            model.statusCopy
-                                                            CopyDates
-                                            , HE.onClick ( CopyToClipboard CopyDates )
-                                            , HA.class "copy-all"
-                                            , HA.title "Copy dates"
-                                            ]
-                                            []
-                                      , H.p [] [ H.text "Dates" ]
-                                        ]
-                                  , H.th
-                                      [ HA.scope "col"
-                                      , if model.lastValids == []
-                                            then HA.class "no-fill"
-                                            else HA.class "fill"
-                                      , HA.class "col-values"]
-                                      [ H.div
-                                        []
-                                        [ H.p
-                                            [ HA.class <| getCopyClass
-                                                            model.statusCopy
-                                                            CopyValues
-                                            , HE.onClick ( CopyToClipboard CopyValues )
-                                            , HA.class "copy-all"
-                                            , HA.title "Copy values"
-                                            ]
-                                            []
-                                        , H.p [] [ H.text "Values" ]
-                                        ]
-                                      , buttonFillAll model
-                                      ]
-                                  , H.th
-                                      [ HA.class "control-col" ]
-                                      [ ]
-                                  , H.th
-                                      [ HA.class "control-col" ]
-                                      [ ]
-                                  ]
-                            ]
-                      , H.tbody [ ] []
-                          --<| List.map
-                          --      (viewrow model)
-                          --      <| Dict.toList
-                          --          ( getEditionTs model.series )
-                      ]
-                ]
-
-
-divSaveDataTable : Dict String Entry -> H.Html Msg
-divSaveDataTable filtredDict =
-    if Dict.isEmpty filtredDict then
-        H.div [] []
-    else
-        H.div
-            [HA.class "grid-save-table"]
-            [ H.table
-                  [ HA.class "edit-table" ]
-                  [ H.thead
-                        [ ]
-                        [ H.tr
-                              [ ]
-                              [ H.th
-                                    [ HA.scope "col" ]
-                                    [ H.text "Dates" ]
-                              , H.th
-                                  [ HA.scope "col" ]
-                                  [ H.text "Values" ]
-                              ]
-                        ]
-                  , H.tbody
-                      [ HA.class "row-green" ]
-                      (List.map rowSave (Dict.toList filtredDict))
-                  ]
-            ]
-
-rowSave : (String, Entry) -> H.Html Msg
-rowSave (date, entry) =
-    H.tr
-        [ ]
-        [ H.td [ ] [ H.text date ]
-        , H.td [ ] [ H.text (case entry.edition of
-                                Edition val -> formatNumber <|
-                                                    String.fromFloat val
-                                _ -> ""
-                            )
-                    ]
-        ]
 
 divLinearCorrection: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
 divLinearCorrection model filtredDict =
@@ -3767,61 +3592,6 @@ cellStyle entry =
                       else ""
 
 
---viewrow : Model -> ( String, Entry ) -> H.Html Msg
---viewrow model ( date, entry ) =
---    let
---        rowstyle = rowStyle entry
---        isFirstSelected = case model.firstSelected of
---                            Nothing -> False
---                            Just first ->
---                                if entry.position == first
---                                    then True
---                                    else False
---        focused = entry.position == Maybe.withDefault (-1, -1 ) model.focus
---        fillUnder = False -- List.member entry.index  model.lastValids
---    in
---    H.tr
---        ([ HA.class "row-edit"
---        , if entry.selected
---            then HA.class "selected"
---            else HA.class ""
---        , if focused
---            then HA.class "focused"
---            else HA.class ""
---        --, HE.onClick ( ClickCell entry.index )
---        , HE.onDoubleClick (SelectRow entry.position)
---        , HE.onMouseDown ( Drag ( On entry.position ))
---        ] ++
---            if model.holding.mouse
---                then [ HE.onMouseEnter (SelectRow entry.position)
---                     , HE.onMouseLeave (SelectRow entry.position)
---                     ]
---                else []
---        )
---        ([ H.td
---              [ HA.class rowstyle]
---              [ H.text <| String.replace "T" " " date ]
---         , H.td
---            [ ]
---            ([ H.input
---                  [ -- HA.id (idEntry entry.index )
---                   HA.class ("pastable " ++ rowstyle)
---                  --, if fillUnder then HA.class "fill-under" else HA.class "plain"
---                  , HA.placeholder "enter your value"
---                  , HA.autocomplete False
---                  , HA.value ( formatNumber ( getValue entry ))
---                  --, HE.onInput (InputChanged date)
---                  , HA.attribute "index" date
---                  , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
---                  ]
---                  [ ]
---             ] ++ ( fillButton entry fillUnder
---                  )
---            )
---         ] ++ (buttonsFirstSelected isFirstSelected )
---        )
-
-
 fillButton: ( Int, Int ) -> Bool -> List ( H.Html Msg )
 fillButton position fillUnder =
     case fillUnder of
@@ -3832,29 +3602,6 @@ fillButton position fillUnder =
                     [ H.text "↓" ]
                 ]
         False -> []
-
-
-buttonsFirstSelected: Bool -> List (H.Html Msg)
-buttonsFirstSelected predicat =
-    if not predicat
-        then []
-        else [
-            H.td
-                [ HA.class "control-col"
-                , HA.class classClip
-                , HA.class "copy-selection"
-                , HA.title "Copy selection"
-                , HE.onClick CopySelection
-                ]
-                [ ]
-            , H.td
-                [ HA.class "control-col"
-                , HA.class "remove-selection"
-                , HA.title "Deselect all"
-                , HE.onClick ( DeselectAll False )
-                ]
-                [ H.text "x"]
-            ]
 
 
 isEmpty: Model -> Bool
