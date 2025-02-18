@@ -2518,7 +2518,12 @@ underThePlot: Model -> H.Html Msg
 underThePlot model =
     H.div
         [ HA.class "under-the-plot" ]
-        ( ( maybeRoundForm model ) ++ [ buttonFillAll model ])
+        (( ( maybeRoundForm model )
+        ++ if not ( isSingle model )
+            then [ buttonShowDiff model ]
+            else [ ] )
+            ++ [ buttonFillAll model ]
+       )
 
 
 permaLink: Model -> H.Html Msg
@@ -2607,15 +2612,14 @@ msgTooManyPointsWithButton nbPoints =
 
 buttonFillAll: Model -> H.Html Msg
 buttonFillAll model =
-    if model.lastValids /= []
-        then H.button
-                    [ HA.class "bluebutton custom-button button-fill-all"
-                    , HE.onClick FillAll
-                    , HA.title "Forward-fill on all selection"
-                    ]
-                    [ H.text "Fill All ↓" ]
-        else
-             H.div [HA.class "button-fill-all"] []
+    H.button
+        [ HA.class "bluebutton custom-button button-fill-all"
+        , HE.onClick FillAll
+        , HA.title "Forward-fill on all selection"
+        , HA.disabled ( model.lastValids == [] )
+        ]
+        [ H.text "Fill All ↓" ]
+
 
 
 viewRelevantTable: Model -> H.Html Msg
@@ -2897,7 +2901,6 @@ viewValueTable model =
                     ]
                 else
                     [ forCurrentDiff model
-                    , buttonShowDiff model
                     , buildTable
                         model
                         ( headerShowValue model )
@@ -2910,20 +2913,21 @@ strap =
         [ HA.class "separator-primary" ]
         []
 
+
 forCurrentDiff: Model -> H.Html Msg
 forCurrentDiff model =
     if not model.showDiff &&  not ( isSingle model )
     then H.div [ HA.id "placeholder-save-table" ] []
     else
-    H.div
-    [ HA.class "save-table" ]
-    [ H.div
-          [ HA.class "for-current-diff"]
-          ( divLinearCorrection model model.diff
-          ++ saveButtons model model.diff
-          )
-        , buildDiffTable model
-    ]
+        H.div
+            [ HA.class "save-table" ]
+            [ H.div
+                  [ HA.class "for-current-diff"]
+                  ( divLinearCorrection model model.diff
+                  ++ saveButtons model model.diff
+                  )
+                , buildDiffTable model
+            ]
 
 
 getIndexedDates: Model -> Dict Int ( H.Html Msg )
@@ -3028,7 +3032,7 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
 
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
-    if model.showDiff || isSingle model
+    if isSingle model
     then
         H.div [ HA.id "placeholder-btn-show-diff" ] []
     else
@@ -3037,7 +3041,18 @@ buttonShowDiff model =
             , HA.disabled ( Dict.isEmpty model.diff )
             , HE.onClick ShowDiff
             ]
-            [ H.text "Show new values" ]
+            [ H.text "Hide/Show diff" ]
+
+
+buttonHideDiff: Model -> H.Html Msg
+buttonHideDiff model =
+    H.button
+      [ HA.class "bluebutton custom-button"
+      , HA.attribute "type" "button"
+      , HE.onClick ShowDiff
+      , HA.disabled (model.horizon.plotStatus == Loading)
+      ]
+      [ H.text "Hide" ]
 
 
 buildDiffTable: Model -> H.Html Msg
@@ -3475,24 +3490,15 @@ saveButtons model diff =
         else
             [ H.div
                 [ HA.class "save-buttons" ]
-                [ if isSingle model
-                    then H.div [ HA.id "placeholder-hide"] []
-                    else  H.button
-                              [ HA.class "bluebutton custom-button"
-                              , HA.attribute "type" "button"
-                              , HE.onClick ShowDiff
-                              , HA.disabled (model.horizon.plotStatus == Loading)
-                              ]
-                              [ H.text "Hide" ]
-                , H.button
-                  [ HA.class "yellowbutton custom-button"
+                [ H.button
+                  [ HA.class "yellowbutton custom-button save-button"
                   , HA.attribute "type" "button"
                   , HE.onClick CancelEdition
                   , HA.disabled (model.horizon.plotStatus == Loading)
                   ]
                   [ H.text "Cancel" ]
                 , H.button
-                  [ HA.class "greenbutton custom-button"
+                  [ HA.class "greenbutton custom-button save-button"
                   , HA.attribute "type" "button"
                   , HE.onClick SaveEditedData
                   , HA.disabled ( disableSave model )
@@ -3559,7 +3565,7 @@ getValue entry =
      case entry.edition of
                 Edition v -> String.fromFloat v
                 Error s -> s
-                Deletion -> ""
+                Deletion -> "-"
                 NoEdition ->
                     Maybe.unwrap
                         ""
