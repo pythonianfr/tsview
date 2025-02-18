@@ -355,6 +355,16 @@ emptyStat =
     , inferFreq = InferFreq ( Authorised Nothing )
     }
 
+type TypeStat =
+    Numeric ( Maybe Float )
+    | Count Int
+    | Date ( Maybe String )
+    | InferFreq Freq
+
+type Freq =
+    Blocked
+    | Authorised ( Maybe String )
+
 
 type alias Holding =
     { mouse: Bool
@@ -552,17 +562,9 @@ applyType strType =
     else Primary
 
 
-
-type alias PasteType =
-    { text: String
-    , index: String
-    }
-
 type DragMode =
     On ( Int, Int)
     | Off
-
---type alias Series = Dict String (Maybe Float)
 
 
 type Method
@@ -570,6 +572,13 @@ type Method
     | POST
 
 -- pasting data
+
+
+type alias PasteType =
+    { text: String
+    , index: String
+    }
+
 
 textDecoder: JD.Decoder String
 textDecoder =
@@ -608,6 +617,7 @@ parsePasted raw =
                 <| String.split s removedSpace
 
 
+-- the index is of the form e-2-3
 getPos: String -> ( Int, Int )
 getPos s =
     case String.split "-" s of
@@ -622,11 +632,9 @@ getPos s =
                             ( String.toInt j ))
         _ -> ( 0, 0 )
 
-
 splitByTab: String -> List String
 splitByTab s =
     String.split tab s
-
 
 tab = "\t"
 return = "\n"
@@ -679,8 +687,10 @@ catalogDecoder =
 
 
 isSingle model =
-    model.mode == Existing I.Primary
-    || model.mode == Creation Edit
+    case model.mode of
+        Creation Edit -> True
+        Existing I.Primary -> True
+        _ -> False
 
 
 getPoints: Model -> Cmd Msg
@@ -716,6 +726,7 @@ getOrPostData method query =
     case method of
         GET -> getdata query
         POST -> postData query
+
 
 getComponents: Model -> Cmd Msg
 getComponents model =
@@ -790,7 +801,6 @@ getGeneratedTs model =
     , expect = Http.expectString GotGenerated }
 
 
-
 getsource : String -> String -> Cmd Msg
 getsource baseurl name =
     Http.get
@@ -799,6 +809,7 @@ getsource baseurl name =
               [ "api", "series", "source" ]
               [ UB.string "name" name ]
         }
+
 
 getCatalog: Model -> Cmd Msg
 getCatalog model =
@@ -809,6 +820,7 @@ getCatalog model =
               [ UB.string "allsources" "false" ]
         }
 
+
 getOffsets: Model -> Cmd Msg
 getOffsets model =
     Http.get
@@ -817,6 +829,7 @@ getOffsets model =
               [ "serve-offsets" ]
               []
         }
+
 
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
 encodeBodyEvalFormula formula from to =
@@ -827,6 +840,7 @@ encodeBodyEvalFormula formula from to =
                        , ("from_value_date", JE.string from)
                        , ("to_value_date", JE.string to)
                        ]
+
 
 postData query =
     Http.post
@@ -1163,18 +1177,11 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
-            let command = case model.mode of
-                            Existing _ -> Cmd.batch
-                                            [ patchEditedData model
-                                            , deselect True
-                                            ]
-                            Creation _ -> Cmd.batch
-                                            [ patchEditedData model
-                                            , deselect True
-                                            ]
-            in
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
-            , command
+            , Cmd.batch
+                [ patchEditedData model
+                , deselect True
+                ]
             )
 
         CancelEdition ->
@@ -1449,6 +1456,8 @@ update msg model =
                 Enter Up -> U.nocmd model
                 Other keyName action -> U.nocmd { model | keyName = keyName }
 
+        -- when a cell is selected but not in edition mode
+        -- typing will trigger the edition mode
         Typing action char ->
             case action of
                 Up -> U.nocmd model
@@ -1728,6 +1737,12 @@ justValues series =
             (Dict.toList series)
 
 
+onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
+onlyValues series =
+    Dict.map
+        (\ _ e -> e.value )
+        series
+
 resetZoom: Series -> Series
 resetZoom series =
     case series of
@@ -1735,12 +1750,6 @@ resetZoom series =
                           , zoomTs = Nothing}
         ToEdit ts -> ToEdit { initialTs = ts.initialTs
                             , zoomTs = Nothing}
-
-onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
-onlyValues series =
-    Dict.map
-        (\ k e -> e.value )
-        series
 
 onlyActiveValues : Series -> Dict String ( Maybe Float )
 onlyActiveValues series =
@@ -1792,7 +1801,6 @@ insertComponentData components name data =
         components
 
 
-
 getEditionTs: Series -> SeriesToEdit
 getEditionTs series =
     case series of
@@ -1801,19 +1809,6 @@ getEditionTs series =
             case ts.zoomTs of
                 Nothing -> ts.initialTs
                 Just zoom -> zoom
-
-setOnEdtitionTs: Model -> SeriesToEdit -> Model
-setOnEdtitionTs model patch =
-    case model.series of
-        Naked _ -> model
-        ToEdit series ->
-            let ts = case series.zoomTs of
-                        Nothing -> { initialTs = patch
-                                    , zoomTs = Nothing }
-                        Just _ -> { initialTs = series.initialTs
-                                  , zoomTs = Just patch }
-            in
-            { model | series = ToEdit ts }
 
 
 getLastNaive: List String -> String
@@ -2154,7 +2149,8 @@ getValueFromIndex coordData position =
 
 bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
 bounded ( ( minRow, maxRow ), ( minCol, maxCol )) ( pRow, pCol) =
-    ( (simpleBound minRow maxRow pRow) , (simpleBound minCol maxCol pCol))
+    (( simpleBound minRow maxRow pRow )
+    ,( simpleBound minCol maxCol pCol ))
 
 
 simpleBound minValue maxValue value =
@@ -2381,7 +2377,6 @@ currentDiff model coordData =
             coordData
 
 
-
 pasteRectangle: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Entry
 pasteRectangle base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
@@ -2456,6 +2451,7 @@ saveComponent baseUrl tzone series component =
                     [ "api", "series", "state" ] [ ]
             , expect = Http.expectString Saved
             }
+
 
 linearCorrection: Model -> Edited -> Edited
 linearCorrection model value =
@@ -2617,7 +2613,7 @@ buttonFillAll model =
                     , HE.onClick FillAll
                     , HA.title "Forward-fill on all selection"
                     ]
-                    [ H.text "All ↓" ]
+                    [ H.text "Fill All ↓" ]
         else
              H.div [HA.class "button-fill-all"] []
 
@@ -2644,6 +2640,7 @@ checkMandatory s =
     if s == ""
     then "mandatory"
     else ""
+
 
 className: NameStatus -> String
 className status =
@@ -3097,7 +3094,7 @@ buildDiffCell model diff iRow iCol =
                     Nothing -> emptyEntry
                     Just content -> content
     in
-        H.td [] [ H.text <| getValue entry]
+        H.td [] [ H.text <| getValue entry ]
 
 
 buildTable: Model -> List ( H.Html Msg ) -> Dict Int ( H.Html Msg ) -> H.Html Msg
@@ -3181,20 +3178,20 @@ buildCell model cartDict iRow iCol =
                 else []
           ++ debugAttributes debug entry
         )
-        [
-        H.node "batch-copy"
-        [ HA.attribute "index" (idEntry (iRow, iCol) )
-        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
-        ]
-        ( ( contextualInput
-            ( iRow, iCol )
-            statusClass
-            value
-            valueCropped
-            ( entry.editable && active )
-        )
-          ++ ( fillButton ( iRow, iCol ) fillUnder )
-        )
+        [ H.node
+            "batch-copy"
+            [ HA.attribute "index" (idEntry (iRow, iCol) )
+            , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+            ]
+            ( ( contextualInput
+                ( iRow, iCol )
+                statusClass
+                value
+                valueCropped
+                ( entry.editable && active )
+            )
+              ++ ( fillButton ( iRow, iCol ) fillUnder )
+            )
         ]
 
 
@@ -3220,8 +3217,6 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
                     ]
                     [ ]
             ]
-
-
 
 
 getEntry: String ->  ( String , Series ) -> Entry
@@ -3382,7 +3377,6 @@ buildFormater maybeRounds =
         Just round -> ",." ++ String.fromInt round ++ "f"
 
 
-
 printValue: Maybe Int -> Maybe Float -> String
 printValue round value =
     case value of
@@ -3410,10 +3404,10 @@ formatNumber number =
     in
       case parts of
           [] -> ""
-          [x] ->  ( restoreSign negative )
-                    <| String.reverse
-                        <| addSpace
-                            <| String.reverse x
+          [ x ] ->  ( restoreSign negative )
+                        <| String.reverse
+                            <| addSpace
+                                <| String.reverse x
           x :: xs ->
             String.concat
                 [( restoreSign negative )
@@ -3423,6 +3417,13 @@ formatNumber number =
                 , "."
                 , String.concat xs
                 ]
+
+
+restoreSign: Bool -> String -> String
+restoreSign negative number =
+    if negative
+        then String.concat [ "-",  number ]
+        else number
 
 
 addSpace: String -> String
@@ -3449,12 +3450,6 @@ addSpaceRec parts counter result =
                         xs ( counter - 1 )
                         ( List.append result [ x ])
 
-
-restoreSign: Bool -> String -> String
-restoreSign negative number =
-    if negative
-        then String.concat [ "-",  number ]
-        else number
 
 
 diffToFloat: List Entry -> List ( Maybe Float )
@@ -3653,7 +3648,6 @@ displayEdition edited =
         Deletion -> "Deletion"
         Error e -> "Error-" ++ e
 
-
 splitRaw: String -> String
 splitRaw raw =
     String.join
@@ -3665,6 +3659,7 @@ splitRaw raw =
                 ( String.toList raw )
             )
         )
+
 
 debugView: Model -> H.Html Msg
 debugView model =
@@ -3738,6 +3733,7 @@ debugView model =
                 []
         )
 
+
 displayDate: Maybe String -> List ( H.Html msg )
 displayDate date =
     case date of
@@ -3760,16 +3756,6 @@ intercal toAdd parts result =
          x :: xs -> result ++ [x] ++ [toAdd] ++ intercal toAdd xs result
 
 
-type TypeStat =
-    Numeric ( Maybe Float )
-    | Count Int
-    | Date ( Maybe String )
-    | InferFreq Freq
-
-
-type Freq =
-    Blocked
-    | Authorised ( Maybe String )
 
 rowStat : Int -> String -> Maybe String -> TypeStat -> H.Html Msg
 rowStat round name mTitle statistic  =
@@ -3850,14 +3836,14 @@ displayStatus model =
     if model.horizon.plotStatus == None
       then H.text ""
       else if isEmpty model && (model.horizon.plotStatus == Success)
-           then H.text """It seems there is no data to display in this
-                        interval, select another one."""
+           then H.text """No data in this interval: select another one."""
            else H.text ""
 
 msgDoesNotExist =
      H.div
         []
         [ H.text "Series does not exists. Check your url."]
+
 
 plotNode: Model -> H.Html Msg
 plotNode model =
