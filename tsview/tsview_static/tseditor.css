@@ -41,11 +41,14 @@
 }
 
 .header-with-horizon {
-    grid-area: header
+    grid-area: header;
+    margin-left: 20px;
+    margin-right: 20px;
 }
 
 .plot-and-stuffs {
     grid-area: plot-and-stuffs;
+    margin-left: 20px;
 }
 
 
@@ -53,7 +56,7 @@
     width: min-content;
     grid-area: stat-table;
     font-size: 90%;
-    padding-right: 10px;
+    padding-right: 20px;
 }
 
 
@@ -168,6 +171,7 @@
 
 .under-the-plot {
     display: flex;
+    margin-left: 20px;
 }
 
 .under-the-plot .permalink {
