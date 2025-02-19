@@ -317,7 +317,7 @@ viewError mStr = HX.viewMaybe
 viewPlot : Model -> Html Msg
 viewPlot {formulaNameRegister, plotData} =
     let
-        name = Maybe.withDefault "editor.code" formulaNameRegister.current
+        name = Maybe.withDefault "" formulaNameRegister.current
         plot = scatterplot
             name
             (Dict.keys plotData.series)
