@@ -704,7 +704,13 @@ viewHoverGraph dictData =
             serializedPlotArgs
                 "plot-hover"
                 [ plot ]
-                { defaultLayoutOptions | title = Just title }
+                { defaultLayoutOptions | title = Just title
+                                       , margin = { t = 45
+                                                  , b = 110
+                                                  , l = 40
+                                                  , r = 20
+                                                  }
+                }
                 defaultConfigOptions
     in
     H.div
