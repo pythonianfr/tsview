@@ -1970,9 +1970,12 @@ deleteFocus model =
                         applyOnFilter
                             model.coordData
                             ( \ k  -> k == focus)
-                            ( \ e -> { e | edition = Deletion
-                                         , raw = Nothing
-                                     }
+                            ( \ e -> if e.editable
+                                     then
+                                        { e | edition = Deletion
+                                             , raw = Nothing
+                                         }
+                                     else e
                             )
                         }
 
