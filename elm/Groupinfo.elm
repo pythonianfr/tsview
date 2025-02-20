@@ -122,7 +122,8 @@ type alias RenameEvents =
 
 
 type Msg
-    = GotMeta (Result Http.Error String)
+    = GotSysMeta (Result Http.Error String)
+    | GotUserMeta (Result Http.Error String)
     | GetPermissions (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
     -- dates
@@ -218,7 +219,7 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
-        GotMeta (Ok result) ->
+        GotSysMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
@@ -227,7 +228,6 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = stdmeta
-                                , usermeta = usermeta
                             }
                         next = getidates model "group" InsertionDates
                         cmd =
@@ -237,8 +237,18 @@ update msg model =
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
 
-        GotMeta (Err err) ->
+        GotSysMeta (Err err) ->
             doerr "gotmeta http"  <| U.unwraperror err
+
+        GotUserMeta (Ok result) ->
+            case D.decodeString M.decodemeta result of
+                Ok allmeta ->
+                    U.nocmd { model | usermeta = allmeta }
+                Err err ->
+                    doerr "gotmeta decode" <| D.errorToString err
+
+        GotUserMeta (Err err) ->
+            doerr "gotusermeta http"  <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -789,7 +799,8 @@ main =
                in
                ( model
                , Cmd.batch
-                   [ M.getsysmetadata input.baseurl input.name GotMeta "group"
+                   [ M.getsysmetadata input.baseurl input.name GotSysMeta "group"
+                   , M.getusermetadata input.baseurl input.name GotUserMeta "group"
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
                    , getbindings model
