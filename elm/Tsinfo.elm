@@ -489,7 +489,7 @@ update msg model =
                                                     then defaultRevMaxFormula
                                                     else defaultRevMaxPrimary
                             }
-                        cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates ]
+                        cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates model.horizon.viewNoCache ]
                               ++ if isformula
                                  then [ I.getformula
                                             model model.name model.formula_depth
@@ -652,7 +652,7 @@ update msg model =
             ( newmodel
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel
-                        , I.getidates newmodel "series" InsertionDates
+                        , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache
                         , getlog model.baseurl model.name model.logsNumber
                         ]
             )
@@ -911,7 +911,7 @@ update msg model =
                                 ( { resetmodel | insertion_dates = Array.empty }
                                 , Cmd.batch ([ commands
                                              , getplot newmodel
-                                             , I.getidates newmodel "series" InsertionDates ]
+                                             , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
                                              ++ launchHistory
                                              )
                                 )

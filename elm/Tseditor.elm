@@ -1074,7 +1074,7 @@ update msg model =
         SaveEditedData ->
             let command = case model.mode of
                             Existing _ -> Cmd.batch
-                                            [ I.getidates model "series" GetLastInsertionDates
+                                            [ I.getidates model "series" GetLastInsertionDates True
                                             , deselect True
                                             ]
                             Creation _ -> Cmd.batch
@@ -2025,7 +2025,7 @@ getRelevantData model =
     case model.mode of
         Existing I.Primary ->
             [ getPoints model
-            , I.getidates model "series" InsertionDates
+            , I.getidates model "series" InsertionDates True
             ]
         Existing I.Formula ->
             [ getPoints model ]

@@ -111,14 +111,14 @@ idatesdecoder =
     D.field "insertion_dates" (D.list D.string)
 
 
-getidates model dtype callback =
+getidates model dtype callback viewnocache =
     Http.get
         { url =
               UB.crossOrigin
               model.baseurl
               [ "api", dtype, "insertion_dates" ]
               [ UB.string "name" model.name
-              , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
+              , UB.int "nocache" <| U.bool2int viewnocache
               ]
         , expect = Http.expectString callback
         }
