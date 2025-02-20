@@ -80,6 +80,7 @@ type alias Model =
     , editing : Bool
     -- all errors
     , errors : List String
+    , doesnotexist: Bool
     -- metadata, ventilated by std (system) and user
     , meta : M.StdMetadata
     , usermeta : M.UserMetadata
@@ -285,7 +286,12 @@ update msg model =
                     doerr "gotplotdata decode" <| D.errorToString err
 
         GotPlotData (Err err) ->
-            doerr "gotplotdata error" <| U.unwraperror err
+            case err of
+                Http.BadStatus code ->
+                    if code == 404
+                    then U.nocmd { model | doesnotexist = True }
+                    else doerr "gotplotdata error" <| U.unwraperror err
+                _ -> doerr "gotplotdata error" <| U.unwraperror err
 
         GotFormula (Ok rawformula) ->
             case D.decodeString D.string rawformula of
@@ -645,6 +651,10 @@ viewbindings model =
                   ]
             ]
 
+msgdoesnotexist =
+    div
+        []
+        [ text "Group does not exists. Check your url."]
 
 view : Model -> Html Msg
 view model =
@@ -694,7 +704,7 @@ view model =
           [ A.class "main-content" ]
           [ div
             [ ]
-            [ span
+            ( [ span
                   [ A.class "groupinfo action-container" ]
                   [ div
                     [ A.class "page-title" ]
@@ -704,8 +714,12 @@ view model =
                   , I.viewdeletion model deleteEvents
                   --, I.viewrenameaction model renameEvents
                   ]
-            , I.viewtitle model model.clipboardclass CopyNameToClipboard
-            , viewbindings model
+            , I.viewtitle model model.clipboardclass CopyNameToClipboard ] ++
+                if model.doesnotexist
+                then
+                [ msgdoesnotexist]
+                else
+            [ viewbindings model
             , case model.activetab of
                   Plot ->
                       if Nav.strseries model.meta
@@ -736,6 +750,7 @@ view model =
                       div [] []
             , I.viewerrors model
             ]
+            )
           ]
         ]
 
@@ -765,6 +780,7 @@ main =
                        , editing = False
                        -- all errors
                        , errors = [ ]
+                       , doesnotexist= False
                        -- metadata
                        , meta = Dict.empty
                        , usermeta = Dict.empty
