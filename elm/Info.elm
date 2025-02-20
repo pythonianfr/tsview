@@ -4,9 +4,11 @@ module Info exposing
     , formuladecoder
     , getformula
     , getidates
+    , getlog
     , getwriteperms
     , idatesdecoder
     , Logentry
+    , logdecoder
     , metatype
     , msgdoesnotexist
     , rename
@@ -108,6 +110,20 @@ idatesdecoder =
     D.field "insertion_dates" (D.list D.string)
 
 
+logentrydecoder : D.Decoder Logentry
+logentrydecoder =
+    D.map4 Logentry
+        (D.field "rev" D.int)
+        (D.field "author" D.string)
+        (D.field "date" D.string)
+        (D.field "meta" (D.dict M.decodemetaval))
+
+
+logdecoder : D.Decoder (List Logentry)
+logdecoder =
+    D.list logentrydecoder
+
+
 getidates model dtype callback viewnocache =
     Http.get
         { url =
@@ -168,6 +184,17 @@ savemeta model dtype callback =
               model.baseurl
               [ "api", dtype, "metadata" ] [ ]
         , expect = Http.expectString callback
+        }
+
+
+getlog urlprefix name logLimit dtype callback =
+    Http.get
+        { expect = Http.expectString callback
+        , url = UB.crossOrigin urlprefix
+              [ "api", dtype, "log" ]
+              [ UB.string "name" name
+              , UB.int "limit" (Maybe.withDefault 10 logLimit)
+              ]
         }
 
 

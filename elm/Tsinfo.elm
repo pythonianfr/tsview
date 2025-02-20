@@ -248,20 +248,6 @@ dataFromHoverDecoder =
         (D.field "data" (D.list dataItemDecoder))
 
 
-logentrydecoder : D.Decoder I.Logentry
-logentrydecoder =
-    D.map4 I.Logentry
-        (D.field "rev" D.int)
-        (D.field "author" D.string)
-        (D.field "date" D.string)
-        (D.field "meta" (D.dict M.decodemetaval))
-
-
-logdecoder : D.Decoder (List I.Logentry)
-logdecoder =
-    D.list logentrydecoder
-
-
 removeRedondants: DataFromHover -> DataFromHover
 removeRedondants dataHover =
      { name = dataHover.name
@@ -326,18 +312,6 @@ getplot model =
         , keepnans = False
         , apipoint = "state"
     }
-
-
-getlog : String -> String-> Maybe Int -> Cmd Msg
-getlog urlprefix name logLimit  =
-    Http.get
-        { expect = Http.expectString GotLog
-        , url = UB.crossOrigin urlprefix
-              [ "api", "series", "log" ]
-              [ UB.string "name" name
-              , UB.int "limit" (Maybe.withDefault 10 logLimit)
-              ]
-        }
 
 
 gethascache : Model -> Cmd Msg
@@ -490,7 +464,7 @@ update msg model =
                                       , getdepth model
                                       , gethascache model
                                       ]
-                                 else [ getlog model.baseurl model.name model.logsNumber]
+                                 else [ I.getlog model.baseurl model.name model.logsNumber "series" GotLog ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -646,7 +620,7 @@ update msg model =
             , Cmd.batch [ gethascache newmodel
                         , getplot newmodel
                         , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache
-                        , getlog model.baseurl model.name model.logsNumber
+                        , I.getlog model.baseurl model.name model.logsNumber "series" GotLog
                         ]
             )
 
@@ -669,7 +643,7 @@ update msg model =
         -- log
 
         GotLog (Ok rawlog) ->
-            case D.decodeString logdecoder rawlog of
+            case D.decodeString I.logdecoder rawlog of
                 Ok log ->
                     U.nocmd { model | log = log }
                 Err err ->
@@ -1086,7 +1060,7 @@ update msg model =
 
         SeeLogs ->
             ( model
-            , getlog model.baseurl model.name model.logsNumber
+            , I.getlog model.baseurl model.name model.logsNumber "series" GotLog
             )
 
 

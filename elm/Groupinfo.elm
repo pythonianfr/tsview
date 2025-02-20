@@ -119,6 +119,7 @@ type Msg
     -- perms
     | GetPermissions (Result Http.Error String)
     -- data
+    | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
     -- dates
     | ChangedIdate String
@@ -220,16 +221,23 @@ update msg model =
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
                     let
+                        isformula = Dict.member "formula" allmeta
+                        isbindings = Dict.member "bindings" allmeta
                         (stdmeta, usermeta) =
                             Dict.partition (\k v -> (List.member k M.metanames)) allmeta
                         newmodel =
                             { model
                                 | meta = stdmeta
                             }
-                        next = I.getidates model "group" InsertionDates True
                         cmd =
-                            Cmd.batch
-                                [ I.getformula model model.name 0 "group" GotFormula, next ]
+                            Cmd.batch <| [ I.getidates model "group" InsertionDates True ]
+                                ++ if isformula
+                                   then [ I.getformula
+                                            model model.name 0 "group" GotFormula
+                                        ]
+                                   else if isbindings
+                                   then []
+                                   else [  I.getlog model.baseurl model.name model.logsNumber "group" GotLog ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -324,6 +332,18 @@ update msg model =
                 depth = Maybe.withDefault 0 <| String.toInt level
             in
             U.nocmd { model | formula_depth = depth }
+
+        -- log
+
+        GotLog (Ok rawlog) ->
+            case D.decodeString I.logdecoder rawlog of
+                Ok log ->
+                    U.nocmd { model | log = log }
+                Err err ->
+                    doerr "gotlog decode" <| D.errorToString err
+
+        GotLog (Err error) ->
+            doerr "gotlog http" <| U.unwraperror error
 
         -- insertion dates
 
@@ -511,7 +531,9 @@ update msg model =
             U.nocmd { model | logsNumber = String.toInt strLogsNumber }
 
         SeeLogs ->
-            U.nocmd model
+            ( model
+            , I.getlog model.baseurl model.name model.logsNumber "group" GotLog
+            )
 
 
 -- views
