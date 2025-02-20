@@ -46,14 +46,6 @@ import Util as U
 port copyToClipboard : String -> Cmd msg
 
 
-type alias Logentry =
-    { rev : Int
-    , author : String
-    , date : String
-    , meta : M.UserMetadata
-    }
-
-
 type alias Binding =
     { family : String
     , group : String
@@ -89,7 +81,7 @@ type alias Model =
     -- cache (none yet but minimal data model support for genericity)
     , view_nocache : Bool
     -- log
-    , log : List Logentry
+    , log : List I.Logentry
     , logsNumber : Maybe Int
     -- plot
     , plotdata : Maybe Group
@@ -122,7 +114,11 @@ type alias RenameEvents =
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
+    -- tabs
+    | Tab Tabs
+    -- perms
     | GetPermissions (Result Http.Error String)
+    -- data
     | GotPlotData (Result Http.Error String)
     -- dates
     | ChangedIdate String
@@ -157,7 +153,6 @@ type Msg
     -- clipboard
     | CopyNameToClipboard
     | ResetClipboardClass
-    | Tab Tabs
     | LogsNumber String
     | SeeLogs
 
@@ -217,6 +212,10 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
+
+        Tab tab ->
+            U.nocmd { model | activetab = tab }
+
         GotSysMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
                 Ok allmeta ->
@@ -326,7 +325,7 @@ update msg model =
             in
             U.nocmd { model | formula_depth = depth }
 
-        -- insertiond ates
+        -- insertion dates
 
         InsertionDates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
@@ -496,9 +495,6 @@ update msg model =
 
         Renamed (Err err) ->
             doerr "renaming failed" <| U.unwraperror err
-
-        Tab tab ->
-            U.nocmd { model | activetab = tab }
 
         CopyNameToClipboard ->
             ( { model | clipboardclass = "bi bi-check2" }

@@ -6,6 +6,7 @@ module Info exposing
     , getidates
     , getwriteperms
     , idatesdecoder
+    , Logentry
     , metatype
     , rename
     , savemeta
@@ -66,6 +67,14 @@ getwriteperms urlprefix event =
         { expect = Http.expectString event
         , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] [ ]
         }
+
+
+type alias Logentry =
+    { rev : Int
+    , author : String
+    , date : String
+    , meta : M.UserMetadata
+    }
 
 
 type alias FormulaResponse =

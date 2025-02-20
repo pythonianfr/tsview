@@ -72,13 +72,6 @@ port panActive : (Bool -> msg) -> Sub msg
 defaultRevMaxPrimary = 70
 defaultRevMaxFormula = 10
 
-type alias Logentry =
-    { rev : Int
-    , author : String
-    , date : String
-    , meta : M.UserMetadata
-    }
-
 
 type alias Model =
     { baseurl : String
@@ -104,7 +97,7 @@ type alias Model =
     , policy : M.StdMetadata
     , deleting_cache : Bool
     -- log
-    , log : List Logentry
+    , log : List I.Logentry
     , logsNumber : Maybe Int
     -- plot
     , insertion_dates : Array String
@@ -255,16 +248,16 @@ dataFromHoverDecoder =
         (D.field "data" (D.list dataItemDecoder))
 
 
-logentrydecoder : D.Decoder Logentry
+logentrydecoder : D.Decoder I.Logentry
 logentrydecoder =
-    D.map4 Logentry
+    D.map4 I.Logentry
         (D.field "rev" D.int)
         (D.field "author" D.string)
         (D.field "date" D.string)
         (D.field "meta" (D.dict M.decodemetaval))
 
 
-logdecoder : D.Decoder (List Logentry)
+logdecoder : D.Decoder (List I.Logentry)
 logdecoder =
     D.list logentrydecoder
 
