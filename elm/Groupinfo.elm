@@ -632,10 +632,6 @@ viewbindings model =
                   ]
             ]
 
-msgdoesnotexist =
-    div
-        []
-        [ text "Group does not exists. Check your url."]
 
 view : Model -> Html Msg
 view model =
@@ -698,7 +694,7 @@ view model =
             , I.viewtitle model model.clipboardclass CopyNameToClipboard ] ++
                 if model.doesnotexist
                 then
-                [ msgdoesnotexist]
+                [ I.msgdoesnotexist "Group"]
                 else
             [ viewbindings model
             , case model.activetab of

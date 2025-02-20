@@ -8,6 +8,7 @@ module Info exposing
     , idatesdecoder
     , Logentry
     , metatype
+    , msgdoesnotexist
     , rename
     , savemeta
     , SeriesType(..)
@@ -848,3 +849,8 @@ viewrenameaction model events =
                   , HE.onClick events.askrename ]
                   [ H.text "rename" ]
             ]
+
+msgdoesnotexist dtype =
+    H.div
+        []
+        [ H.text (dtype ++ " does not exists. Check your url.") ]

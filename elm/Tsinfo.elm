@@ -1424,12 +1424,6 @@ showHoverData model =
          Just data -> H.text ( "Hover-data, name : " ++ data.name )
 
 
-msgdoesnotexist =
-    H.div
-        []
-        [ H.text "Series does not exists. Check your url."]
-
-
 view : Model -> H.Html Msg
 view model =
     let
@@ -1497,7 +1491,7 @@ view model =
                 ] ++
                 if model.doesnotexist
                 then
-                [ msgdoesnotexist]
+                [ I.msgdoesnotexist "Series"]
                 else
                 [ case model.activetab of
                       Plot ->
