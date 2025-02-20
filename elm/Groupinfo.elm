@@ -105,8 +105,19 @@ type alias Model =
     , editeditems : Dict String String
     -- deletion
     , deleting : Bool
+    -- renaming
+    , renaming : Bool
+    , newname : Maybe String
     -- clipboard
     , clipboardclass : String
+    }
+
+
+type alias RenameEvents =
+    { confirmrename : Msg
+    , editnewname : String -> Msg
+    , cancelrename : Msg
+    , askrename : Msg
     }
 
 
@@ -138,6 +149,13 @@ type Msg
     | CancelDeletion
     | ConfirmDeletion
     | Deleted (Result Http.Error String)
+    -- renaming
+    | AskRename
+    | EditNewName String
+    | ConfirmRename
+    | CancelRename
+    | Renamed (Result Http.Error String)
+    -- clipboard
     | CopyNameToClipboard
     | ResetClipboardClass
     | Tab Tabs
@@ -427,6 +445,45 @@ update msg model =
         Deleted (Err err) ->
             doerr "deletion failed" <| U.unwraperror err
 
+        -- renaming
+
+        AskRename ->
+            U.nocmd { model | renaming = True }
+
+        CancelRename ->
+            U.nocmd { model
+                        | renaming = False
+                        , newname = Nothing
+                    }
+
+        EditNewName name ->
+            U.nocmd { model | newname = Just name }
+
+        ConfirmRename ->
+            let
+                cmd =
+                    case model.newname of
+                        Nothing -> Cmd.none
+                        Just newname ->
+                            I.rename model newname "group" Renamed
+            in
+            ( model
+            , cmd
+            )
+
+        Renamed (Ok _) ->
+            let name =
+                    case model.newname of
+                        Just newname -> newname
+                        Nothing -> model.name
+            in
+            ( model
+            , load <| UB.crossOrigin model.baseurl [ "groupinfo" ] [ UB.string "name" name ]
+            )
+
+        Renamed (Err err) ->
+            doerr "renaming failed" <| U.unwraperror err
+
         Tab tab ->
             U.nocmd { model | activetab = tab }
 
@@ -603,6 +660,13 @@ view model =
             CancelDeletion
             AskDeletion
 
+        renameEvents =
+            RenameEvents
+            ConfirmRename
+            EditNewName
+            CancelRename
+            AskRename
+
         metaEvents =
             MetaEvents
             MetaEditAsked
@@ -627,7 +691,9 @@ view model =
                     [ text "Group Info" ]
                   , div [ A.class "action-center" ] []
                   , div [ A.class "action-right" ] []
-                  , I.viewdeletion model deleteEvents ]
+                  , I.viewdeletion model deleteEvents
+                  --, I.viewrenameaction model renameEvents
+                  ]
             , I.viewtitle model model.clipboardclass CopyNameToClipboard
             , viewbindings model
             , case model.activetab of
@@ -714,6 +780,9 @@ main =
                        , editeditems = Dict.empty
                        -- deletion
                        , deleting = False
+                       -- renaming
+                       , renaming = False
+                       , newname = Nothing
                        , activetab = Plot
                        , clipboardclass = "bi bi-clipboard"
                        }

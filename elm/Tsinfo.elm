@@ -861,7 +861,7 @@ update msg model =
             )
 
         Renamed (Err err) ->
-            doerr "deletion failed" <| U.unwraperror err
+            doerr "renaming failed" <| U.unwraperror err
 
         CopyNameToClipboard ->
             ( { model | clipboardclass = "bi bi-check2" }
