@@ -11,10 +11,9 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
-import Either exposing (Either)
 import Html exposing (..)
 import Html.Attributes as A
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Events exposing (onInput)
 import Http
 import Info as I
 import Json.Decode as D
@@ -22,9 +21,7 @@ import List.Selection as LS
 import Metadata as M
 import Task as T
 import NavTabs as Nav exposing
-    ( header
-    , tabcontents
-    , strseries
+    ( tabcontents
     , Tabs(..)
     , viewdatespicker
      , DeleteEvents
