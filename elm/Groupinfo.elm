@@ -74,6 +74,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , source : String
+    , activetab : Tabs
     -- metadata edition
     , canwrite : Bool
     , editing : Bool
@@ -87,7 +88,7 @@ type alias Model =
     , formula_maxdepth : Int
     , formula : Dict Int String
     , bindings : Maybe Bindings
-    -- cache (none yet but minimal data model suppport for genericity)
+    -- cache (none yet but minimal data model support for genericity)
     , view_nocache : Bool
     -- log
     , log : List Logentry
@@ -104,8 +105,8 @@ type alias Model =
     , editeditems : Dict String String
     -- deletion
     , deleting : Bool
+    -- clipboard
     , clipboardclass : String
-    , activetab : Tabs
     }
 
 
@@ -624,6 +625,8 @@ view model =
                   [ div
                     [ A.class "page-title" ]
                     [ text "Group Info" ]
+                  , div [ A.class "action-center" ] []
+                  , div [ A.class "action-right" ] []
                   , I.viewdeletion model deleteEvents ]
             , I.viewtitle model model.clipboardclass CopyNameToClipboard
             , viewbindings model
