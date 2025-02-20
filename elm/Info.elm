@@ -103,19 +103,6 @@ getformula model name depth dtype callback  =
         }
 
 
-getdepth model name callback =
-    Http.get
-        { expect = Http.expectString callback
-        , url =
-            UB.crossOrigin model.baseurl
-                [ "api", "series", "formula_depth" ]
-                [ UB.string "name" name
-                , UB.int "display" 1
-                , UB.int "level" <| model.formula_depth
-                ]
-        }
-
-
 idatesdecoder : D.Decoder (List String)
 idatesdecoder =
     D.field "insertion_dates" (D.list D.string)
