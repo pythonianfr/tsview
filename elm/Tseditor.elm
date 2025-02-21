@@ -2622,7 +2622,7 @@ msgTooManyPointsWithButton nbPoints =
 buttonFillAll: Model -> H.Html Msg
 buttonFillAll model =
     H.button
-        [ HA.class "bluebutton custom-button button-fill-all"
+        [ HA.class "bluebutton top-button custom-button button-fill-all"
         , HE.onClick FillAll
         , HA.title "Forward-fill on all selection"
         , HA.disabled ( model.lastValids == [] )
@@ -3041,27 +3041,20 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
 
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
+    let msg = if model.showDiff
+                then "Hide diff"
+                else "Show diff"
+    in
     if isSingle model
     then
         H.div [ HA.id "placeholder-btn-show-diff" ] []
     else
         H.button
-            [ HA.class "bluebutton custom-button show-diff"
+            [ HA.class "bluebutton top-button custom-button show-diff"
             , HA.disabled ( Dict.isEmpty model.diff )
             , HE.onClick ShowDiff
             ]
-            [ H.text "Hide/Show diff" ]
-
-
-buttonHideDiff: Model -> H.Html Msg
-buttonHideDiff model =
-    H.button
-      [ HA.class "bluebutton custom-button"
-      , HA.attribute "type" "button"
-      , HE.onClick ShowDiff
-      , HA.disabled (model.horizon.plotStatus == Loading)
-      ]
-      [ H.text "Hide" ]
+            [ H.text msg ]
 
 
 buildDiffTable: Model -> H.Html Msg

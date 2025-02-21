@@ -275,6 +275,10 @@
     border: 1px solid black;
 }
 
+.top-button {
+    margin-left: 5px;
+}
+
 .wrapper-primary{
     display: flex;
 }
