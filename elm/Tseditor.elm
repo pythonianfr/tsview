@@ -3159,7 +3159,7 @@ buildCell model cartDict iRow iCol =
                     Just content -> content
         statusClass = cellStyle entry
         value = showValue entry
-        valueCropped = printValue model.roundValues <| String.toFloat value
+        valueCropped = printValue model.roundValues value
         focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
         selected = case model.selection of
                     Nothing -> False
@@ -3395,10 +3395,10 @@ buildFormater maybeRounds =
         Just round -> ",." ++ String.fromInt round ++ "f"
 
 
-printValue: Maybe Int -> Maybe Float -> String
+printValue: Maybe Int -> String -> String
 printValue round value =
-    case value of
-        Nothing -> ""
+    case String.toFloat value of
+        Nothing -> value
         Just val -> formatNumber
                         <| roundNumber
                             round
