@@ -6,7 +6,6 @@ import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
-    , provideInput
     , settleWhenQuietFor
     , toDebouncer
     )
@@ -864,43 +863,37 @@ update msg model =
             case hmsg of
                 HorizonModule.Fetch fetch ->
                     case fetch of
-                    HorizonModule.GotBounds _ ->
-                        ( newmodel
-                        , Cmd.batch ([ commands
-                                      , getplot newmodel] ) )
+                        HorizonModule.GotBounds _ ->
+                            ( newmodel
+                            , Cmd.batch ([ commands
+                                          , getplot newmodel] ) )
 
-                    HorizonModule.GetDirectData _ ->
-                        ( resetmodel
-                        , Cmd.batch ([ commands
-                                      , getplot newmodel] ) )
+                        HorizonModule.GetDirectData _ ->
+                            ( resetmodel
+                            , Cmd.batch ([ commands
+                                          , getplot newmodel] ) )
 
-                    HorizonModule.Option op ->
-                        case op of
-                            HorizonModule.ViewNoCache ->
-                                ( { resetmodel | insertion_dates = Array.empty }
-                                , Cmd.batch ([ commands
-                                             , getplot newmodel
-                                             , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
-                                             ++ launchHistory
-                                             )
-                                )
-                            HorizonModule.InferredFreq _ -> ( resetmodel
-                                                            , Cmd.batch ([ commands
-                                                                         , getplot newmodel ]
-                                                                         ++ launchHistory
-                                                                        )
-                                                            )
-                            HorizonModule.TimeZoneSelected _ -> ( resetmodel
-                                                                , Cmd.batch ([ commands
-                                                                             , getplot newmodel ]
-                                                                             ++ launchHistory
-                                                                             )
-                                                                 )
+                        HorizonModule.Option op ->
+                            case op of
+                                HorizonModule.ViewNoCache ->
+                                    ( { resetmodel | insertion_dates = Array.empty }
+                                    , Cmd.batch ([ commands
+                                                 , getplot newmodel
+                                                 , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
+                                                 ++ launchHistory
+                                                 )
+                                    )
+                                _ -> ( resetmodel
+                                     , Cmd.batch ([ commands
+                                                 , getplot newmodel ]
+                                                 ++ launchHistory
+                                                )
+                                     )
 
                 HorizonModule.Frame _ -> ( resetmodel
                                          , commands )
-                HorizonModule.FromLocalStorage _ -> default
-                HorizonModule.Internal _ -> default
+
+                _ -> default
 
 
         HistoryMode isChecked ->
@@ -1158,39 +1151,6 @@ viewcache model =
             H.div [] []
 
 
-viewDatesRange : Array String -> Int -> ((Debouncer.Msg Msg) -> Msg) -> (String -> Msg ) -> H.Html Msg
-viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
-    let
-        numidates = Array.length insertionDates
-        currdate =
-            case Array.get dateIndex insertionDates of
-                Nothing -> ""
-                Just date -> date
-    in
-    if numidates < 2
-    then
-        H.div []
-            [ H.input
-                  [ HA.attribute "type" "range"
-                  , HA.class "form-control-range"
-                  , HA.disabled True ]
-                  []
-            ]
-    else
-        H.map (provideInput >> debouncerMsg) <|
-            H.div []
-            [ H.input
-                  [ HA.attribute "type" "range"
-                  , HA.min "0"
-                  , HA.max (String.fromInt (numidates - 1))
-                  , HA.value (String.fromInt dateIndex)
-                  , HA.class "form-control-range"
-                  , HA.title currdate
-                  , HE.onInput dateMsg
-                  ] [ ]
-            ]
-
-
 formatIDate: String -> Position -> Bool -> String
 formatIDate date position actif =
     if not actif
@@ -1319,13 +1279,11 @@ viewplot model =
                     [H.text "Submit" ]
                 ]
             , I.viewgraph
-                model.name
-                (Dict.keys ts)
-                (Dict.values ts)
+                (Dict.fromList [(model.name, ts)])
                 defaultLayout
                 defaultTraceOptions
                 model.horizon.inferredFreq
-            , viewDatesRange
+            , I.viewDatesRange
                 model.lastIdates
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
@@ -1359,15 +1317,13 @@ viewplot model =
     else
         H.div []
             [ historyModeSwitch model
-            , viewDatesRange
+            , I.viewDatesRange
                 model.insertion_dates
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
             , I.viewgraph
-                model.name
-                (Dict.keys ts)
-                (Dict.values ts)
+                (Dict.fromList [(model.name, ts)])
                 defaultLayout
                 defaultTraceOptions
                 model.horizon.inferredFreq
@@ -1454,6 +1410,7 @@ view model =
                 ( [ H.span [ HA.class "tsinfo action-container" ]
                       <| (I.viewactionwidgets
                             model
+                            (I.SeriesType model.seriestype)
                             convertMsg
                             Nothing
                             True
@@ -1550,7 +1507,7 @@ init input =
       , date_index = 0
       , date_index_deb = debouncerconfig
       , panActive = False
-      -- user meta edittion
+      -- user meta edition
       , metaitem = ("", "")
       , editeditems = Dict.empty
       -- deletion

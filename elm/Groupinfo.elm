@@ -6,14 +6,28 @@ import Browser.Navigation exposing (load)
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
-    , provideInput
     , settleWhenQuietFor
     , toDebouncer
     )
 import Dict exposing (Dict)
+import Horizon exposing
+    ( HorizonModel
+    , PlotStatus(..)
+    , ZoomFromPlotly
+    , extractDates
+    , extractValues
+    , getFromToDates
+    , getFetchBounds
+    , initHorizon
+    , loadFromLocalStorage
+    , updateHorizon
+    , updateHorizonFromData
+    , extractZoomDates
+    , updateZoom
+    )
+import Horizon as HorizonModule
 import Html exposing (..)
 import Html.Attributes as A
-import Html.Events exposing (onInput)
 import Http
 import Info as I
 import Json.Decode as D
@@ -23,18 +37,16 @@ import Task as T
 import NavTabs as Nav exposing
     ( tabcontents
     , Tabs(..)
-    , viewdatespicker
      , DeleteEvents
      , MetaEvents
     )
 import Plotter exposing
-    ( defaultLayoutOptions
-    , defaultConfigOptions
+    ( defaultDateAxis
+    , defaultLayoutOptions
     , defaultTraceOptions
+    , defaultValueAxis
     , getgroupplotdata
     , groupdecoder
-    , scatterplot
-    , serializedPlotArgs
     , Group
     )
 import Process as P
@@ -42,9 +54,9 @@ import Task as T
 import Url.Builder as UB
 import Util as U
 
-
+port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 port copyToClipboard : String -> Cmd msg
-
+port panActive : (Bool -> msg) -> Sub msg
 
 type alias Binding =
     { family : String
@@ -86,10 +98,9 @@ type alias Model =
     -- plot
     , plotdata : Maybe Group
     , insertion_dates : Array String
-    , mindate : String
-    , maxdate : String
     , date_index : Int
     , date_index_deb : Debouncer Msg
+    , panActive: Bool
     -- user meta edition
     , metaitem : (String, String)
     , editeditems : Dict String String
@@ -100,6 +111,8 @@ type alias Model =
     , newname : Maybe String
     -- clipboard
     , clipboardclass : String
+    -- horizon
+    , horizon : HorizonModel
     }
 
 
@@ -154,23 +167,39 @@ type Msg
     -- clipboard
     | CopyNameToClipboard
     | ResetClipboardClass
+    -- horizon
+    | Horizon HorizonModule.Msg
+    | FromZoom ZoomFromPlotly
+    | NewDragMode Bool
+    -- logs
     | LogsNumber String
     | SeeLogs
 
 
-getplot : Model -> Bool -> Cmd Msg
-getplot model atidate =
+convertMsg : HorizonModule.Msg -> Msg
+convertMsg msg =
+    Horizon msg
+
+
+getplot : Model -> Cmd Msg
+getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
+        ( start, end ) = getFetchBounds model.horizon
     in
-        getgroupplotdata model.baseurl model.name
-            (if atidate then idate else Nothing)
-            GotPlotData
-            model.mindate
-            model.maxdate
-
-
+        getgroupplotdata
+            { baseurl = model.baseurl
+            , name = model.name
+            , idate = idate
+            , callback = GotPlotData
+            , fromdate = start
+            , todate = end
+            , horizon = Nothing
+            , tzone = model.horizon.timeZone
+            , keepnans = False
+            , apipoint = "state"
+            }
 
 bindingdecoder : D.Decoder Binding
 bindingdecoder =
@@ -269,21 +298,13 @@ update msg model =
             case D.decodeString groupdecoder rawdata of
                 Ok val ->
                     let
-                        dates = Dict.keys val
-                        minappdate =
-                            case dates of
-                                head::_ -> U.cleanupdate head
-                                []  -> ""
-                        maxappdate = U.cleanupdate <| Maybe.withDefault "" <| List.maximum dates
+                        val_ts = (Maybe.withDefault (Dict.fromList [] )
+                                       (Dict.get (Maybe.withDefault "" (List.head (Dict.keys val))) val))
                         newmodel =
-                            case model.plotdata of
-                                Nothing ->
-                                    { model
-                                        | plotdata = Just val
-                                        , mindate = U.dateof minappdate
-                                        , maxdate = U.dateof maxappdate
-                                    }
-                                Just data -> { model | plotdata = Just val }
+                            { model
+                                | plotdata = Just val
+                                , horizon = updateHorizonFromData model.horizon val_ts
+                            }
                     in
                     U.nocmd newmodel
                 Err err ->
@@ -374,7 +395,7 @@ update msg model =
                 Nothing -> U.nocmd model
                 Just date ->
                     ( newmodel
-                    , getplot newmodel True
+                    , getplot newmodel
                     )
 
         IdatePickerChanged value ->
@@ -386,7 +407,7 @@ update msg model =
                 newindex = max 0 <| Array.length newarray - 1
                 newmodel = { model | date_index = newindex }
             in ( newmodel
-               , getplot newmodel True
+               , getplot newmodel
                )
 
         -- user metadata edition
@@ -527,6 +548,57 @@ update msg model =
         ResetClipboardClass ->
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
+        Horizon hmsg ->
+            let ( newhorizonmodel, commands ) =
+                    updateHorizon
+                    hmsg
+                    convertMsg
+                    model.horizon
+            in
+            let newmodel = { model | horizon =  newhorizonmodel }
+                default = ( newmodel, commands )
+            in
+            case hmsg of
+                HorizonModule.Fetch fetch ->
+                    case fetch of
+                        HorizonModule.Option op ->
+                            case op of
+                                HorizonModule.ViewNoCache ->
+                                    ( { newmodel | insertion_dates = Array.empty }
+                                    , Cmd.batch ([ commands
+                                                 , getplot newmodel
+                                                 , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
+                                                 )
+                                    )
+
+                                _ -> ( newmodel
+                                     , Cmd.batch ([ commands
+                                                 , getplot newmodel ]
+                                                )
+                                     )
+
+                        _ ->
+                            ( newmodel
+                            , Cmd.batch ([ commands
+                                          , getplot newmodel] ) )
+
+                _ -> default
+
+        FromZoom zoom ->
+            let
+                horizonmodel = model.horizon
+                newZoom = updateZoom
+                                model.horizon
+                                ( extractZoomDates zoom )
+            in
+                U.nocmd { model | horizon =
+                            { horizonmodel | zoomBounds = newZoom.x
+                                           , zoomY = newZoom.y
+                            }}
+
+        NewDragMode panIsActive ->
+            U.nocmd { model | panActive = panIsActive }
+
         LogsNumber strLogsNumber ->
             U.nocmd { model | logsNumber = String.toInt strLogsNumber }
 
@@ -538,33 +610,6 @@ update msg model =
 
 -- views
 
-
-viewdatesrange : Model -> Html Msg
-viewdatesrange model =
-    let
-        numidates = Array.length model.insertion_dates
-        currdate =
-            case Array.get model.date_index model.insertion_dates of
-                Nothing -> ""
-                Just date -> date
-    in
-    if numidates < 2
-    then div [ ] [ ]
-    else
-        Html.map (provideInput >> DebounceChangedIdate) <|
-            div [ ]
-            [ input
-                  [ A.attribute "type" "range"
-                  , A.min "0"
-                  , A.max (String.fromInt (numidates - 1))
-                  , A.value (String.fromInt model.date_index)
-                  , A.class "form-control-range"
-                  , A.title currdate
-                  , onInput ChangedIdate
-                  ] [ ]
-            ]
-
-
 viewplot : Model -> Html Msg
 viewplot model =
     let
@@ -573,34 +618,31 @@ viewplot model =
                 Nothing -> Dict.empty
                 Just data -> data
 
-        plot (name, plotdata) =
-            scatterplot
-                name
-                (Dict.keys plotdata)
-                (Dict.values plotdata)
-                "lines"
-                defaultTraceOptions
-
-        plots = List.map plot <| Dict.toList groupdata
-
-        args =
-            serializedPlotArgs
-                "plot"
-                plots
-                defaultLayoutOptions
-                defaultConfigOptions
+        defaultLayout =
+            { defaultLayoutOptions |
+                xaxis = { defaultDateAxis | range = extractDates
+                                            model.horizon.zoomBounds
+                        }
+                , yaxis = { defaultValueAxis |
+                                range = extractValues
+                                            model.horizon.zoomY
+                          }
+                , dragMode = Just ( if model.panActive
+                                    then "pan"
+                                    else "zoom" )}
     in
-    div [ ]
-        [ viewdatespicker
-            model.date_index
-            model.insertion_dates
-            IdatePickerChanged
-        , viewdatesrange model
-        , div [ A.id "plot" ] [ ]
-        -- the "plot-figure" node is pre-built in the template side
-        -- (html component)
-        , node "plot-figure" [ A.attribute "args" args ] [ ]
-        ]
+        div []
+            [ I.viewDatesRange
+                model.insertion_dates
+                model.date_index
+                DebounceChangedIdate
+                ChangedIdate
+            , I.viewgraph
+                groupdata
+                defaultLayout
+                defaultTraceOptions
+                model.horizon.inferredFreq
+            ]
 
 
 viewbindings : Model -> Html Msg
@@ -705,12 +747,16 @@ view model =
             [ ]
             ( [ span
                   [ A.class "groupinfo action-container" ]
-                  [ div
-                    [ A.class "page-title" ]
-                    [ text "Group Info" ]
-                  , div [ A.class "action-center" ] []
-                  , div [ A.class "action-right" ] []
-                  , I.viewdeletion model deleteEvents
+                  <| (I.viewactionwidgets
+                            model
+                            (I.GroupType I.GroupPrimary)
+                            convertMsg
+                            Nothing
+                            True
+                            "Group Info"
+                            ( getFromToDates model.horizon )
+                        ) ++
+                  [ I.viewdeletion model deleteEvents
                   --, I.viewrenameaction model renameEvents
                   ]
             , I.viewtitle model model.clipboardclass CopyNameToClipboard ] ++
@@ -757,10 +803,13 @@ view model =
 type alias Input =
     { baseurl : String
     , name : String
+    , min: String
+    , max: String
+    , debug: String
     }
 
 
-main : Program Input  Model Msg
+main : Program Input Model Msg
 main =
        let
            debouncerconfig =
@@ -770,6 +819,12 @@ main =
 
            init input =
                let
+                   horizon = initHorizon
+                                input.baseurl
+                                input.min
+                                input.max
+                                input.debug
+                                Loading
                    model =
                        { baseurl = input.baseurl
                        , name = input.name
@@ -796,11 +851,10 @@ main =
                        -- plot
                        , plotdata = Nothing
                        , insertion_dates = Array.empty
-                       , mindate = ""
-                       , maxdate = ""
                        , date_index = 0
                        , date_index_deb = debouncerconfig
-                       -- user meta edittion
+                       , panActive = False
+                       -- user meta edition
                        , metaitem = ("", "")
                        , editeditems = Dict.empty
                        -- deletion
@@ -810,21 +864,27 @@ main =
                        , newname = Nothing
                        , activetab = Plot
                        , clipboardclass = "bi bi-clipboard"
+                       , horizon = { horizon | hasCache = False }
                        }
                in
                ( model
                , Cmd.batch
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "group"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "group"
-                   , getplot model False
+                   , getplot model
                    , I.getwriteperms input.baseurl GetPermissions
                    ]
                )
-           sub model = Sub.none
        in
            Browser.element
                { init = init
                , view = view
                , update = update
-               , subscriptions = sub
+               , subscriptions =
+                    \_ -> Sub.batch
+                      [ zoomPlot FromZoom
+                      , panActive NewDragMode
+                      , loadFromLocalStorage
+                            (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
+                      ]
                }

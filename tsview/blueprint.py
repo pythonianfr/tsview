@@ -558,12 +558,18 @@ def tsview(tsa):
             return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
         name = request.args.get('name')
+        min = request.args.get('startdate')
+        max = request.args.get('enddate')
+        debug = request.args.get('debug')
         title = f'Group: {name}'
         return render_template(
             'groupinfo.html',
             homeurl=homeurl(),
             name=name,
             flags_menu=flags_menu,
+            min=min,
+            max=max,
+            debug=debug,
             title=title,
         )
 

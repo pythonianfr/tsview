@@ -1,11 +1,13 @@
 module Info exposing
     ( delete
+    , DataType(..)
     , layoutFormula
     , formuladecoder
     , getformula
     , getidates
     , getlog
     , getwriteperms
+    , GroupType(..)
     , idatesdecoder
     , Logentry
     , logdecoder
@@ -16,6 +18,7 @@ module Info exposing
     , SeriesType(..)
     , viewactionwidgets
     , viewdatespicker
+    , viewDatesRange
     , viewdeletion
     , viewerrors
     , viewformula
@@ -31,6 +34,7 @@ module Info exposing
 
 
 import Array exposing (Array)
+import Debouncer.Messages exposing (provideInput)
 import Dict exposing (Dict)
 import Horizon exposing
     ( horizonview
@@ -63,6 +67,17 @@ import Util as U
 type SeriesType
     = Primary
     | Formula
+
+
+type GroupType
+    = GroupPrimary
+    | GroupFormula
+    | GroupBound
+
+
+type DataType
+    = SeriesType SeriesType
+    | GroupType GroupType
 
 
 getwriteperms urlprefix event =
@@ -226,21 +241,21 @@ tzawareseries model =
 
 
 type alias PartialModel a =
-    { a | seriestype: SeriesType
-        , name: String
+    { a | name: String
         , horizon: HorizonModel
         , baseurl: String
         , meta: Dict String M.MetaVal
     }
 
-viewactionwidgets: PartialModel a -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg)
+viewactionwidgets: PartialModel a -> DataType -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg)
                     -> Bool -> String -> Maybe (String, String) -> List ( H.Html msg )
-viewactionwidgets model convertmsg permalink editor pagetitle bounds =
+viewactionwidgets model datatype convertmsg permalink editor pagetitle bounds =
     let
         editorlabel =
-            case model.seriestype of
-                Primary ->  if editor then "edit values" else "view values"
-                Formula ->  "show values"
+            case datatype of
+                SeriesType Primary ->  if editor then "edit values" else "view values"
+                SeriesType Formula ->  "show values"
+                _ -> ""
         queryParameters =
             case bounds of
                 Nothing -> [ UB.string "name" model.name ]
@@ -270,13 +285,13 @@ viewactionwidgets model convertmsg permalink editor pagetitle bounds =
                     queryParameters
               ]
               [ H.text <| if editor then editorlabel else "series info" ]
-        , case model.seriestype of
-              Formula ->
+        , case datatype of
+              SeriesType Formula ->
                   H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula" ]
                             [ UB.string "name" model.name ]
                       ]
                       [ H.text "edit formula" ]
-              Primary ->
+              _ ->
                   H.span [ ] [ ]
         ]
     ]
@@ -629,19 +644,53 @@ cleanMs strDate =
         " "
         ( String.left 19 strDate ) ++ " " ++ ( String.right 6 strDate )
 
-viewgraph name tskeys tsvalues layoutOptions options inferredFreq =
+
+viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
     let
-        plot =
+        numidates = Array.length insertionDates
+        currdate =
+            case Array.get dateIndex insertionDates of
+                Nothing -> ""
+                Just date -> date
+    in
+    if numidates < 2
+    then
+        H.div []
+            [ H.input
+                  [ HA.attribute "type" "range"
+                  , HA.class "form-control-range"
+                  , HA.disabled True ]
+                  []
+            ]
+    else
+        H.map (provideInput >> debouncerMsg) <|
+            H.div []
+            [ H.input
+                  [ HA.attribute "type" "range"
+                  , HA.min "0"
+                  , HA.max (String.fromInt (numidates - 1))
+                  , HA.value (String.fromInt dateIndex)
+                  , HA.class "form-control-range"
+                  , HA.title currdate
+                  , HE.onInput dateMsg
+                  ] [ ]
+            ]
+
+
+viewgraph data layoutOptions options inferredFreq =
+    let
+        plot (name, plotdata) =
             scatterplot
                 name
-                tskeys
-                tsvalues
+                (Dict.keys plotdata)
+                (Dict.values plotdata)
                 (if inferredFreq then "lines+markers" else "lines")
                 options
+        plots = List.map plot <| Dict.toList data
         args =
             serializedPlotArgs
                 "plot"
-                [ plot ]
+                plots
                 layoutOptions
                 defaultConfigOptions
     in

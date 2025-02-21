@@ -3423,6 +3423,7 @@ view model =
             [ H.div [ HA.class "action-container" ]
                   <| I.viewactionwidgets
                         model
+                        (I.SeriesType model.seriestype)
                         convertMsg
                         ( Just ( permaLink model ))
                         False

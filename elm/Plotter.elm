@@ -308,22 +308,27 @@ groupdecoder =
     D.dict (D.dict (D.maybe D.float))
 
 
-getgroupplotdata baseurl name idate callback fromdate todate =
+-- getgroupplotdata : PlotQuery query -> Cmd msg
+getgroupplotdata query =
     let
-        query = [ UB.string "name" name ]
-        fvd = [ UB.string "from_value_date" fromdate ]
-        tvd = [ UB.string "to_value_date" todate ]
-        fullquery date =
-            case date of
-                Nothing -> query
-                Just d -> List.append query
-                          [ UB.string "insertion_date" d ]
+        stringToMaybe : String -> String -> Maybe UB.QueryParameter
+        stringToMaybe name value =
+            if value == "" then Nothing else Just (UB.string name value)
+        fullquery : List UB.QueryParameter
+        fullquery = Maybe.values <|
+            [ stringToMaybe "name" query.name
+            , Maybe.andThen (stringToMaybe "insertion_date") query.idate
+            , stringToMaybe "_keep_nans" (if query.keepnans then "true" else "false")
+            , stringToMaybe "tzone" query.tzone
+            ]
+            ++ Maybe.unwrap
+            [ stringToMaybe "from_value_date" query.fromdate
+            , stringToMaybe "to_value_date" query.todate
+            ]
+            (\horizonstr -> [ stringToMaybe "horizon" (String.trim horizonstr) ])
+            query.horizon
     in
     Http.get
-        { url = UB.crossOrigin baseurl
-              ["api", "group", "state"]
-              <| (fullquery idate)
-              ++ (if fromdate /= "" then fvd else [])
-              ++ (if todate /= "" then tvd else [])
-        , expect = Http.expectString callback
+        { url = UB.crossOrigin query.baseurl [ "api", "group", query.apipoint ] fullquery
+        , expect = Http.expectString query.callback
         }

@@ -30,7 +30,10 @@
              node: document.getElementById('app'),
              flags: {
                  baseurl : "{{ homeurl }}",
-                 name : "{{ name }}"
+                 name : "{{ name }}",
+                 min: "{{ min }}",
+                 max: "{{ max }}",
+                 debug: "{{ debug }}",
              }
          });
          // port to copy something to the clipboard
@@ -43,6 +46,17 @@
              document.body.removeChild(el);
          };
          app.ports.copyToClipboard.subscribe(clipboard);
+
+        // this should probably be shared as a separate jinja template
+        app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+             localStorage.setItem("horizon", JSON.stringify(dataInCache))
+         });
+
+         incache = localStorage.getItem("horizon")
+         if (incache === null) {
+             incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
+         }
+         app.ports.loadFromLocalStorage.send(incache);
         </script>
         <script>
             var menuapp = Elm.StandAloneMenu.init({
