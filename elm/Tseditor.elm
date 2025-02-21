@@ -487,7 +487,7 @@ emptyEntry =
 asEdited: Maybe Float -> Edited
 asEdited value =
     case value of
-        Nothing -> Deletion
+        Nothing -> NoEdition
         Just v -> Edition v
 
 
