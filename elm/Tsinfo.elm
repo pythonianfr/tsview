@@ -445,6 +445,7 @@ update msg model =
                 Ok allmeta ->
                     let
                         isformula = Dict.member "formula" allmeta
+                        model_horizon = model.horizon
                         newmodel =
                             { model
                                 | meta = allmeta
@@ -455,6 +456,7 @@ update msg model =
                                 , previousMax = if isformula
                                                     then defaultRevMaxFormula
                                                     else defaultRevMaxPrimary
+                                , horizon = { model_horizon | hasCache = isformula }
                             }
                         cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates model.horizon.viewNoCache ]
                               ++ if isformula
