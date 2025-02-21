@@ -236,8 +236,8 @@ update msg model =
                                             model model.name 0 "group" GotFormula
                                         ]
                                    else if isbindings
-                                   then []
-                                   else [  I.getlog model.baseurl model.name model.logsNumber "group" GotLog ]
+                                   then [ getbindings model ]
+                                   else [ I.getlog model.baseurl model.name model.logsNumber "group" GotLog ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -818,7 +818,6 @@ main =
                    , M.getusermetadata input.baseurl input.name GotUserMeta "group"
                    , getplot model False
                    , I.getwriteperms input.baseurl GetPermissions
-                   , getbindings model
                    ]
                )
            sub model = Sub.none
