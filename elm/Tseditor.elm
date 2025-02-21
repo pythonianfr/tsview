@@ -246,7 +246,12 @@ type Series =
 emptySeries: Series
 emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
 
-type alias Box = (( Int, Int ) , ( Int, Int ))
+type alias Box =
+    { t: Int
+    , r: Int
+    , b: Int
+    , l: Int
+    }
 
 type EditionMode =
     Creation CreationMode
@@ -1920,9 +1925,9 @@ applyOnFilter dict filter action =
             dict
 
 
-keyInSelection :  (( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> Bool
-keyInSelection ((minRow, maxRow) , ( minCol, maxCol )) ( row, col ) =
-    row >= minRow && row <= maxRow && col >= minCol && col <= maxCol
+keyInSelection :  Box -> ( Int, Int ) -> Bool
+keyInSelection box ( row, col ) =
+    row >= box.t && row <= box.b && col >= box.l && col <= box.r
 
 
 getSelected: Dict ( Int, Int ) b -> Maybe Box ->  Dict ( Int, Int ) b
@@ -1979,9 +1984,10 @@ deleteFocus model =
                             )
                         }
 
+
 pointToBox: ( Int, Int ) -> Box
 pointToBox ( pRow, pCol ) =
-    (( pRow, pRow ), ( pCol, pCol ))
+    { t = pRow, b = pRow, l = pCol , r = pCol }
 
 
 extendSelection: Maybe ( Int, Int ) -> ( Int, Int ) -> Box
@@ -1994,7 +2000,7 @@ extendSelection firstShift ( pRow, pCol ) =
                 minRow = min sRow pRow
                 maxRow = max sRow pRow
             in
-                (( minRow, maxRow ), ( minCol, maxCol ))
+                { t = minRow, b = maxRow,  l = minCol,  r = maxCol }
 
 
 setupFill model =
@@ -3620,7 +3626,8 @@ displayBox: Maybe Box -> String
 displayBox selection =
     case selection of
         Nothing -> "Nothing"
-        Just (rows, cols) ->  ( displayCoord rows ) ++ ( displayCoord cols )
+        Just box ->  ( displayCoord ( box.t, box.b ))
+                     ++ ( displayCoord ( box.l, box.r ))
 
 
 debugAttributes: Bool -> Entry -> List ( Attribute msg )
