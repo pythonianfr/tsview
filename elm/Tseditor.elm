@@ -202,6 +202,7 @@ type Msg
     | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | Create CreationOptions
+    | Back
     | SwitchForceDraw
     | AllowInferFreq
     | ShowDiff
@@ -1099,6 +1100,7 @@ update msg model =
                   }
                 , command )
 
+        Back -> U.nocmd { model | mode = Creation Form }
 
         SwitchForceDraw ->
             applyFocus
@@ -2663,26 +2665,43 @@ nameForm: Model -> H.Html Msg
 nameForm model =
     H.tr
         [ ]
-        [ H.td
-            [ ]
-            [ H.label
-                [ HA.for "creation-name" ]
-                [ H.text "Name " ]
-            ]
-        , H.td
-            [ ]
-            [ H.input
-                [ HA.id "creation-name"
-                , HA.class ( className model.creation.nameStatus )
-                , HA.name "name"
-                , HA.autocomplete False
-                , HE.onClick UnFocus
-                , HE.onInput ( \s -> Create ( Name s ) )
-                , HA.value model.creation.name
+        <| List.concat [
+            [ H.td
+                [ ]
+                [ H.label
+                    [ HA.for "creation-name" ]
+                    [ H.text "Name " ]
                 ]
-                []
+            , H.td
+                [ ]
+                [ H.input
+                    [ HA.id "creation-name"
+                    , HA.class ( className model.creation.nameStatus )
+                    , HA.name "name"
+                    , HA.autocomplete False
+                    , HE.onClick UnFocus
+                    , HE.onInput ( \s -> Create ( Name s ) )
+                    , HA.value model.creation.name
+                    ]
+                    []
+                ]
             ]
+            , ( if model.mode == Creation Edit
+                then [ backButton model ]
+                else []
+               )
         ]
+
+
+backButton: Model -> H.Html Msg
+backButton model =
+     H.button
+        [ HA.class "yellowbutton top-button custom-button"
+        , HA.id "back-button"
+        , HE.onClick Back
+        ]
+        [ H.text "Back to Form" ]
+
 
 creationForm: Model -> List ( H.Html Msg )
 creationForm model =

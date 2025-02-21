@@ -167,6 +167,10 @@
     width: 4rem;
 }
 
+#back-button {
+    height: 2em;
+}
+
 /* forms and buttons above the edition */
 
 .under-the-plot {
