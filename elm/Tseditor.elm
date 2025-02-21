@@ -693,7 +693,7 @@ catalogDecoder =
 
 isSingle model =
     case model.mode of
-        Creation Edit -> True
+        Creation Edit  -> True
         Existing I.Primary -> True
         _ -> False
 
@@ -2527,12 +2527,12 @@ underThePlot: Model -> H.Html Msg
 underThePlot model =
     H.div
         [ HA.class "under-the-plot" ]
-        (( ( maybeRoundForm model )
-        ++ if not ( isSingle model )
-            then [ buttonShowDiff model ]
-            else [ ] )
-            ++ [ buttonFillAll model ]
-       )
+        <| case model.mode of
+                Creation Form -> [ ]
+                _ -> [ roundForm model
+                     , buttonShowDiff model
+                     , buttonFillAll model
+                     ]
 
 
 permaLink: Model -> H.Html Msg
@@ -2548,34 +2548,30 @@ permaLink model =
         [ H.text "permalink"]
 
 
-maybeRoundForm: Model -> List ( H.Html Msg )
-maybeRoundForm model =
-    case model.mode of
-        Creation _ -> []
-        _ ->
-            [ H.div
-                [ HA.class "form-round"]
-                [ H.text "Decimals : "
-                 ,H.button
-                    [ HA.class "increment-round"
-                    , HE.onClick ( NewRound Less )]
-                    [ H.text "-" ]
-                , H.input
-                    [ HA.class "round-input"
-                    , HE.onInput (\ s -> NewRound (Replace s) )
-                    , HA.value ( printRound model.roundValues )
-                    ]
-                    []
-                , H.button
-                    [ HA.class "increment-round"
-                    , HE.onClick ( NewRound More )]
-                    [ H.text "+" ]
-                , H.button
-                    [ HA.class "remove-round"
-                    , HE.onClick ( NewRound Remove )]
-                    [ H.text "X" ]
-                ]
+roundForm: Model -> H.Html Msg
+roundForm model =
+    H.div
+        [ HA.class "form-round"]
+        [ H.text "Decimals : "
+         ,H.button
+            [ HA.class "increment-round"
+            , HE.onClick ( NewRound Less )]
+            [ H.text "-" ]
+        , H.input
+            [ HA.class "round-input"
+            , HE.onInput (\ s -> NewRound (Replace s) )
+            , HA.value ( printRound model.roundValues )
             ]
+            []
+        , H.button
+            [ HA.class "increment-round"
+            , HE.onClick ( NewRound More )]
+            [ H.text "+" ]
+        , H.button
+            [ HA.class "remove-round"
+            , HE.onClick ( NewRound Remove )]
+            [ H.text "X" ]
+        ]
 
 
 printRound: Maybe Int -> String
