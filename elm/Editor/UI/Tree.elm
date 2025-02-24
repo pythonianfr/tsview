@@ -841,7 +841,7 @@ getSource urlPrefix = Http.get
         []
     , expect = Http.expectJson
         (GotProposals T.Source)
-        (JD.list JD.string)
+        (JD.list (JD.index 0 JD.string))
     }
 
 getMetaKey : String -> Cmd Msg
