@@ -1,16 +1,48 @@
-module ParserSuite exposing (testParsing)
+module ParserSuite exposing (mainTest)
 
 import Test
+import Expect
 import Either
+import Basics.Extra exposing (flip)
 
-import ParserExtra exposing (parserErrorsToString)
+import ParserExtra  as PE
 
+import Editor.Type as ET
+import Editor.SpecParser exposing (primitiveTypeParser)
+import Editor.SpecRender exposing (renderPrimitiveType)
 import Editor.Parser exposing (parseFormula)
 import Editor.Render exposing (renderFormula)
 
 import TestUtil exposing (T)
 import JsonSpec exposing (spec)
 
+
+literalTypes : List ET.LiteralType
+literalTypes =
+    [ ET.Bool
+    , ET.Int
+    , ET.Number
+    , ET.String
+    , ET.TimestampString
+    , ET.LiteralKeywords ["all", "bfill, ffill"]
+    ] ++ (List.map ET.Proposal
+        [ ET.SeriesName
+        , ET.Source
+        , ET.MetaKey
+        , ET.CachePolicy
+        , ET.BasketName
+        ]
+    )
+
+testPrimitiveType : Test.Test
+testPrimitiveType =
+    Test.describe "primitiveTypeParser" <| flip List.map literalTypes <| \t ->
+        let primitiveType = ET.Literal t
+            s = renderPrimitiveType primitiveType
+        in Test.test s <| \_ ->
+            Expect.equal
+                (PE.run s primitiveTypeParser)
+                (Either.Right primitiveType)
 
 formulaTests : List (T (String, String))
 formulaTests =
@@ -22,6 +54,16 @@ formulaTests =
     ) """
 (2, 5) =>  Expecting: Valid operator name
     """
+
+    , T "Parsing Literal"
+    ( "Series"
+    , """
+(series "test" #:fill "absent")
+    """
+    ) """
+(2, 31) =>  Invalid: "absent" is not a literal keyword
+    when parsing inside operator series at (2, 9)
+"""
 
     , T "Parsing internal void"
     ( "Number"
@@ -209,7 +251,13 @@ testParsing =
         render : (String, String) -> String
         render (returnTypeStr, input) =
             parseFormula spec returnTypeStr input
-                |> parserErrorsToString
+                |> PE.parserErrorsToString
                 |> Either.unpack identity renderFormula
     in
     TestUtil.buildTests render formulaTests |> Test.concat
+
+mainTest : Test.Test
+mainTest = Test.concat
+    [ testPrimitiveType
+    , testParsing
+    ]

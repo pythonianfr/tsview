@@ -58,9 +58,28 @@ literalParser literalType = case literalType of
 
     T.Proposal _ -> PE.stringParser |> PE.map T.StringExpr
 
+    T.LiteralKeywords keywords -> ask <| \({invalid} as env) ->
+        Reader.run PE.stringParser env
+        |> PA.andThen (\s ->
+            if List.member s keywords then
+                PA.succeed <| T.LiteralKeywordExpr s
+            else
+                PA.problem <| invalid <| "\"" ++ s ++ "\" is not a literal keyword"
+        )
+
+literalKeywordsParser : Parser c x (List String)
+literalKeywordsParser = ask <| \({toToken} as env) ->
+    PA.sequence
+        { start = toToken "Literal["
+        , separator = toToken ","
+        , end = toToken "]"
+        , spaces = PA.spaces
+        , item = Reader.run PE.singleQuotedStringParser env
+        , trailing = PA.Forbidden
+        }
 
 literalTypeParser : Parser c x T.LiteralType
-literalTypeParser = asks .toToken <| \toToken -> PA.oneOf
+literalTypeParser = ask <| \({toToken} as env) -> PA.oneOf
     [ PA.succeed T.Bool |. PA.keyword (toToken "bool") -- py
     , PA.succeed T.Bool |. PA.keyword (toToken "Bool")
 
@@ -85,6 +104,7 @@ literalTypeParser = asks .toToken <| \toToken -> PA.oneOf
     , PA.succeed (T.Proposal T.CachePolicy) |. PA.keyword (toToken "CachePolicy")
 
     , PA.succeed (T.Proposal T.BasketName) |. PA.keyword (toToken "BasketName")
+    , PA.succeed T.LiteralKeywords |= Reader.run literalKeywordsParser env
     ]
 
 operatorOutputTypeParser : Parser c x T.OperatorOutputType
@@ -315,8 +335,16 @@ reduceUnion ({return} as op) argType = case argType of
         T.ReturnPrimitiveType (T.Literal _) ->
             reduceForLiteral primitiveTypes argType
 
-        T.ReturnPrimitiveType (T.OperatorOutput _) ->
-            reduceForOperatorOutput op primitiveTypes argType
+        T.ReturnPrimitiveType (T.OperatorOutput opOutputType) ->
+            let
+                argType_ = reduceForOperatorOutput op primitiveTypes argType
+                validOutput = Maybe.map2
+                    (==)
+                    (O.getSome (o primitiveType_ operatorOutput_) argType_)
+                    (Just opOutputType)
+                    |> Maybe.withDefault False
+                    
+            in if validOutput then argType_ else argType
 
         _ -> argType
 

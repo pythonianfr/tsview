@@ -33,6 +33,11 @@ findOperator spec returnType key =
     findOperators spec returnType |> Either.andThen
         (Assoc.get key >> Either.fromMaybe ("No operator for " ++ key))
 
+quoteStr : String -> String
+quoteStr x =  "\"" ++ x ++ "\""
+
+singleQuoteStr : String -> String
+singleQuoteStr x =  "'" ++ x ++ "'"
 
 -- basic rendering
 renderLiteralType : T.LiteralType -> String
@@ -57,6 +62,12 @@ renderLiteralType t = case t of
         T.CachePolicy -> "CachePolicy"
 
         T.BasketName -> "BasketName"
+
+    T.LiteralKeywords xs -> String.concat
+        [ "Literal["
+        ,  String.join ", " <| List.map singleQuoteStr xs
+        , "]"
+        ]
 
 
 renderOperatorOutputType : T.OperatorOutputType -> String
@@ -99,9 +110,11 @@ renderLiteralExpr literalExpr = case literalExpr of
 
     T.NumberExpr x -> String.fromFloat x
 
-    T.StringExpr x -> "\"" ++ x ++ "\""
+    T.StringExpr x -> quoteStr x
 
     T.TimestampExpr x -> x
+
+    T.LiteralKeywordExpr x -> quoteStr x
 
 
 type alias Indent =

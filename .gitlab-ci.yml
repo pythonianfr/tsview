@@ -9,6 +9,9 @@ unit-test-job:
     - clever-cloud
   script:
     - cd ..
+    - pip install pytest --upgrade
+    - pip install pytest-golden --upgrade
+    - pip install setuptools --upgrade
     - hg clone https://heptapod.host/pythonian/timeseries-refinery/sqlhelp
     - hg -R sqlhelp update tip
     - pip install -e sqlhelp

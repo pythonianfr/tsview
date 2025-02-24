@@ -5,6 +5,7 @@ import Either
 import Maybe.Extra as Maybe
 import Basics.Extra exposing (flip)
 import Cmd.Extra exposing (withNoCmd, withCmd)
+import List.Extra exposing (zip)
 
 import Reader
 import ReaderExtra as RE exposing (ask, asks)
@@ -165,6 +166,9 @@ updateInput s ({literalType} as input) =
 
        T.Proposal _ ->
            O.assign value_ (setStr T.StringExpr) input
+
+       T.LiteralKeywords _ ->
+           O.assign value_ (setStr T.LiteralKeywordExpr) input
 
        T.Bool -> case s of
             "" -> O.assign value_ Nothing input
@@ -362,6 +366,8 @@ renderLiteralExpr literalExpr = case literalExpr of
 
     T.TimestampExpr x -> x
 
+    T.LiteralKeywordExpr x -> x
+
     _ -> Editor.SpecRender.renderLiteralExpr literalExpr
 
 renderCheckInput : Input -> Reader HMsg
@@ -500,6 +506,17 @@ renderProposals proposalType ({userInput} as input) =
     else
         renderClosedSelector input selectorInput toMsg
 
+renderKeywords : List String -> Input -> Reader HMsg
+renderKeywords keywords {value} =
+    let unselected = ""
+        values = unselected :: keywords
+    in renderSelect
+        { current = Maybe.unwrap unselected renderLiteralExpr value
+        , values = values
+        , labels = values
+        , toEditAction = ReadInput >> Just
+        }  
+
 renderNode : Node -> Reader HMsg
 renderNode node = case node of
     Primitive (PInput ({literalType} as x)) -> case literalType of
@@ -507,23 +524,26 @@ renderNode node = case node of
 
         T.Proposal proposalType -> renderProposals proposalType  x
 
+        T.LiteralKeywords keywords -> renderKeywords keywords x
+
         _ -> renderInput x
 
     _ -> Reader.reader <| HX.nothing
 
 type alias SelectArgs =
     { current : String
+    , values : List String
     , labels : List String
     , toEditAction : String -> Maybe EntryAction
     }
 
 renderSelect : SelectArgs -> Reader HMsg
-renderSelect {current, labels, toEditAction} = asks .treePath <| \treePath ->
+renderSelect {current, values, labels, toEditAction} = asks .treePath <| \treePath ->
     let
-        renderOption : String -> HMsg
-        renderOption label = H.option
-            [ HA.value label
-            , HA.selected (label == current)
+        renderOption : (String, String) -> HMsg
+        renderOption (value, label) = H.option
+            [ HA.value value
+            , HA.selected (value == current)
             ]
             [ H.text label ]
 
@@ -535,13 +555,20 @@ renderSelect {current, labels, toEditAction} = asks .treePath <| \treePath ->
             (toEditAction s))
         |> HE.on "change"
     ]
-    (List.map renderOption labels)
+    (List.map renderOption <| zip values labels)
 
 renderUnion : Node -> Union -> Reader HMsg
 renderUnion node {primitiveTypes, primitiveType} =
-    renderSelect
+    let values = NE.toList <| NE.map renderPrimitiveType primitiveTypes
+        labels = flip List.map values <| \value ->
+            if String.startsWith "Literal" value then
+                "Keywords"
+            else
+                value
+    in renderSelect
         { current = renderPrimitiveType primitiveType
-        , labels = NE.toList <| NE.map renderPrimitiveType primitiveTypes
+        , values = values
+        , labels = labels
         , toEditAction = \s -> primitiveTypeParser
             |> PE.run s
             |> Either.toMaybe
@@ -559,7 +586,7 @@ renderSelector node {operators, returnType} =
     let
         unselected = "   "
 
-        labels = unselected :: (Assoc.keys operators)
+        values = unselected :: (Assoc.keys operators)
 
         toEditAction toUnselectAction toSelectAction = \s ->
             Assoc.get s operators
@@ -570,7 +597,8 @@ renderSelector node {operators, returnType} =
         Primitive _ ->
             { current = O.getSome (o primitive_ pOperator_) node
                 |> Maybe.unwrap unselected .name
-            , labels = labels
+            , values = values
+            , labels = values
             , toEditAction = toEditAction
                 (UnselectOperator <| fromReturnType returnType)
                 SelectOperator
@@ -578,7 +606,8 @@ renderSelector node {operators, returnType} =
 
         VarArgs packed ->
             { current = unselected
-            , labels = labels
+            , values = values
+            , labels = values
             , toEditAction = toEditAction
                 (SelectVarArgs packed)
                 (SelectPacked packed)
@@ -586,7 +615,8 @@ renderSelector node {operators, returnType} =
 
         Packed packed op ->
             { current = op.name
-            , labels = labels
+            , values = values
+            , labels = values
             , toEditAction = toEditAction
                 (SelectVarArgs packed)
                 (SelectPacked packed)

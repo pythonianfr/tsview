@@ -68,6 +68,9 @@ runParser envSpecPath = do
     format =
       flag' TS.Format $
       short 'f' <> long "format" <> help "Format TypedOperator to formula"
+    argName = (,) <$>
+        (strArgument $ metavar "operator_name" <> help "Operator name") <*>
+        (strArgument $ metavar "argument_name" <> help "Operator argument name")
     formulaSrc =
       some $
       strArgument $
@@ -88,6 +91,10 @@ runParser envSpecPath = do
           info
             (TS.edit <$> returnType <*> optional (inspect <|> format) <*>
              formulaSrc)
+            fullDesc
+        , command "list-literals" $
+          info
+            (TS.list_literals <$> returnType <*> argName <*> formulaSrc)
             fullDesc
         ]
 

@@ -99,9 +99,9 @@ numParser s pa = ask <| \({invalid, expecting} as env) ->
         |= Reader.run minusSign env
         |= pa (expecting s) (invalid s)
 
-stringParser : Parser c x String
-stringParser = ask <| \{expecting, toToken} ->
-    let quote = Char.fromCode 34 -- "char"
+stringParser_ : Int -> Parser c x String
+stringParser_ charCode = ask <| \{expecting, toToken} ->
+    let quote = Char.fromCode charCode
         quoteSymbol = String.fromChar quote
         tokenSymbol = toToken quoteSymbol
     in PA.succeed identity
@@ -114,6 +114,11 @@ stringParser = ask <| \{expecting, toToken} ->
             }
         |. PA.symbol tokenSymbol
 
+stringParser : Parser c x String
+stringParser = stringParser_ 34 -- "char"
+
+singleQuotedStringParser : Parser c x String
+singleQuotedStringParser = stringParser_ 39 -- 'char'
 
 type alias Annotation =
     { rowPos : Int

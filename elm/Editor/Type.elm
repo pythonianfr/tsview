@@ -30,6 +30,7 @@ type LiteralType
     | String
     | TimestampString
     | Proposal ProposalType
+    | LiteralKeywords (List String)
 
 type OperatorOutputType
     = OperatorOutputType String
@@ -61,6 +62,7 @@ type LiteralExpr
     | NumberExpr Float
     | StringExpr String
     | TimestampExpr String
+    | LiteralKeywordExpr String
 
 
 type alias Operator =

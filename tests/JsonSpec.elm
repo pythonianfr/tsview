@@ -25,7 +25,7 @@ jsonSpec =
       ],
       [
         "fill",
-        "Default[Union[str, int]=None]"
+        "Default[Union[Literal['all', 'bfill'], int]=None]"
       ],
       [
         "weight",

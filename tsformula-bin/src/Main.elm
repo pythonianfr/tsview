@@ -1,19 +1,21 @@
 port module FormulaParserValidation.Main exposing (main)
 
-import Either
+import Basics.Extra exposing (flip)
+import Either exposing (Either)
 import Platform exposing (worker)
 
 import Json.Decode as JD
 import List.Nonempty as NE
 
 import ParserExtra
+import AssocList as Assoc
 
 import Editor.Type as T
 
 import Editor.SpecParser as Parser
 import Editor.Parser as Parser
 
-import Editor.SpecRender as Render
+import Editor.SpecRender as SpecRender
 import Editor.Render as Render
 
 import Editor.UI.Type as UI
@@ -23,6 +25,11 @@ import Editor.UI.Render exposing (renderEditor)
 type alias Formula =
     { label : String
     , formulaCode : T.FormulaCode
+    }
+
+type alias ArgName =
+    { operatorName : String
+    , argumentName : String
     }
 
 type RenderOption
@@ -113,6 +120,13 @@ formulasDecoder = JD.map2
         |> JD.index 2
         |> JD.at ["cmd", "contents"]
 
+argNameDecoder = JD.map2
+    ArgName
+    (JD.index 0 JD.string)
+    (JD.index 1 JD.string)
+        |> JD.index 1
+        |> JD.at ["cmd", "contents"]
+
 processFormulas : T.Spec -> (Env -> Formula -> String) -> JD.Decoder String
 processFormulas spec processFormula = JD.map3
     (\returnTypeStr renderOption formulas ->
@@ -124,13 +138,69 @@ processFormulas spec processFormula = JD.map3
     renderOptionDecoder
     formulasDecoder
 
+inspectLiteral : ArgName -> ArgName -> T.PrimitiveExpr -> List String
+inspectLiteral userArgName argName primitiveExpr = case primitiveExpr of
+    T.LiteralExpr _ (Just expr) ->
+        if userArgName == argName then
+            [ SpecRender.renderLiteralExpr expr ]
+        else
+            []
+
+    T.LiteralExpr _ Nothing ->
+        []
+
+    T.OperatorExpr typedOp ->
+        listLiterals userArgName typedOp 
+
+listLiterals : ArgName -> T.TypedOperator -> List String
+listLiterals userArgName {operator, typedArgs, typedOptArgs} =
+    let args = Assoc.toList typedArgs ++ Assoc.toList typedOptArgs
+    in flip List.concatMap args <| \(name, argExpr) ->
+        let argName = ArgName operator.name name
+        in case argExpr of
+            T.PrimitiveExpr x ->
+                inspectLiteral userArgName argName x
+
+            T.UnionExpr _ (_, x) ->
+                inspectLiteral userArgName argName x
+
+            T.VarArgsExpr _ xs ->
+                List.concatMap (inspectLiteral userArgName argName) xs
+
+            T.PackedExpr _ typedOp ->
+                listLiterals userArgName typedOp
+
+parseFormula_ :
+   T.Spec -> T.ReturnTypeStr -> Formula -> Either String T.TypedOperator
+parseFormula_ spec returnTypeStr {label, formulaCode} =
+    Parser.parseFormula spec returnTypeStr formulaCode
+        |> ParserExtra.parserErrorsToString
+        |> Either.mapLeft (\x -> "ERROR on " ++ label ++ " : " ++ x)
+
+traverseEither_ : (x -> Either e a) -> List x -> Either e (List a)
+traverseEither_ f xs =
+    List.foldr (\a b -> Either.map2 (::) (f a) b) (Either.singleton []) xs
+
+processLiterals : T.Spec -> JD.Decoder String
+processLiterals spec = JD.map3
+    (\returnTypeStr argName formulas ->
+        traverseEither_ (parseFormula_ spec returnTypeStr) formulas
+            |> Either.map (List.concatMap (listLiterals argName))
+            |> Either.unpack identity (String.join "\n")
+    )
+    returnTypeDecoder
+    argNameDecoder
+    formulasDecoder
+
 cmdDecoder : ( T.Spec, String ) -> JD.Decoder String
 cmdDecoder ( spec, cmd ) = case cmd of
-    "ShowSpec" -> JD.succeed <| Render.renderSpec spec
+    "ShowSpec" -> JD.succeed <| SpecRender.renderSpec spec
 
     "Parse" -> processFormulas spec parseFormula
 
     "Edit" -> processFormulas spec editFormula
+
+    "ListLiterals" -> processLiterals spec 
 
     x -> JD.fail <| "Unknow command : " ++ x
 

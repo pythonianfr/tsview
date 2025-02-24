@@ -24,6 +24,7 @@ data Cmd
   = ShowSpec
   | Parse ReturnType (Maybe RenderOption) [Formula]
   | Edit ReturnType (Maybe RenderOption) [Formula]
+  | ListLiterals ReturnType (Text, Text) [Formula]
   deriving (Show, Generic, ToJSON)
 
 data Payload =
@@ -68,3 +69,6 @@ parse r mo xs = Parse r mo <$> loadFormulas xs
 
 edit :: Text -> Maybe RenderOption -> [Text] -> IO Cmd
 edit r mo xs = Edit r mo <$> loadFormulas xs
+
+list_literals :: Text -> (Text, Text) -> [Text] -> IO Cmd
+list_literals r arg xs = ListLiterals r arg <$> loadFormulas xs

@@ -13,6 +13,7 @@ description:         Run Elm tsformula from command line
 dependencies:
 - base >= 4.7 && < 5
 - protolude
+- unordered-containers
 - neat-interpolation
 - file-embed
 - temporary

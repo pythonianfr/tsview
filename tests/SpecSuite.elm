@@ -8,16 +8,16 @@ import Editor.SpecRender exposing (renderSpec)
 import TestUtil exposing (T)
 
 
+render : (Bool, String) -> String
+render (doReduce, spec) = parseSpecString {reduce = doReduce} spec
+    |> Tuple.second
+    |> renderSpec
+
 testParsing : Test.Test
 testParsing =
-    let
-        render spec = parseSpecString {reduce = False} spec
-            |> Tuple.second
-            |> renderSpec
-
-    in TestUtil.buildTest render <|
+    TestUtil.buildTest render <|
     [ T "series"
-        """
+        (False, """
 [
   [
     "series",
@@ -36,7 +36,7 @@ testParsing =
       ],
       [
         "fill",
-        "Default[Union[str, Number]=None]"
+        "Default[Union[Literal['ffill,bfill', 'bfill,ffill'], Number]=None]"
       ],
       [
         "prune",
@@ -50,6 +50,7 @@ testParsing =
   ]
 ]
 """
+    )
         """
 -----------------------------------------------------------------------------
 
@@ -60,14 +61,14 @@ series
         name: SeriesName
         date: Timestamp
     optional_arguments:
-        fill: Union[String, Number] Default=None
+        fill: Union[Literal['ffill,bfill', 'bfill,ffill'], Number] Default=None
         prune: Int Default=None
         weight: Number Default=None
     return: Series
 -----------------------------------------------------------------------------
 """
     , T "series, today, priority"
-        """
+        (False, """
 [
   [
     "series",
@@ -143,6 +144,7 @@ series
   ]
 ]
 """
+    )
         """
 -----------------------------------------------------------------------------
 
@@ -175,6 +177,134 @@ timedelta
         years: Int Default=0
         months: Int Default=0
     return: Timestamp
+-----------------------------------------------------------------------------
+"""
+    , T "mul operation, noreduce"
+    (False, """
+[
+  [
+    "*",
+    [
+      [
+        "return",
+        "Union[Number, Series]"
+      ],
+      [
+        "num",
+        "Number"
+      ],
+      [
+        "num_or_series",
+        "Union[Number, Series]"
+      ]
+    ]
+  ]
+]
+"""
+    )
+    """
+-----------------------------------------------------------------------------
+
+    Number
+
+*
+    arguments:
+        num: Number
+        num_or_series: Union[Number, Series]
+    return: Number
+-----------------------------------------------------------------------------
+
+    Series
+
+*
+    arguments:
+        num: Number
+        num_or_series: Union[Number, Series]
+    return: Series
+-----------------------------------------------------------------------------
+"""
+    , T "mul operation, reduce"
+    (True, """
+[
+  [
+    "*",
+    [
+      [
+        "return",
+        "Union[Number, Series]"
+      ],
+      [
+        "num",
+        "Number"
+      ],
+      [
+        "num_or_series",
+        "Union[Number, Series]"
+      ]
+    ]
+  ]
+]
+"""
+    )
+    """
+-----------------------------------------------------------------------------
+
+    Number
+
+*
+    arguments:
+        num: Number
+        num_or_series: Number
+    return: Number
+-----------------------------------------------------------------------------
+
+    Series
+
+*
+    arguments:
+        num: Number
+        num_or_series: Series
+    return: Series
+-----------------------------------------------------------------------------
+"""
+    , T "constant, reduce"
+    (True, """
+[
+  [
+    "constant",
+    [
+      [
+        "return",
+        "Series"
+      ],
+      [
+        "fromdate",
+        "Timestamp"
+      ],
+      [
+        "todate",
+        "Timestamp"
+      ],
+      [
+        "freq",
+        "Union[Freq, str]"
+      ]
+    ]
+  ]
+]
+"""
+    )
+    """
+-----------------------------------------------------------------------------
+
+    Series
+
+constant
+    arguments:
+        fromdate: Timestamp
+        todate: Timestamp
+        freq: Union[Freq, String]
+    return: Series
 -----------------------------------------------------------------------------
 """
     ]
