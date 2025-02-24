@@ -864,7 +864,8 @@ main =
                        , newname = Nothing
                        , activetab = Plot
                        , clipboardclass = "bi bi-clipboard"
-                       , horizon = { horizon | hasCache = False }
+                       , horizon = { horizon | hasCache = False
+                                             , hasInferredFreq = False }
                        }
                in
                ( model

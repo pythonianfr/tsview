@@ -96,6 +96,7 @@ type alias HorizonModel =
     { baseUrl: String
     , horizon : Horizon
     , dateRef: String
+    , hasInferredFreq: Bool
     , inferredFreq : Bool
     , timeZone : String
     , timezones : List String
@@ -163,6 +164,7 @@ initHorizon baseUrl min max debug status =
     { baseUrl = baseUrl
     , horizon = All
     , dateRef = "yyyy-mm-dd"
+    , hasInferredFreq = True
     , inferredFreq = False
     , timeZone = "UTC"
     , timezones = timezones
@@ -718,6 +720,8 @@ renderTimeZone selectedhorizon timeZone =
 
 inferredfreqswitch : HorizonModel -> (Msg -> msg) -> H.Html msg
 inferredfreqswitch model convertmsg =
+    if model.hasInferredFreq
+    then
     H.div
         [ HA.class "custom-control custom-switch"]
         [ H.input
@@ -734,6 +738,7 @@ inferredfreqswitch model convertmsg =
             ]
             [ H.text "inferred freq" ]
         ]
+    else H.div [] []
 
 
 tzonedropdown : HorizonModel -> (Msg -> msg) -> H.Html msg
