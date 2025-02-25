@@ -623,10 +623,10 @@ parsePasted raw =
                 <| String.split s removedSpace
 
 
--- the index is of the form e-2-3
+-- the index is of the form e/2/3
 getPos: String -> ( Int, Int )
 getPos s =
-    case String.split "-" s of
+    case String.split "/" s of
         [] -> ( 0, 0 )
         [ e ] -> ( 0, 0 )
         [ e, i ] -> ( 0, 0 )
@@ -1680,7 +1680,7 @@ deselect keepFocus =
 
 idEntry: ( Int, Int ) -> String
 idEntry ( i, j ) =
-    "e-" ++ ( String.fromInt i ) ++ "-"++ ( String.fromInt j )
+    "e/" ++ ( String.fromInt i ) ++ "/"++ ( String.fromInt j )
 
 
 flipForce: Model -> Model
@@ -2973,10 +2973,14 @@ buildDate model iRow date =
                     Nothing -> False
                     Just box -> keyInSelection box ( iRow, -1 )
     in
-        H.th
+     H.node
+        "batch-copy"
+        [ HA.attribute "index" ( idEntry (iRow, -1) )
+        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+        , HA.tabindex 0 --allow to be focusable
+        ]
+        [ H.th
             [ HA.class "show-table-dates"
-            , HA.tabindex 0 --allow to be focusable
-            , HA.id ( idEntry ( iRow, -1 ))
             , HE.onClick ( ClickCell iRow -1 )
             , if focused
                 then HA.class "focused"
@@ -2986,6 +2990,7 @@ buildDate model iRow date =
                 else HA.class ""
             ]
             [ H.text date ]
+        ]
 
 
 getBounds:  Dict ( Int, Int ) a -> ( ( Int, Int ),  ( Int, Int ))

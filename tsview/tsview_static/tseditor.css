@@ -400,7 +400,7 @@
     z-index:50;
 }
 
-.show-table-dates.focused {
+.focused.show-table-dates {
     box-shadow:inset 0px 0px 0px 2px green;
 }
 
