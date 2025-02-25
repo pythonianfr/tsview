@@ -278,7 +278,7 @@ def test_query_spec_types(client):
         ['by.cache', [['return', 'query']]],
         ['by.cachepolicy', [['return', 'query'], ['query', 'CachePolicy']]],
         ['by.everything', [['return', 'query']]],
-        ['by.formula', [['return', 'query'], ['query', 'str']]],
+        ['by.formula', [['return', 'query']]],
         ['by.formulacontents', [['return', 'query'], ['query', 'str']]],
         ['by.internal-metaitem',
          [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
