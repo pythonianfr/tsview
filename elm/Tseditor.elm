@@ -2161,7 +2161,7 @@ getValueFromIndex coordData position =
 bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
 bounded ( ( minRow, maxRow ), ( minCol, maxCol )) ( pRow, pCol) =
     (( simpleBound minRow maxRow pRow )
-    ,( simpleBound minCol maxCol pCol ))
+    ,( simpleBound ( minCol ) maxCol pCol ) )
 
 
 simpleBound minValue maxValue value =
@@ -2957,14 +2957,35 @@ forCurrentDiff model =
 getIndexedDates: Model -> Dict Int ( H.Html Msg )
 getIndexedDates model =
     Dict.fromList
-        <|List.indexedMap
-            Tuple.pair
-            <| List.map
-                ( \d ->  H.th
-                            [HA.class "show-table-dates"]
-                            [ H.text d ]
+        <| List.indexedMap
+                ( \ iRow d ->
+                    ( iRow
+                    , buildDate model iRow d
+                    )
                 )
                 ( datesValue model )
+
+
+buildDate: Model -> Int -> String -> H.Html Msg
+buildDate model iRow date =
+    let focused = ( iRow,  -1 ) == Maybe.withDefault (-1, -1 ) model.focus
+        selected = case model.selection of
+                    Nothing -> False
+                    Just box -> keyInSelection box ( iRow, -1 )
+    in
+        H.th
+            [ HA.class "show-table-dates"
+            , HA.tabindex 0 --allow to be focusable
+            , HA.id ( idEntry ( iRow, -1 ))
+            , HE.onClick ( ClickCell iRow -1 )
+            , if focused
+                then HA.class "focused"
+                else HA.class ""
+            , if selected
+                then HA.class "selected"
+                else HA.class ""
+            ]
+            [ H.text date ]
 
 
 getBounds:  Dict ( Int, Int ) a -> ( ( Int, Int ),  ( Int, Int ))
