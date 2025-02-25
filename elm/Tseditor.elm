@@ -182,7 +182,7 @@ type alias Model =
     , holding: Holding
     -- show-values for formula
     , components : List Component
-    , coordData: Dict ( Int, Int ) Entry
+    , coordData: Dict ( Int, Int ) Stuff
     , dates: List String
     , columns: List String
     , diff : Dict ( Int, Int ) Entry
@@ -447,6 +447,26 @@ type alias BaseSupervision =
     { value : Maybe Float
     , override : Bool
     }
+
+
+type Stuff =
+    DateRow String
+    | Cell Entry
+
+
+filterEntry: Dict ( Int, Int ) Stuff ->  Dict ( Int, Int ) Entry
+filterEntry coordData =
+    Dict.map
+        (\ _ stuff -> case stuff of
+                       Cell entry -> entry
+                       DateRow _ -> emptyEntry
+        )
+        <| Dict.filter
+            (\  _ stuff -> case stuff of
+                            Cell _ -> True
+                            DateRow _ -> False
+            )
+            coordData
 
 
 type alias Entry =
@@ -1348,7 +1368,11 @@ update msg model =
         ActivateCell iRow iCol ->
             case Dict.get (iRow, iCol ) model.coordData of
                 Nothing -> U.nocmd model
-                Just entry -> if entry.editable
+                Just stuff ->
+                    case stuff of
+                        DateRow d -> U.nocmd model
+                        Cell entry ->
+                            if entry.editable
                                 then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
                                 else U.nocmd { model | currentInput = Nothing }
 
@@ -1480,7 +1504,9 @@ update msg model =
                                         Just ( i, j ) ->
                                             let current = Maybe.withDefault
                                                             emptyEntry
-                                                            ( Dict.get ( i, j ) model.coordData )
+                                                            <| Dict.get
+                                                                ( i, j )
+                                                                ( filterEntry model.coordData )
                                             in
                                             if not current.editable
                                                 then U.nocmd model
@@ -1789,8 +1815,11 @@ cleanDiff model =
     setupFill
       { model | diff = Dict.empty
               , coordData = Dict.map
-                                (\ _ e -> { e | edition = NoEdition
-                                              , raw = Nothing })
+                                (\ _ s -> case s of
+                                    Cell e -> Cell { e | edition = NoEdition
+                                                       , raw = Nothing }
+                                    DateRow d -> DateRow d
+                                )
                                 model.coordData
               , slope = Nothing
               , intercept = Nothing
@@ -1954,11 +1983,14 @@ applyOnSelection coordData action selection =
 
 deleteSelectedValues: Model -> Model
 deleteSelectedValues model =
-    let delete = (\ e ->  if e.editable
-                            then { e | edition = Deletion
-                                     , raw = Nothing
-                                 }
-                            else e
+    let delete = (\ s ->
+                    case s of
+                        DateRow d -> DateRow d
+                        Cell e ->  if e.editable
+                                        then Cell { e | edition = Deletion
+                                                       , raw = Nothing
+                                                  }
+                                        else Cell e
                  )
         newCoord = applyOnSelection
                     model.coordData
@@ -1966,6 +1998,13 @@ deleteSelectedValues model =
                     model.selection
     in
         { model | coordData = newCoord }
+
+
+mapEntry: Stuff -> ( Entry -> Entry )-> Stuff
+mapEntry stuff func =
+    case stuff of
+        DateRow d -> DateRow d
+        Cell entry -> Cell ( func entry )
 
 
 deleteFocus: Model -> Model
@@ -1977,12 +2016,16 @@ deleteFocus model =
                         applyOnFilter
                             model.coordData
                             ( \ k  -> k == focus)
-                            ( \ e -> if e.editable
-                                     then
-                                        { e | edition = Deletion
-                                             , raw = Nothing
-                                         }
-                                     else e
+                            ( \ s ->
+                                case s of
+                                    DateRow d -> DateRow d
+                                    Cell e ->
+                                        if e.editable
+                                             then
+                                                Cell { e | edition = Deletion
+                                                         , raw = Nothing
+                                                         }
+                                             else Cell e
                             )
                         }
 
@@ -2011,7 +2054,7 @@ setupFill model =
     in
     { model | lastValids = List.concat
                             <| List.map
-                                ( findLastValidByCol coordData )
+                                ( findLastValidByCol ( filterEntry coordData ))
                                 ( List.range minCol maxCol )
     }
 
@@ -2057,21 +2100,24 @@ findLastValidRec entries previousIsValue found =
                         else ( findLastValidRec xs True found )
 
 
-fillNas: Dict ( Int, Int ) Entry -> Float -> ( Int, Int ) ->  Dict ( Int, Int ) Entry
+fillNas: Dict ( Int, Int ) Stuff -> Float -> ( Int, Int ) ->  Dict ( Int, Int ) Stuff
 fillNas coordData lastValue positionLastValue =
-    let nbNas = getNbNas coordData positionLastValue
+    let nbNas = getNbNas ( filterEntry coordData ) positionLastValue
     in
         Dict.map
             ( applyValue positionLastValue lastValue nbNas )
             coordData
 
 
-applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Entry -> Entry
-applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) entry =
-    if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
-        then { entry | edition = Edition lastValue
-                     , raw= Just ( String.fromFloat lastValue )}
-        else entry
+applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Stuff -> Stuff
+applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
+    case stuff of
+        DateRow d -> DateRow d
+        Cell entry ->
+            if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
+                then Cell { entry | edition = Edition lastValue
+                                  , raw= Just ( String.fromFloat lastValue )}
+                else Cell entry
 
 
 getNbNas: Dict ( Int, Int ) Entry -> ( Int,  Int ) -> Int
@@ -2102,7 +2148,7 @@ findNbNas values nb =
                 False -> nb
 
 
-fillAllNas : Dict ( Int, Int ) Entry -> List ( Int, Int ) -> Dict ( Int, Int ) Entry
+fillAllNas : Dict ( Int, Int ) Stuff -> List ( Int, Int ) -> Dict ( Int, Int ) Stuff
 fillAllNas coordData idxNas =
     case idxNas of
         [] -> coordData
@@ -2119,7 +2165,7 @@ fillAllNas coordData idxNas =
                 )
 
 
-cellsToString: Dict ( Int, Int ) Entry -> Maybe Box -> String
+cellsToString: Dict ( Int, Int ) Stuff -> Maybe Box -> String
 cellsToString coordData selection =
     let selected = getSelected coordData selection
         (( minRow, maxRow ), ( minCol, maxCol )) = getBounds selected
@@ -2132,7 +2178,7 @@ cellsToString coordData selection =
                 ( List.range minRow maxRow )
 
 
-rowToString: Dict ( Int, Int ) Entry -> ( Int, Int )-> Int -> String
+rowToString: Dict ( Int, Int ) Stuff -> ( Int, Int )-> Int -> String
 rowToString coordData ( minCol, maxCol ) iRow =
     String.join
         tab
@@ -2141,21 +2187,23 @@ rowToString coordData ( minCol, maxCol ) iRow =
             ( List.range minCol maxCol )
 
 
-extractValue: Dict ( Int, Int ) Entry -> Int -> Int -> String
+extractValue: Dict ( Int, Int ) Stuff -> Int -> Int -> String
 extractValue coordData iRow iCol =
     case Dict.get ( iRow, iCol ) coordData of
         Nothing -> ""
-        Just entry -> showValue entry
+        Just ( Cell entry ) -> showValue entry
+        Just ( DateRow date ) -> date
 
 
-getValueFromIndex: Dict ( Int, Int ) Entry -> ( Int, Int ) -> Float
+getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> Float
 getValueFromIndex coordData position =
     let
-        entry = Maybe.withDefault
-                    emptyEntry
-                    ( Dict.get position coordData )
+        stuff = Dict.get position coordData
     in
-        Maybe.withDefault 0 ( getCurrentValue entry )
+        case stuff of
+            Nothing -> 0
+            Just ( DateRow d )  -> 0
+            Just ( Cell entry ) -> Maybe.withDefault 0 ( getCurrentValue entry )
 
 
 bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
@@ -2331,12 +2379,12 @@ cartesianDataRec mergedData currentRow i j myDict =
                         (Dict.insert (i, j) cell myDict)
 
 
-cartesianData: List ( List Entry )-> Dict ( Int, Int ) Entry
+cartesianData: List ( List a )-> Dict ( Int, Int ) a
 cartesianData mergedData =
     cartesianDataRec mergedData [] 0 0 Dict.empty
 
 
-mergeData: List Component -> ( List ( List Entry ), List String, List String )
+mergeData: List Component -> ( List ( List Stuff ), List String, List String )
 mergeData components =
     let dates = List.sort
                 <| Set.toList
@@ -2360,10 +2408,10 @@ mergeData components =
         )
 
 
-builRowBasic: List Component -> String -> List  Entry
+builRowBasic: List Component -> String -> List Stuff
 builRowBasic components date =
         List.map
-            ( getEntry date )
+            ( getStuff date )
             <| List.map
                 (\ c -> ( c.name , c.data )
                 )
@@ -2372,7 +2420,7 @@ builRowBasic components date =
 
 applyDiff: Model -> Model
 applyDiff model =
-    setupFill { model | diff = currentDiff model model.coordData }
+    setupFill { model | diff = currentDiff model ( filterEntry model.coordData )}
 
 
 currentDiff: Model -> Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
@@ -2388,7 +2436,7 @@ currentDiff model coordData =
             coordData
 
 
-pasteRectangle: Dict ( Int, Int ) Entry -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Entry
+pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
 pasteRectangle base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
                             <| List.map
@@ -2398,14 +2446,17 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
     in
         Dict.merge
             ( \_ _ dict -> dict )
-            ( \ position entryBase sPatch dict ->
-                if entryBase.editable
-                    then
-                        Dict.insert
-                            position
-                            (patchEntry entryBase sPatch)
-                            dict
-                    else dict
+            ( \ position stuffBase sPatch dict ->
+                case stuffBase of
+                    DateRow d -> dict
+                    Cell e ->
+                        if e.editable
+                            then
+                                Dict.insert
+                                    position
+                                    ( patchEntry stuffBase sPatch )
+                                    dict
+                            else dict
             )
             ( \_ _ dict -> dict )
             base
@@ -2413,11 +2464,13 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
             base
 
 
-patchEntry: Entry -> String -> Entry
-patchEntry entry s =
-    { entry | raw = Just s
-            , edition = parseInput s
-    }
+patchEntry: Stuff -> String -> Stuff
+patchEntry stuff s =
+    case stuff of
+        DateRow date -> DateRow date
+        Cell entry -> Cell { entry | raw = Just s
+                                    , edition = parseInput s
+                            }
 
 
 patchEditedData : Model -> Cmd Msg
@@ -3026,22 +3079,25 @@ buildCoord model =
 
 updateCoordData: Model -> (Int, Int) -> Maybe String -> Edited -> Model
 updateCoordData model position raw edition =
-    let previous = Maybe.withDefault
-                    emptyEntry
-                    ( Dict.get position model.coordData )
+    let previous = Dict.get position model.coordData
     in
-        if not previous.editable
-            then model
-            else
-    let
-        newCoord = Dict.insert
-                    position
-                    { previous | raw = raw
-                               , edition = edition
-                    }
-                    model.coordData
-    in
-        { model | coordData = newCoord }
+        case previous of
+            Nothing -> model
+            Just  ( DateRow d ) -> model
+            Just ( Cell entry) ->
+               if not entry.editable
+                        then model
+                        else
+                            let
+                                newCoord = Dict.insert
+                                            position
+                                            ( Cell { entry | raw = raw
+                                                       , edition = edition
+                                                    }
+                                            )
+                                            model.coordData
+                            in
+                                { model | coordData = newCoord }
 
 
 getIndexes: Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> ( Dict Int String, Dict Int String )
@@ -3174,7 +3230,7 @@ buildTable model header rowDict =
         ]
 
 
-buildCartRow: Model -> Dict ( Int, Int ) Entry ->  Dict Int ( H.Html Msg ) -> Int -> Int -> Int -> H.Html Msg
+buildCartRow: Model -> Dict ( Int, Int ) Stuff ->  Dict Int ( H.Html Msg ) -> Int -> Int -> Int -> H.Html Msg
 buildCartRow model cartDict rowDict minCol maxCol iRow =
     let indexRow = Dict.get iRow rowDict
         restRow =  List.map
@@ -3192,11 +3248,12 @@ buildCartRow model cartDict rowDict minCol maxCol iRow =
                 restRow
 
 
-buildCell: Model -> Dict ( Int, Int ) Entry -> Int -> Int -> H.Html Msg
+buildCell: Model -> Dict ( Int, Int ) Stuff -> Int -> Int -> H.Html Msg
 buildCell model cartDict iRow iCol =
     let entry = case Dict.get ( iRow, iCol ) cartDict of
                     Nothing -> emptyEntry
-                    Just content -> content
+                    Just ( Cell content ) -> content
+                    Just  ( DateRow d ) -> emptyEntry
         statusClass = cellStyle entry
         value = showValue entry
         valueCropped = printValue model.roundValues value
@@ -3275,6 +3332,11 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
                     ]
                     [ ]
             ]
+
+
+getStuff: String ->  ( String , Series ) -> Stuff
+getStuff date ( name, series ) =
+    Cell ( getEntry date ( name, series ))
 
 
 getEntry: String ->  ( String , Series ) -> Entry
@@ -3899,7 +3961,7 @@ plotNode: Model -> H.Html Msg
 plotNode model =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
-        diff = Dict.values ( currentDiff model model.coordData )
+        diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
         editionTrace = case model.mode of
                         Existing I.Formula -> []
                         _ -> [ scatterplot
