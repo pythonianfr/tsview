@@ -3,6 +3,7 @@ port module Tseditor exposing (main)
 import Array exposing (Array)
 import Browser
 import Browser.Dom
+import Browser.Dom exposing (Error(..))
 import Browser.Events exposing
     ( onKeyDown
     , onKeyUp
@@ -223,7 +224,7 @@ type Msg
     | ResetClass CopyType
     | ActionControl ControlKey
     | Typing Action Char
-    | NoAction
+    | Focus (Result Browser.Dom.Error ())
     | FillNas ( Int, Int)
     | FillAll
     | FromLocal String
@@ -1437,7 +1438,11 @@ update msg model =
             , Cmd.none
             )
 
-        NoAction -> U.nocmd model
+        Focus ( Ok _ ) -> U.nocmd model
+        Focus ( Err err ) -> case err of
+                                NotFound stuff ->
+                                    U.nocmd <| addError model "focus" stuff
+
 
         ActionControl ( key ) ->
             let holding = model.holding
@@ -1675,17 +1680,11 @@ applyFocus model maybeIndex =
                 Nothing -> ( newModel, Cmd.none )
                 Just cursor ->
                     ( newModel
-                    , T.attempt
-                        (\_ -> NoAction)
-                            <| Browser.Dom.blur
-                                <| idEntry cursor
+                    , T.attempt Focus ( Browser.Dom.blur <| idEntry cursor )
                     )
         Just index ->
             ( newModel
-            , T.attempt
-                (\_ -> NoAction)
-                <| Browser.Dom.focus
-                    <| idEntry index
+            , T.attempt Focus ( Browser.Dom.focus <| idEntry index )
             )
 
 
