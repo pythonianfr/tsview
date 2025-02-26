@@ -183,7 +183,6 @@ type alias Model =
     -- show-values for formula
     , components : List Component
     , coordData: Dict ( Int, Int ) Stuff
-    , dates: List String
     , columns: List String
     , diff : Dict ( Int, Int ) Entry
     }
@@ -1329,7 +1328,7 @@ update msg model =
 
         Paste payload ->
             let parsed = parsePasted payload.text
-                coordPatch = cartesianDataRec parsed [] 0 0 Dict.empty
+                coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
                 merged = pasteRectangle model.coordData coordPatch corner
             in
@@ -2345,9 +2344,9 @@ parseInput value =
                     Error value
 
 
-cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
-cartesianDataRec mergedData currentRow i j myDict =
-        if j == 0
+cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
+cartesianDataRec mergedData currentRow minCol i j myDict =
+        if j == minCol
         then
             case mergedData of
                 [] -> myDict
@@ -2358,6 +2357,7 @@ cartesianDataRec mergedData currentRow i j myDict =
                             cartesianDataRec
                                 rows
                                 cells
+                                minCol
                                 i
                                 ( j + 1 )
                                 (Dict.insert (i, j) cell myDict)
@@ -2367,13 +2367,15 @@ cartesianDataRec mergedData currentRow i j myDict =
                 [] -> cartesianDataRec
                         mergedData
                         []
+                        minCol
                         ( i + 1 )
-                        0
+                        minCol
                         myDict
                 cell :: cells ->
                     cartesianDataRec
                         mergedData
                         cells
+                        minCol
                         i
                         ( j + 1 )
                         (Dict.insert (i, j) cell myDict)
@@ -2381,10 +2383,10 @@ cartesianDataRec mergedData currentRow i j myDict =
 
 cartesianData: List ( List a )-> Dict ( Int, Int ) a
 cartesianData mergedData =
-    cartesianDataRec mergedData [] 0 0 Dict.empty
+    cartesianDataRec mergedData [] -1 0 -1 Dict.empty
 
 
-mergeData: List Component -> ( List ( List Stuff ), List String, List String )
+mergeData: List Component -> ( List ( List Stuff ), List String )
 mergeData components =
     let dates = List.sort
                 <| Set.toList
@@ -2398,24 +2400,24 @@ mergeData components =
         columns = List.map
                     ( \ c -> c.name )
                     components
-
     in
         ( List.map
             ( builRowBasic components )
             dates
-        , dates
         , columns
         )
 
 
 builRowBasic: List Component -> String -> List Stuff
 builRowBasic components date =
-        List.map
-            ( getStuff date )
-            <| List.map
-                (\ c -> ( c.name , c.data )
-                )
-                components
+    [ DateRow date ]
+         ++ ( List.map
+                ( getStuff date )
+                <| List.map
+                    (\ c -> ( c.name , c.data )
+                    )
+                    components
+            )
 
 
 applyDiff: Model -> Model
@@ -2971,7 +2973,6 @@ viewValueTable model =
                         [ buildTable
                             model
                             ( headerShowValue model )
-                            ( getIndexedDates model )
                         , strap
                         , forCurrentDiff model
                         ]
@@ -2981,7 +2982,6 @@ viewValueTable model =
                     , buildTable
                         model
                         ( headerShowValue model )
-                        ( getIndexedDates model )
                     ]
                 )
 
@@ -3007,54 +3007,15 @@ forCurrentDiff model =
             ]
 
 
-getIndexedDates: Model -> Dict Int ( H.Html Msg )
-getIndexedDates model =
-    Dict.fromList
-        <| List.indexedMap
-                ( \ iRow d ->
-                    ( iRow
-                    , buildDate model iRow d
-                    )
-                )
-                ( datesValue model )
-
-
-buildDate: Model -> Int -> String -> H.Html Msg
-buildDate model iRow date =
-    let focused = ( iRow,  -1 ) == Maybe.withDefault (-1, -1 ) model.focus
-        selected = case model.selection of
-                    Nothing -> False
-                    Just box -> keyInSelection box ( iRow, -1 )
-    in
-     H.node
-        "batch-copy"
-        [ HA.attribute "index" ( idEntry (iRow, -1) )
-        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
-        , HA.tabindex 0 --allow to be focusable
-        ]
-        [ H.th
-            [ HA.class "show-table-dates"
-            , HE.onClick ( ClickCell iRow -1 )
-            , if focused
-                then HA.class "focused"
-                else HA.class ""
-            , if selected
-                then HA.class "selected"
-                else HA.class ""
-            ]
-            [ H.text date ]
-        ]
-
-
 getBounds:  Dict ( Int, Int ) a -> ( ( Int, Int ),  ( Int, Int ))
-getBounds cartDict=
+getBounds cartDict =
     let coords = Dict.keys cartDict
         rows = List.map Tuple.first coords
         cols = List.map Tuple.second coords
-        minRow = Maybe.withDefault 0 <| List.minimum rows
-        maxRow = Maybe.withDefault 0 <| List.maximum rows
-        minCol = Maybe.withDefault 0 <| List.minimum cols
-        maxCol = Maybe.withDefault 0 <| List.maximum cols
+        minRow = Maybe.withDefault -1 <| List.minimum rows
+        maxRow = Maybe.withDefault -1 <| List.maximum rows
+        minCol = Maybe.withDefault -1 <| List.minimum cols
+        maxCol = Maybe.withDefault -1 <| List.maximum cols
     in
         ( ( minRow, maxRow ), ( minCol, maxCol ))
 
@@ -3068,11 +3029,10 @@ buildCoord model =
          TooMuchPoints _ -> { model | coordData = Dict.empty }
          Drawable ->
             let allSeries = [ likeComp model ] ++ model.components
-                ( dataAsRows, dates, columns ) = mergeData allSeries
+                ( dataAsRows, columns ) = mergeData allSeries
             in
             setupFill
                 { model | coordData = ( cartesianData dataAsRows)
-                        , dates = dates
                         , columns = columns
                 }
 
@@ -3211,8 +3171,8 @@ buildDiffCell model diff iRow iCol =
         H.td [] [ H.text <| getValue entry ]
 
 
-buildTable: Model -> List ( H.Html Msg ) -> Dict Int ( H.Html Msg ) -> H.Html Msg
-buildTable model header rowDict =
+buildTable: Model -> List ( H.Html Msg )  -> H.Html Msg
+buildTable model header =
     let cartDict = model.coordData
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds cartDict
     in
@@ -3225,35 +3185,58 @@ buildTable model header rowDict =
         , H.tbody
             []
             ( List.map
-                ( buildCartRow model cartDict rowDict minCol maxCol )
+                ( buildCartRow model cartDict minCol maxCol )
                 ( List.range minRow maxRow ) )
         ]
 
 
-buildCartRow: Model -> Dict ( Int, Int ) Stuff ->  Dict Int ( H.Html Msg ) -> Int -> Int -> Int -> H.Html Msg
-buildCartRow model cartDict rowDict minCol maxCol iRow =
-    let indexRow = Dict.get iRow rowDict
-        restRow =  List.map
-                    ( buildCell model cartDict iRow )
-                    ( List.range minCol maxCol )
+buildCartRow: Model -> Dict ( Int, Int ) Stuff -> Int -> Int -> Int -> H.Html Msg
+buildCartRow model cartDict minCol maxCol iRow =
+    H.tr
+        [ HA.class "row-edit" ]
+        <| List.map
+                ( buildAny model cartDict iRow )
+                ( List.range minCol maxCol )
+
+
+buildAny: Model -> Dict ( Int, Int ) Stuff -> Int -> Int -> H.Html Msg
+buildAny model cartDict iRow iCol =
+    case Dict.get ( iRow, iCol ) cartDict of
+            Nothing -> buildCell model emptyEntry iRow iCol
+            Just ( Cell entry ) -> buildCell model entry iRow iCol
+            Just  ( DateRow date ) -> buildDateCell model date iRow
+
+
+buildDateCell: Model -> String -> Int -> H.Html Msg
+buildDateCell model date iRow =
+     let focused = ( iRow,  -1 ) == Maybe.withDefault (-1, -1 ) model.focus
+         selected = case model.selection of
+                    Nothing -> False
+                    Just box -> keyInSelection box ( iRow, -1 )
     in
-    case indexRow of
-        Just index ->
-            H.tr
-                [ HA.class "row-edit" ]
-                ( [ index ] ++ restRow  )
-        Nothing ->
-             H.tr
-                []
-                restRow
+     H.node
+        "batch-copy"
+        [ HA.attribute "index" ( idEntry (iRow, -1) )
+        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+        , HA.tabindex 0 --allow to be focusable
+        ]
+        [ H.th
+            [ HA.class "show-table-dates"
+            , HE.onClick ( ClickCell iRow -1 )
+            , if focused
+                then HA.class "focused"
+                else HA.class ""
+            , if selected
+                then HA.class "selected"
+                else HA.class ""
+            ]
+            [ H.text date ]
+        ]
 
 
-buildCell: Model -> Dict ( Int, Int ) Stuff -> Int -> Int -> H.Html Msg
-buildCell model cartDict iRow iCol =
-    let entry = case Dict.get ( iRow, iCol ) cartDict of
-                    Nothing -> emptyEntry
-                    Just ( Cell content ) -> content
-                    Just  ( DateRow d ) -> emptyEntry
+buildCell: Model -> Entry -> Int -> Int -> H.Html Msg
+buildCell model entry iRow iCol  =
+    let
         statusClass = cellStyle entry
         value = showValue entry
         valueCropped = printValue model.roundValues value
@@ -4123,7 +4106,6 @@ init input =
                     , panActive = False
                     , components = []
                     , coordData = Dict.empty
-                    , dates = []
                     , columns = []
                     , diff = Dict.empty
                     }
