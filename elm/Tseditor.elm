@@ -3214,24 +3214,31 @@ buildDateCell model date iRow =
                     Nothing -> False
                     Just box -> keyInSelection box ( iRow, -1 )
     in
-     H.node
-        "batch-copy"
-        [ HA.attribute "index" ( idEntry (iRow, -1) )
-        , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
-        , HA.tabindex 0 --allow to be focusable
-        ]
-        [ H.th
-            [ HA.class "show-table-dates"
-            , HE.onClick ( ClickCell iRow -1 )
-            , if focused
+        H.th
+            ([ HA.class "show-table-dates"
+             , if focused
                 then HA.class "focused"
                 else HA.class ""
-            , if selected
+             , if selected
                 then HA.class "selected"
                 else HA.class ""
+             , HE.onClick ( ClickCell iRow -1 )
+             , HE.onMouseDown ( Drag ( On ( iRow, -1 ) ))
+             ]++  if model.holding.mouse
+                then [ HE.onMouseEnter ( SelectRow ( iRow, -1 ) )
+                     , HE.onMouseLeave ( SelectRow ( iRow, 1 ) )
+                     ]
+                else []
+            )
+            [ H.node
+                "batch-copy"
+                [ HA.attribute "index" ( idEntry (iRow, -1) )
+                , HE.on "pastewithdata" (JD.map Paste pasteWithDataDecoder)
+                , HA.tabindex 0 --allow to be focusable
+                , HA.id ( idEntry (iRow, -1) )
+                ]
+                [ H.text date ]
             ]
-            [ H.text date ]
-        ]
 
 
 buildCell: Model -> Entry -> Int -> Int -> H.Html Msg
