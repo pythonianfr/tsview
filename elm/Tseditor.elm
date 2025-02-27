@@ -184,7 +184,6 @@ type alias Model =
     -- show-values for formula
     , components : List Component
     , coordData: Dict ( Int, Int ) Stuff
-    , columns: List String
     , diff : Dict ( Int, Int ) Entry
     }
 
@@ -2385,10 +2384,10 @@ cartesianDataRec mergedData currentRow minCol i j myDict =
 
 cartesianData: List ( List a )-> Dict ( Int, Int ) a
 cartesianData mergedData =
-    cartesianDataRec mergedData [] -1 0 -1 Dict.empty
+    cartesianDataRec mergedData [] -1 -1 -1 Dict.empty
 
 
-mergeData: List Component -> ( List ( List Stuff ), List String )
+mergeData: List Component -> List ( List Stuff )
 mergeData components =
     let dates = List.sort
                 <| Set.toList
@@ -2403,11 +2402,11 @@ mergeData components =
                     ( \ c -> c.name )
                     components
     in
-        ( List.map
-            ( builRowBasic components )
-            dates
-        , columns
-        )
+        [[ Header "corner" ] ++ List.map ( \ s -> Header s ) columns ]
+         ++ ( List.map
+                ( builRowBasic components )
+                dates
+            )
 
 
 builRowBasic: List Component -> String -> List Stuff
@@ -3031,11 +3030,10 @@ buildCoord model =
          TooMuchPoints _ -> { model | coordData = Dict.empty }
          Drawable ->
             let allSeries = [ likeComp model ] ++ model.components
-                ( dataAsRows, columns ) = mergeData allSeries
+                dataAsRows = mergeData allSeries
             in
             setupFill
                 { model | coordData = ( cartesianData dataAsRows)
-                        , columns = columns
                 }
 
 
@@ -3202,7 +3200,12 @@ buildAny model cartDict iRow iCol =
             Nothing -> buildCell model emptyEntry iRow iCol
             Just ( Cell entry ) -> buildCell model entry iRow iCol
             Just ( DateRow date ) -> buildDateCell model date iRow
-            Just ( Header name ) -> H.div [] [H.text name]
+            Just ( Header name ) -> buildHeader model name iRow
+
+
+buildHeader: Model -> String -> Int -> H.Html Msg
+buildHeader model name iRow =
+    H.th [] [ H.text name ]
 
 
 buildDateCell: Model -> String -> Int -> H.Html Msg
@@ -4111,7 +4114,6 @@ init input =
                     , panActive = False
                     , components = []
                     , coordData = Dict.empty
-                    , columns = []
                     , diff = Dict.empty
                     }
     , Cmd.none
