@@ -451,6 +451,7 @@ type alias BaseSupervision =
 
 type Stuff =
     DateRow String
+    | Header String
     | Cell Entry
 
 
@@ -460,11 +461,13 @@ filterEntry coordData =
         (\ _ stuff -> case stuff of
                        Cell entry -> entry
                        DateRow _ -> emptyEntry
+                       Header _ -> emptyEntry
         )
         <| Dict.filter
             (\  _ stuff -> case stuff of
                             Cell _ -> True
                             DateRow _ -> False
+                            Header _ -> False
             )
             coordData
 
@@ -1370,7 +1373,8 @@ update msg model =
                 Nothing -> U.nocmd model
                 Just stuff ->
                     case stuff of
-                        DateRow d -> U.nocmd model
+                        DateRow _ -> U.nocmd model
+                        Header _ -> U.nocmd model
                         Cell entry ->
                             if entry.editable
                                 then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
@@ -1817,6 +1821,7 @@ cleanDiff model =
                                     Cell e -> Cell { e | edition = NoEdition
                                                        , raw = Nothing }
                                     DateRow d -> DateRow d
+                                    Header h -> Header h
                                 )
                                 model.coordData
               , slope = Nothing
@@ -1984,6 +1989,7 @@ deleteSelectedValues model =
     let delete = (\ s ->
                     case s of
                         DateRow d -> DateRow d
+                        Header d -> Header d
                         Cell e ->  if e.editable
                                         then Cell { e | edition = Deletion
                                                        , raw = Nothing
@@ -1998,13 +2004,6 @@ deleteSelectedValues model =
         { model | coordData = newCoord }
 
 
-mapEntry: Stuff -> ( Entry -> Entry )-> Stuff
-mapEntry stuff func =
-    case stuff of
-        DateRow d -> DateRow d
-        Cell entry -> Cell ( func entry )
-
-
 deleteFocus: Model -> Model
 deleteFocus model =
     case model.focus of
@@ -2017,6 +2016,7 @@ deleteFocus model =
                             ( \ s ->
                                 case s of
                                     DateRow d -> DateRow d
+                                    Header h -> Header h
                                     Cell e ->
                                         if e.editable
                                              then
@@ -2111,6 +2111,7 @@ applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Stuff -> Stuff
 applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
     case stuff of
         DateRow d -> DateRow d
+        Header h -> Header h
         Cell entry ->
             if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
                 then Cell { entry | edition = Edition lastValue
@@ -2191,6 +2192,7 @@ extractValue coordData iRow iCol =
         Nothing -> ""
         Just ( Cell entry ) -> showValue entry
         Just ( DateRow date ) -> date
+        Just ( Header name ) -> name
 
 
 getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> Float
@@ -2200,7 +2202,8 @@ getValueFromIndex coordData position =
     in
         case stuff of
             Nothing -> 0
-            Just ( DateRow d )  -> 0
+            Just ( DateRow _ )  -> 0
+            Just ( Header _ )  -> 0
             Just ( Cell entry ) -> Maybe.withDefault 0 ( getCurrentValue entry )
 
 
@@ -2449,7 +2452,8 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
             ( \_ _ dict -> dict )
             ( \ position stuffBase sPatch dict ->
                 case stuffBase of
-                    DateRow d -> dict
+                    DateRow _ -> dict
+                    Header _ -> dict
                     Cell e ->
                         if e.editable
                             then
@@ -2469,6 +2473,7 @@ patchEntry: Stuff -> String -> Stuff
 patchEntry stuff s =
     case stuff of
         DateRow date -> DateRow date
+        Header h -> Header h
         Cell entry -> Cell { entry | raw = Just s
                                     , edition = parseInput s
                             }
@@ -3042,7 +3047,8 @@ updateCoordData model position raw edition =
     in
         case previous of
             Nothing -> model
-            Just  ( DateRow d ) -> model
+            Just  ( DateRow _ ) -> model
+            Just  ( Header _ ) -> model
             Just ( Cell entry) ->
                if not entry.editable
                         then model
@@ -3203,7 +3209,8 @@ buildAny model cartDict iRow iCol =
     case Dict.get ( iRow, iCol ) cartDict of
             Nothing -> buildCell model emptyEntry iRow iCol
             Just ( Cell entry ) -> buildCell model entry iRow iCol
-            Just  ( DateRow date ) -> buildDateCell model date iRow
+            Just ( DateRow date ) -> buildDateCell model date iRow
+            Just ( Header name ) -> H.div [] [H.text name]
 
 
 buildDateCell: Model -> String -> Int -> H.Html Msg
