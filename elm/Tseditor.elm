@@ -2976,7 +2976,6 @@ viewValueTable model =
                         [ HA.class "wrapper-primary" ]
                         [ buildTable
                             model
-                            ( headerShowValue model )
                         , strap
                         , forCurrentDiff model
                         ]
@@ -2985,7 +2984,6 @@ viewValueTable model =
                     [ forCurrentDiff model
                     , buildTable
                         model
-                        ( headerShowValue model )
                     ]
                 )
 
@@ -3176,23 +3174,17 @@ buildDiffCell model diff iRow iCol =
         H.td [] [ H.text <| getValue entry ]
 
 
-buildTable: Model -> List ( H.Html Msg )  -> H.Html Msg
-buildTable model header =
+buildTable: Model ->  H.Html Msg
+buildTable model =
     let cartDict = model.coordData
         ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds cartDict
     in
         H.table
         [ HA.class "edit-table"
         , HA.class "unselectable"]
-        [ H.thead
-            []
-            header
-        , H.tbody
-            []
-            ( List.map
-                ( buildCartRow model cartDict minCol maxCol )
-                ( List.range minRow maxRow ) )
-        ]
+        ( List.map
+            ( buildCartRow model cartDict minCol maxCol )
+            ( List.range minRow maxRow ) )
 
 
 buildCartRow: Model -> Dict ( Int, Int ) Stuff -> Int -> Int -> Int -> H.Html Msg
