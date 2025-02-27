@@ -3200,17 +3200,44 @@ buildAny model cartDict iRow iCol =
             Nothing -> buildCell model emptyEntry iRow iCol
             Just ( Cell entry ) -> buildCell model entry iRow iCol
             Just ( DateRow date ) -> buildDateCell model date iRow
-            Just ( Header name ) -> buildHeader model name iRow
+            Just ( Header name ) -> buildHeader model name iCol
 
 
 buildHeader: Model -> String -> Int -> H.Html Msg
-buildHeader model name iRow =
-    H.th [] [ H.text name ]
+buildHeader model name iCol =
+     let focused = case model.focus of
+                    Nothing -> False
+                    Just f -> f == ( -1, iCol )
+         selected = case model.selection of
+                    Nothing -> False
+                    Just box -> keyInSelection box ( -1, iCol )
+    in
+    H.th
+        ([ HA.tabindex 0 --allow to be focusable
+        ,  HA.id ( idEntry ( -1, iCol ) )
+        , HA.class "column-header"
+        , if focused
+                then HA.class "focused"
+                else HA.class ""
+             , if selected
+                then HA.class "selected"
+                else HA.class ""
+         , HE.onClick ( ClickCell -1 iCol )
+             , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
+             ]++  if model.holding.mouse
+                then [ HE.onMouseEnter ( SelectRow ( -1, iCol ) )
+                     , HE.onMouseLeave ( SelectRow ( -1, iCol ) )
+                     ]
+                else []
+        )
+        [ H.text name ]
 
 
 buildDateCell: Model -> String -> Int -> H.Html Msg
 buildDateCell model date iRow =
-     let focused = ( iRow,  -1 ) == Maybe.withDefault (-1, -1 ) model.focus
+     let focused = case model.focus of
+                    Nothing -> False
+                    Just f -> f ==  ( iRow, -1 )
          selected = case model.selection of
                     Nothing -> False
                     Just box -> keyInSelection box ( iRow, -1 )
@@ -3248,7 +3275,9 @@ buildCell model entry iRow iCol  =
         statusClass = cellStyle entry
         value = showValue entry
         valueCropped = printValue model.roundValues value
-        focused = ( iRow,  iCol ) == Maybe.withDefault (-1, -1 ) model.focus
+        focused = case model.focus of
+                    Nothing -> False
+                    Just f -> f ==  ( iRow, iCol )
         selected = case model.selection of
                     Nothing -> False
                     Just box -> keyInSelection box ( iRow, iCol )

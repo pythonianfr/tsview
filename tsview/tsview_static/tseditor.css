@@ -408,6 +408,14 @@
     box-shadow:inset 0px 0px 0px 2px green;
 }
 
+.column-header:focus-visible {
+     outline: none;
+}
+
+.focused.column-header {
+    box-shadow:inset 0px 0px 0px 2px green;
+}
+
 .editor-values-table-series {
     position: sticky;
     top:0px;
