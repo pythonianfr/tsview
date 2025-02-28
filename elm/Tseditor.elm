@@ -3260,7 +3260,7 @@ insideHeader model name cType iCol =
                 []
                 , H.p [] [ H.text "Values" ]
              ]
-        _ -> buildLink model name cType
+        _ -> buildLink model iCol name cType
 
 
 buildDateCell: Model -> String -> Int -> H.Html Msg
@@ -3491,17 +3491,28 @@ queryNav model name =
                             ]
 
 
-buildLink: Model -> String -> CType -> List ( H.Html Msg )
-buildLink model name cType =
+buildLink: Model -> Int -> String -> CType -> List ( H.Html Msg )
+buildLink model iCol name cType =
+    let expand = case model.focus of
+                    Nothing -> False
+                    Just (_, fCol) -> iCol == fCol
+    in
     ( case cType of
         Auto ->
             [ H.p [] [ H.text name ]]
         _ ->
             [ H.a
-                [ HA.href ( UB.crossOrigin model.baseurl
+                [ if expand
+                    then HA.class "expanded"
+                    else HA.class "hidden"
+                , HA.href ( UB.crossOrigin model.baseurl
                                 [ "tseditor" ]
                                 ( queryNav model name ))]
-                [ H.text name ]]
+                [ H.p
+                    [ ]
+                    [ H.text name ]
+                ]
+            ]
     )
 
 

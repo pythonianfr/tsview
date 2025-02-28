@@ -314,7 +314,6 @@
 }
 
 .edit-table th {
-    border: 1px solid #DDD;
     padding: 5px;
 }
 
@@ -362,8 +361,7 @@
 }
 
 .edit-table th {
-    padding-top: 5px;
-    padding-bottom: 5px;
+
     border: 0px;
     text-align: left;
 }
@@ -421,6 +419,12 @@
     box-shadow:inset 0px 0px 0px 2px green;
 }
 
+.show-table-dates {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+
 /*
 .show-table-dates {
     font-size: 0.9em;
@@ -439,28 +443,46 @@
 
 */
 
-
-
+.column-header {
+    padding: 0px;
+}
 
 .column-header:focus-visible {
      outline: none;
 }
 
-.column-header a {
+.column-header a.hidden {
     display: block;
     width: 177px;
     overflow: hidden;
 }
 
-.focused.column-header {
-    box-shadow:inset 0px 0px 0px 2px green;
+.column-header p {
+    padding-left: 2px;
 }
 
-.editor-values-table-series {
-    position: sticky;
-    top:0px;
-    background-color:white;
+.column-header a.expanded {
+    display: block;
+    width: 177px;
+    overflow: visible;
+}
 
+.column-header a.expanded p {
+    background-color: white;
+    box-shadow: 2px 2px 5px #A9A9A9	;
+    z-index: 150;
+    position: relative;
+    padding-right: 5px;
+    height: 100%;
+    font-weight: bold;
+}
+
+.column-header {
+
+}
+
+.focused.column-header {
+    box-shadow:none;
 }
 
 /* diff table */
