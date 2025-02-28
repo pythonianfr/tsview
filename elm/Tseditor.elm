@@ -207,7 +207,8 @@ type Msg
     | SwitchForceDraw
     | AllowInferFreq
     | ShowDiff
-    | Expand Bool
+    | AllVisible Bool
+    | Visible Int
     | InputChanged Int Int String
     | SaveEditedData
     | Saved (Result Http.Error String)
@@ -1148,7 +1149,11 @@ update msg model =
 
         ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
 
-        Expand expand -> U.nocmd { model | expandAll = expand }
+        Expand eCol -> U.nocmd { model | expanded = Just eCol }
+
+        ExpandAll expand -> U.nocmd { model | expandAll = expand
+                                            , expanded = Nothing
+                                    }
 
         InputChanged row col rawvalue ->
             let
@@ -2714,7 +2719,7 @@ buttonViewNames model =
             , HA.class "custom-control-input"
             , HA.id "expandAll"
             , HA.checked model.expandAll
-            , HE.onCheck Expand
+            , HE.onCheck AllVisible
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
@@ -3261,6 +3266,7 @@ buildHeader model ( name, cType ) iCol =
                 then HA.class "selected"
                 else HA.class ""
          , HE.onClick ( ClickCell -1 iCol )
+         , HE.onMouseOver ( Visible iCol )
              , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
              ]++  if model.holding.mouse
                 then [ HE.onMouseEnter ( SelectRow ( -1, iCol ) )
@@ -3553,7 +3559,8 @@ buildLink model iCol name cType =
                 [ HA.class class
                 , HA.href ( UB.crossOrigin model.baseurl
                                 [ "tseditor" ]
-                                ( queryNav model name ))]
+                                ( queryNav model name ))
+                ]
                 [ H.p
                     [ ]
                     [ H.text name ]
