@@ -450,7 +450,7 @@ type alias BaseSupervision =
 
 type Stuff =
     DateRow String
-    | Header String
+    | Header ( String, CType )
     | Cell Entry
 
 
@@ -2191,7 +2191,7 @@ extractValue coordData iRow iCol =
         Nothing -> ""
         Just ( Cell entry ) -> showValue entry
         Just ( DateRow date ) -> date
-        Just ( Header name ) -> name
+        Just ( Header ( name, _ )) -> name
 
 
 getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> Float
@@ -2399,10 +2399,10 @@ mergeData components =
                                 )
                                 components
         columns = List.map
-                    ( \ c -> c.name )
+                    ( \ c -> ( c.name, c.cType ) )
                     components
     in
-        [[ Header "corner" ] ++ List.map ( \ s -> Header s ) columns ]
+        [[ Header ( "Dates", Primary ) ] ++ List.map ( \ s -> Header s ) columns ]
          ++ ( List.map
                 ( builRowBasic components )
                 dates
@@ -3200,11 +3200,11 @@ buildAny model cartDict iRow iCol =
             Nothing -> buildCell model emptyEntry iRow iCol
             Just ( Cell entry ) -> buildCell model entry iRow iCol
             Just ( DateRow date ) -> buildDateCell model date iRow
-            Just ( Header name ) -> buildHeader model name iCol
+            Just ( Header header ) -> buildHeader model header iCol
 
 
-buildHeader: Model -> String -> Int -> H.Html Msg
-buildHeader model name iCol =
+buildHeader: Model -> ( String, CType ) -> Int -> H.Html Msg
+buildHeader model ( name, cType ) iCol =
      let focused = case model.focus of
                     Nothing -> False
                     Just f -> f == ( -1, iCol )
@@ -3230,7 +3230,37 @@ buildHeader model name iCol =
                      ]
                 else []
         )
-        [ H.text name ]
+        ( insideHeader model name cType iCol )
+
+
+insideHeader: Model -> String -> CType -> Int -> List ( H.Html Msg )
+insideHeader model name cType iCol =
+    let indexPositive = iCol + 1
+    in
+    case indexPositive of
+        0 -> [ H.p
+                [ HA.class <| getCopyClass
+                                model.statusCopy
+                                CopyDates
+                , HE.onClick ( CopyToClipboard CopyDates )
+                , HA.class "copy-all"
+                , HA.title "Copy dates"
+                ]
+                []
+                , H.p [] [ H.text "Dates" ]
+             ]
+        1 -> [ H.p
+                [ HA.class <| getCopyClass
+                                model.statusCopy
+                                CopyValues
+                , HE.onClick ( CopyToClipboard CopyValues )
+                , HA.class "copy-all"
+                , HA.title "Copy values"
+                ]
+                []
+                , H.p [] [ H.text "Values" ]
+             ]
+        _ -> buildLink model name cType
 
 
 buildDateCell: Model -> String -> Int -> H.Html Msg
@@ -3448,39 +3478,6 @@ datesComponent model comp =
         Set.fromList allDates
 
 
-headerShowValue: Model -> List ( H.Html Msg )
-headerShowValue model =
-        [ H.tr
-            []
-            ( [ H.th
-                [ HA.class "show-table-dates" ]
-                 [ H.p
-                    [ HA.class <| getCopyClass
-                                    model.statusCopy
-                                    CopyDates
-                    , HE.onClick ( CopyToClipboard CopyDates )
-                    , HA.class "copy-all"
-                    , HA.title "Copy dates"
-                    ]
-                    []
-                , H.p [] [ H.text "Dates" ]             ]
-              , H.th
-                    [ ]
-                    [ H.p
-                        [ HA.class <| getCopyClass
-                                        model.statusCopy
-                                        CopyValues
-                        , HE.onClick ( CopyToClipboard CopyValues )
-                        , HA.class "copy-all"
-                        , HA.title "Copy values"
-                        ]
-                        []
-                    , H.p [] [ H.text "Values" ]
-                    ]
-              ] ++ List.map ( buildLink model ) model.components  )
-        ]
-
-
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
     let bounds = getFromToDates model.horizon
@@ -3494,20 +3491,18 @@ queryNav model name =
                             ]
 
 
-buildLink: Model -> Component -> H.Html Msg
-buildLink model comp =
-    H.th
-        []
-        ( case comp.cType of
-            Auto ->
-                [ H.p [] [ H.text comp.name ]]
-            _ ->
-                [ H.a
-                    [ HA.href ( UB.crossOrigin model.baseurl
-                                    [ "tseditor" ]
-                                    ( queryNav model comp.name ))]
-                    [ H.text comp.name ]]
-        )
+buildLink: Model -> String -> CType -> List ( H.Html Msg )
+buildLink model name cType =
+    ( case cType of
+        Auto ->
+            [ H.p [] [ H.text name ]]
+        _ ->
+            [ H.a
+                [ HA.href ( UB.crossOrigin model.baseurl
+                                [ "tseditor" ]
+                                ( queryNav model name ))]
+                [ H.text name ]]
+    )
 
 
 buildFormater: Maybe Int -> String
