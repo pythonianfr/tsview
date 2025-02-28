@@ -169,6 +169,7 @@ type alias Model =
     , forceDraw : Bool
     , allowInferFreq : Bool
     , showDiff: Bool
+    , expandAll: Bool
     -- cells interactivity
     , selection : Maybe Box
     , focus : Maybe ( Int, Int )
@@ -205,6 +206,7 @@ type Msg
     | SwitchForceDraw
     | AllowInferFreq
     | ShowDiff
+    | Expand Bool
     | InputChanged Int Int String
     | SaveEditedData
     | Saved (Result Http.Error String)
@@ -271,6 +273,10 @@ type CreationOptions =
     | Value String
     | Preview
 
+type Visibility =
+    Nope
+    | Single
+    | All
 
 type alias FreqType =
     { offset: String
@@ -1140,6 +1146,8 @@ update msg model =
             )
 
         ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
+
+        Expand expand -> U.nocmd { model | expandAll = expand }
 
         InputChanged row col rawvalue ->
             let
@@ -2589,9 +2597,15 @@ underThePlot model =
         [ HA.class "under-the-plot" ]
         <| case model.mode of
                 Creation Form -> [ ]
+                Existing I.Primary ->
+                    [ roundForm model
+                     , buttonShowDiff model
+                     , buttonFillAll model
+                     ]
                 _ -> [ roundForm model
                      , buttonShowDiff model
                      , buttonFillAll model
+                     , buttonViewNames model
                      ]
 
 
@@ -2684,6 +2698,27 @@ buttonFillAll model =
         , HA.disabled ( model.lastValids == [] )
         ]
         [ H.text "Fill All ↓" ]
+
+
+buttonViewNames: Model -> H.Html Msg
+buttonViewNames model =
+     H.div
+        [ HA.class "custom-control custom-switch"
+        , HA.class "button-expand"
+        ]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "expandAll"
+            , HA.checked model.expandAll
+            , HE.onCheck Expand
+            ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "expandAll"
+            ]
+            [ H.text "Expand All" ]
+        ]
 
 
 
@@ -3100,8 +3135,8 @@ findEntry ( iRow,  iCol ) increment coordData bounds =
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
     let msg = if model.showDiff
-                then "Hide diff"
-                else "Show diff"
+                then "Hide Diff"
+                else "Show Diff"
     in
     if isSingle model
     then
@@ -3493,18 +3528,26 @@ queryNav model name =
 
 buildLink: Model -> Int -> String -> CType -> List ( H.Html Msg )
 buildLink model iCol name cType =
-    let expand = case model.focus of
-                    Nothing -> False
-                    Just (_, fCol) -> iCol == fCol
+    let expand = case model.expandAll of
+            True -> All
+            False ->
+                case model.focus of
+                    Nothing -> Nope
+                    Just (_, fCol) ->
+                        case iCol == fCol of
+                            True -> Single
+                            False -> Nope
+        class = case expand of
+                    Nope -> "hidden"
+                    Single -> "expanded"
+                    All -> "all-expanded"
     in
     ( case cType of
         Auto ->
             [ H.p [] [ H.text name ]]
         _ ->
             [ H.a
-                [ if expand
-                    then HA.class "expanded"
-                    else HA.class "hidden"
+                [ HA.class class
                 , HA.href ( UB.crossOrigin model.baseurl
                                 [ "tseditor" ]
                                 ( queryNav model name ))]
@@ -3822,6 +3865,11 @@ debugView model =
                                                                 ToEdit series -> Dict.keys series.initialTs
                                             )
                           )
+                , H.br [] []
+                , H.text (", expandAll: " ++ if model.expandAll
+                                                    then "On"
+                                                    else "Off")
+                , H.br [] []
                 , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
                                                     else "Off")
@@ -4128,6 +4176,7 @@ init input =
                     , forceDraw = False
                     , allowInferFreq = False
                     , showDiff = False
+                    , expandAll = False
                     , intercept = Nothing
                     , slope = Nothing
                     , insertion_dates = Array.empty

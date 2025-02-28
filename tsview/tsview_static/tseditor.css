@@ -174,7 +174,6 @@
 /* forms and buttons above the edition */
 
 .under-the-plot {
-    display: flex;
     margin-left: 20px;
 }
 
@@ -425,23 +424,10 @@
 }
 
 
-/*
-.show-table-dates {
-    font-size: 0.9em;
-    width:auto;
-    position: sticky;
-    left:0px;
-    background-color:white;
-    z-index:50;
+.button-expand {
+    float: right;
+    margin-right: 20px;
 }
-.show-table-dates batch-copy:focus-visible {
-     outline: none;
-}
-.focused.show-table-dates {
-    box-shadow:inset 0px 0px 0px 2px green;
-}
-
-*/
 
 .column-header {
     padding: 0px;
@@ -474,7 +460,6 @@
     position: relative;
     padding-right: 5px;
     height: 100%;
-    font-weight: bold;
 }
 
 .column-header {
@@ -488,6 +473,7 @@
 /* diff table */
 
 button.show-diff {
+    height: 3ch;
 }
 
 .diff-table {
