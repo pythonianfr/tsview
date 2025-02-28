@@ -169,7 +169,6 @@ type alias Model =
     , forceDraw : Bool
     , allowInferFreq : Bool
     , showDiff: Bool
-    , expandAll: Bool
     -- cells interactivity
     , selection : Maybe Box
     , focus : Maybe ( Int, Int )
@@ -177,7 +176,7 @@ type alias Model =
     , firstSelected : Maybe ( Int, Int )
     , lastValids: List ( Int, Int )
     , currentInput : Maybe ( Int, Int )
-    , expanded: Maybe Int
+    , nameVisbility : Visibility
     , slope: Maybe String
     , intercept: Maybe String
     -- keyboard/mouse
@@ -277,7 +276,7 @@ type CreationOptions =
 
 type Visibility =
     Nope
-    | Single
+    | Single Int
     | All
 
 type alias FreqType =
@@ -1149,10 +1148,14 @@ update msg model =
 
         ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
 
-        Expand eCol -> U.nocmd { model | expanded = Just eCol }
+        Visible eCol ->
+            case model.nameVisbility of
+                All -> U.nocmd model
+                _ -> U.nocmd { model | nameVisbility = Single eCol }
 
-        ExpandAll expand -> U.nocmd { model | expandAll = expand
-                                            , expanded = Nothing
+        AllVisible all -> U.nocmd { model | nameVisbility = if all
+                                                        then All
+                                                        else Nope
                                     }
 
         InputChanged row col rawvalue ->
@@ -1468,7 +1471,7 @@ update msg model =
             in
             case key of
                 Escape Down -> ( model , deselect True )
-                Escape Up -> U.nocmd { model | expanded = Nothing }
+                Escape Up -> U.nocmd { model | nameVisbility = Nope }
                 Delete  Down -> ( applyDiff ( deleteFocus ( deleteSelectedValues model ))
                                 , deselect True
                                 )
@@ -1690,7 +1693,10 @@ applyFocus: Model -> Maybe ( Int, Int ) -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
         newModel = { model | focus = maybeIndex
-                           , expanded = Maybe.map Tuple.second maybeIndex
+                           , nameVisbility = case maybeIndex of
+                                            Nothing -> Nope
+                                            Just ( _, fCol )
+                                                -> Single fCol
                    }
     in
     case maybeIndex of
@@ -2718,14 +2724,14 @@ buttonViewNames model =
             [ HA.attribute "type" "checkbox"
             , HA.class "custom-control-input"
             , HA.id "expandAll"
-            , HA.checked model.expandAll
+            , HA.checked ( model.nameVisbility == All )
             , HE.onCheck AllVisible
             ] [ ]
         , H.label
             [ HA.class "custom-control-label"
             , HA.for "expandAll"
             ]
-            [ H.text "Expand All" ]
+            [ H.text "View Names" ]
         ]
 
 
@@ -3537,19 +3543,13 @@ queryNav model name =
 
 buildLink: Model -> Int -> String -> CType -> List ( H.Html Msg )
 buildLink model iCol name cType =
-    let expand = case model.expandAll of
-            True -> All
-            False ->
-                case model.expanded of
-                    Nothing -> Nope
-                    Just eCol ->
-                        case iCol == eCol of
-                            True -> Single
-                            False -> Nope
-        class = case expand of
-                    Nope -> "hidden"
-                    Single -> "expanded"
-                    All -> "all-expanded"
+    let class = case model.nameVisbility of
+            All -> "all-expanded"
+            Nope -> "hidden"
+            Single eCol ->
+                case iCol == eCol of
+                            True -> "expanded"
+                            False -> "hidden"
     in
     ( case cType of
         Auto ->
@@ -3876,9 +3876,6 @@ debugView model =
                                             )
                           )
                 , H.br [] []
-                , H.text (", expandAll: " ++ if model.expandAll
-                                                    then "On"
-                                                    else "Off")
                 , H.br [] []
                 , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
@@ -4186,7 +4183,6 @@ init input =
                     , forceDraw = False
                     , allowInferFreq = False
                     , showDiff = False
-                    , expandAll = False
                     , intercept = Nothing
                     , slope = Nothing
                     , insertion_dates = Array.empty
@@ -4197,7 +4193,7 @@ init input =
                     , firstShift = Nothing
                     , firstSelected = Nothing
                     , currentInput = Nothing
-                    , expanded = Nothing
+                    , nameVisbility = Nope
                     , holding = emptyHolding
                     , keyName = ""
                     , lastValids = []
