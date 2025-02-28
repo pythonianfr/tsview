@@ -322,16 +322,20 @@
 {   background-color:  #f2f2f2;
 }
 
-.edit-table .selected {
-    background-color: #cae9f5;
-}
-
 .edit-table input {
     padding-top: 1px;
     padding-bottom: 1px;
     border-style: none;
     text-align: right;
     background-color: transparent;
+}
+
+.edit-table .selected {
+    background-color: #cae9f5;
+}
+
+.edit-table th:first-of-type.selected {
+    background-color: #cae9f5;
 }
 
 .edit-table .selected input {
@@ -391,7 +395,7 @@
 }
 
 
-.show-table-dates {
+.edit-table th:first-of-type {
     font-size: 0.9em;
     width:auto;
     position: sticky;
@@ -400,16 +404,52 @@
     z-index:50;
 }
 
-.show-table-dates batch-copy:focus-visible {
+.edit-table th:first-of-type {
+    font-size: 0.9em;
+    width:auto;
+    position: sticky;
+    left:0px;
+    background-color:white;
+    z-index:50;
+}
+
+.edit-table th:first-of-type batch-copy:focus-visible {
      outline: none;
 }
 
+.edit-table th:first-of-type.focused{
+    box-shadow:inset 0px 0px 0px 2px green;
+}
+
+/*
+.show-table-dates {
+    font-size: 0.9em;
+    width:auto;
+    position: sticky;
+    left:0px;
+    background-color:white;
+    z-index:50;
+}
+.show-table-dates batch-copy:focus-visible {
+     outline: none;
+}
 .focused.show-table-dates {
     box-shadow:inset 0px 0px 0px 2px green;
 }
 
+*/
+
+
+
+
 .column-header:focus-visible {
      outline: none;
+}
+
+.column-header a {
+    display: block;
+    width: 177px;
+    overflow: hidden;
 }
 
 .focused.column-header {
