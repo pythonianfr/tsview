@@ -177,6 +177,7 @@ type alias Model =
     , firstSelected : Maybe ( Int, Int )
     , lastValids: List ( Int, Int )
     , currentInput : Maybe ( Int, Int )
+    , expanded: Maybe Int
     , slope: Maybe String
     , intercept: Maybe String
     -- keyboard/mouse
@@ -1462,7 +1463,7 @@ update msg model =
             in
             case key of
                 Escape Down -> ( model , deselect True )
-                Escape Up -> U.nocmd model
+                Escape Up -> U.nocmd { model | expanded = Nothing }
                 Delete  Down -> ( applyDiff ( deleteFocus ( deleteSelectedValues model ))
                                 , deselect True
                                 )
@@ -1683,7 +1684,9 @@ update msg model =
 applyFocus: Model -> Maybe ( Int, Int ) -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
-        newModel = { model | focus = maybeIndex }
+        newModel = { model | focus = maybeIndex
+                           , expanded = Maybe.map Tuple.second maybeIndex
+                   }
     in
     case maybeIndex of
         Nothing ->
@@ -3531,10 +3534,10 @@ buildLink model iCol name cType =
     let expand = case model.expandAll of
             True -> All
             False ->
-                case model.focus of
+                case model.expanded of
                     Nothing -> Nope
-                    Just (_, fCol) ->
-                        case iCol == fCol of
+                    Just eCol ->
+                        case iCol == eCol of
                             True -> Single
                             False -> Nope
         class = case expand of
@@ -4186,7 +4189,8 @@ init input =
                     , focus = Nothing
                     , firstShift = Nothing
                     , firstSelected = Nothing
-                    , currentInput = Just (1, 1)
+                    , currentInput = Nothing
+                    , expanded = Nothing
                     , holding = emptyHolding
                     , keyName = ""
                     , lastValids = []
