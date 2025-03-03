@@ -1227,7 +1227,7 @@ update msg model =
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , Cmd.batch
                 [ patchEditedData model
-                , deselect True
+                , deselect False
                 ]
             )
 
