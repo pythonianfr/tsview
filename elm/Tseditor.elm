@@ -1409,6 +1409,7 @@ update msg model =
                                             extendSelection
                                                 model.firstShift
                                                 position
+                                        , currentInput = Nothing
                                      }
                                 else modelPos
             in
@@ -1499,16 +1500,20 @@ update msg model =
                 Enter Down -> case model.focus of
                     Nothing -> U.nocmd model
                     Just ( i , j ) ->
-                        case model.currentInput of
-                            Nothing -> U.nocmd { model | currentInput = Just ( i , j )}
-                            Just active ->
-                                if active == ( i , j )
-                                then
-                                  applyFocus
-                                    { model | currentInput = Just ( i + 1 , j )}
-                                    ( Just ( ( i + 1 ), j ))
-                                else
-                                    U.nocmd { model | currentInput = Just ( i , j )}
+                        if model.holding.control
+                        then
+                            U.nocmd ( applyDiff( fillSelection model ))
+                        else
+                            case model.currentInput of
+                                Nothing -> U.nocmd { model | currentInput = Just ( i , j )}
+                                Just active ->
+                                    if active == ( i , j )
+                                    then
+                                      applyFocus
+                                        { model | currentInput = Just ( i + 1 , j )}
+                                        ( Just ( ( i + 1 ), j ))
+                                    else
+                                        U.nocmd { model | currentInput = Just ( i , j )}
 
                 ArrowDown Up -> U.nocmd model
                 ArrowUp Up -> U.nocmd model
@@ -2134,6 +2139,36 @@ fillNas coordData lastValue positionLastValue =
         Dict.map
             ( applyValue positionLastValue lastValue nbNas )
             coordData
+
+
+fillSelection: Model -> Model
+fillSelection model =
+    case model.currentInput of
+        Nothing -> model
+        Just current ->
+            case model.selection of
+                Nothing -> model
+                Just select ->
+                    let val = getValueFromIndex model.coordData current
+                    in fillSelected model select val
+
+
+fillSelected: Model -> Box -> Float -> Model
+fillSelected model select value =
+    let
+        edited = Dict.map
+                    (\ pos e -> if keyInSelection select pos
+                                then
+                                    updateCell
+                                        e
+                                        pos
+                                        value
+                                else
+                                    e
+                    )
+                    model.coordData
+    in
+        { model | coordData = edited }
 
 
 applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Stuff -> Stuff
@@ -3116,6 +3151,19 @@ updateCoordData model position raw edition =
                                             model.coordData
                             in
                                 { model | coordData = newCoord }
+
+updateCell : Stuff -> (Int, Int) -> Float -> Stuff
+updateCell stuff position value =
+    case stuff of
+        DateRow _  -> stuff
+        Header _  -> stuff
+        Cell entry ->
+           if not entry.editable
+                then stuff
+                else
+                    Cell { entry | raw = Just (String.fromFloat value )
+                                 , edition = Edition value
+                         }
 
 
 getIndexes: Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> ( Dict Int String, Dict Int String )
