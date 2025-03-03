@@ -171,6 +171,7 @@ type alias Model =
     , showDiff: Bool
     -- cells interactivity
     , selection : Maybe Box
+    , mousePosition: Maybe ( Int, Int )
     , focus : Maybe ( Int, Int )
     , firstShift: Maybe ( Int, Int )
     , firstSelected : Maybe ( Int, Int )
@@ -214,7 +215,7 @@ type Msg
     | CancelEdition
     | Correction Parameter
     | Paste PasteType
-    | SelectRow ( Int, Int )
+    | MousePosition ( Int, Int )
     | DeselectAll Bool
     | ClickCell Int Int
     | UnFocus
@@ -1361,15 +1362,17 @@ update msg model =
         ClickCell iRow iCol ->
             case model.holding.shift of
                 False -> let ( newmodel, cmd  ) = applyFocus model ( Just ( iRow, iCol ) )
+                             clear =  clearSelection newmodel
                          in
                             case model.currentInput of
-                                Nothing -> ( clearSelection newmodel , cmd )
+                                Nothing -> ({ clear | selection = Just ( pointToBox( iRow, iCol ))}
+                                           , cmd )
                                 Just current ->
                                     if current == ( iRow, iCol )
                                     then
                                         ( newmodel , cmd )
                                     else
-                                        ( clearSelection newmodel , cmd )
+                                        ( clear , cmd )
                 True ->
                     case model.focus of
                         Nothing -> applyFocus model ( Just ( iRow, iCol ) )
@@ -1397,18 +1400,23 @@ update msg model =
                                 else U.nocmd { model | currentInput = Nothing }
 
 
-        SelectRow position ->
-            let selection = if model.holding.mouse
-                                then extendSelection
-                                        model.firstShift
-                                        position
-
-                                else pointToBox position
-
-                newmodel = { model | selection = Just selection }
+        MousePosition position ->
+            let hold = model.holding.mouse
+                modelPos = { model | mousePosition = Just position}
+                newmodel = if hold
+                                then { modelPos |
+                                        selection = Just <|
+                                            extendSelection
+                                                model.firstShift
+                                                position
+                                     }
+                                else modelPos
             in
-                applyFocus ( setupFirstSelected newmodel ) ( Just position )
-
+                if hold
+                then
+                    applyFocus ( setupFirstSelected newmodel ) ( Just position )
+                else
+                    U.nocmd ( setupFirstSelected newmodel )
 
         DeselectAll keepFocus ->
              let
@@ -3262,7 +3270,7 @@ buildHeader model ( name, cType ) iCol =
                     Just box -> keyInSelection box ( -1, iCol )
     in
     H.th
-        ([ HA.tabindex 0 --allow to be focusable
+        [ HA.tabindex 0 --allow to be focusable
         ,  HA.id ( idEntry ( -1, iCol ) )
         , HA.class "column-header"
         , if focused
@@ -3273,13 +3281,9 @@ buildHeader model ( name, cType ) iCol =
                 else HA.class ""
          , HE.onClick ( ClickCell -1 iCol )
          , HE.onMouseOver ( Visible iCol )
-             , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
-             ]++  if model.holding.mouse
-                then [ HE.onMouseEnter ( SelectRow ( -1, iCol ) )
-                     , HE.onMouseLeave ( SelectRow ( -1, iCol ) )
-                     ]
-                else []
-        )
+         , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
+         , HE.onMouseEnter ( MousePosition ( -1, iCol ) )
+         ]
         ( insideHeader model name cType iCol )
 
 
@@ -3323,7 +3327,7 @@ buildDateCell model date iRow =
                     Just box -> keyInSelection box ( iRow, -1 )
     in
         H.th
-            ([ HA.class "show-table-dates"
+            [ HA.class "show-table-dates"
              , if focused
                 then HA.class "focused"
                 else HA.class ""
@@ -3332,12 +3336,7 @@ buildDateCell model date iRow =
                 else HA.class ""
              , HE.onClick ( ClickCell iRow -1 )
              , HE.onMouseDown ( Drag ( On ( iRow, -1 ) ))
-             ]++  if model.holding.mouse
-                then [ HE.onMouseEnter ( SelectRow ( iRow, -1 ) )
-                     , HE.onMouseLeave ( SelectRow ( iRow, 1 ) )
-                     ]
-                else []
-            )
+             , HE.onMouseEnter ( MousePosition ( iRow, -1 ))]
             [ H.node
                 "batch-copy"
                 [ HA.attribute "index" ( idEntry (iRow, -1) )
@@ -3386,11 +3385,8 @@ buildCell model entry iRow iCol  =
         , HE.onClick ( ClickCell iRow iCol )
         , HE.onDoubleClick (ActivateCell iRow iCol )
         , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
-        ] ++  if model.holding.mouse
-                then [ HE.onMouseEnter ( SelectRow ( iRow, iCol ) )
-                     , HE.onMouseLeave ( SelectRow ( iRow, iCol ) )
-                     ]
-                else []
+        , HE.onMouseEnter ( MousePosition ( iRow, iCol ))
+        ]
           ++ debugAttributes debug entry
         )
         [ H.node
@@ -3876,6 +3872,10 @@ debugView model =
                                             )
                           )
                 , H.br [] []
+                , H.text (", Mouse position: " ++ case model.mousePosition of
+                                Nothing -> "Nothing"
+                                Just pos -> displayCoord pos
+                        )
                 , H.br [] []
                 , H.text (", dragMode: " ++ if model.holding.mouse
                                                     then "On"
@@ -4189,6 +4189,7 @@ init input =
                     , processedPasted = [ ]
                     , rawPasted = ""
                     , selection = Nothing
+                    , mousePosition = Nothing
                     , focus = Nothing
                     , firstShift = Nothing
                     , firstSelected = Nothing
