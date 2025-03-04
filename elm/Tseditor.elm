@@ -1470,7 +1470,7 @@ update msg model =
         Focus ( Ok _ ) -> U.nocmd model
         Focus ( Err err ) -> case err of
                                 NotFound stuff ->
-                                    U.nocmd <| addError model "focus" stuff
+                                    U.nocmd model --<| addError model "focus" stuff
 
 
         ActionControl ( key ) ->
