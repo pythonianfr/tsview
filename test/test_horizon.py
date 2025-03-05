@@ -16,6 +16,9 @@ def assert_df(expected, df):
 
 
 def test_horizon_roundtrip(engine):
+    with engine.begin() as cn:
+        cn.execute('delete from tsview.horizon')
+
     api = Horizon(engine)
     def_1 = {
         'fromdate': '(shifted (today ) #:days -15)',
@@ -40,17 +43,17 @@ def test_horizon_roundtrip(engine):
     all = api.get_all()
     assert all == [
         {'fromdate': '(shifted (today ) #:days -15)',
-         'id': 1,
+         'id': 4,
          'label': '-15d-+7d',
          'rank': 1,
          'todate': '(shifted (today ) #:days 7)'},
         {'fromdate': '(shifted (today ) #:days -93)',
-         'id': 2,
+         'id': 5,
          'label': '3 months',
          'rank': 2,
          'todate': '(shifted (today ) #:days 31)'},
         {'fromdate': '(shifted (today ) #:days -366)',
-         'id': 3,
+         'id': 6,
          'label': '1 year',
          'rank': 3,
          'todate': '(shifted (today ) #:days 31)'}
@@ -73,17 +76,17 @@ def test_horizon_roundtrip(engine):
 
     from_client = [
         {'fromdate': '(shifted (today ) #:days -15)',
-         'id': 1,
+         'id': 4,
          'label': '-15d- <> +7d',   # <- change
          'todate': '(shifted (today ) #:days 7)',
          'action': 'update'},
         {'fromdate': '(shifted (today ) #:days -93)',
-         'id':2,
+         'id': 5,
          'label': '3 months',       # <- deletion
          'todate': '(shifted (today ) #:days 31)',
          'action': 'delete' },
         {'fromdate': '(shifted (today ) #:days -366)',
-         'id': 3,
+         'id': 6,
          'label': '1 year',
          'todate': '(shifted (today ) #:days 31)',
          'action': 'update'},
@@ -100,17 +103,17 @@ def test_horizon_roundtrip(engine):
 
     assert all == [
         {'fromdate': '(shifted (today ) #:days -15)',
-         'id': 1,
+         'id': 4,
          'label': '-15d- <> +7d',
          'rank': 1,
          'todate': '(shifted (today ) #:days 7)'},
         {'fromdate': '(shifted (today ) #:days -366)',
-         'id': 3,
+         'id': 6,
          'label': '1 year',
          'rank': 2,
          'todate': '(shifted (today ) #:days 31)'},
         {'fromdate': '(shifted (today ) #:days -1000)',
-         'id': 4,
+         'id': 7,
          'label': '3 year',
          'rank': 3,
          'todate': '(shifted (today ) #:days 31)'}
