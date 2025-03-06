@@ -1846,6 +1846,25 @@ onlyActiveKeys series =
                 Just zoom -> Dict.keys zoom
 
 
+previouslyEdited: Series -> Dict String ( Maybe Float )
+previouslyEdited series =
+    case series of
+        Naked _ -> Dict.empty
+        ToEdit ts ->
+            case ts.zoomTs of
+                Nothing -> extractPrevious ts.initialTs
+                Just zoom -> extractPrevious zoom
+
+
+extractPrevious: SeriesToEdit -> Dict String ( Maybe Float )
+extractPrevious ts =
+    Dict.map
+        (\ _ e -> e.value)
+        <| Dict.filter
+                (\ _ e -> e.override)
+                ts
+
+
 cleanDiff: Model -> Model
 cleanDiff model =
     setupFill
@@ -3460,6 +3479,7 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             [ H.input
                     [ HA.id (idEntry (iRow, iCol) )
                     , HA.class statusClass
+                    , HA.title statusClass
                     , HA.value value
                     , HA.autocomplete False
                     , HE.onInput ( InputChanged iRow iCol )
@@ -3470,6 +3490,7 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             [ H.input
                     [ HA.id (idEntry (iRow, iCol) )
                     , HA.class statusClass
+                    , HA.title statusClass
                     , HA.class "unselectable"
                     , HA.value valueCropped
                     , HA.readonly True
@@ -3811,11 +3832,11 @@ cellStyle: Entry -> String
 cellStyle entry =
         case entry.edition of
             Edition _ -> "editing"
-            Deletion -> "editing"
+            Deletion -> "nan"
             Error _ -> "invalid"
             NoEdition ->
                 if entry.override
-                 then "override"
+                 then "overridden"
                  else if Maybe.isNothing entry.value
                       then "nan"
                       else ""
@@ -3857,7 +3878,7 @@ debugAttributes debug entry =
             [ HA.attribute "raw" ( displayRaw entry.raw )
             , HA.attribute "value" ( displayValue entry.value )
             , HA.attribute "edition" ( displayEdition entry.edition )
-            , HA.attribute "override"  <| if entry.override then "True" else "False"
+            , HA.attribute "overridden"  <| if entry.override then "True" else "False"
             , HA.attribute "indexRow" entry.indexRow
             , HA.attribute "indexCol" entry.indexCol
             ]
@@ -4091,6 +4112,7 @@ plotNode model =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
         diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
+        previous = previouslyEdited  model.series
         editionTrace = case model.mode of
                         Existing I.Formula -> []
                         _ -> [ scatterplot
@@ -4103,6 +4125,17 @@ plotNode model =
                                     "markers"
                                     defaultTraceOptions
                              ]
+        previouslyEditedTrace = case model.mode of
+            Existing I.Primary ->
+                [ scatterplot
+                    "manual"
+                    ( Dict.keys previous )
+                    ( Dict.values previous )
+                    "markers"
+                    defaultTraceOptions
+                ]
+            _ -> []
+
         dragMode =
             if model.panActive
             then "pan"
@@ -4126,6 +4159,7 @@ plotNode model =
                             else "lines" )
                         defaultTraceOptions
                       ] ++ editionTrace
+                        ++ previouslyEditedTrace
                     )
                     { defaultLayoutOptions | dragMode = Just dragMode
                                            , yaxis = newYaxis

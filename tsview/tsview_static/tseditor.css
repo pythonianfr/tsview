@@ -3,15 +3,15 @@
 }
 
 .editing {
-    color: purple;
+    color: #ff7f0e;
 }
 
 .nan {
     color: maroon;
 }
 
-.override {
-    color: blue;
+.overridden {
+    color: #2ca02c;
 }
 
 .invalid {
