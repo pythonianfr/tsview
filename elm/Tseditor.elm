@@ -11,6 +11,7 @@ import Browser.Events exposing
 import Browser.Navigation
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
+import Date
 import Maybe.Extra as Maybe
 import Set exposing (Set)
 import Horizon exposing
@@ -202,6 +203,7 @@ type Msg
     | GotOffsets (Result Http.Error String)
     | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
+    | DateNow Date.Date
     | Create CreationOptions
     | Back
     | SwitchForceDraw
@@ -287,12 +289,12 @@ type alias FreqType =
 
 
 type alias CreationModel =
-    { from: String
-    , to: String
+    { from: Maybe String
+    , to: Maybe String
     , freq: FreqType
     , tz: TzSelector
     , value: Maybe Float
-    , name: String
+    , name: Maybe String
     , nameStatus: NameStatus
     , mandatoryValid: Bool
     , catalog : Maybe ( List String )
@@ -311,15 +313,15 @@ type NameStatus =
 
 initCreationModel: CreationModel
 initCreationModel =
-    { from = ""
-    , to = ""
+    { from = Nothing
+    , to = Nothing
     , freq = { offset = "h"
              , multiplier = Nothing }
     , tz = Unchanged
     , value = Nothing
-    , name = ""
+    , name = Nothing
     , nameStatus = Missing
-    , mandatoryValid = False
+    , mandatoryValid = True
     , catalog = Nothing
     , offsets = []
     }
@@ -820,8 +822,8 @@ getGeneratedTs model =
     Http.get
     { url = (UB.crossOrigin model.baseurl
                 [ "generate-ts" ]
-                (( [ UB.string "from" model.creation.from
-                  , UB.string "to" model.creation.to
+                (( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
+                  , UB.string "to" ( Maybe.withDefault "" model.creation.to )
                   , UB.string "freq" ( printFreq model.creation.freq )
                   ] ++ case model.creation.tz of
                        Naive -> []
@@ -1038,6 +1040,13 @@ update msg model =
 
         GotGenerated (Err err) -> U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
+        DateNow date ->
+            let creation = model.creation
+                newCreation = { creation | from = Just (( Date.toIsoString date ) ++ "T00:00" )
+                                         , to = Just (( Date.toIsoString date ) ++ "T00:00" )
+                              }
+            in
+                U.nocmd { model | creation = newCreation }
 
         Horizon hMsg ->
             let ( newModelHorizon, commands ) =  updateHorizon
@@ -1067,8 +1076,9 @@ update msg model =
                     -- we want to fire the commands AFTER getting the metadata:
                     -- we store these commands in the model -.-
                     ( { resetModel | initialCommands = moreCommands }
-                    , commandStart resetModel
-
+                    , Cmd.batch [ commandStart resetModel
+                                , T.perform DateNow Date.today
+                                ]
                     )
                 ModuleHorizon.Fetch _ -> ( resetModel
                                          , Cmd.batch ([ moreCommands ]
@@ -1079,8 +1089,8 @@ update msg model =
             let creation = model.creation
                 freq = model.creation.freq
                 newCreation = case option of
-                    From val -> { creation | from = val }
-                    To val -> { creation | to = val }
+                    From val -> { creation | from = Just val }
+                    To val -> { creation | to = Just val }
                     FreqMultiply val ->
                         { creation |
                             freq = { freq |
@@ -1099,7 +1109,7 @@ update msg model =
                                                     else Selected val
                               }
                     Value val -> { creation | value = String.toFloat val }
-                    Name val -> { creation | name = val
+                    Name val -> { creation | name = Just val
                                            , nameStatus = case model.creation.catalog of
                                                             Nothing -> Invalid
                                                             Just cat ->
@@ -1111,8 +1121,8 @@ update msg model =
                                                                             else Valid
                                 }
                     Preview -> creation
-                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= "" &&
-                                                                      newCreation.to /= ""
+                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
+                                                                      newCreation.to /= Nothing
                                     }
 
                 command = case option of
@@ -1123,8 +1133,8 @@ update msg model =
                                 _ -> True
             in
                 ( { model | creation = validatedCreation
-                          , name = validatedCreation.name
-                          , diff = nameSeries model.diff newCreation.name
+                          , name = Maybe.withDefault "" validatedCreation.name
+                          , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
                           , meta = Dict.fromList
                                     [( "tzaware", M.MBool tzawarness )]
                   }
@@ -2815,11 +2825,11 @@ viewRelevantTable model =
                             , viewValueTable model ]
 
 
-checkMandatory: String -> String
+checkMandatory: Maybe String -> String
 checkMandatory s =
-    if s == ""
-    then "mandatory"
-    else ""
+    case s of
+        Nothing -> "mandatory"
+        Just _ ->  ""
 
 
 className: NameStatus -> String
@@ -2850,7 +2860,7 @@ nameForm model =
                     , HA.autocomplete False
                     , HE.onClick UnFocus
                     , HE.onInput ( \s -> Create ( Name s ) )
-                    , HA.value model.creation.name
+                    , HA.value ( Maybe.withDefault "" model.creation.name )
                     ]
                     []
                 ]
@@ -2885,13 +2895,13 @@ creationForm model =
             , H.td
                 []
                 [ H.input
-                    [ HA.type_ "date"
+                    [ HA.type_ "datetime-local"
                     , HA.id "creation-from"
                     , HA.class "input-date"
                     , HA.class  ( checkMandatory model.creation.from )
                     , HA.name "from"
                     , HE.onInput ( \s -> Create ( From s ) )
-                    , HA.value model.creation.from
+                    , HA.value ( Maybe.withDefault "" model.creation.from )
                     ]
                     []
                 ]
@@ -2907,13 +2917,13 @@ creationForm model =
             , H.td
                 [ ]
                 [ H.input
-                    [ HA.type_ "date"
+                    [ HA.type_  "datetime-local"
                     , HA.id "creation-to"
                     , HA.class "input-date"
                     , HA.class  ( checkMandatory model.creation.to )
                     , HA.name "to"
                     , HE.onInput ( \s -> Create ( To s ) )
-                    , HA.value model.creation.to
+                    , HA.value ( Maybe.withDefault "" model.creation.to )
                     ]
                     []
                 ]

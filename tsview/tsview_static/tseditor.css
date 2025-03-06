@@ -150,7 +150,7 @@
     background-color: lightcoral;
 }
 
-.creation-form input:not(input[type=date]).mandatory{
+.creation-form input:not(input[type=datetime-local]).mandatory{
     background-image: radial-gradient(#F00 15%, transparent 16%), radial-gradient(#F00 15%, transparent 16%);
     background-size: 1.5em 1.5em;
     background-position: right;
