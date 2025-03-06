@@ -153,6 +153,7 @@ type alias Model =
     , seriestype : I.SeriesType
     , horizon : HorizonModel
     , creation: CreationModel
+    , newBatch : Bool
     -- data
     , insertion_dates : Array String
     , series : Series
@@ -196,7 +197,7 @@ type Msg
     | GotValueData (Result Http.Error String)
     | GotComponents (Result Http.Error String)
     | GotComponentData CType String (Result Http.Error String)
-    | GotGenerated (Result Http.Error String)
+    | GotGenerated PreviewType (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
@@ -207,6 +208,7 @@ type Msg
     | Create CreationOptions
     | Back
     | SwitchForceDraw
+    | SwitchBatch
     | AllowInferFreq
     | ShowDiff
     | AllVisible Bool
@@ -275,12 +277,18 @@ type CreationOptions =
     | FreqMultiply String
     | Tz String
     | Value String
-    | Preview
+    | Preview PreviewType
 
 type Visibility =
     Nope
     | Single Int
     | All
+
+
+type PreviewType =
+    FromScratch
+    | Patch
+
 
 type alias FreqType =
     { offset: String
@@ -817,8 +825,8 @@ printFreq freq =
         Just nb -> String.fromInt nb ++ offset
 
 
-getGeneratedTs: Model -> Cmd Msg
-getGeneratedTs model =
+getGeneratedTs: Model -> PreviewType -> Cmd Msg
+getGeneratedTs model previewType=
     Http.get
     { url = (UB.crossOrigin model.baseurl
                 [ "generate-ts" ]
@@ -836,7 +844,7 @@ getGeneratedTs model =
                         [ UB.string "value" ( String.fromFloat value )]
                 )
     )
-    , expect = Http.expectString GotGenerated }
+    , expect = Http.expectString ( GotGenerated previewType)}
 
 
 getsource : String -> String -> Cmd Msg
@@ -1022,23 +1030,42 @@ update msg model =
         GotComponentData cType name (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
-        GotGenerated ( Ok rawdata ) ->
+        GotGenerated previewType ( Ok rawdata ) ->
              case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val ->  U.nocmd
+                Ok val ->
+                    case previewType of
+                        FromScratch ->
+                            U.nocmd
                             <| applyDiff
                                 <| buildCoord
                                     { model | series =
-                                                ToEdit { initialTs = dressSeries val model.name
-                                                       , zoomTs = Nothing
-                                                       }
-                                            , mode = Creation Edit
+                                        ToEdit { initialTs = dressSeries
+                                                                val
+                                                                model.name
+                                               , zoomTs = Nothing
+                                               }
+                                    , mode = Creation Edit
                                     }
+                        Patch ->
+                             U.nocmd
+                            <| applyDiff
+                                <| buildCoord
+                                    { model | series =
+                                         ToEdit { initialTs = patchCurrent
+                                                                ( getEditionTs model.series )
+                                                                val
+                                                                model.name
+                                                           , zoomTs = Nothing
+                                                           }
+                                    }
+
                 Err err -> U.nocmd
                             { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotGenerated (Err err) -> U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+        GotGenerated previewType (Err err) ->
+            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         DateNow date ->
             let creation = model.creation
@@ -1120,20 +1147,21 @@ update msg model =
                                                                             then Missing
                                                                             else Valid
                                 }
-                    Preview -> creation
+                    _ -> creation
                 validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
                                                                       newCreation.to /= Nothing
                                     }
 
                 command = case option of
-                    Preview -> getGeneratedTs model
+                    Preview FromScratch -> getGeneratedTs model FromScratch
+                    Preview Patch -> getGeneratedTs model Patch
                     _ -> Cmd.none
                 tzawarness = case validatedCreation.tz of
                                 Naive -> False
                                 _ -> True
             in
                 ( { model | creation = validatedCreation
-                          , name = Maybe.withDefault "" validatedCreation.name
+                          , name = Maybe.withDefault model.name validatedCreation.name
                           , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
                           , meta = Dict.fromList
                                     [( "tzaware", M.MBool tzawarness )]
@@ -1146,6 +1174,13 @@ update msg model =
             applyFocus
                 ( buildCoord ( flipForce model ))
                 ( Just (0 , 0 ))
+
+        SwitchBatch ->
+            ({ model | newBatch = not model.newBatch }
+            , if not model.newBatch
+                then getOffsets model
+                else Cmd.none
+            )
 
         AllowInferFreq ->
             ({ model | allowInferFreq = True
@@ -2533,6 +2568,50 @@ currentDiff model coordData =
             coordData
 
 
+patchCurrent : SeriesToEdit -> SeriesNaked -> String -> SeriesToEdit
+patchCurrent base patch name  =
+    let baseEntry = { raw = Nothing
+                    , value = Nothing
+                    , edition = Deletion
+                    , editable = True
+                    , override = False
+                    , indexRow = ""
+                    , indexCol = name
+                    }
+    in
+    Dict.merge
+        ( \_ _ r -> r )
+        ( \ d b p r -> case p of
+                        Nothing -> Dict.insert d b r
+                        Just v -> Dict.insert
+                                    d
+                                    { b
+                                    | raw = Just ( String.fromFloat v )
+                                    , edition = Edition v
+                                    }
+                                    r
+        )
+        ( \ d p r -> case p of
+                        Nothing -> Dict.insert
+                                    d
+                                    { baseEntry
+                                    | indexCol = d
+                                    }
+                                    r
+                        Just v -> Dict.insert
+                                    d
+                                    { baseEntry
+                                    | indexCol = d
+                                    , raw = Just ( String.fromFloat v )
+                                    , edition = Edition v
+                                    }
+                                    r
+        )
+        base
+        patch
+        base
+
+
 pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
 pasteRectangle base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
@@ -2815,7 +2894,7 @@ viewRelevantTable model =
         Existing I.Formula -> viewValueTable model
         Creation Form -> H.table
                             [ HA.class "creation-form" ]
-                            ( [ nameForm model ] ++ ( creationForm model ) )
+                            ( [ nameForm model ] ++ ( creationForm model FromScratch ) )
 
         Creation Edit -> H.div
                             [ ]
@@ -2882,8 +2961,8 @@ backButton model =
         [ H.text "Back to Form" ]
 
 
-creationForm: Model -> List ( H.Html Msg )
-creationForm model =
+creationForm: Model -> PreviewType -> List ( H.Html Msg )
+creationForm model previewType =
         [ H.tr
             []
             [ H.td
@@ -3001,7 +3080,7 @@ creationForm model =
             , H.td
                 []
                 [ H.button
-                    [ HE.onClick ( Create Preview )
+                    [ HE.onClick ( Create ( Preview previewType ) )
                     , HA.disabled ( not model.creation.mandatoryValid )
                     , HA.class "bluebutton custom-button"
                     ]
@@ -3094,8 +3173,11 @@ viewValueTable model =
                 then
                    [ H.div
                         [ HA.class "wrapper-primary" ]
-                        [ buildTable
-                            model
+                        [ H.div
+                            []
+                            [ buildTable model
+                            , addPatch model
+                            ]
                         , strap
                         , forCurrentDiff model
                         ]
@@ -3111,6 +3193,24 @@ strap =
     H.div
         [ HA.class "separator-primary" ]
         []
+
+
+addPatch: Model -> H.Html Msg
+addPatch model =
+    if not model.newBatch
+    then H.button
+            [ HA.class "bluebutton"
+            , HE.onClick SwitchBatch ]
+            [ H.text "Add Data Batch "]
+    else
+        H.div
+            [ ]
+            ( [ H.button
+                [ HA.class "yellowbutton"
+                , HE.onClick SwitchBatch ]
+                [ H.text "Hide"]
+            ] ++ ( creationForm model Patch )
+            )
 
 
 forCurrentDiff: Model -> H.Html Msg
@@ -3942,6 +4042,8 @@ debugView model =
                 [ H.pre []
                 ( [ H.text " debug active "
                 , H.br [] []
+                , H.text ( "Name : " ++ model.name )
+                , H.br [] []
                 , H.text ( "Raw pasted : " ++ splitRaw model.rawPasted )
                 , ( Markdown.toHtmlWith option [] model.rawPasted )
                 , H.br [] []
@@ -4271,6 +4373,7 @@ init input =
                                     input.debug
                                     None
                     , creation = initCreationModel
+                    , newBatch = False
                     , initialCommands = Cmd.none
                     , forceDraw = False
                     , allowInferFreq = False
