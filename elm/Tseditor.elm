@@ -559,16 +559,20 @@ nameSeries series name =
         series
 
 
+isTzaware: M.StdMetadata -> Bool
+isTzaware meta =
+     case Dict.get "tzaware" meta of
+                    Just (M.MBool val) -> val
+                    _ -> False
+
+
 likeComp: Model -> Component
 likeComp model =
     Component
         model.name
         ( asCType model.seriestype )
         model.series
-        ( case Dict.get "tzaware" model.meta of
-                Just (M.MBool val) -> val
-                _ -> False
-        )
+        ( isTzaware model.meta )
 
 
 type Edited =
@@ -1158,6 +1162,7 @@ update msg model =
                     _ -> Cmd.none
                 tzawarness = case validatedCreation.tz of
                                 Naive -> False
+                                Unchanged -> isTzaware model.meta
                                 _ -> True
             in
                 ( { model | creation = validatedCreation
@@ -2894,7 +2899,11 @@ viewRelevantTable model =
         Existing I.Formula -> viewValueTable model
         Creation Form -> H.table
                             [ HA.class "creation-form" ]
-                            ( [ nameForm model ] ++ ( creationForm model FromScratch ) )
+                            <| [ nameForm model ] ++ ( creationForm
+                                                        model
+                                                        True
+                                                        FromScratch
+                                                      )
 
         Creation Edit -> H.div
                             [ ]
@@ -2961,8 +2970,8 @@ backButton model =
         [ H.text "Back to Form" ]
 
 
-creationForm: Model -> PreviewType -> List ( H.Html Msg )
-creationForm model previewType =
+creationForm: Model -> Bool -> PreviewType -> List ( H.Html Msg )
+creationForm model showTz previewType =
         [ H.tr
             []
             [ H.td
@@ -3021,6 +3030,7 @@ creationForm model previewType =
                     model.horizon.timezones
                     model.creation.tz
                     model.horizon.timeZone
+                    showTz
                 ]
             ]
         , H.tr
@@ -3089,20 +3099,27 @@ creationForm model previewType =
             ]
         ]
 
-tzoneDropdown : List String-> TzSelector -> String -> H.Html Msg
-tzoneDropdown choices selected fromHorizon=
+tzoneDropdown : List String-> TzSelector -> String -> Bool -> H.Html Msg
+tzoneDropdown choices selected fromHorizon showTz =
     let
         decodeTimeZone : String -> JD.Decoder Msg
         decodeTimeZone timeZone =
             JD.succeed (Create (Tz timeZone))
-
     in
     H.select
         [ HE.on "change" (JD.andThen decodeTimeZone HE.targetValue)
         , HA.id "creation-tz"
         , HA.name "tz"
         ]
-        ( List.map (renderTimeZone selected fromHorizon ) ( naiveTag::choices ))
+        <| if showTz
+            then ( List.map
+                    ( renderTimeZone selected fromHorizon )
+                    ( naiveTag::choices )
+                  )
+            else ( List.map
+                    ( renderTimeZone selected fromHorizon )
+                    [ naiveTag ]
+                 )
 
 
 renderTimeZone : TzSelector -> String -> String -> H.Html Msg
@@ -3209,7 +3226,7 @@ addPatch model =
                 [ HA.class "yellowbutton"
                 , HE.onClick SwitchBatch ]
                 [ H.text "Hide"]
-            ] ++ ( creationForm model Patch )
+            ] ++ ( creationForm model ( isTzaware model.meta ) Patch )
             )
 
 
