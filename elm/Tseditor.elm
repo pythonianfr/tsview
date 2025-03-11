@@ -497,6 +497,7 @@ type alias Entry =
     , override : Bool
     , indexRow: String
     , indexCol: String
+    , fromBatch: Bool
     }
 
 
@@ -509,6 +510,7 @@ baseToEntry base =
         , override = base.override
         , indexRow = ""
         , indexCol = ""
+        , fromBatch = False
     }
 
 
@@ -521,6 +523,7 @@ emptyEntry =
     , override = False
     , indexRow = ""
     , indexCol = ""
+    , fromBatch = False
     }
 
 
@@ -546,6 +549,7 @@ dressSeries series name =
                                                       <| String.fromFloat val
                                , indexCol = name
                                , indexRow = k
+                               , fromBatch = False
                                }
                              )
             )
@@ -1283,7 +1287,11 @@ update msg model =
 
         CancelEdition ->
             applyFocus
-                ( cleanDiff { model | showDiff = False} )
+                ( cleanDiff
+                    ( buildCoord
+                        ( cleanBatch { model | showDiff = False })
+                    )
+                )
                 model.focus
 
         Correction param ->
@@ -1915,6 +1923,20 @@ extractPrevious ts =
         <| Dict.filter
                 (\ _ e -> e.override)
                 ts
+
+
+cleanBatch: Model -> Model
+cleanBatch model =
+    case model.series of
+        Naked _ -> model
+        ToEdit toEdit ->
+            { model | series = ToEdit
+                  { initialTs = Dict.filter
+                                    (\ _ e -> not e.fromBatch)
+                                    toEdit.initialTs
+                  , zoomTs = Nothing
+                  }
+            }
 
 
 cleanDiff: Model -> Model
@@ -2584,6 +2606,7 @@ patchCurrent base patch name  =
                     , override = False
                     , indexRow = ""
                     , indexCol = name
+                    , fromBatch = True
                     }
     in
     Dict.merge
@@ -3648,6 +3671,7 @@ getEntry date ( name, series ) =
                        , override = False
                        , indexRow = date
                        , indexCol = name
+                       , fromBatch = False
                        }
     in
     case series of
