@@ -1407,7 +1407,9 @@ update msg model =
                                          , coordData = merged
                                   }
 
-        UnFocus -> U.nocmd { model | focus = Nothing }
+        UnFocus -> U.nocmd { model | focus = Nothing
+                                   , selection = Nothing
+                            }
 
         ClickCell iRow iCol ->
             case model.holding.shift of
@@ -2898,7 +2900,9 @@ viewRelevantTable model =
         Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
         Creation Form -> H.table
-                            [ HA.class "creation-form" ]
+                            [ HA.class "creation-form"
+                            ,  HE.onClick UnFocus
+                            ]
                             <| [ nameForm model ] ++ ( creationForm
                                                         model
                                                         True
@@ -2908,7 +2912,9 @@ viewRelevantTable model =
         Creation Edit -> H.div
                             [ ]
                             [ H.table
-                                [ HA.class "creation-form" ]
+                                [ HA.class "creation-form"
+                                , HE.onClick UnFocus
+                                ]
                                 [ nameForm model ]
                             , viewValueTable model ]
 
@@ -2946,7 +2952,6 @@ nameForm model =
                     , HA.class ( className model.creation.nameStatus )
                     , HA.name "name"
                     , HA.autocomplete False
-                    , HE.onClick UnFocus
                     , HE.onInput ( \s -> Create ( Name s ) )
                     , HA.value ( Maybe.withDefault "" model.creation.name )
                     ]
@@ -2973,7 +2978,7 @@ backButton model =
 creationForm: Model -> Bool -> PreviewType -> List ( H.Html Msg )
 creationForm model showTz previewType =
         [ H.tr
-            []
+            [ ]
             [ H.td
                 []
                 [ H.label
@@ -3221,13 +3226,16 @@ addPatch model =
             [ H.text "Add Data Batch "]
     else
         H.div
-            [ ]
-            ( [ H.button
+            [ HE.onClick UnFocus ]
+            [ H.button
                 [ HA.class "yellowbutton"
                 , HE.onClick SwitchBatch ]
                 [ H.text "Hide"]
-            ] ++ ( creationForm model ( isTzaware model.meta ) Patch )
-            )
+            , H.table
+                [ ]
+                ( creationForm model ( isTzaware model.meta ) Patch )
+            ]
+
 
 
 forCurrentDiff: Model -> H.Html Msg
