@@ -203,7 +203,6 @@ type Msg
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
     | GotOffsets (Result Http.Error String)
-    | HasCache ( Result Http.Error String )
     | Horizon ModuleHorizon.Msg
     | DateNow Date.Date
     | Create CreationOptions
@@ -1347,6 +1346,7 @@ update msg model =
                        newstat = { stat | first = first
                                         , last = last
                                  }
+                       horizon = model.horizon
                        newmodel = { model | meta = allmeta
                                           , statistics = newstat
                                           , exist = True
@@ -1354,11 +1354,14 @@ update msg model =
                                           , mode = case seriestype of
                                               I.Primary -> Existing I.Primary
                                               I.Formula -> Existing I.Formula
+                                          , horizon = { horizon | hasCache =
+                                                            case seriestype of
+                                                              I.Primary -> False
+                                                              I.Formula -> True }
                                   }
                    in
                        ( newmodel
-                       , Cmd.batch ([ getHasCache newmodel
-                                    , model.initialCommands
+                       , Cmd.batch ([ model.initialCommands
                                     , getsource model.baseurl model.name
                                     ])
                        )
@@ -1407,16 +1410,6 @@ update msg model =
         GotOffsets (Err err) ->
             doerr "gotoffsets http" <| U.unwraperror err
 
-        HasCache (Ok rawhascache) ->
-            let model_horizon = model.horizon
-            in
-                U.nocmd { model | horizon =
-                            { model_horizon | hasCache = String.startsWith
-                                                            "true"
-                                                            rawhascache }}
-
-        HasCache (Err error) ->
-            doerr "hascache http" <| U.unwraperror error
 
         Paste payload ->
             let parsed = parsePasted payload.text
@@ -2037,18 +2030,6 @@ packValues series =
         <| List.map
             myFloat
             ( Dict.values ( onlyActiveValues series ))
-
-
-getHasCache : Model -> Cmd Msg
-getHasCache model =
-    Http.get
-        { url =
-              UB.crossOrigin
-              model.baseurl
-              [ "api", "cache", "series-has-cache" ]
-              [ UB.string "name" model.name ]
-        , expect = Http.expectString HasCache
-        }
 
 
 getStatistics: Statistics -> Bool -> Dict String ( Maybe Float )-> Statistics
