@@ -746,8 +746,10 @@ def tsview(tsa):
     @bp.route('/formula-components')
     def formula_components():
         seriesname = request.args.get('name')
+        full_arg = request.args.get('full', default="false")
+        full = full_arg == 'true'
         assert tsa.exists(seriesname)
-        infos = expand_for_editor(tsa, seriesname)
+        infos = expand_for_editor(tsa, seriesname, full=full)
         return json.dumps(infos)
 
     @bp.route('/settings')

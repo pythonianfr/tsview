@@ -789,7 +789,11 @@ getComponents model =
     Http.get
         { url = (UB.crossOrigin model.baseurl
                     [ "formula-components" ]
-                    [ UB.string "name" model.name ] )
+                    [ UB.string "name" model.name
+                    , UB.string "full" <| if model.expand
+                                            then "true"
+                                            else "false"
+                    ] )
         , expect = Http.expectString GotComponents }
 
 
@@ -1205,7 +1209,12 @@ update msg model =
 
         ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
 
-        Expand expand -> U.nocmd { model | expand = expand }
+        Expand expand ->
+            let newModel = { model | expand = expand }
+            in
+                ( newModel
+                , getComponents newModel
+                )
 
         Visible eCol ->
             case model.nameVisbility of
