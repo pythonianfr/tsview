@@ -11,8 +11,10 @@ from plotly import utils
 from psyl.lisp import parse, pretty
 
 from tshistory_formula.helper import (
+    _find_autos,
+    count_values,
     replace_findseries,
-    find_autos,
+    sort_dict_list,
 )
 
 
@@ -206,13 +208,25 @@ def plot_to_htmldiv(data, layout=None, divid=None):
 # tseditor helper
 
 
+def test_find_auto_top_level(cn, tsh, name):
+    return sort_dict_list(
+        count_values(
+            _find_autos(
+                cn,
+                tsh,
+                parse(tsh.formula(cn, name))
+            )
+        )
+    )
+
+
 def expand_for_editor(tsa, seriesname):
     tree = replace_findseries(
             tsa.engine,
             tsa.tsh,
             parse(tsa.formula(seriesname)),
         )
-    autos = find_autos(tsa.engine, tsa.tsh, seriesname)
+    autos = test_find_auto_top_level(tsa.engine, tsa.tsh, seriesname)
     infos = [
         {
             'name': name,

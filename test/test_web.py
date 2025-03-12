@@ -474,10 +474,13 @@ def test_expand(tsa):
     assert infos == [
         {'name': 'tse-add', 'type': 'formula', 'tzaware': True},
         {'name': 'tse-findseries', 'type': 'formula', 'tzaware': True},
-        {'name': 'tse-auto', 'type': 'formula', 'tzaware': True},
+        {'name': 'tse-auto', 'type': 'formula', 'tzaware': True}
+    ]
+
+    autos = expand_for_editor(tsa, 'tse-auto')
+    assert autos == [
+        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
         {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
-                 '"CET") "d" (date "1900-01-01"))',
-         'type': 'auto',
-         'tzaware': True
-         }
+                 '"CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
+        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
     ]
