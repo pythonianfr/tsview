@@ -10,7 +10,10 @@ from tshistory.testutil import (
     utcdt
 )
 
-from tsview.util import format_formula
+from tsview.util import (
+    format_formula,
+    expand_for_editor,
+)
 
 DATADIR = Path(__file__).parent / 'data'
 
@@ -432,3 +435,49 @@ def test_formula_form_base(engine, client, tsa):
         'status': 'saved',
         'warnings': {}
     }
+
+
+def test_expand(tsa):
+    ts_tz = pd.Series([1], index=[pd.Timestamp('2025-01-01', tz='CET')])
+
+    # primaries
+    tsa.update('tse-base-tz-0', ts_tz, 'test')
+    tsa.update('tse-base-tz-1', ts_tz, 'test')
+    tsa.update('tse-base-tz-2', ts_tz, 'test')
+    tsa.update_metadata('tse-base-tz-2', {'handle': 'editor'})
+    tsa.update('tse-base-tz-3', ts_tz, 'test')
+
+    # formula
+    tsa.register_formula('tse-level-0', '(series "tse-base-tz-0")')
+    tsa.register_formula('tse-level-3', '(series "tse-base-tz-3")')
+    tsa.update_metadata('tse-level-3', {'handle': 'editor'})
+    tsa.register_formula(
+        'tse-add',
+        '(add (series "tse-level-0") (series "tse-base-tz-1") )'
+    )
+    tsa.register_formula(
+        'tse-findseries',
+        '(add (findseries (by.metaitem "handle" "tseditor")))'
+        '(add (findseries (by.metaitem "handle" "editor")))'
+        '(add (findseries (by.metaitem "handle" "tseditor")))'
+    )
+    tsa.register_formula(
+        'tse-auto',
+        '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))'
+    )
+    tsa.register_formula(
+        'tse-top-level',
+        '(add (series "tse-add") (series "tse-findseries") (series "tse-auto"))'
+    )
+
+    infos = expand_for_editor(tsa, 'tse-top-level')
+    assert infos == [
+        {'name': 'tse-add', 'type': 'formula', 'tzaware': True},
+        {'name': 'tse-findseries', 'type': 'formula', 'tzaware': True},
+        {'name': 'tse-auto', 'type': 'formula', 'tzaware': True},
+        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
+                 '"CET") "d" (date "1900-01-01"))',
+         'type': 'auto',
+         'tzaware': True
+         }
+    ]

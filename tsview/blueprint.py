@@ -46,7 +46,8 @@ from tshistory_formula.interpreter import jsontypes
 
 from tsview.util import (
     argsdict as _argsdict,
-    format_formula
+    format_formula,
+    expand_for_editor,
 )
 from tsview.menu import definition as menu_spec
 from tsview.moment import ConfigurationError
@@ -744,35 +745,9 @@ def tsview(tsa):
 
     @bp.route('/formula-components')
     def formula_components():
-        from tshistory_formula.helper import (
-            replace_findseries,
-            find_autos,
-        )
         seriesname = request.args.get('name')
         assert tsa.exists(seriesname)
-        tree = replace_findseries(
-            tsa.engine,
-            tsa.tsh,
-            fparse(tsa.formula(seriesname)),
-        )
-        autos = find_autos(tsa.engine, tsa.tsh, seriesname)
-        infos = [
-            {
-                'name': name,
-                'type': tsa.type(name),
-                'tzaware': tsa.internal_metadata(name)['tzaware'],
-            }
-            for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
-        ]
-        for list_auto in autos.values():
-            for auto in list_auto:
-                infos.append(
-                    {
-                        'name': auto[0],
-                        'type': 'auto',
-                        'tzaware': True,
-                    }
-                )
+        infos = expand_for_editor(tsa, seriesname)
         return json.dumps(infos)
 
     @bp.route('/settings')
