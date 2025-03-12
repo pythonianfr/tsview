@@ -186,6 +186,7 @@ type alias Model =
     , keyName: String
     , holding: Holding
     -- show-values for formula
+    , expand : Bool
     , components : List Component
     , coordData: Dict ( Int, Int ) Stuff
     , diff : Dict ( Int, Int ) Entry
@@ -211,6 +212,7 @@ type Msg
     | SwitchBatch
     | AllowInferFreq
     | ShowDiff
+    | Expand Bool
     | AllVisible Bool
     | Visible Int
     | InputChanged Int Int String
@@ -1202,6 +1204,8 @@ update msg model =
             )
 
         ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
+
+        Expand expand -> U.nocmd { model | expand = expand }
 
         Visible eCol ->
             case model.nameVisbility of
@@ -2800,6 +2804,7 @@ underThePlot model =
                 _ -> [ roundForm model
                      , buttonShowDiff model
                      , buttonFillAll model
+                     , buttonExpandFormula model
                      , buttonViewNames model
                      ]
 
@@ -2895,11 +2900,32 @@ buttonFillAll model =
         [ H.text "Fill All ↓" ]
 
 
+buttonExpandFormula: Model -> H.Html Msg
+buttonExpandFormula model =
+       H.div
+        [ HA.class "custom-control custom-switch"
+        , HA.class "button-expand"
+        ]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "expandFormula"
+            , HA.checked ( model.expand )
+            , HE.onCheck Expand
+            ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "expandFormula"
+            ]
+            [ H.text "Expand Formula" ]
+        ]
+
+
 buttonViewNames: Model -> H.Html Msg
 buttonViewNames model =
      H.div
         [ HA.class "custom-control custom-switch"
-        , HA.class "button-expand"
+        , HA.class "button-col-visible"
         ]
         [ H.input
             [ HA.attribute "type" "checkbox"
@@ -4448,6 +4474,7 @@ init input =
                     , roundValues = Nothing
                     , statusCopy = initialStatusCopy
                     , panActive = False
+                    , expand = False
                     , components = []
                     , coordData = Dict.empty
                     , diff = Dict.empty

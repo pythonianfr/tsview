@@ -423,10 +423,14 @@
     padding-bottom: 5px;
 }
 
-
-.button-expand {
+.button-col-visible {
     float: right;
     margin-right: 20px;
+}
+
+.button-expand {
+    display: inline;
+    margin-left: 20px;
 }
 
 .column-header {
