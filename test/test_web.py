@@ -457,9 +457,7 @@ def test_expand(tsa):
     )
     tsa.register_formula(
         'tse-findseries',
-        '(add (findseries (by.metaitem "handle" "tseditor")))'
         '(add (findseries (by.metaitem "handle" "editor")))'
-        '(add (findseries (by.metaitem "handle" "tseditor")))'
     )
     tsa.register_formula(
         'tse-auto',
@@ -479,8 +477,18 @@ def test_expand(tsa):
 
     autos = expand_for_editor(tsa, 'tse-auto')
     assert autos == [
-        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
         {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
                  '"CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
-        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
+    ]
+
+    full = expand_for_editor(tsa, 'tse-top-level', full=True)
+    assert full == [
+        {'name': 'tse-base-tz-0', 'type': 'primary', 'tzaware': True},
+        {'name': 'tse-base-tz-1', 'type': 'primary', 'tzaware': True},
+        {'name': 'tse-base-tz-2', 'type': 'primary', 'tzaware': True},
+        {'name': 'tse-base-tz-3', 'type': 'primary', 'tzaware': True},
+        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
+                 '"CET") "d" (date "1900-01-01"))',
+         'type': 'auto',
+         'tzaware': True}
     ]

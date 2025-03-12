@@ -13,6 +13,8 @@ from psyl.lisp import parse, pretty
 from tshistory_formula.helper import (
     _find_autos,
     count_values,
+    expanded,
+    find_autos,
     replace_findseries,
     sort_dict_list,
 )
@@ -220,13 +222,20 @@ def test_find_auto_top_level(cn, tsh, name):
     )
 
 
-def expand_for_editor(tsa, seriesname):
-    tree = replace_findseries(
-            tsa.engine,
+def expand_for_editor(tsa, seriesname, full=False):
+    if not full:
+        tree = replace_findseries(
+                tsa.engine,
+                tsa.tsh,
+                parse(tsa.formula(seriesname)),
+            )
+    else :
+        tree = expanded(
             tsa.tsh,
+            tsa.engine,
             parse(tsa.formula(seriesname)),
+            remote=True,
         )
-    autos = test_find_auto_top_level(tsa.engine, tsa.tsh, seriesname)
     infos = [
         {
             'name': name,
@@ -235,6 +244,11 @@ def expand_for_editor(tsa, seriesname):
         }
         for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
     ]
+    if not full:
+        autos = test_find_auto_top_level(tsa.engine, tsa.tsh, seriesname)
+    else:
+        autos = find_autos(tsa.engine, tsa.tsh, seriesname)
+
     for list_auto in autos.values():
         for auto in list_auto:
             infos.append(
