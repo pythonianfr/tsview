@@ -188,7 +188,8 @@ type alias Model =
     , holding: Holding
     -- show-values for formula
     , expand : Bool
-    , components : List Component
+    , directComponents : List Component
+    , terminalComponents : List Component
     , coordData: Dict ( Int, Int ) Stuff
     , diff : Dict ( Int, Int ) Entry
     }
@@ -197,8 +198,8 @@ type alias Model =
 type Msg
     = GotEditData (Result Http.Error String)
     | GotValueData (Result Http.Error String)
-    | GotComponents (Result Http.Error String)
-    | GotComponentData CType String (Result Http.Error String)
+    | GotComponents Bool (Result Http.Error String)
+    | GotComponentData CType String Bool (Result Http.Error String)
     | GotGenerated PreviewType (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
@@ -785,47 +786,48 @@ getOrPostData method query =
         POST -> postData query
 
 
-getComponents: Model -> Cmd Msg
-getComponents model =
+getComponents: Model -> Bool -> Cmd Msg
+getComponents model expand =
     Http.get
         { url = (UB.crossOrigin model.baseurl
                     [ "formula-components" ]
                     [ UB.string "name" model.name
-                    , UB.string "full" <| if model.expand
+                    , UB.string "full" <| if expand
                                             then "true"
                                             else "false"
                     ] )
-        , expect = Http.expectString GotComponents }
+        , expect = Http.expectString ( GotComponents expand ) }
 
 
-getDataComponents: Model -> Cmd Msg
-getDataComponents model =
+getDataComponents: Model -> Bool -> Cmd Msg
+getDataComponents model expand =
     Cmd.batch ( List.map
-                    ( getRelevantComponent model )
-                    model.components )
+                    ( getRelevantComponent model expand )
+                     ( relevantComponents model )
+               )
 
 
-getRelevantComponent : Model -> Component -> Cmd Msg
-getRelevantComponent model component =
+getRelevantComponent : Model -> Bool -> Component ->  Cmd Msg
+getRelevantComponent model expand component  =
     case component.cType of
         Auto ->
             getSeries
                 model
-                ( GotComponentData Auto component.name )
+                ( GotComponentData Auto component.name expand )
                 "eval_formula"
                 POST
                 component.name
         Primary ->
             getSeries
                 model
-                ( GotComponentData Primary component.name )
+                ( GotComponentData Primary component.name expand )
                 "supervision"
                 GET
                 component.name
         Formula ->
             getSeries
                 model
-                ( GotComponentData Formula component.name )
+                ( GotComponentData Formula component.name expand )
                 "state"
                 GET
                 component.name
@@ -985,7 +987,9 @@ update msg model =
                                                 ts
                             }
                             )
-                           , getComponents model )
+                           , Cmd.batch [ getComponents model False
+                                       , getComponents model True ]
+                           )
                 Err err -> U.nocmd ( addError
                                         { model | horizon = setStatusPlot
                                                                 model.horizon
@@ -998,17 +1002,22 @@ update msg model =
             ( { model | horizon = setStatusPlot model.horizon Failure }
             , Cmd.none )
 
-        GotComponents (Ok rawdata) ->
+        GotComponents expand (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
-                Ok val -> let newmodel = { model | components = val}
+                Ok val -> let newmodel = if expand
+                                            then { model | terminalComponents = val}
+                                            else { model | directComponents = val}
                           in ( newmodel
-                             , getDataComponents newmodel )
+                             , if not expand
+                                then getDataComponents newmodel False
+                                else Cmd.none
+                             )
                 Err err -> U.nocmd
                                { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotComponents (Err _) -> ( model, Cmd.none )
+        GotComponents _ (Err _) -> ( model, Cmd.none )
 
-        GotComponentData cType name (Ok rawdata) ->
+        GotComponentData cType name expand (Ok rawdata) ->
             case cType of
                 Primary ->
                     case JD.decodeString dataDecoder rawdata of
@@ -1019,10 +1028,15 @@ update msg model =
                                         ( getFetchBounds model.horizon )
                                 zoomTs = applyZoom model val
                                 newCD = insertComponentData
-                                            model.components
+                                            ( if expand
+                                                then model.terminalComponents
+                                                else model.directComponents
+                                            )
                                             name
                                             ( ToEdit { initialTs = indexedval, zoomTs = zoomTs })
-                                newModel = { model | components = newCD }
+                                newModel = if expand
+                                            then { model | terminalComponents = newCD}
+                                            else { model | directComponents = newCD}
                             in
                                 U.nocmd ( buildCoord newModel )
                         Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
@@ -1032,17 +1046,21 @@ update msg model =
                         rawdata of
                     Ok val ->  let zoomTs = applyZoom model val
                                    newCD = insertComponentData
-                                            model.components
+                                            ( if expand
+                                                then model.terminalComponents
+                                                else model.directComponents
+                                            )
                                             name
                                             ( Naked { initialTs = val, zoomTs = zoomTs })
-                                   newModel = { model | components = newCD
-                                              }
+                                   newModel = if expand
+                                            then { model | terminalComponents = newCD}
+                                            else { model | directComponents = newCD}
                                in
                                    U.nocmd ( buildCoord newModel )
                     Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
 
-        GotComponentData cType name (Err _) ->
+        GotComponentData cType name expand (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotGenerated previewType ( Ok rawdata ) ->
@@ -1216,8 +1234,12 @@ update msg model =
         Expand expand ->
             let newModel = { model | expand = expand }
             in
-                ( newModel
-                , getComponents newModel
+                ( buildCoord ( cleanDiff  newModel )
+                , if ( expand
+                      && nonEmptyComponents model.terminalComponents == 0
+                      )
+                  then getDataComponents newModel True
+                  else Cmd.none
                 )
 
         Visible eCol ->
@@ -1700,13 +1722,17 @@ update msg model =
                         case zoomDates of
                             Nothing ->
                                 let newSeries = resetZoom model.series
-                                    newComponents = List.map
+                                    newTerminalComponents = List.map
                                                         (\ c -> { c | data = resetZoom c.data})
-                                                        model.components
+                                                        model.terminalComponents
+                                    newDirectComponents = List.map
+                                                        (\ c -> { c | data = resetZoom c.data})
+                                                        model.directComponents
                                 in
                                 { model | horizon = { horizonmodel | zoomBounds = Nothing}
                                                     , series = newSeries
-                                                    , components = newComponents
+                                                    , directComponents = newDirectComponents
+                                                    , terminalComponents = newTerminalComponents
                                                     , forceDraw = False
                                                     , statistics = getStatistics
                                                                     model.statistics
@@ -1720,7 +1746,7 @@ update msg model =
                                                         model.panActive
                                                         model.series
 
-                                       newComponents = List.map
+                                       newDirectComponents = List.map
                                                         (\ c -> { c | data = newZoom
                                                                                 minDate
                                                                                 maxDate
@@ -1728,10 +1754,20 @@ update msg model =
                                                                                 c.data
                                                                 }
                                                         )
-                                                        model.components
+                                                        model.directComponents
+                                       newTerminalComponents = List.map
+                                                        (\ c -> { c | data = newZoom
+                                                                                minDate
+                                                                                maxDate
+                                                                                model.panActive
+                                                                                c.data
+                                                                }
+                                                        )
+                                                        model.terminalComponents
                                   in
                                     { model | series = newSeries
-                                            , components = newComponents
+                                            , directComponents = newDirectComponents
+                                            , terminalComponents = newTerminalComponents
                                             , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
                                             , statistics = getStatistics
                                                                 model.statistics
@@ -2679,10 +2715,15 @@ patchEntry stuff s =
                                     , edition = parseInput s
                             }
 
+relevantComponents: Model -> List Component
+relevantComponents model =
+    if model.expand
+        then model.terminalComponents
+        else model.directComponents
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
-    let allSeries = [ likeComp model ] ++ model.components
+    let allSeries = [ likeComp model ] ++ relevantComponents model
     in
     Cmd.batch <|  List.map
                         ( saveComponent
@@ -2900,6 +2941,7 @@ buttonExpandFormula model =
        H.div
         [ HA.class "custom-control custom-switch"
         , HA.class "button-expand"
+        , HA.title ( hoverExpand model )
         ]
         [ H.input
             [ HA.attribute "type" "checkbox"
@@ -2912,8 +2954,40 @@ buttonExpandFormula model =
             [ HA.class "custom-control-label"
             , HA.for "expandFormula"
             ]
-            [ H.text "Expand Formula" ]
+            [ H.text ( "Expand Formula" ++ ( infoExpand model ))]
         ]
+
+
+infoExpand: Model -> String
+infoExpand model =
+
+    let nbD = if model.expand
+                then nonEmptyComponents model.terminalComponents
+                else List.length model.directComponents
+        nbT = List.length model.terminalComponents
+    in
+        "(" ++ String.fromInt nbD ++ "/" ++ String.fromInt nbT ++ ")"
+
+
+nonEmptyComponents: List Component -> Int
+nonEmptyComponents components =
+    List.count
+        (\ c -> case c.data of
+                    Naked ts -> not ( Dict.isEmpty ts.initialTs )
+                    ToEdit ts -> not ( Dict.isEmpty ts.initialTs )
+        )
+        components
+
+
+hoverExpand: Model -> String
+hoverExpand model =
+    let nbD = List.length model.directComponents
+        nbT = List.length model.terminalComponents
+    in
+         String.fromInt nbD
+         ++ " direct components, "
+         ++ String.fromInt nbT
+         ++ " terminal components"
 
 
 buttonViewNames: Model -> H.Html Msg
@@ -3319,7 +3393,7 @@ buildCoord model =
          NoPoint -> { model | coordData = Dict.empty }
          TooMuchPoints _ -> { model | coordData = Dict.empty }
          Drawable ->
-            let allSeries = [ likeComp model ] ++ model.components
+            let allSeries = [ likeComp model ] ++ relevantComponents model
                 dataAsRows = mergeData allSeries
             in
             setupFill
@@ -3763,7 +3837,8 @@ datesComponents model =
         Set.empty
         ( List.map
             (datesComponent model)
-            model.components )
+            ( relevantComponents model )
+        )
 
 
 datesComponent: Model -> Component -> Set String
@@ -4490,7 +4565,8 @@ init input =
                     , statusCopy = initialStatusCopy
                     , panActive = False
                     , expand = False
-                    , components = []
+                    , directComponents = []
+                    , terminalComponents = []
                     , coordData = Dict.empty
                     , diff = Dict.empty
                     }
