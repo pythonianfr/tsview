@@ -581,6 +581,7 @@ likeComp model =
         ( asCType model.seriestype )
         model.series
         ( isTzaware model.meta )
+        CompLoaded
 
 
 type Edited =
@@ -596,8 +597,13 @@ type alias Component =
     , cType: CType
     , data: Series
     , tzaware: Bool
+    , status: CompStatus
     }
 
+type CompStatus =
+    CompEmpty
+    | CompLoaded
+    | CompError
 
 asCType: I.SeriesType -> CType
 asCType t =
@@ -713,11 +719,12 @@ dataDecoder =
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
-    JD.list (JD.map4 Component
+    JD.list (JD.map5 Component
                 ( JD.field "name" JD.string )
                 ( JD.map applyType ( JD.field "type" JD.string ))
                 ( JD.succeed emptySeries )
                 ( JD.field "tzaware" JD.bool )
+                ( JD.succeed CompEmpty )
             )
 
 
@@ -1140,7 +1147,7 @@ update msg model =
                                 , T.perform DateNow Date.today
                                 ]
                     )
-                ModuleHorizon.Fetch _ -> ( resetModel
+                ModuleHorizon.Fetch _ -> ( { resetModel | expand = False }
                                          , Cmd.batch ([ moreCommands ]
                                          ++ getRelevantData resetModel ))
 
@@ -1236,7 +1243,7 @@ update msg model =
             in
                 ( buildCoord ( cleanDiff  newModel )
                 , if ( expand
-                      && nonEmptyComponents model.terminalComponents == 0
+                      && loadedComponents model.terminalComponents == 0
                       )
                   then getDataComponents newModel True
                   else Cmd.none
@@ -2008,6 +2015,7 @@ insertComponentData components name data =
     List.map
         (\ comp -> if comp.name == name
                     then { comp | data = data
+                                , status = CompLoaded
                          }
                     else comp
         )
@@ -2960,21 +2968,20 @@ buttonExpandFormula model =
 
 infoExpand: Model -> String
 infoExpand model =
-
     let nbD = if model.expand
-                then nonEmptyComponents model.terminalComponents
+                then loadedComponents model.terminalComponents
                 else List.length model.directComponents
         nbT = List.length model.terminalComponents
     in
         "(" ++ String.fromInt nbD ++ "/" ++ String.fromInt nbT ++ ")"
 
 
-nonEmptyComponents: List Component -> Int
-nonEmptyComponents components =
+loadedComponents: List Component -> Int
+loadedComponents components =
     List.count
-        (\ c -> case c.data of
-                    Naked ts -> not ( Dict.isEmpty ts.initialTs )
-                    ToEdit ts -> not ( Dict.isEmpty ts.initialTs )
+        (\ c -> case c.status of
+                    CompLoaded -> True
+                    _ -> False
         )
         components
 
