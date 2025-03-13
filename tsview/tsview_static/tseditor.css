@@ -433,6 +433,18 @@
     margin-left: 20px;
 }
 
+
+.button-stat.s-open{
+    float: right;
+    cursor: pointer;
+}
+
+.button-stat.s-close{
+    float: right;
+    cursor: pointer;
+}
+
+
 .column-header {
     padding: 0px;
 }
@@ -460,7 +472,7 @@
 .column-header a.expanded p {
     background-color: white;
     box-shadow: 2px 2px 5px #A9A9A9	;
-    z-index: 150;
+    z-index: 49;
     position: relative;
     padding-right: 5px;
     height: 100%;

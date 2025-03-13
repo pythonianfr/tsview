@@ -159,6 +159,7 @@ type alias Model =
     , series : Series
     , statistics: Statistics
     , roundStat: Int
+    , statVisibility: Bool
     , roundValues: Maybe Int
     -- technical
     , errors : List String
@@ -209,6 +210,7 @@ type Msg
     | Back
     | SwitchForceDraw
     | SwitchBatch
+    | StatVisible Bool
     | AllowInferFreq
     | ShowDiff
     | Expand Bool
@@ -383,9 +385,9 @@ type TypeStat =
     Numeric ( Maybe Float )
     | Count Int
     | Date ( Maybe String )
-    | InferFreq Freq
+    | InferFreq StatusFreq
 
-type Freq =
+type StatusFreq =
     Blocked
     | Authorised ( Maybe String )
 
@@ -1195,6 +1197,9 @@ update msg model =
                 then getOffsets model
                 else Cmd.none
             )
+
+        StatVisible visible ->
+            U.nocmd { model | statVisibility = visible }
 
         AllowInferFreq ->
             ({ model | allowInferFreq = True
@@ -4244,6 +4249,22 @@ rowStat round name mTitle statistic  =
             ]
 
 
+buttonStat : Model -> H.Html Msg
+buttonStat model =
+    let visible =  model.statVisibility
+    in
+       H.div
+        [ HA.class "button-stat"
+        , HA.class (if visible then "s-open" else "s-close")
+        , HA.title (if visible then "Hide stats" else "Show stats")
+        , HE.onClick ( StatVisible ( not visible ))
+        ]
+        ( if visible
+            then [ H.text "►" ]
+            else [ H.text "◄" ]
+        )
+
+
 viewStatTable: Model -> H.Html Msg
 viewStatTable model =
     let partialRow = ( rowStat model.roundStat )
@@ -4392,7 +4413,10 @@ view model =
                 ]
                 , H.div
                     [ HA.class "stat-table-container"]
-                    [ viewStatTable model ]
+                    ( [ buttonStat model ] ++ if model.statVisibility
+                                                then  [ viewStatTable model ]
+                                                else []
+                    )
             ]
     ]
 
@@ -4461,6 +4485,7 @@ init input =
                     , series = emptySeries
                     , statistics = emptyStat
                     , roundStat = 2
+                    , statVisibility = True
                     , roundValues = Nothing
                     , statusCopy = initialStatusCopy
                     , panActive = False
