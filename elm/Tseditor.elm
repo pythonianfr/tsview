@@ -219,6 +219,7 @@ type Msg
     | Visible Int
     | InputChanged Int Int String
     | SaveEditedData
+    | SaveAnyway
     | Saved (Result Http.Error String)
     | CancelEdition
     | Correction Parameter
@@ -1213,7 +1214,7 @@ update msg model =
 
         SwitchForceDraw ->
             applyFocus
-                ( buildCoord ( flipForce model ))
+                ( applyDiff ( buildCoord ( flipForce model )))
                 ( Just (0 , 0 ))
 
         SwitchBatch ->
@@ -1327,6 +1328,18 @@ update msg model =
             ( { model | horizon = ( setStatusPlot model.horizon Loading )}
             , Cmd.batch
                 [ patchEditedData model
+                , deselect False
+                ]
+            )
+
+        SaveAnyway ->
+            let modelToSendNotToDraw = applyDiff
+                                        <| buildCoord
+                                            { model | forceDraw = True }
+            in
+            ( { model | horizon = ( setStatusPlot model.horizon Loading )}
+            , Cmd.batch
+                [ patchEditedData modelToSendNotToDraw
                 , deselect False
                 ]
             )
@@ -3312,7 +3325,8 @@ viewValueTable model =
         TooMuchPoints nb ->
             H.div
                 [ ]
-                [ msgTooManyPointsWithButton nb ]
+                [ msgTooManyPointsWithButton nb
+                , saveAnyway model ]
         Drawable ->
             H.div
                 []
@@ -4017,6 +4031,20 @@ saveButtons model diff =
                   [ H.text ( printStatus model.horizon.plotStatus ) ]
                 ]
             ]
+
+
+saveAnyway : Model -> H.Html Msg
+saveAnyway model =
+    case model.mode of
+        Creation _->
+            H.button
+              [ HA.class "greenbutton custom-button save-button"
+              , HA.attribute "type" "button"
+              , HE.onClick SaveAnyway
+              , HA.disabled ( disableSave model )
+              ]
+              [ H.text ( printStatus model.horizon.plotStatus ) ]
+        _ -> H.div [ HA.class "placeholder-save-anyway" ] []
 
 
 type StatePoints =
