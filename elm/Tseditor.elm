@@ -307,7 +307,7 @@ type alias CreationModel =
     , to: Maybe String
     , freq: FreqType
     , tz: TzSelector
-    , value: Maybe Float
+    , value: Maybe String
     , name: Maybe String
     , nameStatus: NameStatus
     , mandatoryValid: Bool
@@ -870,7 +870,7 @@ getGeneratedTs model previewType=
                    ++ case model.creation.value of
                        Nothing -> []
                        Just value ->
-                        [ UB.string "value" ( String.fromFloat value )]
+                        [ UB.string "value" value]
                 )
     )
     , expect = Http.expectString ( GotGenerated previewType)}
@@ -1180,7 +1180,7 @@ update msg model =
                                                     then Naive
                                                     else Selected val
                               }
-                    Value val -> { creation | value = String.toFloat val }
+                    Value val -> { creation | value = Just val }
                     Name val -> { creation | name = Just val
                                            , nameStatus = case model.creation.catalog of
                                                             Nothing -> Invalid
@@ -3226,7 +3226,7 @@ creationForm model showTz previewType =
                     , HE.onInput ( \s -> Create ( Value s ) )
                     , HA.value ( case model.creation.value of
                                     Nothing -> ""
-                                    Just f -> String.fromFloat f
+                                    Just f -> f
                                )
                     ]
                     []
