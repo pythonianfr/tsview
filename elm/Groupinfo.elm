@@ -74,6 +74,7 @@ type alias Bindings =
 type alias Model =
     { baseurl : String
     , name : String
+    , tzaware : Bool
     , source : String
     , activetab : Tabs
     -- metadata edition
@@ -257,6 +258,7 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = stdmeta
+                                , tzaware = (M.dget "tzaware" model.meta) == "true"
                             }
                         cmd =
                             Cmd.batch <| [ I.getidates model "group" InsertionDates True ]
@@ -828,6 +830,7 @@ main =
                    model =
                        { baseurl = input.baseurl
                        , name = input.name
+                       , tzaware = True
                        , source = "local"
                        -- metadata edition
                        , canwrite = False

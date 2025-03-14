@@ -76,6 +76,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , source : String
+    , tzaware : Bool
     , activetab : Tabs
     -- metadata edition
     , canwrite : Bool
@@ -448,6 +449,7 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = allmeta
+                                , tzaware = (M.dget "tzaware" model.meta) == "true"
                                 , seriestype = if isformula then I.Formula else I.Primary
                                 , maxNbRevisions = if isformula
                                                     then Just defaultRevMaxFormula
@@ -1480,6 +1482,7 @@ init input =
     ( { baseurl = input.baseurl
       , name = input.name
       , source = ""
+      , tzaware = True
       , activetab = Plot
       -- metadata edition
       , canwrite = False

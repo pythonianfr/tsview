@@ -151,6 +151,7 @@ type alias Model =
     , exist: Bool
     , source : String
     , seriestype : I.SeriesType
+    , tzaware: Bool
     , horizon : HorizonModel
     , creation: CreationModel
     , newBatch : Bool
@@ -581,7 +582,7 @@ likeComp model =
         model.name
         ( asCType model.seriestype )
         model.series
-        ( isTzaware model.meta )
+        model.tzaware
         CompLoaded
 
 
@@ -781,6 +782,7 @@ getSeries model callback apipoint method name =
         , fromdate = start
         , todate = end
         , horizon = Nothing
+        , tzware = model.tzaware
         , tzone = model.horizon.timeZone
         , inferredFreq = model.horizon.inferredFreq
         , keepnans = True
@@ -1199,7 +1201,7 @@ update msg model =
                     _ -> Cmd.none
                 tzawarness = case validatedCreation.tz of
                                 Naive -> False
-                                Unchanged -> isTzaware model.meta
+                                Unchanged -> model.tzaware
                                 _ -> True
             in
                 ( { model | creation = validatedCreation
@@ -1395,6 +1397,7 @@ update msg model =
                                  }
                        horizon = model.horizon
                        newmodel = { model | meta = allmeta
+                                          , tzaware = isTzaware allmeta
                                           , statistics = newstat
                                           , exist = True
                                           , seriestype = seriestype
@@ -3372,7 +3375,7 @@ addPatch model =
                 [ H.text "Hide"]
             , H.table
                 [ ]
-                ( creationForm model ( isTzaware model.meta ) Patch )
+                ( creationForm model model.tzaware Patch )
             ]
 
 
@@ -4563,6 +4566,7 @@ init input =
                                 else Existing I.Primary
                     , meta = Dict.empty
                     , exist = False
+                    , tzaware = True
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon

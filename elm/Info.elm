@@ -245,6 +245,7 @@ type alias PartialModel a =
         , horizon: HorizonModel
         , baseurl: String
         , meta: Dict String M.MetaVal
+        , tzaware: Bool
     }
 
 viewactionwidgets: PartialModel a -> DataType -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg)
@@ -272,7 +273,7 @@ viewactionwidgets model datatype convertmsg permalink editor pagetitle bounds =
         model.horizon
         convertmsg
         "action-center"
-        ( tzawareseries model )
+        model.tzaware
     , H.div
         [ HA.class "action-right" ]
         ( case permalink of
