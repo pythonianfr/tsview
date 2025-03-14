@@ -863,7 +863,9 @@ getGeneratedTs model previewType=
                   ] ++ case model.creation.tz of
                        Naive -> []
                        Selected tz -> [ UB.string "tz" tz ]
-                       Unchanged -> [ UB.string "tz" model.horizon.timeZone ]
+                       Unchanged -> if model.tzaware
+                                    then [ UB.string "tz" model.horizon.timeZone ]
+                                    else [ ]
                 )
                    ++ case model.creation.value of
                        Nothing -> []
