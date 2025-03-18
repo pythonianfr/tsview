@@ -238,8 +238,7 @@ def test_group_formulas(client, tsa):
             'value_type': 'float64'
         },
         'bg': {
-            'bindings': '[{"series":"base","group":"base","family":"group"}]',
-            'boundseries': 'f1',
+            'bound': True,
             'index_dtype': '<M8[ns]',
             'index_type': 'datetime64[ns]',
             'tzaware': False,
