@@ -256,6 +256,11 @@ label.option {
     margin-top: 10px;
 }
 
+.quickview .bouton-axis {
+    width: 75px;
+    margin-right: 20px;
+}
+
 .js-plotly-plot div {
     overflow: visible !important;
 }

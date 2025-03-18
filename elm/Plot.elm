@@ -69,17 +69,30 @@ type alias SeriesAndInfos =
     { series: Series
     , cache: Bool
     , status : PlotStatus
+    , secondAxis: Bool
     }
+
+emptySeriesInfo: SeriesAndInfos
+emptySeriesInfo =
+    { series = Dict.empty
+    , cache = False
+    , status = Loading
+    , secondAxis = False
+    }
+
 
 failedinfo = { series = Dict.empty
              , cache = False
-             , status = Failure}
+             , status = Failure
+             , secondAxis = False
+             }
 
 type Msg
     = GotCatalog Catalog.Msg
     | GotPlotData String (Result Http.Error String)
     | ToggleSelection
     | ToggleItem String
+    | ToggleAxis String
     | SearchSeries String
     | MakeSearch
     | KindChange String Bool
@@ -210,9 +223,7 @@ update msg model =
                                       else
                                            Dict.insert
                                                x
-                                               { series = Dict.empty
-                                               , cache = False
-                                               , status = Loading }
+                                               emptySeriesInfo
                                                model.loadedseries
                 horizonmodel = model.horizon
             in
@@ -223,6 +234,17 @@ update msg model =
               }
             , fetchseries newmodel False
             )
+
+        ToggleAxis name ->
+            case Dict.get name model.loadedseries of
+                Nothing -> U.nocmd model
+                Just infos ->
+                    U.nocmd { model | loadedseries =
+                                        Dict.insert
+                                            name
+                                            { infos | secondAxis = not infos.secondAxis }
+                                            model.loadedseries
+                            }
 
         SearchSeries x ->
             let
@@ -254,6 +276,10 @@ update msg model =
                                 { series = val
                                  , status = Success
                                  , cache = False
+                                 , secondAxis = .secondAxis <|
+                                                    readInfo
+                                                        name
+                                                        model.loadedseries
                                  }
                                 model.loadedseries
 
@@ -332,16 +358,20 @@ resetSeries loaded =
     Dict.fromList
         ( List.map
             (\ name -> (name,  { series = Dict.empty
-                                , cache = readCache name loaded
-                                , status = Loading }))
+                                , cache = (readInfo name loaded).cache
+                                , status = Loading
+                                , secondAxis = (readInfo name loaded).secondAxis
+                                }
+                        )
+            )
             ( Dict.keys loaded ) )
 
 
-readCache: String -> Dict String SeriesAndInfos -> Bool
-readCache name loaded =
+readInfo: String -> Dict String SeriesAndInfos -> SeriesAndInfos
+readInfo name loaded =
     case ( Dict.get name loaded ) of
-        Just info -> info.cache
-        Nothing -> False
+        Just info -> info
+        Nothing -> emptySeriesInfo
 
 
 multiStatus: Dict String SeriesAndInfos -> PlotStatus
@@ -512,11 +542,15 @@ seriesTable model =
         H.table
             [ HA.class "series-table" ]
             ( List.map
-                rowSeries
+                ( rowSeries model )
                 ( List.sort model.search.selected )
             )
 
-rowSeries name =
+rowSeries model name =
+    let secondAxis = case Dict.get name model.loadedseries of
+                        Nothing -> False
+                        Just infos -> infos.secondAxis
+    in
     H.tr
         []
         [ H.td
@@ -526,6 +560,20 @@ rowSeries name =
                 ,  HA.href
                     <| UB.relative [ "tsinfo" ] [ UB.string "name" name ]]
                 [ H.text name ]
+            ]
+        , H.td
+            []
+            [ H.button
+                [ HA.class "bouton-axis"
+                , HA.class <| if secondAxis
+                                then "btn btn-info"
+                                else "btn btn-success"
+                , HE.onClick ( ToggleAxis name )
+                ]
+                [ H.text <| if secondAxis
+                                then "2nd Axis"
+                                else "1st Axis"
+                ]
             ]
         , H.td
             []
