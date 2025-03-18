@@ -222,6 +222,8 @@ label.option {
     margin-right: .2rem;
 }
 
+/* quickview  */
+
 .quickview .list-series {
     z-index: 10;
     position: absolute;
@@ -243,6 +245,11 @@ label.option {
 
 .quickview .btn-primary {
     color: white !important;
+}
+
+.quickview .permalink{
+    margin-right: 20px;
+    margin-top: 10px;
 }
 
 .js-plotly-plot div {

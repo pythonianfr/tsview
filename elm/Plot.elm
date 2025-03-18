@@ -490,17 +490,20 @@ view model =
                     [ ]
                     ( List.map
                         (\x -> H.li [ ] [ x ])
-                        (permalink model :: links) )
+                        links
+                    )
     in
     H.div
-        [ ]
+        [ HA.class "quickview" ]
         [ H.div
                 [ HA.class "main-content" ]
                 [ H.span [ HA.class "action-container" ]
                     [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
-                    , horizonview model.horizon convertMsg "action-center" True ]
+                    , horizonview model.horizon convertMsg "action-center" True
+                    , permalink model
+                    ]
                 , H.div
-                    [ HA.class "quickview" ]
+                    [ ]
                     [ H.header [ ] [ selector ]
                     , H.ul [] ( showSelectedLegends model )
                     , H.div [ HA.id plotDiv ] []
@@ -536,11 +539,12 @@ permalink model =
                                              , UB.string "enddate" max]
     in
     H.a
-    [ HA.href ( UB.relative
+    [ HA.class "permalink"
+    , HA.href ( UB.relative
                 ["tsview"]
                 ( names ++ addParams ))
     ]
-    [ H.text "Permalink" ]
+    [ H.text "permalink" ]
 
 
 sub: Model -> Sub Msg
