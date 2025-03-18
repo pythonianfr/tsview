@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import webtest
 from pytest_sa_pg import db
-from sqlalchemy import create_engine
+from sqlhelp.pgapi import pgdb as create_engine
 
 from tshistory import api, testutil
 from tshistory.http.util import nosecurity

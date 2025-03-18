@@ -101,7 +101,7 @@ class Horizon():
             for spec in others
             if spec['action'] == 'create'
         ]
-        with self.engine.connect() as cn:
+        with self.engine.begin() as cn:
             self._delete(cn, to_delete)
             self._update(cn, to_update)
             self._create(cn, to_create)
@@ -133,15 +133,10 @@ class Horizon():
                 'select id, label, fromdate, todate, rank '
                 'from tsview.horizon '
                 'order by rank asc'
-            )
-            colnames = query.keys()
-            result = query.fetchall()
+            ).fetchall()
             named = [
-                {
-                    name: value
-                    for (name, value) in zip(colnames, row)
-                }
-                for row in result
+                row.as_dict()
+                for row in query
             ]
             return named
 

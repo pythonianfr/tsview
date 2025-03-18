@@ -471,9 +471,12 @@ def tsview(tsa):
             'from tsh.registry '
             'where internal_metadata->\'formula\' is not null'
         )
-        formulas = pd.DataFrame(
-            tsa.engine.execute(sql).fetchall()
-        )
+        with tsa.engine.begin() as cn:
+            formulas = pd.DataFrame(
+                [
+                    row.as_dict() for row in cn.execute(sql).fetchall()
+                ]
+            )
         df = formulas.sort_values(
             by=['name', 'text'],
             kind='mergesort'
@@ -614,10 +617,11 @@ def tsview(tsa):
             f'"{tsa.namespace}".registry'
         )
 
-        m = {
-            name: imeta | (meta or {})
-            for name, imeta, meta in q.do(engine).fetchall()
-        }
+        with engine.begin() as cn:
+            m = {
+                name: imeta | (meta or {})
+                for name, imeta, meta in q.do(cn).fetchall()
+            }
 
         return jsonify(m)
 
@@ -641,12 +645,13 @@ def tsview(tsa):
             'internal_metadata->\'formula\' is not null'
         )
 
-        return jsonify(
-            {
-                name: formula
-                for name, formula in q.do(engine).fetchall()
-            }
-        )
+        with engine.begin() as cn:
+            return jsonify(
+                {
+                    name: formula
+                    for name, formula in q.do(cn).fetchall()
+                }
+            )
 
     @bp.route('/groupsearch/allformula')
     def all_group_formulas():
@@ -662,12 +667,13 @@ def tsview(tsa):
             'internal_metadata->\'formula\' is not null'
         )
 
-        return jsonify(
-            {
-                name: formula
-                for name, formula in q.do(engine).fetchall()
-            }
-        )
+        with engine.begin() as cn:
+            return jsonify(
+                {
+                    name: formula
+                    for name, formula in q.do(cn).fetchall()
+                }
+            )
 
     @bp.route('/groupsearch/allmetadata')
     def all_group_metadata():
@@ -682,10 +688,11 @@ def tsview(tsa):
             f'"{tsa.namespace}".group_registry'
         )
 
-        m = {
-            name: imeta | (meta or {})
-            for name, imeta, meta in q.do(engine).fetchall()
-        }
+        with engine.begin() as cn:
+            m = {
+                name: imeta | (meta or {})
+                for name, imeta, meta in q.do(cn).fetchall()
+            }
 
         return jsonify(
             dict(m)

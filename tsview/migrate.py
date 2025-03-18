@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlhelp.pgapi import pgdb as create_engine
 
 from tshistory.migrate import (
     Migrator as _Migrator,

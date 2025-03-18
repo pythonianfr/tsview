@@ -70,6 +70,7 @@ setup(name='tsview',
       zip_safe=False,
       install_requires=[
           'flask == 2.3.3',
+          'sqlhelp',
           'werkzeug == 3.0.6',
           'pytest_sa_pg',
           'tshistory >= 0.19.4',
