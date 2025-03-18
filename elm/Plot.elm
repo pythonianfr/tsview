@@ -477,21 +477,6 @@ view model =
                      else
                          children
                     )
-
-        urls =
-            let
-                links =
-                    List.map
-                        (viewlinks model.haseditor)
-                        model.search.selected
-
-            in
-                H.ul
-                    [ ]
-                    ( List.map
-                        (\x -> H.li [ ] [ x ])
-                        links
-                    )
     in
     H.div
         [ HA.class "quickview" ]
@@ -505,15 +490,40 @@ view model =
                 , H.div
                     [ ]
                     [ H.header [ ] [ selector ]
-                    , H.ul [] ( showSelectedLegends model )
+                    , H.ul [] ( debugLegends model )
                     , H.div [ HA.id plotDiv ] []
                     , plotFigure [ HA.attribute "args" args ] []
-                    , H.footer [] [ urls ]
+                    , H.div
+                        [ HA.class "under-the-plot" ]
+                        [ seriesTable model ]
                     ]
                 ]]
 
 
-showSelectedLegends model =
+seriesTable: Model -> H.Html Msg
+seriesTable model =
+        H.table
+            [ HA.class "series-table" ]
+            ( List.map
+                rowSeries
+                ( List.sort model.search.selected )
+            )
+
+rowSeries name =
+    H.tr
+        []
+        [ H.td
+            []
+            [ H.a
+                [ HA.title "tsinfo"
+                ,  HA.href
+                    <| UB.relative [ "tsinfo" ] [ UB.string "name" name ]]
+                [ H.text name ]
+            ]
+        ]
+
+
+debugLegends model =
     if not model.horizon.debug
         then []
         else  case model.legendStatus of

@@ -224,6 +224,10 @@ label.option {
 
 /* quickview  */
 
+.quickview .main-content {
+    margin-left: 20px;
+}
+
 .quickview .list-series {
     z-index: 10;
     position: absolute;
