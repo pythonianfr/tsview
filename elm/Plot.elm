@@ -458,9 +458,16 @@ view model =
                     [ H.a
                           [ HE.onClick ToggleSelection
                           , HA.title "click to toggle selector"
-                          , HA.class "btn btn-primary"
+                          , HA.class <| if model.selecting
+                                            then "btn btn-warning"
+                                            else "btn btn-primary"
+
                           ]
-                          [ H.text "Series selection" ]
+                          [ H.text <| if model.selecting
+                                        then "Hide selection"
+                                        else "Series selection"
+
+                          ]
                     ]
             in
                 H.form [ ]
@@ -519,6 +526,14 @@ rowSeries name =
                 ,  HA.href
                     <| UB.relative [ "tsinfo" ] [ UB.string "name" name ]]
                 [ H.text name ]
+            ]
+        , H.td
+            []
+            [ H.button
+                [ HA.class "btn btn-warning"
+                , HE.onClick ( ToggleItem name )
+                ]
+                [ H.text "Remove" ]
             ]
         ]
 

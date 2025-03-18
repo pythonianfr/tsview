@@ -246,6 +246,7 @@
     border-radius: 8px;
     color: white;
     cursor: pointer;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
 
 .greenbutton {
