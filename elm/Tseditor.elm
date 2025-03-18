@@ -2990,8 +2990,14 @@ infoExpand model =
                 then loadedComponents model.terminalComponents
                 else List.length model.directComponents
         nbT = List.length model.terminalComponents
+        left = if nbD==0
+                    then "..."
+                    else String.fromInt nbD
+        right =  if nbT== 0
+                    then "..."
+                    else String.fromInt nbT
     in
-        "(" ++ String.fromInt nbD ++ "/" ++ String.fromInt nbT ++ ")"
+        "(" ++ left ++ "/" ++ right ++ ")"
 
 
 loadedComponents: List Component -> Int
