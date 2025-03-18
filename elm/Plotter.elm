@@ -33,6 +33,7 @@ type alias LayoutOptions =
     , dragMode: Maybe String
     , xaxis: Axis
     , yaxis: Axis
+    , yaxis2: Maybe Axis
     , height: Maybe Int
     , separators : String
     , margin: Margin
@@ -51,6 +52,7 @@ defaultLayoutOptions =
     , dragMode = Nothing
     , xaxis = defaultDateAxis
     , yaxis = defaultValueAxis
+    , yaxis2 = Nothing
     , height = Nothing
     -- separators: first char for decimal
     -- second for thousands
@@ -65,6 +67,8 @@ defaultLayoutOptions =
 type alias Axis =
     { range : Maybe Range
     , hoverFormat: Maybe String
+    , overlaying: Maybe String
+    , side: Maybe String
     }
 
 type Range =
@@ -73,10 +77,16 @@ type Range =
 
 defaultAxis =
     { range = Nothing
-    , hoverFormat = Nothing}
+    , hoverFormat = Nothing
+    , side = Nothing
+    , overlaying = Nothing
+    }
 
 defaultDateAxis = defaultAxis
-defaultValueAxis = { defaultAxis | hoverFormat = Just "n"}
+
+defaultValueAxis: Axis
+defaultValueAxis =
+    { defaultAxis | hoverFormat = Just "n" }
 
 type alias ConfiOptions =
     { displaylogo: Bool
@@ -100,14 +110,17 @@ type alias TraceOptions =
     , line: Maybe { color: String }
     , opacity: Float
     , visible: Bool
+    , secondAxis: Bool
     }
 
 
+defaultTraceOptions: TraceOptions
 defaultTraceOptions =
     { showlegend = False
     , line = Nothing
     , opacity = 1
     , visible = True
+    , secondAxis = False
     }
 
 
@@ -159,6 +172,9 @@ encodetrace t =
         , case t.options.visible of
             True -> []
             False -> [( "visible", E.string "legendonly" )]
+         , case t.options.secondAxis of
+            True -> [( "yaxis", E.string "y2" )]
+            False -> []
         ]
 
 
@@ -190,6 +206,14 @@ encodeAxis axisName axis =
                                 Nothing -> []
                                 Just format
                                     -> [( "hoverformat", E.string format )]
+                        ,  case axis.overlaying of
+                                Nothing -> []
+                                Just overlaying
+                                    -> [( "overlaying", E.string "y" )]
+                        ,  case axis.side of
+                                Nothing -> []
+                                Just side
+                                    -> [( "side", E.string side )]
                         ]
       )]
 
@@ -229,6 +253,9 @@ encodeLayout layoutOptions =
                 Just title -> [( "title", E.string title )]
             , encodeAxis "xaxis" layoutOptions.xaxis
             , encodeAxis "yaxis" layoutOptions.yaxis
+            , case layoutOptions.yaxis2 of
+                Nothing -> []
+                Just axis -> encodeAxis "yaxis2" axis
             , case layoutOptions.dragMode of
                 Nothing -> []
                 Just drag -> [("dragmode", E.string drag )]

@@ -449,20 +449,21 @@ view model =
                 data =
                     List.map
                         (\name ->
-                             let series = case Dict.get name model.loadedseries of
-                                            Nothing -> Dict.empty
-                                            Just infos -> infos.series
+                             let infos = case Dict.get name model.loadedseries of
+                                            Nothing -> emptySeriesInfo
+                                            Just info -> info
                              in
                              scatterplot
                              name
-                             (Dict.keys series)
-                             (Dict.values series)
+                             (Dict.keys infos.series)
+                             (Dict.values infos.series)
                              (if model.horizon.inferredFreq then "lines+markers" else "lines")
                              { defaultTraceOptions | showlegend = True
-                                              , visible = visibility model name
+                                                    , visible = visibility model name
+                                                    , secondAxis = infos.secondAxis
                              }
                         )
-                        model.search.selected
+                        ( List.sort model.search.selected )
             in
             serializedPlotArgs
                 plotDiv
@@ -475,6 +476,10 @@ view model =
                                                         range = extractValues
                                                             model.horizon.zoomY
                                                   }
+                                        , yaxis2 = Just
+                                            { defaultValueAxis | overlaying = Just "y"
+                                                               , side = Just "right"
+                                            }
                                         , height = Just 700
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"
