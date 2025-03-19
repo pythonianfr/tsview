@@ -64,6 +64,7 @@ type alias Model =
     , errors : List String
     , panActive: Bool
     , legendStatus : Maybe (List (String, Bool))
+    , showLegend : Bool
     }
 
 type alias SeriesAndInfos =
@@ -105,6 +106,7 @@ type Msg
     -- plotly params
     | NewDragMode Bool
     | Legends ( List ( String, Bool ))
+    | ShowLegend Bool
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -360,6 +362,10 @@ update msg model =
         Legends legends ->
             U.nocmd { model | legendStatus = Just legends }
 
+        ShowLegend show ->
+            U.nocmd { model | showLegend = show }
+
+
 
 resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
 resetSeries loaded =
@@ -476,7 +482,7 @@ view model =
                              (Dict.keys infos.series)
                              (Dict.values infos.series)
                              (if model.horizon.inferredFreq then "lines+markers" else "lines")
-                             { defaultTraceOptions | showlegend = True
+                             { defaultTraceOptions | showlegend = model.showLegend
                                                     , visible = visibility model name
                                                     , secondAxis = infos.secondAxis
                                                     , line = renderColor model name
@@ -506,7 +512,7 @@ view model =
                                         , margin = { t = 0
                                                    , b = 50
                                                    , l = 40
-                                                   , r = 20
+                                                   , r = 60
                                                    }
                 }
                 defaultConfigOptions
@@ -557,6 +563,9 @@ view model =
                     [ ]
                     [ H.header [ ] [ selector ]
                     , H.ul [] ( debugLegends model )
+                    , H.div
+                        []
+                        [ buttonLegend model ]
                     , H.div [ HA.id plotDiv ] []
                     , plotFigure [ HA.attribute "args" args ] []
                     , H.div
@@ -564,6 +573,29 @@ view model =
                         [ seriesTable model ]
                     ]
                 ]]
+
+buttonLegend: Model -> H.Html Msg
+buttonLegend model =
+    H.div
+       [ HA.class "show-legend-container"]
+       [ H.div
+        [ HA.class "custom-control custom-switch"
+        , HA.class "button-legend"
+        ]
+        [ H.input
+            [ HA.attribute "type" "checkbox"
+            , HA.class "custom-control-input"
+            , HA.id "showLegend"
+            , HA.checked ( model.showLegend )
+            , HE.onCheck ShowLegend
+            ] [ ]
+        , H.label
+            [ HA.class "custom-control-label"
+            , HA.for "showLegend"
+            ]
+            [ H.text "Show legend" ]
+        ]
+    ]
 
 
 seriesTable: Model -> H.Html Msg
@@ -703,6 +735,7 @@ main =
                     , errors = []
                     , panActive = False
                     , legendStatus = Nothing
+                    , showLegend = True
                     }
 
             in ( model

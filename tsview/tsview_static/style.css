@@ -266,6 +266,16 @@ label.option {
     top: 0;
 }
 
+.quickview .show-legend-container {
+    height: 24px;
+    margin-right: 20px;
+}
+
+
+.quickview .button-legend {
+    float: right;
+}
+
 .js-plotly-plot div {
     overflow: visible !important;
 }
