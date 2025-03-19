@@ -401,6 +401,13 @@ multiStatus infos =
     Loading
 
 
+hasSecondAxis: Dict String SeriesAndInfos -> Bool
+hasSecondAxis infos =
+    let axis = List.map (.secondAxis) ( Dict.values infos )
+    in
+        List.any identity axis
+
+
 selectorConfig : SeriesSelector.SelectorConfig Msg
 selectorConfig =
     { searchSelector =
@@ -501,10 +508,13 @@ view model =
                                                         range = extractValues
                                                             model.horizon.zoomY
                                                   }
-                                        , yaxis2 = Just
-                                            { defaultValueAxis | overlaying = Just "y"
-                                                               , side = Just "right"
-                                            }
+                                        , yaxis2 = if not ( hasSecondAxis model.loadedseries )
+                                            then Nothing
+                                            else
+                                                Just
+                                                { defaultValueAxis | overlaying = Just "y"
+                                                                   , side = Just "right"
+                                                }
                                         , height = Just 600
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"
@@ -562,7 +572,11 @@ view model =
                 , H.div
                     [ ]
                     [ H.header [ ] [ selector ]
-                    , H.ul [] ( debugLegends model )
+                    , H.div [HA.class "debug-view"]
+                        (if model.horizon.debug
+                         then ( debugView model )
+                         else  []
+                        )
                     , H.div
                         []
                         [ buttonLegend model ]
@@ -651,18 +665,33 @@ rowSeries model name =
         ]
 
 
-debugLegends model =
-    if not model.horizon.debug
-        then []
-        else  case model.legendStatus of
-                Nothing -> []
-                Just legends -> ( List.map
+debugView: Model -> List ( H.Html Msg )
+debugView model =
+    let legendStuff = case model.legendStatus of
+                            Nothing -> []
+                            Just legends ->
+                                ( List.map
                                     ( \ (l, s) -> if s
-                                                    then (H.li
-                                                            []
-                                                            [ H.text l ])
-                                                    else H.text "" )
-                                    legends )
+                                                  then (H.li
+                                                        []
+                                                        [ H.text l ]
+                                                        )
+                                                  else H.text ""
+                                    )
+                                    legends
+                                )
+        secondAxis = H.div
+                        []
+                        [ H.text ( "Has second axis : "
+                                  ++ if hasSecondAxis model.loadedseries
+                                    then " True"
+                                    else " False "
+                                  )
+                        ]
+    in
+        List.concat [ legendStuff
+                    , [ secondAxis ]
+                    ]
 
 
 permalink: Model -> H.Html Msg
