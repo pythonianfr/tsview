@@ -60,6 +60,7 @@ type alias Model =
     , horizon : HorizonModel
     , selecting : Bool
     , loadedseries : Dict String SeriesAndInfos
+    , highlighted: Maybe String
     , errors : List String
     , panActive: Bool
     , legendStatus : Maybe (List (String, Bool))
@@ -93,6 +94,7 @@ type Msg
     | ToggleSelection
     | ToggleItem String
     | ToggleAxis String
+    | Highlight String
     | SearchSeries String
     | MakeSearch
     | KindChange String Bool
@@ -234,6 +236,12 @@ update msg model =
               }
             , fetchseries newmodel False
             )
+
+        Highlight name ->
+            if name == "no-highlight"
+            then U.nocmd { model | highlighted = Nothing }
+            else U.nocmd { model | highlighted = Just name }
+
 
         ToggleAxis name ->
             case Dict.get name model.loadedseries of
@@ -440,6 +448,16 @@ visibility model name =
                                 allStatus
 
 
+renderColor: Model -> String -> Maybe { color : String }
+renderColor model name =
+    case model.highlighted of
+        Nothing -> Nothing
+        Just highlighted ->
+            if name == highlighted
+                then Just { color = "black"}
+                else Just { color = "rgba(0, 0, 0, 0.1)"}
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -461,6 +479,7 @@ view model =
                              { defaultTraceOptions | showlegend = True
                                                     , visible = visibility model name
                                                     , secondAxis = infos.secondAxis
+                                                    , line = renderColor model name
                              }
                         )
                         ( List.sort model.search.selected )
@@ -545,7 +564,8 @@ view model =
 seriesTable: Model -> H.Html Msg
 seriesTable model =
         H.table
-            [ HA.class "series-table" ]
+            [ HA.class "series-table"
+            ]
             ( List.map
                 ( rowSeries model )
                 ( List.sort model.search.selected )
@@ -557,9 +577,12 @@ rowSeries model name =
                         Just infos -> infos.secondAxis
     in
     H.tr
-        []
+        [ HA.id ( "remove-" ++ name )
+        , HE.onMouseOver (Highlight name)
+        , HE.onMouseLeave (Highlight "no-highlight")
+        ]
         [ H.td
-            []
+            [ ]
             [ H.a
                 [ HA.title "tsinfo"
                 ,  HA.href
@@ -671,6 +694,7 @@ main =
                     , search = (SeriesSelector.new [] "" [] selected [] [])
                     , selecting = (List.isEmpty selected)
                     , loadedseries = Dict.empty
+                    , highlighted = Nothing
                     , errors = []
                     , panActive = False
                     , legendStatus = Nothing
