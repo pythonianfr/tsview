@@ -55,6 +55,8 @@ port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 type alias Model =
     { baseurl : String
     , catalog: Catalog.Model
+    , basketCatalog : List String
+    , baskets:  List String
     , haseditor : Bool
     , search : SeriesSelector.Model
     , horizon : HorizonModel
@@ -72,6 +74,7 @@ type alias SeriesAndInfos =
     , cache: Bool
     , status : PlotStatus
     , secondAxis: Bool
+    , basket: Maybe String
     }
 
 emptySeriesInfo: SeriesAndInfos
@@ -80,6 +83,7 @@ emptySeriesInfo =
     , cache = False
     , status = Loading
     , secondAxis = False
+    , basket = Nothing
     }
 
 
@@ -87,6 +91,7 @@ failedinfo = { series = Dict.empty
              , cache = False
              , status = Failure
              , secondAxis = False
+             , basket = Nothing
              }
 
 type Msg
@@ -280,16 +285,17 @@ update msg model =
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
+                        infos = readInfo
+                                    name
+                                    model.loadedseries
                         loaded =
                             Dict.insert
                                 name
                                 { series = val
                                  , status = Success
                                  , cache = False
-                                 , secondAxis = .secondAxis <|
-                                                    readInfo
-                                                        name
-                                                        model.loadedseries
+                                 , basket = infos.basket
+                                 , secondAxis = infos.secondAxis
                                  }
                                 model.loadedseries
 
@@ -375,6 +381,7 @@ resetSeries loaded =
                                 , cache = (readInfo name loaded).cache
                                 , status = Loading
                                 , secondAxis = (readInfo name loaded).secondAxis
+                                , basket = (readInfo name loaded).basket
                                 }
                         )
             )
@@ -777,6 +784,8 @@ main =
                                     flags.debug
                                     None
                     , catalog= Catalog.empty
+                    , baskets = []
+                    , basketCatalog = []
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])
                     , selecting = (List.isEmpty selected)
