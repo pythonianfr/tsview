@@ -29,6 +29,10 @@
 
 /* grid */
 
+.grid-container div {
+  overflow: hidden;
+}
+
 .horizon-widget {
     grid-area: horizon-widget;
 }

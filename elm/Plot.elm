@@ -499,10 +499,15 @@ view model =
                                             { defaultValueAxis | overlaying = Just "y"
                                                                , side = Just "right"
                                             }
-                                        , height = Just 700
+                                        , height = Just 600
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"
                                                              else "zoom" )
+                                        , margin = { t = 0
+                                                   , b = 50
+                                                   , l = 40
+                                                   , r = 20
+                                                   }
                 }
                 defaultConfigOptions
 

@@ -261,6 +261,11 @@ label.option {
     margin-right: 20px;
 }
 
+.quickview #plot_div {
+    position: sticky;
+    top: 0;
+}
+
 .js-plotly-plot div {
     overflow: visible !important;
 }
