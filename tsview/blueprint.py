@@ -213,6 +213,7 @@ def tsview(tsa):
             homeurl=homeurl(),
             haseditor=json.dumps(False),  # NOTE: really fix me
             series=request.args.getlist("series"),
+            axis2=request.args.getlist("axis2"),
             min=min,
             max=max,
             debug=debug,

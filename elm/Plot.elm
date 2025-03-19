@@ -519,7 +519,7 @@ view model =
                                         , dragMode = Just ( if model.panActive
                                                              then "pan"
                                                              else "zoom" )
-                                        , margin = { t = 0
+                                        , margin = { t = 45
                                                    , b = 50
                                                    , l = 40
                                                    , r = 60
@@ -700,6 +700,9 @@ permalink model =
         names = List.map
                     (\name -> UB.string "series" name)
                     model.search.selected
+        axis = List.map
+            (\name -> UB.string "axis2" name)
+            (secondAxisNames model)
         addParams = case getFromToDates model.horizon of
                         Nothing -> []
                         Just ( min, max ) -> [ UB.string "startdate" min
@@ -709,9 +712,25 @@ permalink model =
     [ HA.class "permalink"
     , HA.href ( UB.relative
                 ["tsview"]
-                ( names ++ addParams ))
+                ( names ++ axis ++ addParams ))
     ]
     [ H.text "permalink" ]
+
+
+secondAxisNames: Model -> List String
+secondAxisNames model =
+    Dict.keys
+        <| Dict.filter
+                (\ _ i -> i.secondAxis )
+                ( model.loadedseries )
+
+
+emptyLoaded: List String -> Dict String SeriesAndInfos
+emptyLoaded onSecondAxis =
+    Dict.fromList
+        <| List.map
+            (\ name -> ( name, { emptySeriesInfo | secondAxis = True }))
+            onSecondAxis
 
 
 sub: Model -> Sub Msg
@@ -736,6 +755,7 @@ realsubs =
 main : Program
        { baseurl : String
        , selected : List String
+       , axis2: List String
        , haseditor : Bool
        , min: String
        , max : String
@@ -747,6 +767,7 @@ main =
             let
                 selected =
                     flags.selected
+                axis2 = flags.axis2
                 model =
                     { baseurl = flags.baseurl
                     , horizon = initHorizon
@@ -759,7 +780,7 @@ main =
                     , haseditor = flags.haseditor
                     , search = (SeriesSelector.new [] "" [] selected [] [])
                     , selecting = (List.isEmpty selected)
-                    , loadedseries = Dict.empty
+                    , loadedseries = emptyLoaded axis2
                     , highlighted = Nothing
                     , errors = []
                     , panActive = False
