@@ -55,7 +55,6 @@ port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 type alias Model =
     { baseurl : String
     , catalog: Catalog.Model -- is not used, actually
-    , catalogBasket: Catalog.Model
     , baskets:  List String
     , haseditor : Bool
     , searchSeries : SeriesSelector.Model
@@ -672,13 +671,11 @@ buildSelector model =
                     ModeSeries ->
                       [ SeriesSelector.view
                                model.searchSeries
-                               model.catalog
                                selectorConfig
                          ]
                     ModeBasket ->
                       [ SeriesSelector.view
                                model.searchBasket
-                               model.catalog
                                basketSelectorConfig
                      ]
                     NoMode -> []
@@ -894,7 +891,6 @@ main =
                                     flags.debug
                                     None
                     , catalog= Catalog.empty
-                    , catalogBasket = Catalog.empty
                     , baskets = []
                     , haseditor = flags.haseditor
                     , searchSeries = initSearch selected

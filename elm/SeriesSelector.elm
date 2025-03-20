@@ -221,8 +221,8 @@ makefilter section sectionitems activeitems event =
 
 
 -- catalog parameter is not used:
-view : Model -> Catalog.Model -> SelectorConfig msg -> H.Html msg
-view model catalog cfg =
+view : Model -> SelectorConfig msg -> H.Html msg
+view model cfg =
     let
         searchInput =
             H.div
