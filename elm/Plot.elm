@@ -107,7 +107,6 @@ type Msg
     | SearchSeries String
     | ToggleBasket String
     | SearchBasket String
-    | MakeSearch
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
@@ -180,7 +179,7 @@ update msg model =
                 x :: xs
         keywordMatch xm xs =
             if
-                String.length xm < 2
+                String.length xm < 3
             then
                 []
             else
@@ -304,20 +303,14 @@ update msg model =
             let
                 search =
                     SeriesSelector.updatesearch model.searchSeries x
-            in
-            U.nocmd { model | searchSeries = search }
-
-
-        MakeSearch ->
-            let
-                search =
-                    SeriesSelector.updatefound model.searchSeries
+                moreSearch =
+                    SeriesSelector.updatefound search
                         (keywordMatch
-                             model.searchSeries.search
-                             model.searchSeries.filteredseries
+                             search.search
+                             search.filteredseries
                         )
             in
-            U.nocmd { model | searchSeries = search }
+            U.nocmd { model | searchSeries = moreSearch }
 
 
         SearchBasket x ->
@@ -846,15 +839,6 @@ initSearch selected = (SeriesSelector.new [] "" [] selected [] [])
 
 sub: Model -> Sub Msg
 sub model =
-    -- this is a cheap (cadenced) debouncer for the search ui
-    if model.selecting == ModeSeries
-    then
-    Sub.batch [ Time.every 1000 (always MakeSearch)
-              , realsubs
-              ]
-    else realsubs
-
-realsubs =
     Sub.batch
     [ loadFromLocalStorage
         (\ s-> convertMsg (ModuleHorizon.FromLocalStorage s))
