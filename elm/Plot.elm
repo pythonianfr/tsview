@@ -207,7 +207,7 @@ update msg model =
                     in
                     U.nocmd
                         { model | searchBasket =
-                                    { previous | filteredseries = baskets }
+                                    { previous | items = baskets }
                         }
 
 
@@ -307,7 +307,7 @@ update msg model =
                     SeriesSelector.updatefound search
                         (keywordMatch
                              search.search
-                             search.filteredseries
+                             search.items
                         )
             in
             U.nocmd { model | searchSeries = moreSearch }
@@ -321,7 +321,7 @@ update msg model =
                     SeriesSelector.updatefound searchBasket
                         (keywordMatch
                              searchBasket.search
-                             searchBasket.filteredseries
+                             searchBasket.items
                         )
             in
             U.nocmd { model | searchBasket = filtered }
@@ -778,7 +778,7 @@ debugView model =
                     []
                     <| List.map
                         (\ b -> H.text b)
-                        model.searchBasket.filteredseries
+                        model.searchBasket.items
     in
         List.concat [ [ H.br [] []]
                     , legendStuff

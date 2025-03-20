@@ -23,17 +23,17 @@ import Set exposing (Set)
 -- model
 
 type alias Model =
-    { filteredseries : List String -- list of series to select from
+    { items : List String -- list of items to select from
     , search : String  -- the search input pattern
-    , found : List String  -- series matching the search
-    , selected : List String  --  selected series
-    , kinds : List String -- list of series kinds
-    , sources : List String -- list of series sources
+    , found : List String  -- items matching the search
+    , selected : List String  --  selected items
+    , kinds : List String -- list of item kinds
+    , sources : List String -- list of item sources
     }
 
 
 new series search found selected kinds sources =
-    { filteredseries = series
+    { items = series
     , search =search
     , found = found
     , selected = selected
@@ -70,7 +70,7 @@ fromcatalog model catalog =
     { model
         | kinds = newkinds
         , sources = newsources
-        , filteredseries = List.sort catalog.series
+        , items = List.sort catalog.series
     }
 
 
@@ -103,7 +103,7 @@ updatekinds model catalog kind checked =
         newmodel =
             { model | kinds = newkinds }
     in
-    { newmodel | filteredseries = filterseries newmodel catalog }
+    { newmodel | items = filterseries newmodel catalog }
 
 
 updatesources : Model -> Catalog.Model -> String -> Bool -> Model
@@ -119,7 +119,7 @@ updatesources model catalog source checked =
         newmodel =
             { model | sources = newsources }
     in
-    { newmodel | filteredseries = filterseries newmodel catalog }
+    { newmodel | items = filterseries newmodel catalog }
 
 
 -- view
@@ -234,7 +234,7 @@ view model cfg =
                     , HA.size 100
                     , HA.placeholder
                         ("start typing here to pick from " ++
-                             (String.fromInt (List.length model.filteredseries)) ++
+                             (String.fromInt (List.length model.items)) ++
                              " items"
                         )
                     ] []

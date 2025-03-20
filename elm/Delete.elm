@@ -134,7 +134,7 @@ update msg model =
                                 model.search
                                 (keywordMatch
                                      model.search.search
-                                     model.search.filteredseries)
+                                     model.search.items)
                 in
                     U.nocmd { model | search = newsearch }
 
@@ -144,7 +144,7 @@ update msg model =
             DeleteDone name (Ok _) ->
                 let
                     newsearch = SeriesSelector.new -- there must be a more elegant way
-                                (removeItem name model.search.filteredseries)
+                                (removeItem name model.search.items)
                                 model.search.search
                                 (removeItem name model.search.found)
                                 (removeItem name model.search.selected)
