@@ -38,8 +38,6 @@ import Horizon exposing
     , extractValues
     , extractZoomDates
     , updateZoom )
-import Maybe.Extra as Maybe
-import OrderedDict as OD
 import SeriesSelector
 import Task exposing (Task)
 import Time exposing (Month(..))
@@ -55,7 +53,6 @@ port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 type alias Model =
     { baseurl : String
     , catalog: Catalog.Model -- is not used, actually
-    , baskets:  List String
     , haseditor : Bool
     , searchSeries : SeriesSelector.Model
     , searchBasket: SeriesSelector.Model
@@ -891,7 +888,6 @@ main =
                                     flags.debug
                                     None
                     , catalog= Catalog.empty
-                    , baskets = []
                     , haseditor = flags.haseditor
                     , searchSeries = initSearch selected
                     , searchBasket = initSearch []
