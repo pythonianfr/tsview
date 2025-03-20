@@ -54,13 +54,14 @@ port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 
 type alias Model =
     { baseurl : String
-    , catalog: Catalog.Model
-    , basketCatalog : List String
+    , catalog: Catalog.Model -- is not used, actually
+    , catalogBasket: Catalog.Model
     , baskets:  List String
     , haseditor : Bool
-    , search : SeriesSelector.Model
+    , searchSeries : SeriesSelector.Model
+    , searchBasket: SeriesSelector.Model
     , horizon : HorizonModel
-    , selecting : Bool
+    , selecting : Selecting
     , loadedseries : Dict String SeriesAndInfos
     , highlighted: Maybe String
     , errors : List String
@@ -68,6 +69,11 @@ type alias Model =
     , legendStatus : Maybe (List (String, Bool))
     , showLegend : Bool
     }
+
+type Selecting =
+    ModeSeries
+    | ModeBasket
+    | NoMode
 
 type alias SeriesAndInfos =
     { series: Series
@@ -97,11 +103,14 @@ failedinfo = { series = Dict.empty
 type Msg
     = GotCatalog Catalog.Msg
     | GotPlotData String (Result Http.Error String)
-    | ToggleSelection
+    | GotBasketCatalog (Result Http.Error String)
+    | ChangeSelection Selecting
     | ToggleItem String
     | ToggleAxis String
     | Highlight String
     | SearchSeries String
+    | ToggleBasket String
+    | SearchBasket String
     | MakeSearch
     | KindChange String Bool
     | SourceChange String Bool
@@ -118,9 +127,11 @@ convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
+
+findmissing: Model -> List String
 findmissing model =
     let
-        selected = model.search.selected
+        selected = model.searchSeries.selected
         ismissing series =
             not <| Dict.member series model.loadedseries
     in List.filter ismissing selected
@@ -149,7 +160,7 @@ fetchseries model reload =
         )
         ( if not reload
             then findmissing model
-            else model.search.selected )
+            else model.searchSeries.selected )
     )
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
@@ -185,45 +196,64 @@ update msg model =
                 newcat =
                     Catalog.update catmsg model.catalog
                 newsearch =
-                    SeriesSelector.fromcatalog model.search newcat
+                    SeriesSelector.fromcatalog model.searchSeries newcat
             in
             U.nocmd { model
                         | catalog = newcat
-                        , search = newsearch
+                        , searchSeries = newsearch
                     }
 
+        GotBasketCatalog (Ok raw) ->
+            case Decode.decodeString ( Decode.list Decode.string) raw of
+                Err err ->
+                    doerr "gotbasketcatalog decode" <| Decode.errorToString err
+                Ok baskets ->
+                    let previous = model.searchBasket
+                    in
+                    U.nocmd
+                        { model | searchBasket =
+                                    { previous | filteredseries = baskets }
+                        }
+
+
+        GotBasketCatalog (Err err) ->
+            doerr "gotbasketcatalog network" ""
+
+
+        -- never used in this page
         KindChange kind checked ->
             let
                 newsearch =
                     SeriesSelector.updatekinds
-                        model.search
+                        model.searchSeries
                         model.catalog
                         kind
                         checked
             in
-            U.nocmd { model | search = newsearch }
+            U.nocmd { model | searchSeries = newsearch }
 
+        -- never used in this page
         SourceChange source checked ->
             let
                 newsearch =
                     SeriesSelector.updatesources
-                        model.search
+                        model.searchSeries
                         model.catalog
                         source
                         checked
             in
-            U.nocmd { model | search = newsearch }
+            U.nocmd { model | searchSeries = newsearch }
 
-        ToggleSelection ->
-            U.nocmd { model | selecting = not model.selecting }
+        ChangeSelection selecting ->
+            U.nocmd { model | selecting = selecting }
 
         ToggleItem x ->
             let
                 newmodel =
                     { model
-                        | search = SeriesSelector.updateselected
-                                    model.search
-                                    (toggleItem x model.search.selected)
+                        | searchSeries = SeriesSelector.updateselected
+                                    model.searchSeries
+                                    (toggleItem x model.searchSeries.selected)
                     }
                 updatedloadedseries = if ( List.member
                                              x
@@ -242,6 +272,19 @@ update msg model =
                                                             updatedloadedseries }
               }
             , fetchseries newmodel False
+            )
+
+        ToggleBasket x ->
+            let
+                newmodel =
+                    { model
+                        | searchBasket = SeriesSelector.updateselected
+                                    model.searchBasket
+                                    (toggleItem x model.searchBasket.selected)
+                    }
+            in
+            ( newmodel
+            , Cmd.none
             )
 
         Highlight name ->
@@ -264,20 +307,35 @@ update msg model =
         SearchSeries x ->
             let
                 search =
-                    SeriesSelector.updatesearch model.search x
+                    SeriesSelector.updatesearch model.searchSeries x
             in
-            U.nocmd { model | search = search }
+            U.nocmd { model | searchSeries = search }
+
 
         MakeSearch ->
             let
                 search =
-                    SeriesSelector.updatefound model.search
+                    SeriesSelector.updatefound model.searchSeries
                         (keywordMatch
-                             model.search.search
-                             model.search.filteredseries
+                             model.searchSeries.search
+                             model.searchSeries.filteredseries
                         )
             in
-            U.nocmd { model | search = search }
+            U.nocmd { model | searchSeries = search }
+
+
+        SearchBasket x ->
+            let
+                searchBasket =
+                    SeriesSelector.updatesearch model.searchBasket x
+                filtered =
+                    SeriesSelector.updatefound searchBasket
+                        (keywordMatch
+                             searchBasket.search
+                             searchBasket.filteredseries
+                        )
+            in
+            U.nocmd { model | searchBasket = filtered }
 
         -- plot
 
@@ -322,6 +380,7 @@ update msg model =
                                 { horizonmodel | plotStatus = multiStatus
                                                                 updatedinfos }}
                , Cmd.none )
+
 
         -- horizon
 
@@ -435,6 +494,26 @@ selectorConfig =
     , divAttrs = [ ]
     }
 
+basketSelectorConfig : SeriesSelector.SelectorConfig Msg
+basketSelectorConfig =
+    { searchSelector =
+        { action = Nothing
+        , defaultText =
+            H.text
+                "Type some keywords in input bar for selecting basket(s)"
+        , toggleMsg = ToggleBasket
+        }
+    , actionSelector =
+        { action = Nothing
+        , defaultText = H.text ""
+        , toggleMsg = ToggleBasket
+        }
+    , onInputMsg = SearchBasket
+    , onKindChange = KindChange --not used
+    , onSourceChange = SourceChange --not used
+    , divAttrs = [ ]
+    }
+
 
 viewlinks haseditor seriesName =
     H.div [ ]
@@ -480,120 +559,151 @@ renderColor model name =
 
 view : Model -> H.Html Msg
 view model =
-    let
-        plotDiv = "plot_div"
-        args =
-            let
-                data =
-                    List.map
-                        (\name ->
-                             let infos = case Dict.get name model.loadedseries of
-                                            Nothing -> emptySeriesInfo
-                                            Just info -> info
-                             in
-                             scatterplot
-                             name
-                             (Dict.keys infos.series)
-                             (Dict.values infos.series)
-                             (if model.horizon.inferredFreq then "lines+markers" else "lines")
-                             { defaultTraceOptions | showlegend = model.showLegend
-                                                    , visible = visibility model name
-                                                    , secondAxis = infos.secondAxis
-                                                    , line = renderColor model name
-                             }
-                        )
-                        ( List.sort model.search.selected )
-            in
-            serializedPlotArgs
-                plotDiv
-                data
-                { defaultLayoutOptions | xaxis = { defaultDateAxis |
-                                                    range = extractDates
-                                                        model.horizon.zoomBounds
-                                                 }
-                                        , yaxis = { defaultValueAxis |
-                                                        range = extractValues
-                                                            model.horizon.zoomY
-                                                  }
-                                        , yaxis2 = if not ( hasSecondAxis model.loadedseries )
-                                            then Nothing
-                                            else
-                                                Just
-                                                { defaultValueAxis | overlaying = Just "y"
-                                                                   , side = Just "right"
-                                                }
-                                        , height = Just 600
-                                        , dragMode = Just ( if model.panActive
-                                                             then "pan"
-                                                             else "zoom" )
-                                        , margin = { t = 45
-                                                   , b = 50
-                                                   , l = 40
-                                                   , r = 60
-                                                   }
-                }
-                defaultConfigOptions
-
-        selector =
-            let
-                children =
-                    [ H.a
-                          [ HE.onClick ToggleSelection
-                          , HA.title "click to toggle selector"
-                          , HA.class <| if model.selecting
-                                            then "btn btn-warning"
-                                            else "btn btn-primary"
-
-                          ]
-                          [ H.text <| if model.selecting
-                                        then "Hide selection"
-                                        else "Series selection"
-
-                          ]
-                    ]
-            in
-                H.form [ ]
-                    (
-                     if
-                         model.selecting
-                     then
-                         List.append children
-                             [ SeriesSelector.view
-                                   model.search
-                                   model.catalog
-                                   selectorConfig
-                             ]
-                     else
-                         children
-                    )
-    in
     H.div
         [ HA.class "quickview" ]
         [ H.div
-                [ HA.class "main-content" ]
-                [ H.span [ HA.class "action-container" ]
-                    [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
-                    , horizonview model.horizon convertMsg "action-center" True
-                    , permalink model
-                    ]
+            [ HA.class "main-content" ]
+            [ H.span [ HA.class "action-container" ]
+                [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
+                , horizonview model.horizon convertMsg "action-center" True
+                , permalink model
+                ]
+            , H.div
+                [ ]
+                [ buildSelector model
+                , H.div [HA.class "debug-view"]
+                    (if model.horizon.debug
+                     then ( debugView model )
+                     else  []
+                    )
                 , H.div
-                    [ ]
-                    [ H.header [ ] [ selector ]
-                    , H.div [HA.class "debug-view"]
-                        (if model.horizon.debug
-                         then ( debugView model )
-                         else  []
-                        )
-                    , H.div
-                        []
-                        [ buttonLegend model ]
-                    , H.div [ HA.id plotDiv ] []
-                    , plotFigure [ HA.attribute "args" args ] []
-                    , H.div
-                        [ HA.class "under-the-plot" ]
-                        [ seriesTable model ]
-                    ]
-                ]]
+                    []
+                    [ buttonLegend model ]
+                , H.div [ HA.id plotDiv ] []
+                , plotFigure
+                    [ HA.attribute "args" ( buildPlotArgs model )]
+                    []
+                , H.div
+                    [ HA.class "under-the-plot" ]
+                    [ seriesTable model ]
+                ]
+            ]]
+
+
+plotDiv = "plot_div"
+
+
+buildPlotArgs: Model -> String
+buildPlotArgs model =
+    let
+        data =
+            List.map
+                (\name ->
+                     let infos = case Dict.get name model.loadedseries of
+                                    Nothing -> emptySeriesInfo
+                                    Just info -> info
+                     in
+                     scatterplot
+                     name
+                     (Dict.keys infos.series)
+                     (Dict.values infos.series)
+                     (if model.horizon.inferredFreq then "lines+markers" else "lines")
+                     { defaultTraceOptions | showlegend = model.showLegend
+                                            , visible = visibility model name
+                                            , secondAxis = infos.secondAxis
+                                            , line = renderColor model name
+                     }
+                )
+                ( List.sort model.searchSeries.selected )
+    in
+        serializedPlotArgs
+            plotDiv
+            data
+            { defaultLayoutOptions |
+                xaxis = { defaultDateAxis |
+                            range = extractDates
+                                model.horizon.zoomBounds
+                         }
+                , yaxis = { defaultValueAxis |
+                                range = extractValues
+                                    model.horizon.zoomY
+                          }
+                , yaxis2 = if not ( hasSecondAxis model.loadedseries )
+                    then Nothing
+                    else
+                        Just
+                        { defaultValueAxis | overlaying = Just "y"
+                                           , side = Just "right"
+                        }
+                , height = Just 600
+                , dragMode = Just ( if model.panActive
+                                     then "pan"
+                                     else "zoom" )
+                , margin = { t = 45
+                           , b = 50
+                           , l = 40
+                           , r = 60
+                           }
+            }
+            defaultConfigOptions
+
+
+buildSelector: Model -> H.Html Msg
+buildSelector model =
+    let
+        buttons =
+            [ H.a
+                  [ HE.onClick <| case model.selecting of
+                                    ModeSeries -> ChangeSelection NoMode
+                                    _ -> ChangeSelection ModeSeries
+                  , HA.title "click to toggle selector"
+                  , HA.class <| case model.selecting of
+                                    ModeSeries -> "btn btn-warning"
+                                    _ -> "btn btn-primary"
+
+                  ]
+                  [ H.text <| case model.selecting of
+                                    ModeSeries -> "Hide selection"
+                                    _ -> "Series selection"
+                  ]
+            , H.a
+                  [ HE.onClick <| case model.selecting of
+                                    ModeBasket -> ChangeSelection NoMode
+                                    _ -> ChangeSelection ModeBasket
+                  , HA.title "click to toggle selector"
+                  , HA.class <| case model.selecting of
+                                    ModeBasket -> "btn btn-warning"
+                                    _ -> "btn btn-primary"
+
+                  ]
+                  [ H.text <| case model.selecting of
+                                    ModeBasket -> "Hide selection"
+                                    _ -> "Basket selection"
+                  ]
+            ]
+    in
+       H.header
+            []
+            [ H.form [ ]
+            ( buttons ++
+                ( case model.selecting of
+                    ModeSeries ->
+                      [ SeriesSelector.view
+                               model.searchSeries
+                               model.catalog
+                               selectorConfig
+                         ]
+                    ModeBasket ->
+                      [ SeriesSelector.view
+                               model.searchBasket
+                               model.catalog
+                               basketSelectorConfig
+                     ]
+                    NoMode -> []
+                )
+            )
+            ]
+
 
 buttonLegend: Model -> H.Html Msg
 buttonLegend model =
@@ -626,7 +736,7 @@ seriesTable model =
             ]
             ( List.map
                 ( rowSeries model )
-                ( List.sort model.search.selected )
+                ( List.sort ( Dict.keys model.loadedseries ) )
             )
 
 rowSeries model name =
@@ -695,9 +805,16 @@ debugView model =
                                     else " False "
                                   )
                         ]
+        baskets = H.div
+                    []
+                    <| List.map
+                        (\ b -> H.text b)
+                        model.searchBasket.filteredseries
     in
-        List.concat [ legendStuff
+        List.concat [ [ H.br [] []]
+                    , legendStuff
                     , [ secondAxis ]
+                    , [ baskets ]
                     ]
 
 
@@ -706,7 +823,7 @@ permalink model =
     let
         names = List.map
                     (\name -> UB.string "series" name)
-                    model.search.selected
+                    model.searchSeries.selected
         axis = List.map
             (\name -> UB.string "axis2" name)
             (secondAxisNames model)
@@ -740,14 +857,25 @@ emptyLoaded onSecondAxis =
             onSecondAxis
 
 
+getBasketCatalog: String -> Cmd Msg
+getBasketCatalog baseurl =
+    Http.get
+        { expect = Http.expectString GotBasketCatalog
+        , url = UB.crossOrigin baseurl
+              [ "api", "series", "baskets" ]
+              [ ]
+        }
+
+initSearch selected = (SeriesSelector.new [] "" [] selected [] [])
+
 sub: Model -> Sub Msg
 sub model =
     -- this is a cheap (cadenced) debouncer for the search ui
-    if model.selecting then
+    if model.selecting == ModeSeries
+    then
     Sub.batch [ Time.every 1000 (always MakeSearch)
               , realsubs
               ]
-
     else realsubs
 
 realsubs =
@@ -784,11 +912,14 @@ main =
                                     flags.debug
                                     None
                     , catalog= Catalog.empty
+                    , catalogBasket = Catalog.empty
                     , baskets = []
-                    , basketCatalog = []
                     , haseditor = flags.haseditor
-                    , search = (SeriesSelector.new [] "" [] selected [] [])
-                    , selecting = (List.isEmpty selected)
+                    , searchSeries = initSearch selected
+                    , searchBasket = initSearch []
+                    , selecting = if (List.isEmpty selected )
+                                    then ModeSeries
+                                    else NoMode
                     , loadedseries = emptyLoaded axis2
                     , highlighted = Nothing
                     , errors = []
@@ -802,6 +933,8 @@ main =
                                 model.baseurl
                                 "series" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
+                            , getBasketCatalog
+                                model.baseurl
                             ])
                )
 
