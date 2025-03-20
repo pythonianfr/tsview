@@ -515,24 +515,6 @@ basketSelectorConfig =
     }
 
 
-viewlinks haseditor seriesName =
-    H.div [ ]
-        [ H.text (seriesName ++ " ")
-        , H.a
-            [ HA.href <| UB.relative [ "tsinfo" ] [ UB.string "name" seriesName]
-            ]
-            [ H.text <| "info" ]
-        , H.text " "
-        , H.text " "
-        , if haseditor then
-              H.a [ HA.href <| UB.relative [ "tseditor/?name=" ++ seriesName ] []
-                  ]
-                  [ H.text <| "editor" ]
-          else
-              H.text ""
-        ]
-
-
 visibility: Model -> String -> Bool
 visibility model name =
     case model.legendStatus of
