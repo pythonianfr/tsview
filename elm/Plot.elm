@@ -10,6 +10,7 @@ import Html.Events as HE
 import Http
 import Catalog
 import Json.Decode as Decode
+import Metadata
 import Plotter exposing
     ( Series
     , defaultLayoutOptions
@@ -89,6 +90,25 @@ emptySeriesInfo =
     }
 
 
+type alias BasketItem =
+    { name : String
+    , imeta : Maybe Metadata.StdMetadata
+    , meta : Maybe Metadata.StdMetadata
+    , source : String
+    , kind : String
+    }
+
+
+basketItemDecode : Decode.Decoder BasketItem
+basketItemDecode =
+    Decode.map5 BasketItem
+        (Decode.field "name" Decode.string)
+        (Decode.field "imeta" (Decode.succeed Nothing))
+        (Decode.field "meta" (Decode.succeed Nothing))
+        (Decode.field "source" Decode.string)
+        (Decode.field "kind" Decode.string)
+
+
 failedinfo = { series = Dict.empty
              , cache = False
              , status = Failure
@@ -100,6 +120,7 @@ type Msg
     = GotCatalog Catalog.Msg
     | GotPlotData String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
+    | GotBasket (Result Http.Error String)
     | ChangeSelection Selecting
     | ToggleItem String
     | ToggleAxis String
@@ -132,31 +153,46 @@ findmissing model =
     in List.filter ismissing selected
 
 
+fetchsingle: Model -> String -> String -> String -> Cmd Msg
+fetchsingle model start end name =
+    getdata
+         { baseurl = model.baseurl
+         , name = name
+         , idate = Nothing
+         , callback = GotPlotData name
+         , nocache = (U.bool2int model.horizon.viewNoCache)
+         , fromdate = start
+         , todate = end
+         , horizon = Nothing
+         , tzone = model.horizon.timeZone
+         , inferredFreq = model.horizon.inferredFreq
+         , keepnans = False
+         , apipoint = "state"
+         }
+
+
 fetchseries: Model -> Bool -> Cmd Msg
 fetchseries model reload =
     let ( start, end ) = getFetchBounds model.horizon
     in
     Cmd.batch
     ( List.map
-        (\name -> getdata
-             { baseurl = model.baseurl
-             , name = name
-             , idate = Nothing
-             , callback = GotPlotData name
-             , nocache = (U.bool2int model.horizon.viewNoCache)
-             , fromdate = start
-             , todate = end
-             , horizon = Nothing
-             , tzone = model.horizon.timeZone
-             , inferredFreq = model.horizon.inferredFreq
-             , keepnans = False
-             , apipoint = "state"
-             }
-        )
+        ( fetchsingle model start end )
         ( if not reload
             then findmissing model
-            else model.searchSeries.selected )
+            else ( Dict.keys model.loadedseries ))
     )
+
+
+fetchbasket : Model -> String -> Cmd Msg
+fetchbasket model name =
+    Http.get
+        { expect = Http.expectString GotBasket
+        , url = UB.crossOrigin model.baseurl
+              [ "api", "series", "basket" ]
+              [ UB.string "name" name ]
+        }
+
 
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
 plotFigure =
@@ -210,10 +246,33 @@ update msg model =
                                     { previous | items = baskets }
                         }
 
-
         GotBasketCatalog (Err err) ->
             doerr "gotbasketcatalog network" ""
 
+        GotBasket (Ok raw) ->
+             case Decode.decodeString ( Decode.list basketItemDecode) raw of
+                Err err ->
+                    doerr "gotbasket decode" <| Decode.errorToString err
+                Ok items ->
+                    let names = List.map .name items
+                        newLoaded = Dict.fromList
+                                        <| List.map
+                                             (\ n -> (n, emptySeriesInfo))
+                                             names
+                        updated = Dict.union
+                                    model.loadedseries
+                                    newLoaded
+                        ( start, end ) = getFetchBounds model.horizon
+                    in
+                        ( { model | loadedseries = updated }
+                        , Cmd.batch
+                            <| List.map
+                                    (fetchsingle model start end)
+                                    names
+                        )
+
+        GotBasket (Err err) ->
+            doerr "gotbasket network" ""
 
         -- never used in this page
         KindChange kind checked ->
@@ -269,17 +328,17 @@ update msg model =
             , fetchseries newmodel False
             )
 
-        ToggleBasket x ->
+        ToggleBasket name ->
             let
                 newmodel =
                     { model
                         | searchBasket = SeriesSelector.updateselected
                                     model.searchBasket
-                                    (toggleItem x model.searchBasket.selected)
+                                    (toggleItem name model.searchBasket.selected)
                     }
             in
             ( newmodel
-            , Cmd.none
+            , fetchbasket model name
             )
 
         Highlight name ->
@@ -585,7 +644,7 @@ buildPlotArgs model =
                                             , line = renderColor model name
                      }
                 )
-                ( List.sort model.searchSeries.selected )
+                ( List.sort ( Dict.keys model.loadedseries ))
     in
         serializedPlotArgs
             plotDiv
@@ -792,7 +851,7 @@ permalink model =
     let
         names = List.map
                     (\name -> UB.string "series" name)
-                    model.searchSeries.selected
+                    ( Dict.keys model.loadedseries )
         axis = List.map
             (\name -> UB.string "axis2" name)
             (secondAxisNames model)
