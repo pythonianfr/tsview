@@ -252,7 +252,7 @@ update msg model =
                 Ok allmeta ->
                     let
                         isformula = Dict.member "formula" allmeta
-                        isbindings = Dict.member "bindings" allmeta
+                        isbindings = Dict.member "bound" allmeta
                         (stdmeta, usermeta) =
                             Dict.partition (\k v -> (List.member k M.metanames)) allmeta
                         newmodel =
