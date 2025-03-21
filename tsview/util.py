@@ -223,31 +223,37 @@ def test_find_auto_top_level(cn, tsh, name):
 
 
 def expand_for_editor(tsa, seriesname, full=False):
-    if not full:
-        tree = replace_findseries(
-                tsa.engine,
-                tsa.tsh,
-                parse(tsa.formula(seriesname)),
-            )
-    else :
-        tree = expanded(
-            tsa.tsh,
-            tsa.engine,
-            parse(tsa.formula(seriesname)),
-            remote=True,
+    engine = tsa.engine
+    tsh = tsa.tsh
+
+    with engine.begin() as cn:
+        tree = parse(tsh.formula(cn, seriesname))
+
+        if not full:
+            tree = replace_findseries(cn, tsh, tree)
+        else:
+            tree = expanded(tsh, cn, tree, remote=True)
+
+        names = list(tsh.find_series(cn, tree))
+
+        sql = (
+            'select name, internal_metadata from "tsh".registry '
+            'where name = ANY(%(names)s)'
         )
-    infos = [
-        {
-            'name': name,
-            'type': tsa.type(name),
-            'tzaware': tsa.internal_metadata(name)['tzaware'],
-        }
-        for name, expr in tsa.tsh.find_series(tsa.engine, tree).items()
+        infos = [
+            {
+                'name': name,
+                'type': 'formula' if 'formula' in meta else 'primary',
+                'tzaware': meta['tzaware'],
+            }
+            for name, meta in cn.execute(sql, names=names).fetchall()
     ]
-    if not full:
-        autos = test_find_auto_top_level(tsa.engine, tsa.tsh, seriesname)
-    else:
-        autos = find_autos(tsa.engine, tsa.tsh, seriesname)
+
+        # auto hack
+        if not full:
+            autos = test_find_auto_top_level(cn, tsh, seriesname)
+        else:
+            autos = find_autos(cn, tsh, seriesname)
 
     for list_auto in autos.values():
         for auto in list_auto:
@@ -258,4 +264,5 @@ def expand_for_editor(tsa, seriesname, full=False):
                     'tzaware': True,
                 }
             )
+
     return infos

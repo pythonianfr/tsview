@@ -461,7 +461,11 @@ def test_expand(tsa):
     )
     tsa.register_formula(
         'tse-auto',
-        '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz "CET") "d" (date "1900-01-01"))'
+        (
+            '(constant 12 (date "2025-01-01" #:tz "CET") '
+            ' (date "2025-01-01" #:tz "CET") "d" '
+            ' (date "1900-01-01"))'
+        )
     )
     tsa.register_formula(
         'tse-top-level',
@@ -470,25 +474,61 @@ def test_expand(tsa):
 
     infos = expand_for_editor(tsa, 'tse-top-level')
     assert infos == [
-        {'name': 'tse-add', 'type': 'formula', 'tzaware': True},
-        {'name': 'tse-findseries', 'type': 'formula', 'tzaware': True},
-        {'name': 'tse-auto', 'type': 'formula', 'tzaware': True}
+        {
+            'name': 'tse-add',
+            'type': 'formula',
+            'tzaware': True
+        },
+        {
+            'name': 'tse-findseries',
+            'type': 'formula',
+            'tzaware': True
+        },
+        {
+            'name': 'tse-auto',
+            'type': 'formula',
+            'tzaware': True
+        }
     ]
 
     autos = expand_for_editor(tsa, 'tse-auto')
     assert autos == [
-        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
-                 '"CET") "d" (date "1900-01-01"))', 'type': 'auto', 'tzaware': True}
+        {
+            'name': ('(constant 12 (date "2025-01-01" #:tz "CET") '
+                     '(date "2025-01-01" #:tz "CET") "d" '
+                     '(date "1900-01-01"))'),
+            'type': 'auto',
+            'tzaware': True
+        }
     ]
 
     full = expand_for_editor(tsa, 'tse-top-level', full=True)
     assert full == [
-        {'name': 'tse-base-tz-0', 'type': 'primary', 'tzaware': True},
-        {'name': 'tse-base-tz-1', 'type': 'primary', 'tzaware': True},
-        {'name': 'tse-base-tz-2', 'type': 'primary', 'tzaware': True},
-        {'name': 'tse-base-tz-3', 'type': 'primary', 'tzaware': True},
-        {'name': '(constant 12 (date "2025-01-01" #:tz "CET") (date "2025-01-01" #:tz '
-                 '"CET") "d" (date "1900-01-01"))',
-         'type': 'auto',
-         'tzaware': True}
+        {
+            'name': 'tse-base-tz-0',
+            'type': 'primary',
+            'tzaware': True
+        },
+        {
+            'name': 'tse-base-tz-1',
+            'type': 'primary',
+            'tzaware': True
+        },
+        {
+            'name': 'tse-base-tz-2',
+            'type': 'primary',
+            'tzaware': True
+        },
+        {
+            'name': 'tse-base-tz-3',
+            'type': 'primary',
+            'tzaware': True
+        },
+        {
+            'name': ('(constant 12 (date "2025-01-01" #:tz "CET") '
+                     '(date "2025-01-01" #:tz "CET") "d" '
+                     '(date "1900-01-01"))'),
+            'type': 'auto',
+            'tzaware': True
+        }
     ]
