@@ -329,6 +329,9 @@ update msg model =
             )
 
         ToggleBasket name ->
+            if  List.member name model.searchBasket.selected
+            then U.nocmd model
+            else
             let
                 newmodel =
                     { model
