@@ -256,9 +256,9 @@ label.option {
     margin-top: 10px;
 }
 
-.quickview .bouton-axis {
+.quickview .button-table-series {
     width: 75px;
-    margin-right: 20px;
+    margin-right: 10px;
 }
 
 .quickview #plot_div {

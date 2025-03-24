@@ -40,6 +40,7 @@ import Horizon exposing
     , extractZoomDates
     , updateZoom )
 import SeriesSelector
+import Set exposing (Set)
 import Task exposing (Task)
 import Time exposing (Month(..))
 import Url.Builder as UB
@@ -61,6 +62,7 @@ type alias Model =
     , selecting : Selecting
     , loadedseries : Dict String SeriesAndInfos
     , highlighted: Maybe String
+    , fixHighlighted : Set String
     , errors : List String
     , panActive: Bool
     , legendStatus : Maybe (List (String, Bool))
@@ -125,6 +127,7 @@ type Msg
     | ToggleItem String
     | ToggleAxis String
     | Highlight String
+    | FixedHighlight String
     | SearchSeries String
     | ToggleBasket String
     | SearchBasket String
@@ -303,24 +306,30 @@ update msg model =
 
         ToggleItem x ->
             let
+                remove = ( List.member
+                             x
+                             ( Dict.keys model.loadedseries )
+                         )
                 newmodel =
                     { model
                         | searchSeries = SeriesSelector.updateselected
                                     model.searchSeries
                                     (toggleItem x model.searchSeries.selected)
                     }
-                updatedloadedseries = if ( List.member
-                                             x
-                                             ( Dict.keys model.loadedseries ) )
+                updatedloadedseries = if remove
                                       then Dict.remove x  model.loadedseries
                                       else
                                            Dict.insert
                                                x
                                                emptySeriesInfo
                                                model.loadedseries
+                highlighted = if remove
+                                then Set.remove x model.fixHighlighted
+                                else model.fixHighlighted
                 horizonmodel = model.horizon
             in
             ( { newmodel | loadedseries = updatedloadedseries
+                         , fixHighlighted = highlighted
                          , horizon =
                          { horizonmodel | plotStatus = multiStatus
                                                             updatedloadedseries }
@@ -348,6 +357,17 @@ update msg model =
             if name == "no-highlight"
             then U.nocmd { model | highlighted = Nothing }
             else U.nocmd { model | highlighted = Just name }
+
+
+        FixedHighlight name ->
+            let
+                remove = Set.member name model.fixHighlighted
+                previous = model.fixHighlighted
+            in
+            case remove of
+                False -> U.nocmd { model | fixHighlighted = Set.insert name previous }
+                True -> U.nocmd { model | fixHighlighted = Set.remove name previous }
+
 
 
         ToggleAxis name ->
@@ -582,12 +602,24 @@ visibility model name =
 
 renderColor: Model -> String -> Maybe { color : String }
 renderColor model name =
-    case model.highlighted of
-        Nothing -> Nothing
-        Just highlighted ->
-            if name == highlighted
-                then Just { color = "black"}
-                else Just { color = "rgba(0, 0, 0, 0.1)"}
+    case Set.isEmpty model.fixHighlighted of
+        False ->
+            if Set.member name model.fixHighlighted
+                then Nothing
+                else
+                case model.highlighted of
+                    Nothing -> Just { color = "rgba(0, 0, 0, 0.1)"}
+                    Just highlighted ->
+                        if name == highlighted
+                            then Just { color = "black"}
+                            else Just { color = "rgba(0, 0, 0, 0.1)"}
+        True ->
+            case model.highlighted of
+                Nothing -> Nothing
+                Just highlighted ->
+                    if name == highlighted
+                        then Just { color = "black"}
+                        else Just { color = "rgba(0, 0, 0, 0.1)"}
 
 
 view : Model -> H.Html Msg
@@ -770,6 +802,7 @@ seriesTable model =
                 ( List.sort ( Dict.keys model.loadedseries ) )
             )
 
+rowSeries: Model -> String -> H.Html Msg
 rowSeries model name =
     let secondAxis = case Dict.get name model.loadedseries of
                         Nothing -> False
@@ -791,7 +824,7 @@ rowSeries model name =
         , H.td
             []
             [ H.button
-                [ HA.class "bouton-axis"
+                [ HA.class "button-table-series"
                 , HA.class <| if secondAxis
                                 then "btn btn-info"
                                 else "btn btn-success"
@@ -805,7 +838,21 @@ rowSeries model name =
         , H.td
             []
             [ H.button
-                [ HA.class "btn btn-warning"
+                [ HA.class "button-table-series"
+                , HA.class ( "btn btn-primary " ++ if
+                                Set.member name model.fixHighlighted
+                                then "active"
+                                else ""
+                            )
+                , HE.onClick ( FixedHighlight name )
+                ]
+                [ H.text "Highlight" ]
+            ]
+        , H.td
+            []
+            [ H.button
+                [ HA.class "button-table-series"
+                , HA.class "btn btn-warning"
                 , HE.onClick ( ToggleItem name )
                 ]
                 [ H.text "Remove" ]
@@ -942,6 +989,7 @@ main =
                                     else NoMode
                     , loadedseries = emptyLoaded axis2
                     , highlighted = Nothing
+                    , fixHighlighted = Set.empty
                     , errors = []
                     , panActive = False
                     , legendStatus = Nothing
