@@ -17,6 +17,7 @@ import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
+import Html exposing (Attribute)
 import Set exposing (Set)
 
 
@@ -139,27 +140,38 @@ type alias ItemConfig msg =
     }
 
 
-
-viewitemselector : ItemConfig msg -> List String -> List String -> H.Html msg
-viewitemselector cfg items selected =
+attributes:  ItemConfig msg -> List String -> String -> List ( Attribute msg )
+attributes cfg selected item =
     let
-        liAttrs item =
-            let
-                liSelected =
-                    let
-                        isSelected = List.member item selected
-                    in
-                        HA.classList <|
-                            List.map
-                                (\x -> ( x, isSelected ))
-                                [ "selected" ]
-            in
-                [ liSelected, HE.onMouseDown <| cfg.toggleMsg item ]
+        isSelected = List.member item selected
+        liSelected = HA.classList <|
+                                List.map
+                                    (\x -> ( x, isSelected ))
+                                    [ "selected" ]
+    in
+        [ liSelected
+        , HE.onMouseDown <| cfg.toggleMsg item ]
+
+
+viewitemselector : ItemConfig msg -> List String -> List String -> Bool ->H.Html msg
+viewitemselector cfg items selected todelete =
+    let
+        liAttrs  = attributes cfg selected
+        class = if todelete
+                    then "list-group-item remove"
+                    else "list-group-item"
 
         lst =
             H.ul [ HA.class "list-group" ] <|
                 List.map
-                    (\x -> H.li ([ HA.class "list-group-item" ] ++ (liAttrs x)) [ H.text x ])
+                    (\x -> H.li
+                            (([ HA.class class ] ++ (liAttrs x)) ++ if todelete
+                                                                    then
+                                                                        [ HA.title "Click to remove" ]
+                                                                    else []
+                            )
+                            [ H.text x ]
+                    )
                     items
 
         lstWithAction act =
@@ -242,15 +254,15 @@ view model cfg =
 
         selectorwidget =
             let
-                renderselector (selectorCfg, items) =
-                    viewitemselector selectorCfg items model.selected
+                renderselector (selectorCfg, items, todelete) =
+                    viewitemselector selectorCfg items model.selected todelete
             in
             H.div
                 [ HA.class "list-series" ]
                 <| List.map
                     (\x -> H.div [ ] [ renderselector x ])
-                    [ ( cfg.searchSelector, model.found )
-                    , ( cfg.actionSelector, model.selected )
+                    [ ( cfg.searchSelector, model.found, False )
+                    , ( cfg.actionSelector, model.selected, True )
                     ]
 
     in

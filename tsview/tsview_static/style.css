@@ -276,6 +276,11 @@ label.option {
     float: right;
 }
 
+.quickview .list-group-item.remove {
+    display: none;
+}
+
+
 .js-plotly-plot div {
     overflow: visible !important;
 }
