@@ -74,7 +74,6 @@ fromcatalog model catalog =
         , items = List.sort catalog.series
     }
 
-
 filterseries : Model -> Catalog.Model -> List String
 filterseries model catalog =
     let

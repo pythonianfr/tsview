@@ -232,16 +232,27 @@ update msg model =
     in
     case msg of
         GotCatalog catmsg ->
-            let
-                newcat =
-                    Catalog.update catmsg model.catalog
-                newsearch =
-                    SeriesSelector.fromcatalog model.searchSeries newcat
-            in
-            U.nocmd { model
-                        | catalog = newcat
-                        , searchSeries = newsearch
-                    }
+            case catmsg of
+            Catalog.ReceivedSeries _ ->
+                let
+                    newcat =
+                        Catalog.update catmsg Catalog.empty
+                    newsearch =
+                        SeriesSelector.fromcatalog model.searchSeries newcat
+                in
+                U.nocmd { model
+                            | searchSeries = newsearch
+                        }
+            Catalog.ReceivedGroups _ ->
+                let
+                    newcat =
+                        Catalog.update catmsg Catalog.empty
+                    newsearch =
+                        SeriesSelector.null
+                in
+                U.nocmd { model
+                            | searchGroup = { newsearch | items = newcat.groups }
+                        }
 
         GotBasketCatalog (Ok raw) ->
             case Decode.decodeString ( Decode.list Decode.string) raw of
@@ -948,16 +959,16 @@ debugView model =
                                     else " False "
                                   )
                         ]
-        baskets = H.div
+        errors = H.div
                     []
                     <| List.map
                         (\ b -> H.text b)
-                        model.searchBasket.items
+                        model.errors
     in
         List.concat [ [ H.br [] []]
                     , legendStuff
                     , [ secondAxis ]
-                    , [ baskets ]
+                    , [ errors ]
                     ]
 
 
@@ -1047,7 +1058,7 @@ main =
                                     None
                     , catalog= Catalog.empty
                     , haseditor = flags.haseditor
-                    , searchSeries = initSearch selected
+                    , searchSeries = initSearch []
                     , searchBasket = initSearch []
                     , searchGroup = initSearch []
                     , selecting = if (List.isEmpty selected )
@@ -1069,6 +1080,10 @@ main =
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
                             , getBasketCatalog
                                 model.baseurl
+                            ,Catalog.get
+                                model.baseurl
+                                "group" 1
+                                (\ h -> GotCatalog (Catalog.ReceivedGroups h))
                             ])
                )
 
