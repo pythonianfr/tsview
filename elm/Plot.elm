@@ -58,6 +58,7 @@ type alias Model =
     , haseditor : Bool
     , searchSeries : SeriesSelector.Model
     , searchBasket: SeriesSelector.Model
+    , searchGroup: SeriesSelector.Model
     , horizon : HorizonModel
     , selecting : Selecting
     , loadedseries : Dict String SeriesAndInfos
@@ -72,6 +73,7 @@ type alias Model =
 type Selecting =
     ModeSeries
     | ModeBasket
+    | ModeGroup
     | NoMode
 
 type alias SeriesAndInfos =
@@ -129,6 +131,8 @@ type Msg
     | FilterSeries String
     | ToggleBasket String
     | FilterBasket String
+    | ToggleGroup String
+    | FilterGroup String
     | Highlight String
     | FixedHighlight String
     | KindChange String Bool
@@ -421,6 +425,12 @@ update msg model =
             in
             U.nocmd { model | searchBasket = filtered }
 
+        ToggleGroup name ->
+            U.nocmd model
+
+        FilterGroup x ->
+            U.nocmd model
+
         -- plot
 
         GotPlotData basket name (Ok rawdata) ->
@@ -601,6 +611,27 @@ basketSelectorConfig =
     , divAttrs = [ ]
     }
 
+groupSelectorConfig: SeriesSelector.SelectorConfig Msg
+groupSelectorConfig =
+    { searchSelector =
+        { action = Nothing
+        , defaultText =
+            H.text
+                "Type some keywords in input bar for selecting groups"
+        , toggleMsg = ToggleGroup
+        }
+    , actionSelector =
+        { action = Nothing
+        , defaultText = H.text ""
+        , toggleMsg = ToggleGroup
+        }
+    , onInputMsg = FilterGroup
+    , onKindChange = KindChange --not used
+    , onSourceChange = SourceChange --not used
+    , divAttrs = [ ]
+    }
+
+
 
 visibility: Model -> String -> Bool
 visibility model name =
@@ -761,6 +792,20 @@ buildSelector model =
                                     ModeBasket -> "Hide selection"
                                     _ -> "Basket selection"
                   ]
+            , H.a
+                  [ HE.onClick <| case model.selecting of
+                                    ModeGroup -> ChangeSelection NoMode
+                                    _ -> ChangeSelection ModeGroup
+                  , HA.title "click to toggle selector"
+                  , HA.class <| case model.selecting of
+                                    ModeGroup -> "btn btn-warning"
+                                    _ -> "btn btn-primary"
+
+                  ]
+                  [ H.text <| case model.selecting of
+                                    ModeGroup -> "Hide selection"
+                                    _ -> "Group selection"
+                  ]
             ]
     in
        H.header
@@ -777,6 +822,11 @@ buildSelector model =
                       [ SeriesSelector.view
                                model.searchBasket
                                basketSelectorConfig
+                     ]
+                    ModeGroup ->
+                      [ SeriesSelector.view
+                               model.searchGroup
+                               groupSelectorConfig
                      ]
                     NoMode -> []
                 )
@@ -999,6 +1049,7 @@ main =
                     , haseditor = flags.haseditor
                     , searchSeries = initSearch selected
                     , searchBasket = initSearch []
+                    , searchGroup = initSearch []
                     , selecting = if (List.isEmpty selected )
                                     then ModeSeries
                                     else NoMode
