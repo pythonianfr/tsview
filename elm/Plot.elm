@@ -124,14 +124,13 @@ type Msg
     | GotBasketCatalog (Result Http.Error String)
     | GotBasket String (Result Http.Error String)
     | ChangeSelection Selecting
-    | ToggleItem String
-    | RemoveItem String
-    | ToggleAxis String
+    | ToggleSeries String
+    | RemoveSeries String
+    | FilterSeries String
+    | ToggleBasket String
+    | FilterBasket String
     | Highlight String
     | FixedHighlight String
-    | SearchSeries String
-    | ToggleBasket String
-    | SearchBasket String
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
@@ -141,6 +140,8 @@ type Msg
     | NewDragMode Bool
     | Legends ( List ( String, Bool ))
     | ShowLegend Bool
+    | ToggleAxis String
+
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -305,7 +306,7 @@ update msg model =
         ChangeSelection selecting ->
             U.nocmd { model | selecting = selecting }
 
-        ToggleItem x ->
+        ToggleSeries x ->
             let
                 remove = ( List.member
                              x
@@ -320,7 +321,7 @@ update msg model =
             in
             if remove
                 then ( newmodel
-                      , Task.perform identity ( Task.succeed ( RemoveItem x ) ) )
+                      , Task.perform identity ( Task.succeed ( RemoveSeries x ) ) )
             else
             -- in this branch, the item has been added through the selector (vs basket)
             -- and we are now in series addition
@@ -340,7 +341,7 @@ update msg model =
             , fetchseries newmodel False
             )
 
-        RemoveItem name ->
+        RemoveSeries name ->
             let
                 highlighted = Set.remove name model.fixHighlighted
                 loaded = Dict.remove name model.loadedseries
@@ -393,7 +394,7 @@ update msg model =
                                             model.loadedseries
                             }
 
-        SearchSeries x ->
+        FilterSeries x ->
             let
                 search =
                     SeriesSelector.updatesearch model.searchSeries x
@@ -407,7 +408,7 @@ update msg model =
             U.nocmd { model | searchSeries = moreSearch }
 
 
-        SearchBasket x ->
+        FilterBasket x ->
             let
                 searchBasket =
                     SeriesSelector.updatesearch model.searchBasket x
@@ -567,14 +568,14 @@ selectorConfig =
         , defaultText =
             H.text
                 "Type some keywords in input bar for selecting time series"
-        , toggleMsg = ToggleItem
+        , toggleMsg = ToggleSeries
         }
     , actionSelector =
         { action = Nothing
         , defaultText = H.text ""
-        , toggleMsg = ToggleItem
+        , toggleMsg = ToggleSeries
         }
-    , onInputMsg = SearchSeries
+    , onInputMsg = FilterSeries
     , onKindChange = KindChange
     , onSourceChange = SourceChange
     , divAttrs = [ ]
@@ -594,7 +595,7 @@ basketSelectorConfig =
         , defaultText = H.text ""
         , toggleMsg = ToggleBasket
         }
-    , onInputMsg = SearchBasket
+    , onInputMsg = FilterBasket
     , onKindChange = KindChange --not used
     , onSourceChange = SourceChange --not used
     , divAttrs = [ ]
@@ -864,7 +865,7 @@ rowSeries model ( name, info ) =
             [ H.button
                 [ HA.class "button-table-series"
                 , HA.class "btn btn-warning"
-                , HE.onClick ( RemoveItem name )
+                , HE.onClick ( RemoveSeries name )
                 ]
                 [ H.text "Remove" ]
             ]
