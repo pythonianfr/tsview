@@ -120,11 +120,12 @@ failedinfo = { series = Dict.empty
 
 type Msg
     = GotCatalog Catalog.Msg
-    | GotPlotData String (Result Http.Error String)
+    | GotPlotData ( Maybe String ) String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
-    | GotBasket (Result Http.Error String)
+    | GotBasket String (Result Http.Error String)
     | ChangeSelection Selecting
     | ToggleItem String
+    | RemoveItem String
     | ToggleAxis String
     | Highlight String
     | FixedHighlight String
@@ -156,13 +157,13 @@ findmissing model =
     in List.filter ismissing selected
 
 
-fetchsingle: Model -> String -> String -> String -> Cmd Msg
-fetchsingle model start end name =
+fetchsingle: Model -> String -> String ->  Maybe String -> String -> Cmd Msg
+fetchsingle model start end basket name  =
     getdata
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotPlotData name
+         , callback = GotPlotData basket name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -180,7 +181,7 @@ fetchseries model reload =
     in
     Cmd.batch
     ( List.map
-        ( fetchsingle model start end )
+        ( fetchsingle model start end Nothing )
         ( if not reload
             then findmissing model
             else ( Dict.keys model.loadedseries ))
@@ -190,7 +191,7 @@ fetchseries model reload =
 fetchbasket : Model -> String -> Cmd Msg
 fetchbasket model name =
     Http.get
-        { expect = Http.expectString GotBasket
+        { expect = Http.expectString ( GotBasket name )
         , url = UB.crossOrigin model.baseurl
               [ "api", "series", "basket" ]
               [ UB.string "name" name ]
@@ -252,7 +253,7 @@ update msg model =
         GotBasketCatalog (Err err) ->
             doerr "gotbasketcatalog network" ""
 
-        GotBasket (Ok raw) ->
+        GotBasket basket (Ok raw) ->
              case Decode.decodeString ( Decode.list basketItemDecode) raw of
                 Err err ->
                     doerr "gotbasket decode" <| Decode.errorToString err
@@ -270,11 +271,11 @@ update msg model =
                         ( { model | loadedseries = updated }
                         , Cmd.batch
                             <| List.map
-                                    (fetchsingle model start end)
+                                    (fetchsingle model start end ( Just basket ))
                                     names
                         )
 
-        GotBasket (Err err) ->
+        GotBasket basketName (Err err) ->
             doerr "gotbasket network" ""
 
         -- never used in this page
@@ -316,26 +317,37 @@ update msg model =
                                     model.searchSeries
                                     (toggleItem x model.searchSeries.selected)
                     }
-                updatedloadedseries = if remove
-                                      then Dict.remove x  model.loadedseries
-                                      else
-                                           Dict.insert
-                                               x
-                                               emptySeriesInfo
-                                               model.loadedseries
-                highlighted = if remove
-                                then Set.remove x model.fixHighlighted
-                                else model.fixHighlighted
+            in
+            if remove
+                then ( newmodel
+                      , Task.perform identity ( Task.succeed ( RemoveItem x ) ) )
+            else
+            -- in this branch, the item has been added through the selector (vs basket)
+            -- and we are now in series addition
+            let
+                updatedloadedseries = Dict.insert
+                                       x
+                                       emptySeriesInfo
+                                       model.loadedseries
+
                 horizonmodel = model.horizon
             in
             ( { newmodel | loadedseries = updatedloadedseries
-                         , fixHighlighted = highlighted
                          , horizon =
                          { horizonmodel | plotStatus = multiStatus
                                                             updatedloadedseries }
               }
             , fetchseries newmodel False
             )
+
+        RemoveItem name ->
+            let
+                highlighted = Set.remove name model.fixHighlighted
+                loaded = Dict.remove name model.loadedseries
+            in
+                U.nocmd { model | fixHighlighted = highlighted
+                                , loadedseries = loaded
+                        }
 
         ToggleBasket name ->
             if  List.member name model.searchBasket.selected
@@ -410,20 +422,23 @@ update msg model =
 
         -- plot
 
-        GotPlotData name (Ok rawdata) ->
+        GotPlotData basket name (Ok rawdata) ->
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
                         infos = readInfo
                                     name
                                     model.loadedseries
+                        updateBasket = case infos.basket of
+                                            Nothing -> basket
+                                            Just bask -> Just bask
                         loaded =
                             Dict.insert
                                 name
                                 { series = val
                                  , status = Success
                                  , cache = False
-                                 , basket = infos.basket
+                                 , basket = updateBasket
                                  , secondAxis = infos.secondAxis
                                  }
                                 model.loadedseries
@@ -440,7 +455,7 @@ update msg model =
                 Err err ->
                     doerr "gotplotdata decode" <| Decode.errorToString err
 
-        GotPlotData name (Err err) ->
+        GotPlotData basket name (Err err) ->
             let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
                 updatedinfos = Dict.insert
                                 name
@@ -799,15 +814,11 @@ seriesTable model =
             ]
             ( List.map
                 ( rowSeries model )
-                ( List.sort ( Dict.keys model.loadedseries ) )
+                ( Dict.toList model.loadedseries )
             )
 
-rowSeries: Model -> String -> H.Html Msg
-rowSeries model name =
-    let secondAxis = case Dict.get name model.loadedseries of
-                        Nothing -> False
-                        Just infos -> infos.secondAxis
-    in
+rowSeries: Model -> ( String, SeriesAndInfos ) -> H.Html Msg
+rowSeries model ( name, info ) =
     H.tr
         [ HA.id ( "remove-" ++ name )
         , HE.onMouseOver (Highlight name)
@@ -825,12 +836,12 @@ rowSeries model name =
             []
             [ H.button
                 [ HA.class "button-table-series"
-                , HA.class <| if secondAxis
+                , HA.class <| if info.secondAxis
                                 then "btn btn-info"
                                 else "btn btn-success"
                 , HE.onClick ( ToggleAxis name )
                 ]
-                [ H.text <| if secondAxis
+                [ H.text <| if info.secondAxis
                                 then "2nd Axis"
                                 else "1st Axis"
                 ]
@@ -853,10 +864,13 @@ rowSeries model name =
             [ H.button
                 [ HA.class "button-table-series"
                 , HA.class "btn btn-warning"
-                , HE.onClick ( ToggleItem name )
+                , HE.onClick ( RemoveItem name )
                 ]
                 [ H.text "Remove" ]
             ]
+         , H.td
+            []
+            [ H.text ( Maybe.withDefault "" info.basket )]
         ]
 
 
