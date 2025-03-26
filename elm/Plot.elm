@@ -14,12 +14,15 @@ import Metadata
 import Plotter exposing
     ( Series
     , Group
+    , Trace
     , defaultLayoutOptions
     , defaultConfigOptions
     , defaultTraceOptions
     , defaultDateAxis
     , defaultValueAxis
     , getdata
+    , getgroupplotdata
+    , groupdecoder
     , serializedPlotArgs
     , scatterplot
     , seriesdecoder
@@ -136,16 +139,27 @@ basketItemDecode =
         (Decode.field "kind" Decode.string)
 
 
-failedinfo = { series = Dict.empty
-             , cache = False
-             , status = Failure
-             , secondAxis = False
-             , basket = Nothing
-             }
+failedSeriesInfo: SeriesAndInfos
+failedSeriesInfo =
+    { series = Dict.empty
+     , cache = False
+     , status = Failure
+     , secondAxis = False
+     , basket = Nothing
+     }
+
+failedGroupInfo: GroupAndInfos
+failedGroupInfo =
+    { group = Dict.empty
+     , cache = False
+     , status = Failure
+     , secondAxis = False
+     }
 
 type Msg
     = GotCatalog Catalog.Msg
-    | GotPlotData ( Maybe String ) String (Result Http.Error String)
+    | GotSeriesData ( Maybe String ) String (Result Http.Error String)
+    | GotGroupData String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
     | GotBasket String (Result Http.Error String)
     | ChangeSelection Selecting
@@ -186,13 +200,22 @@ findmissing model =
     in List.filter ismissing selected
 
 
+findmissinggroup: Model -> List String
+findmissinggroup model =
+    let
+        selected = model.searchGroup.selected
+        ismissing series =
+            not <| Dict.member series model.loaded.groups
+    in List.filter ismissing selected
+
+
 fetchsingle: Model -> String -> String ->  Maybe String -> String -> Cmd Msg
 fetchsingle model start end basket name  =
     getdata
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotPlotData basket name
+         , callback = GotSeriesData basket name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -203,6 +226,22 @@ fetchsingle model start end basket name  =
          , apipoint = "state"
          }
 
+
+fetchsinglegroup: Model -> String -> String ->  String -> Cmd Msg
+fetchsinglegroup model start end name  =
+    getgroupplotdata
+         { baseurl = model.baseurl
+         , name = name
+         , idate = Nothing
+         , callback = GotGroupData name
+         , nocache = (U.bool2int model.horizon.viewNoCache)
+         , fromdate = start
+         , todate = end
+         , horizon = Nothing
+         , tzone = model.horizon.timeZone
+         , keepnans = False
+         , apipoint = "state"
+         }
 
 fetchseries: Model -> Bool -> Cmd Msg
 fetchseries model reload =
@@ -216,6 +255,17 @@ fetchseries model reload =
             else ( Dict.keys model.loaded.series ))
     )
 
+fetchgroups: Model -> Bool -> Cmd Msg
+fetchgroups model reload =
+    let ( start, end ) = getFetchBounds model.horizon
+    in
+    Cmd.batch
+    ( List.map
+        ( fetchsinglegroup model start end )
+        ( if not reload
+            then findmissinggroup model
+            else ( Dict.keys model.loaded.groups ))
+    )
 
 fetchbasket : Model -> String -> Cmd Msg
 fetchbasket model name =
@@ -502,7 +552,7 @@ update msg model =
                          { horizonmodel | plotStatus = multiStatus
                                                             updatedloaded }
               }
-            , Cmd.none
+            , fetchgroups newmodel False
             )
 
         RemoveGroup name ->
@@ -527,7 +577,7 @@ update msg model =
 
         -- plot
 
-        GotPlotData basket name (Ok rawdata) ->
+        GotSeriesData basket name (Ok rawdata) ->
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
@@ -562,14 +612,62 @@ update msg model =
                 Err err ->
                     doerr "gotplotdata decode" <| Decode.errorToString err
 
-        GotPlotData basket name (Err err) ->
+        GotSeriesData basket name (Err err) ->
             let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
                 updatedinfos = { series =
                                     Dict.insert
                                         name
-                                        failedinfo
+                                        failedSeriesInfo
                                         newmodel.loaded.series
                                 , groups = newmodel.loaded.groups
+                                }
+                horizonmodel = model.horizon
+            in ( { newmodel | horizon =
+                                { horizonmodel | plotStatus = multiStatus
+                                                                updatedinfos }}
+               , Cmd.none )
+
+        GotGroupData name (Ok rawdata) ->
+            case Decode.decodeString groupdecoder rawdata of
+                Ok val ->
+                    let
+                        infos = readGInfo
+                                    name
+                                    model.loaded
+                        loaded =
+                            { groups = Dict.insert
+                                name
+                                { group = val
+                                 , status = Success
+                                 , cache = False
+                                 , secondAxis = infos.secondAxis
+                                 }
+                                model.loaded.groups
+                            , series = model.loaded.series
+                            }
+                        fisrtScenario = Maybe.withDefault
+                                            Dict.empty
+                                            ( List.head ( Dict.values val ))
+                        horizonmodel = extendHorizonFromData model.horizon fisrtScenario
+                        newmodel =
+                            { model
+                                | loaded = loaded
+                                , horizon =  { horizonmodel | plotStatus = multiStatus loaded }}
+
+                    in
+                    U.nocmd newmodel
+
+                Err err ->
+                    doerr "gotgroupdata decode" <| Decode.errorToString err
+
+        GotGroupData name (Err err) ->
+            let newmodel = U.adderror model ("gotgroupdata error" ++ " -> " ++ name)
+                updatedinfos = { groups =
+                                    Dict.insert
+                                        name
+                                        failedGroupInfo
+                                        newmodel.loaded.groups
+                                , series = newmodel.loaded.series
                                 }
                 horizonmodel = model.horizon
             in ( { newmodel | horizon =
@@ -598,9 +696,14 @@ update msg model =
                                                     , Cmd.batch
                                                         <| [ commands
                                                            , fetchseries resetModel False])
-                ModuleHorizon.Fetch _ -> ( resetModel
-                        , Cmd.batch ([ commands
-                                     , fetchseries resetModel True ]))
+                ModuleHorizon.Fetch _ ->
+                    ( resetModel
+                    , Cmd.batch ([ commands
+                                 , fetchseries resetModel True
+                                 , fetchgroups resetModel True
+                                 ]
+                                )
+                    )
 
 
         -- zoom
@@ -652,6 +755,13 @@ readSInfo name loaded =
     case ( Dict.get name loaded.series ) of
         Just info -> info
         Nothing -> emptySeriesInfo
+
+
+readGInfo: String -> Loaded -> GroupAndInfos
+readGInfo name loaded =
+    case ( Dict.get name loaded.groups ) of
+        Just info -> info
+        Nothing -> emptyGroupInfo
 
 
 multiStatus: Loaded -> PlotStatus
@@ -811,17 +921,30 @@ view model =
 
 plotDiv = "plot_div"
 
+buildGroupTraces: Model -> ( String , GroupAndInfos ) -> List Trace
+buildGroupTraces model ( name,  infos ) =
+    List.map
+        (\ ( scenario, series) ->
+            scatterplot
+                 scenario
+                 (Dict.keys series)
+                 (Dict.values series)
+                 (if model.horizon.inferredFreq then "lines+markers" else "lines")
+                 { defaultTraceOptions | showlegend = model.showLegend
+                                        , visible = visibility model name
+                                        , secondAxis = infos.secondAxis
+                                        , line = renderColor model name
+                 }
+        )
+        ( Dict.toList infos.group )
+
 
 buildPlotArgs: Model -> String
 buildPlotArgs model =
     let
-        data =
+        series =
             List.map
-                (\name ->
-                     let infos = case Dict.get name model.loaded.series of
-                                    Nothing -> emptySeriesInfo
-                                    Just info -> info
-                     in
+                (\( name, infos ) ->
                      scatterplot
                      name
                      (Dict.keys infos.series)
@@ -833,7 +956,14 @@ buildPlotArgs model =
                                             , line = renderColor model name
                      }
                 )
-                ( List.sort ( Dict.keys model.loaded.series ))
+                ( Dict.toList model.loaded.series )
+        groups =
+            List.concat
+                <| List.map
+                    ( buildGroupTraces model )
+                    ( Dict.toList model.loaded.groups )
+
+        data = groups ++ series
     in
         serializedPlotArgs
             plotDiv
