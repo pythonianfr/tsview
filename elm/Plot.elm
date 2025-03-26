@@ -108,6 +108,14 @@ emptySeriesInfo =
     , basket = Nothing
     }
 
+emptyGroupInfo: GroupAndInfos
+emptyGroupInfo =
+    { group = Dict.empty
+    , cache = False
+    , status = Loading
+    , secondAxis = False
+    }
+
 
 type alias BasketItem =
     { name : String
@@ -148,6 +156,7 @@ type Msg
     | FilterBasket String
     | ToggleGroup String
     | FilterGroup String
+    | RemoveGroup String
     | Highlight String
     | FixedHighlight String
     | KindChange String Bool
@@ -462,10 +471,59 @@ update msg model =
             U.nocmd { model | searchBasket = filtered }
 
         ToggleGroup name ->
-            U.nocmd model
+            let
+                remove = List.member
+                             name
+                             ( Dict.keys model.loaded.groups )
+                newmodel =
+                    { model
+                        | searchGroup = SeriesSelector.updateselected
+                                    model.searchGroup
+                                    (toggleItem name model.searchGroup.selected)
+                    }
+            in
+            if remove
+                then ( newmodel
+                      , Task.perform identity ( Task.succeed ( RemoveGroup name )))
+            else
+            -- loading after action on the selection (vs horizon)
+            let
+                updatedloaded = { groups = Dict.insert
+                                                   name
+                                                   emptyGroupInfo
+                                                   model.loaded.groups
+                                , series = model.loaded.series
+                                }
+
+                horizonmodel = model.horizon
+            in
+            ( { newmodel | loaded = updatedloaded
+                         , horizon =
+                         { horizonmodel | plotStatus = multiStatus
+                                                            updatedloaded }
+              }
+            , Cmd.none
+            )
+
+        RemoveGroup name ->
+            let
+                loaded = model.loaded
+                newloaded = { loaded | groups = Dict.remove name loaded.groups }
+            in
+                U.nocmd { model | loaded = newloaded }
 
         FilterGroup x ->
-            U.nocmd model
+            let
+                search =
+                    SeriesSelector.updatesearch model.searchGroup x
+                moreSearch =
+                    SeriesSelector.updatefound search
+                        (keywordMatch
+                             search.search
+                             search.items
+                        )
+            in
+            U.nocmd { model | searchGroup = moreSearch }
 
         -- plot
 
@@ -598,9 +656,13 @@ readSInfo name loaded =
 
 multiStatus: Loaded -> PlotStatus
 multiStatus infos =
-    let status = List.map
+    let statusS = List.map
                     (\ elt -> (Tuple.second elt).status)
                     ( Dict.toList infos.series )
+        statusG = List.map
+                (\ elt -> (Tuple.second elt).status)
+                ( Dict.toList infos.groups )
+        status = statusS ++ statusG
     in
     if List.any (\ elt -> elt == Failure ) status then Failure
     else
