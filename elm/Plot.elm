@@ -13,6 +13,7 @@ import Json.Decode as Decode
 import Metadata
 import Plotter exposing
     ( Series
+    , Group
     , defaultLayoutOptions
     , defaultConfigOptions
     , defaultTraceOptions
@@ -61,7 +62,7 @@ type alias Model =
     , searchGroup: SeriesSelector.Model
     , horizon : HorizonModel
     , selecting : Selecting
-    , loadedseries : Dict String SeriesAndInfos
+    , loaded : Loaded
     , highlighted: Maybe String
     , fixHighlighted : Set String
     , errors : List String
@@ -76,6 +77,12 @@ type Selecting =
     | ModeGroup
     | NoMode
 
+
+type alias Loaded =
+    { series : Dict String SeriesAndInfos
+     , groups : Dict String GroupAndInfos
+    }
+
 type alias SeriesAndInfos =
     { series: Series
     , cache: Bool
@@ -83,6 +90,14 @@ type alias SeriesAndInfos =
     , secondAxis: Bool
     , basket: Maybe String
     }
+
+type alias GroupAndInfos =
+    { group: Group
+    , cache: Bool
+    , status : PlotStatus
+    , secondAxis: Bool
+    }
+
 
 emptySeriesInfo: SeriesAndInfos
 emptySeriesInfo =
@@ -158,7 +173,7 @@ findmissing model =
     let
         selected = model.searchSeries.selected
         ismissing series =
-            not <| Dict.member series model.loadedseries
+            not <| Dict.member series model.loaded.series
     in List.filter ismissing selected
 
 
@@ -189,7 +204,7 @@ fetchseries model reload =
         ( fetchsingle model start end Nothing )
         ( if not reload
             then findmissing model
-            else ( Dict.keys model.loadedseries ))
+            else ( Dict.keys model.loaded.series ))
     )
 
 
@@ -275,16 +290,20 @@ update msg model =
                     doerr "gotbasket decode" <| Decode.errorToString err
                 Ok items ->
                     let names = List.map .name items
+                        previousLoad = model.loaded
                         newLoaded = Dict.fromList
                                         <| List.map
                                              (\ n -> (n, emptySeriesInfo))
                                              names
-                        updated = Dict.union
-                                    model.loadedseries
-                                    newLoaded
+                        updated = { previousLoad | series =
+                                                    Dict.union
+                                                    previousLoad.series
+                                                    newLoaded
+                                  }
+
                         ( start, end ) = getFetchBounds model.horizon
                     in
-                        ( { model | loadedseries = updated }
+                        ( { model | loaded = updated }
                         , Cmd.batch
                             <| List.map
                                     (fetchsingle model start end ( Just basket ))
@@ -325,7 +344,7 @@ update msg model =
             let
                 remove = ( List.member
                              x
-                             ( Dict.keys model.loadedseries )
+                             ( Dict.keys model.loaded.series )
                          )
                 newmodel =
                     { model
@@ -341,14 +360,16 @@ update msg model =
             -- in this branch, the item has been added through the selector (vs basket)
             -- and we are now in series addition
             let
-                updatedloadedseries = Dict.insert
-                                       x
-                                       emptySeriesInfo
-                                       model.loadedseries
+                updatedloadedseries = { series = Dict.insert
+                                                   x
+                                                   emptySeriesInfo
+                                                   model.loaded.series
+                                       , groups = model.loaded.groups
+                                       }
 
                 horizonmodel = model.horizon
             in
-            ( { newmodel | loadedseries = updatedloadedseries
+            ( { newmodel | loaded = updatedloadedseries
                          , horizon =
                          { horizonmodel | plotStatus = multiStatus
                                                             updatedloadedseries }
@@ -359,10 +380,11 @@ update msg model =
         RemoveSeries name ->
             let
                 highlighted = Set.remove name model.fixHighlighted
-                loaded = Dict.remove name model.loadedseries
+                loaded = model.loaded
+                newloaded = { loaded | series = Dict.remove name loaded.series }
             in
                 U.nocmd { model | fixHighlighted = highlighted
-                                , loadedseries = loaded
+                                , loaded = newloaded
                         }
 
         ToggleBasket name ->
@@ -399,14 +421,17 @@ update msg model =
 
 
         ToggleAxis name ->
-            case Dict.get name model.loadedseries of
+            case Dict.get name model.loaded.series of
                 Nothing -> U.nocmd model
                 Just infos ->
-                    U.nocmd { model | loadedseries =
-                                        Dict.insert
-                                            name
-                                            { infos | secondAxis = not infos.secondAxis }
-                                            model.loadedseries
+                    U.nocmd { model | loaded =
+                                        { series =
+                                            Dict.insert
+                                                name
+                                                { infos | secondAxis = not infos.secondAxis }
+                                                model.loaded.series
+                                        , groups = model.loaded.groups
+                                        }
                             }
 
         FilterSeries x ->
@@ -448,14 +473,14 @@ update msg model =
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
-                        infos = readInfo
+                        infos = readSInfo
                                     name
-                                    model.loadedseries
+                                    model.loaded
                         updateBasket = case infos.basket of
                                             Nothing -> basket
                                             Just bask -> Just bask
                         loaded =
-                            Dict.insert
+                            { series = Dict.insert
                                 name
                                 { series = val
                                  , status = Success
@@ -463,12 +488,14 @@ update msg model =
                                  , basket = updateBasket
                                  , secondAxis = infos.secondAxis
                                  }
-                                model.loadedseries
+                                model.loaded.series
+                            , groups = model.loaded.groups
+                            }
 
                         horizonmodel = extendHorizonFromData model.horizon val
                         newmodel =
                             { model
-                                | loadedseries = loaded
+                                | loaded = loaded
                                 , horizon =  { horizonmodel | plotStatus = multiStatus loaded }}
 
                     in
@@ -479,10 +506,13 @@ update msg model =
 
         GotPlotData basket name (Err err) ->
             let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
-                updatedinfos = Dict.insert
-                                name
-                                failedinfo
-                                newmodel.loadedseries
+                updatedinfos = { series =
+                                    Dict.insert
+                                        name
+                                        failedinfo
+                                        newmodel.loaded.series
+                                , groups = newmodel.loaded.groups
+                                }
                 horizonmodel = model.horizon
             in ( { newmodel | horizon =
                                 { horizonmodel | plotStatus = multiStatus
@@ -499,7 +529,7 @@ update msg model =
                                                     model.horizon
             in
             let resetModel = { model | horizon = newModelHorizon
-                                     , loadedseries = resetSeries model.loadedseries}
+                                     , loaded = resetSeries model.loaded}
                 default = ( { model | horizon = newModelHorizon} , commands )
             in
             case hMsg of
@@ -540,33 +570,37 @@ update msg model =
 
 
 
-resetSeries: Dict String SeriesAndInfos -> Dict String SeriesAndInfos
+resetSeries: Loaded -> Loaded
 resetSeries loaded =
-    Dict.fromList
+    { series =
+        Dict.fromList
         ( List.map
-            (\ name -> (name,  { series = Dict.empty
-                                , cache = (readInfo name loaded).cache
-                                , status = Loading
-                                , secondAxis = (readInfo name loaded).secondAxis
-                                , basket = (readInfo name loaded).basket
-                                }
-                        )
+            (\ name -> ( name,
+                        { series = Dict.empty
+                        , cache = (readSInfo name loaded).cache
+                        , status = Loading
+                        , secondAxis = (readSInfo name loaded).secondAxis
+                        , basket = (readSInfo name loaded).basket
+                        }
+                       )
             )
-            ( Dict.keys loaded ) )
+            ( Dict.keys loaded.series ) )
+    , groups = loaded.groups
+    }
 
 
-readInfo: String -> Dict String SeriesAndInfos -> SeriesAndInfos
-readInfo name loaded =
-    case ( Dict.get name loaded ) of
+readSInfo: String -> Loaded -> SeriesAndInfos
+readSInfo name loaded =
+    case ( Dict.get name loaded.series ) of
         Just info -> info
         Nothing -> emptySeriesInfo
 
 
-multiStatus: Dict String SeriesAndInfos -> PlotStatus
+multiStatus: Loaded -> PlotStatus
 multiStatus infos =
     let status = List.map
                     (\ elt -> (Tuple.second elt).status)
-                    ( Dict.toList infos )
+                    ( Dict.toList infos.series )
     in
     if List.any (\ elt -> elt == Failure ) status then Failure
     else
@@ -575,9 +609,9 @@ multiStatus infos =
     Loading
 
 
-hasSecondAxis: Dict String SeriesAndInfos -> Bool
+hasSecondAxis: Loaded -> Bool
 hasSecondAxis infos =
-    let axis = List.map (.secondAxis) ( Dict.values infos )
+    let axis = List.map (.secondAxis) ( Dict.values infos.series )
     in
         List.any identity axis
 
@@ -722,7 +756,7 @@ buildPlotArgs model =
         data =
             List.map
                 (\name ->
-                     let infos = case Dict.get name model.loadedseries of
+                     let infos = case Dict.get name model.loaded.series of
                                     Nothing -> emptySeriesInfo
                                     Just info -> info
                      in
@@ -737,7 +771,7 @@ buildPlotArgs model =
                                             , line = renderColor model name
                      }
                 )
-                ( List.sort ( Dict.keys model.loadedseries ))
+                ( List.sort ( Dict.keys model.loaded.series ))
     in
         serializedPlotArgs
             plotDiv
@@ -751,7 +785,7 @@ buildPlotArgs model =
                                 range = extractValues
                                     model.horizon.zoomY
                           }
-                , yaxis2 = if not ( hasSecondAxis model.loadedseries )
+                , yaxis2 = if not ( hasSecondAxis model.loaded )
                     then Nothing
                     else
                         Just
@@ -876,7 +910,7 @@ seriesTable model =
             ]
             ( List.map
                 ( rowSeries model )
-                ( Dict.toList model.loadedseries )
+                ( Dict.toList model.loaded.series )
             )
 
 rowSeries: Model -> ( String, SeriesAndInfos ) -> H.Html Msg
@@ -954,7 +988,7 @@ debugView model =
         secondAxis = H.div
                         []
                         [ H.text ( "Has second axis : "
-                                  ++ if hasSecondAxis model.loadedseries
+                                  ++ if hasSecondAxis model.loaded
                                     then " True"
                                     else " False "
                                   )
@@ -977,7 +1011,7 @@ permalink model =
     let
         names = List.map
                     (\name -> UB.string "series" name)
-                    ( Dict.keys model.loadedseries )
+                    ( Dict.keys model.loaded.series )
         axis = List.map
             (\name -> UB.string "axis2" name)
             (secondAxisNames model)
@@ -1000,15 +1034,19 @@ secondAxisNames model =
     Dict.keys
         <| Dict.filter
                 (\ _ i -> i.secondAxis )
-                ( model.loadedseries )
+                ( model.loaded.series )
 
 
-emptyLoaded: List String -> Dict String SeriesAndInfos
+emptyLoaded: List String -> Loaded
 emptyLoaded onSecondAxis =
-    Dict.fromList
-        <| List.map
-            (\ name -> ( name, { emptySeriesInfo | secondAxis = True }))
-            onSecondAxis
+    { series = Dict.fromList
+                <| List.map
+                    (\ name -> ( name
+                               , { emptySeriesInfo | secondAxis = True })
+                               )
+                    onSecondAxis
+    , groups = Dict.empty
+    }
 
 
 getBasketCatalog: String -> Cmd Msg
@@ -1064,7 +1102,7 @@ main =
                     , selecting = if (List.isEmpty selected )
                                     then ModeSeries
                                     else NoMode
-                    , loadedseries = emptyLoaded axis2
+                    , loaded = emptyLoaded axis2
                     , highlighted = Nothing
                     , fixHighlighted = Set.empty
                     , errors = []
