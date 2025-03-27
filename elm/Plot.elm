@@ -66,6 +66,7 @@ type alias Model =
     , horizon : HorizonModel
     , selecting : Selecting
     , loaded : Loaded
+    , registry : Registry
     , highlighted: Maybe String
     , fixHighlighted : Set String
     , errors : List String
@@ -80,43 +81,35 @@ type Selecting =
     | ModeGroup
     | NoMode
 
+type DataType =
+    TypeSeries
+    | TypeGroup
+
 
 type alias Loaded =
-    { series : Dict String SeriesAndInfos
-     , groups : Dict String GroupAndInfos
+    { series : Dict String Series
+    , groups :  Dict String Group
     }
 
-type alias SeriesAndInfos =
-    { series: Series
-    , cache: Bool
+type alias Registry =
+    { series : Dict String DataInfos
+    , groups :  Dict String  DataInfos
+    }
+
+type alias DataInfos =
+    { cache: Bool
     , status : PlotStatus
     , secondAxis: Bool
     , basket: Maybe String
     }
 
-type alias GroupAndInfos =
-    { group: Group
-    , cache: Bool
-    , status : PlotStatus
-    , secondAxis: Bool
-    }
 
-
-emptySeriesInfo: SeriesAndInfos
-emptySeriesInfo =
-    { series = Dict.empty
-    , cache = False
+emptyInfo: DataInfos
+emptyInfo =
+    { cache = False
     , status = Loading
     , secondAxis = False
     , basket = Nothing
-    }
-
-emptyGroupInfo: GroupAndInfos
-emptyGroupInfo =
-    { group = Dict.empty
-    , cache = False
-    , status = Loading
-    , secondAxis = False
     }
 
 
@@ -139,22 +132,14 @@ basketItemDecode =
         (Decode.field "kind" Decode.string)
 
 
-failedSeriesInfo: SeriesAndInfos
-failedSeriesInfo =
-    { series = Dict.empty
-     , cache = False
-     , status = Failure
-     , secondAxis = False
-     , basket = Nothing
-     }
+failedInfo : DataInfos
+failedInfo =
+    { cache = False
+    , status = Failure
+    , secondAxis = False
+    , basket = Nothing
+    }
 
-failedGroupInfo: GroupAndInfos
-failedGroupInfo =
-    { group = Dict.empty
-     , cache = False
-     , status = Failure
-     , secondAxis = False
-     }
 
 type Msg
     = GotCatalog Catalog.Msg
@@ -164,15 +149,15 @@ type Msg
     | GotBasket String (Result Http.Error String)
     | ChangeSelection Selecting
     | ToggleSeries String
-    | RemoveSeries String
     | FilterSeries String
     | ToggleBasket String
     | FilterBasket String
     | ToggleGroup String
     | FilterGroup String
     | RemoveGroup String
-    | Highlight String
-    | FixedHighlight String
+    | Remove DataType String
+    | Highlight DataType String
+    | FixedHighlight DataType String
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
@@ -182,7 +167,7 @@ type Msg
     | NewDragMode Bool
     | Legends ( List ( String, Bool ))
     | ShowLegend Bool
-    | ToggleAxis String
+    | ToggleAxis DataType String
 
 
 
@@ -196,7 +181,7 @@ findmissing model =
     let
         selected = model.searchSeries.selected
         ismissing series =
-            not <| Dict.member series model.loaded.series
+            not <| Dict.member series model.registry.series
     in List.filter ismissing selected
 
 
@@ -205,7 +190,7 @@ findmissinggroup model =
     let
         selected = model.searchGroup.selected
         ismissing series =
-            not <| Dict.member series model.loaded.groups
+            not <| Dict.member series model.registry.groups
     in List.filter ismissing selected
 
 
@@ -252,7 +237,7 @@ fetchseries model reload =
         ( fetchsingle model start end Nothing )
         ( if not reload
             then findmissing model
-            else ( Dict.keys model.loaded.series ))
+            else ( Dict.keys model.registry.series ))
     )
 
 fetchgroups: Model -> Bool -> Cmd Msg
@@ -264,7 +249,7 @@ fetchgroups model reload =
         ( fetchsinglegroup model start end )
         ( if not reload
             then findmissinggroup model
-            else ( Dict.keys model.loaded.groups ))
+            else ( Dict.keys model.registry.groups ))
     )
 
 fetchbasket : Model -> String -> Cmd Msg
@@ -349,20 +334,21 @@ update msg model =
                     doerr "gotbasket decode" <| Decode.errorToString err
                 Ok items ->
                     let names = List.map .name items
-                        previousLoad = model.loaded
-                        newLoaded = Dict.fromList
+                        previousRegistry = model.registry
+                        newRegistry = Dict.fromList
                                         <| List.map
-                                             (\ n -> (n, emptySeriesInfo))
+                                             (\ n -> ( n, emptyInfo ))
                                              names
-                        updated = { previousLoad | series =
+                        updated = { previousRegistry |
+                                                series =
                                                     Dict.union
-                                                    previousLoad.series
-                                                    newLoaded
+                                                    previousRegistry.series
+                                                    newRegistry
                                   }
 
                         ( start, end ) = getFetchBounds model.horizon
                     in
-                        ( { model | loaded = updated }
+                        ( { model | registry = updated }
                         , Cmd.batch
                             <| List.map
                                     (fetchsingle model start end ( Just basket ))
@@ -403,7 +389,7 @@ update msg model =
             let
                 remove = ( List.member
                              x
-                             ( Dict.keys model.loaded.series )
+                             ( Dict.keys model.registry.series )
                          )
                 newmodel =
                     { model
@@ -414,36 +400,41 @@ update msg model =
             in
             if remove
                 then ( newmodel
-                      , Task.perform identity ( Task.succeed ( RemoveSeries x ) ) )
+                      , Task.perform identity ( Task.succeed ( Remove TypeSeries x ) ) )
             else
             -- in this branch, the item has been added through the selector (vs basket)
             -- and we are now in series addition
             let
                 updatedloadedseries = { series = Dict.insert
                                                    x
-                                                   emptySeriesInfo
-                                                   model.loaded.series
-                                       , groups = model.loaded.groups
+                                                   emptyInfo
+                                                   model.registry.series
+                                       , groups = model.registry.groups
                                        }
 
                 horizonmodel = model.horizon
             in
-            ( { newmodel | loaded = updatedloadedseries
+            ( { newmodel | registry = updatedloadedseries
                          , horizon =
                          { horizonmodel | plotStatus = multiStatus
-                                                            updatedloadedseries }
+                                                            updatedloadedseries
+                         }
               }
             , fetchseries newmodel False
             )
 
-        RemoveSeries name ->
+        Remove dType name ->
             let
                 highlighted = Set.remove name model.fixHighlighted
                 loaded = model.loaded
                 newloaded = { loaded | series = Dict.remove name loaded.series }
+                registry = model.registry
+                newregistry = { registry | series = Dict.remove name registry.series }
+
             in
                 U.nocmd { model | fixHighlighted = highlighted
                                 , loaded = newloaded
+                                , registry = registry
                         }
 
         ToggleBasket name ->
@@ -462,13 +453,13 @@ update msg model =
             , fetchbasket model name
             )
 
-        Highlight name ->
+        Highlight dtype name ->
             if name == "no-highlight"
             then U.nocmd { model | highlighted = Nothing }
             else U.nocmd { model | highlighted = Just name }
 
 
-        FixedHighlight name ->
+        FixedHighlight dtype name ->
             let
                 remove = Set.member name model.fixHighlighted
                 previous = model.fixHighlighted
@@ -479,17 +470,17 @@ update msg model =
 
 
 
-        ToggleAxis name ->
-            case Dict.get name model.loaded.series of
+        ToggleAxis dtype name ->
+            case Dict.get name model.registry.series of
                 Nothing -> U.nocmd model
                 Just infos ->
-                    U.nocmd { model | loaded =
+                    U.nocmd { model | registry =
                                         { series =
                                             Dict.insert
                                                 name
                                                 { infos | secondAxis = not infos.secondAxis }
-                                                model.loaded.series
-                                        , groups = model.loaded.groups
+                                                model.registry.series
+                                        , groups = model.registry.groups
                                         }
                             }
 
@@ -524,7 +515,7 @@ update msg model =
             let
                 remove = List.member
                              name
-                             ( Dict.keys model.loaded.groups )
+                             ( Dict.keys model.registry.groups )
                 newmodel =
                     { model
                         | searchGroup = SeriesSelector.updateselected
@@ -538,19 +529,19 @@ update msg model =
             else
             -- loading after action on the selection (vs horizon)
             let
-                updatedloaded = { groups = Dict.insert
+                updatedregistry = { groups = Dict.insert
                                                    name
-                                                   emptyGroupInfo
-                                                   model.loaded.groups
-                                , series = model.loaded.series
+                                                   emptyInfo
+                                                   model.registry.groups
+                                , series = model.registry.series
                                 }
 
                 horizonmodel = model.horizon
             in
-            ( { newmodel | loaded = updatedloaded
+            ( { newmodel | registry = updatedregistry
                          , horizon =
                          { horizonmodel | plotStatus = multiStatus
-                                                            updatedloaded }
+                                                            updatedregistry }
               }
             , fetchgroups newmodel False
             )
@@ -559,8 +550,12 @@ update msg model =
             let
                 loaded = model.loaded
                 newloaded = { loaded | groups = Dict.remove name loaded.groups }
+                registry = model.registry
+                newregistry = { registry | groups = Dict.remove name registry.groups }
             in
-                U.nocmd { model | loaded = newloaded }
+                U.nocmd { model | loaded = newloaded
+                                , registry = newregistry
+                        }
 
         FilterGroup x ->
             let
@@ -583,28 +578,31 @@ update msg model =
                     let
                         infos = readSInfo
                                     name
-                                    model.loaded
-                        updateBasket = case infos.basket of
-                                            Nothing -> basket
-                                            Just bask -> Just bask
-                        loaded =
+                                    model.registry
+                        registry =
                             { series = Dict.insert
                                 name
-                                { series = val
-                                 , status = Success
+                                { status = Success
                                  , cache = False
-                                 , basket = updateBasket
+                                 , basket = infos.basket
                                  , secondAxis = infos.secondAxis
                                  }
-                                model.loaded.series
-                            , groups = model.loaded.groups
+                                model.registry.series
+                            , groups = model.registry.groups
                             }
-
+                        previousLoad = model.loaded
+                        loaded = { previousLoad | series =
+                                                    Dict.insert
+                                                        name
+                                                        val
+                                                        previousLoad.series
+                                 }
                         horizonmodel = extendHorizonFromData model.horizon val
                         newmodel =
                             { model
-                                | loaded = loaded
-                                , horizon =  { horizonmodel | plotStatus = multiStatus loaded }}
+                                | registry = registry
+                                , loaded = loaded
+                                , horizon =  { horizonmodel | plotStatus = multiStatus registry }}
 
                     in
                     U.nocmd newmodel
@@ -617,9 +615,9 @@ update msg model =
                 updatedinfos = { series =
                                     Dict.insert
                                         name
-                                        failedSeriesInfo
-                                        newmodel.loaded.series
-                                , groups = newmodel.loaded.groups
+                                        failedInfo
+                                        newmodel.registry.series
+                                , groups = newmodel.registry.groups
                                 }
                 horizonmodel = model.horizon
             in ( { newmodel | horizon =
@@ -633,26 +631,35 @@ update msg model =
                     let
                         infos = readGInfo
                                     name
-                                    model.loaded
+                                    model.registry
+                        registry =
+                            { groups = Dict.insert
+                                name
+                                { status = Success
+                                , cache = False
+                                , secondAxis = infos.secondAxis
+                                , basket = Nothing
+                                 }
+                                model.registry.groups
+                            , series = model.registry.series
+                            }
                         loaded =
                             { groups = Dict.insert
                                 name
-                                { group = val
-                                 , status = Success
-                                 , cache = False
-                                 , secondAxis = infos.secondAxis
-                                 }
+                                val
                                 model.loaded.groups
                             , series = model.loaded.series
                             }
+
                         fisrtScenario = Maybe.withDefault
                                             Dict.empty
                                             ( List.head ( Dict.values val ))
                         horizonmodel = extendHorizonFromData model.horizon fisrtScenario
                         newmodel =
                             { model
-                                | loaded = loaded
-                                , horizon =  { horizonmodel | plotStatus = multiStatus loaded }}
+                                | registry = registry
+                                , loaded = loaded
+                                , horizon =  { horizonmodel | plotStatus = multiStatus registry }}
 
                     in
                     U.nocmd newmodel
@@ -662,17 +669,18 @@ update msg model =
 
         GotGroupData name (Err err) ->
             let newmodel = U.adderror model ("gotgroupdata error" ++ " -> " ++ name)
-                updatedinfos = { groups =
-                                    Dict.insert
-                                        name
-                                        failedGroupInfo
-                                        newmodel.loaded.groups
-                                , series = newmodel.loaded.series
-                                }
+                registry = { groups =
+                                Dict.insert
+                                    name
+                                    failedInfo
+                                    newmodel.registry.groups
+                            , series = newmodel.registry.series
+                            }
                 horizonmodel = model.horizon
-            in ( { newmodel | horizon =
+            in ( { newmodel | registry = registry
+                            , horizon =
                                 { horizonmodel | plotStatus = multiStatus
-                                                                updatedinfos }}
+                                                                registry }}
                , Cmd.none )
 
 
@@ -685,7 +693,9 @@ update msg model =
                                                     model.horizon
             in
             let resetModel = { model | horizon = newModelHorizon
-                                     , loaded = resetSeries model.loaded}
+                                     , loaded = resetLoad model.loaded
+                                     , registry = resetRegistry model.registry
+                             }
                 default = ( { model | horizon = newModelHorizon} , commands )
             in
             case hMsg of
@@ -731,40 +741,64 @@ update msg model =
 
 
 
-resetSeries: Loaded -> Loaded
-resetSeries loaded =
+resetLoad: Loaded -> Loaded
+resetLoad loaded =
     { series =
         Dict.fromList
-        ( List.map
-            (\ name -> ( name,
-                        { series = Dict.empty
-                        , cache = (readSInfo name loaded).cache
-                        , status = Loading
-                        , secondAxis = (readSInfo name loaded).secondAxis
-                        , basket = (readSInfo name loaded).basket
-                        }
-                       )
-            )
-            ( Dict.keys loaded.series ) )
-    , groups = loaded.groups
+        <| List.map
+            (\ name -> ( name, Dict.empty ))
+            ( Dict.keys loaded.series )
+    , groups =
+        Dict.fromList
+        <| List.map
+            (\ name -> ( name, Dict.empty ))
+            ( Dict.keys loaded.groups )
     }
 
 
-readSInfo: String -> Loaded -> SeriesAndInfos
-readSInfo name loaded =
-    case ( Dict.get name loaded.series ) of
+resetRegistry: Registry -> Registry
+resetRegistry registry =
+    { series =
+        Dict.fromList
+        <| List.map
+            (\ name -> ( name,
+                        { cache = (readSInfo name registry).cache
+                        , status = Loading
+                        , secondAxis = (readSInfo name registry).secondAxis
+                        , basket = (readSInfo name registry).basket
+                        }
+                        )
+            )
+            ( Dict.keys registry.series )
+    , groups =
+         Dict.fromList
+         <| List.map
+            (\ name -> ( name,
+                        { cache = (readGInfo name registry).cache
+                        , status = Loading
+                        , secondAxis = (readGInfo name registry).secondAxis
+                        , basket = (readGInfo name registry).basket
+                        }
+                       )
+            )
+            ( Dict.keys registry.groups )
+    }
+
+
+readSInfo: String -> Registry -> DataInfos
+readSInfo name registry =
+    case ( Dict.get name registry.series ) of
         Just info -> info
-        Nothing -> emptySeriesInfo
+        Nothing -> emptyInfo
 
-
-readGInfo: String -> Loaded -> GroupAndInfos
-readGInfo name loaded =
-    case ( Dict.get name loaded.groups ) of
+readGInfo: String -> Registry -> DataInfos
+readGInfo name registry =
+    case ( Dict.get name registry.groups ) of
         Just info -> info
-        Nothing -> emptyGroupInfo
+        Nothing -> emptyInfo
 
 
-multiStatus: Loaded -> PlotStatus
+multiStatus: Registry -> PlotStatus
 multiStatus infos =
     let statusS = List.map
                     (\ elt -> (Tuple.second elt).status)
@@ -781,7 +815,7 @@ multiStatus infos =
     Loading
 
 
-hasSecondAxis: Loaded -> Bool
+hasSecondAxis: Registry -> Bool
 hasSecondAxis infos =
     let axis = List.map (.secondAxis) ( Dict.values infos.series )
     in
@@ -921,7 +955,18 @@ view model =
 
 plotDiv = "plot_div"
 
-buildGroupTraces: Model -> ( String , GroupAndInfos ) -> List Trace
+getSeries: Loaded -> String -> Series
+getSeries loaded name =
+    Maybe.withDefault Dict.empty
+        <| Dict.get name loaded.series
+
+getGroup: Loaded -> String -> Group
+getGroup loaded name =
+    Maybe.withDefault Dict.empty
+        <| Dict.get name loaded.groups
+
+
+buildGroupTraces: Model -> ( String , DataInfos ) -> List Trace
 buildGroupTraces model ( name,  infos ) =
     List.map
         (\ ( scenario, series) ->
@@ -936,7 +981,7 @@ buildGroupTraces model ( name,  infos ) =
                                         , line = renderColor model name
                  }
         )
-        ( Dict.toList infos.group )
+        ( Dict.toList ( getGroup model.loaded name ))
 
 
 buildPlotArgs: Model -> String
@@ -944,11 +989,13 @@ buildPlotArgs model =
     let
         series =
             List.map
-                (\( name, infos ) ->
+                (\ ( name, infos ) ->
+                    let points = getSeries model.loaded name
+                    in
                      scatterplot
                      name
-                     (Dict.keys infos.series)
-                     (Dict.values infos.series)
+                     ( Dict.keys points )
+                     ( Dict.values points )
                      (if model.horizon.inferredFreq then "lines+markers" else "lines")
                      { defaultTraceOptions | showlegend = model.showLegend
                                             , visible = visibility model name
@@ -956,12 +1003,12 @@ buildPlotArgs model =
                                             , line = renderColor model name
                      }
                 )
-                ( Dict.toList model.loaded.series )
+                ( Dict.toList model.registry.series )
         groups =
             List.concat
                 <| List.map
                     ( buildGroupTraces model )
-                    ( Dict.toList model.loaded.groups )
+                    ( Dict.toList model.registry.groups )
 
         data = groups ++ series
     in
@@ -977,7 +1024,7 @@ buildPlotArgs model =
                                 range = extractValues
                                     model.horizon.zoomY
                           }
-                , yaxis2 = if not ( hasSecondAxis model.loaded )
+                , yaxis2 = if not ( hasSecondAxis model.registry )
                     then Nothing
                     else
                         Just
@@ -1098,19 +1145,29 @@ buttonLegend model =
 seriesTable: Model -> H.Html Msg
 seriesTable model =
         H.table
-            [ HA.class "series-table"
+            [ HA.class "under-table series-table"
             ]
             ( List.map
-                ( rowSeries model )
-                ( Dict.toList model.loaded.series )
+                ( rowGeneric model TypeSeries )
+                ( Dict.toList model.registry.series )
             )
 
-rowSeries: Model -> ( String, SeriesAndInfos ) -> H.Html Msg
-rowSeries model ( name, info ) =
+groupTable: Model -> H.Html Msg
+groupTable model =
+        H.table
+            [ HA.class "under-table group-table"
+            ]
+            ( List.map
+                ( rowGeneric model TypeGroup )
+                ( Dict.toList model.registry.groups )
+            )
+
+rowGeneric: Model -> DataType -> ( String,  DataInfos ) -> H.Html Msg
+rowGeneric model dtype ( name, info ) =
     H.tr
         [ HA.id ( "remove-" ++ name )
-        , HE.onMouseOver (Highlight name)
-        , HE.onMouseLeave (Highlight "no-highlight")
+        , HE.onMouseOver (Highlight dtype  name)
+        , HE.onMouseLeave (Highlight dtype "no-highlight")
         ]
         [ H.td
             [ ]
@@ -1127,7 +1184,7 @@ rowSeries model ( name, info ) =
                 , HA.class <| if info.secondAxis
                                 then "btn btn-info"
                                 else "btn btn-success"
-                , HE.onClick ( ToggleAxis name )
+                , HE.onClick ( ToggleAxis dtype name )
                 ]
                 [ H.text <| if info.secondAxis
                                 then "2nd Axis"
@@ -1143,7 +1200,7 @@ rowSeries model ( name, info ) =
                                 then "active"
                                 else ""
                             )
-                , HE.onClick ( FixedHighlight name )
+                , HE.onClick ( FixedHighlight dtype name )
                 ]
                 [ H.text "Highlight" ]
             ]
@@ -1152,7 +1209,7 @@ rowSeries model ( name, info ) =
             [ H.button
                 [ HA.class "button-table-series"
                 , HA.class "btn btn-warning"
-                , HE.onClick ( RemoveSeries name )
+                , HE.onClick ( Remove dtype name )
                 ]
                 [ H.text "Remove" ]
             ]
@@ -1180,7 +1237,7 @@ debugView model =
         secondAxis = H.div
                         []
                         [ H.text ( "Has second axis : "
-                                  ++ if hasSecondAxis model.loaded
+                                  ++ if hasSecondAxis model.registry
                                     then " True"
                                     else " False "
                                   )
@@ -1226,15 +1283,15 @@ secondAxisNames model =
     Dict.keys
         <| Dict.filter
                 (\ _ i -> i.secondAxis )
-                ( model.loaded.series )
+                ( model.registry.series )
 
 
-emptyLoaded: List String -> Loaded
-emptyLoaded onSecondAxis =
+emptyRegistry: List String -> Registry
+emptyRegistry onSecondAxis =
     { series = Dict.fromList
                 <| List.map
                     (\ name -> ( name
-                               , { emptySeriesInfo | secondAxis = True })
+                               , { emptyInfo | secondAxis = True })
                                )
                     onSecondAxis
     , groups = Dict.empty
@@ -1294,7 +1351,8 @@ main =
                     , selecting = if (List.isEmpty selected )
                                     then ModeSeries
                                     else NoMode
-                    , loaded = emptyLoaded axis2
+                    , loaded = { series = Dict.empty, groups = Dict.empty }
+                    , registry = emptyRegistry axis2
                     , highlighted = Nothing
                     , fixHighlighted = Set.empty
                     , errors = []
