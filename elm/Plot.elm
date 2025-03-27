@@ -68,7 +68,6 @@ type alias Model =
     , loaded : Loaded
     , registry : Registry
     , highlighted: Maybe String
-    , fixHighlighted : Set String
     , errors : List String
     , panActive: Bool
     , legendStatus : Maybe (List (String, Bool))
@@ -101,6 +100,7 @@ type alias DataInfos =
     , status : PlotStatus
     , secondAxis: Bool
     , basket: Maybe String
+    , selected : Bool
     }
 
 
@@ -110,8 +110,17 @@ emptyInfo =
     , status = Loading
     , secondAxis = False
     , basket = Nothing
+    , selected = False
     }
 
+failedInfo : DataInfos
+failedInfo =
+    { cache = False
+    , status = Failure
+    , secondAxis = False
+    , basket = Nothing
+    , selected = False
+    }
 
 type alias BasketItem =
     { name : String
@@ -132,15 +141,6 @@ basketItemDecode =
         (Decode.field "kind" Decode.string)
 
 
-failedInfo : DataInfos
-failedInfo =
-    { cache = False
-    , status = Failure
-    , secondAxis = False
-    , basket = Nothing
-    }
-
-
 type Msg
     = GotCatalog Catalog.Msg
     | GotSeriesData ( Maybe String ) String (Result Http.Error String)
@@ -157,7 +157,7 @@ type Msg
     | RemoveGroup String
     | Remove DataType String
     | Highlight DataType String
-    | FixedHighlight DataType String
+    | Select DataType String
     | KindChange String Bool
     | SourceChange String Bool
     -- dates
@@ -425,16 +425,14 @@ update msg model =
 
         Remove dType name ->
             let
-                highlighted = Set.remove name model.fixHighlighted
                 loaded = model.loaded
                 newloaded = { loaded | series = Dict.remove name loaded.series }
                 registry = model.registry
                 newregistry = { registry | series = Dict.remove name registry.series }
 
             in
-                U.nocmd { model | fixHighlighted = highlighted
-                                , loaded = newloaded
-                                , registry = registry
+                U.nocmd { model | loaded = newloaded
+                                , registry = newregistry
                         }
 
         ToggleBasket name ->
@@ -459,15 +457,36 @@ update msg model =
             else U.nocmd { model | highlighted = Just name }
 
 
-        FixedHighlight dtype name ->
-            let
-                remove = Set.member name model.fixHighlighted
-                previous = model.fixHighlighted
-            in
-            case remove of
-                False -> U.nocmd { model | fixHighlighted = Set.insert name previous }
-                True -> U.nocmd { model | fixHighlighted = Set.remove name previous }
-
+        Select dtype name ->
+            case dtype of
+                TypeSeries ->
+                    let registry = model.registry
+                        info = Maybe.withDefault
+                                    emptyInfo
+                                    <| Dict.get
+                                          name
+                                          registry.series
+                        newRegistry = { registry | series =
+                                                    Dict.insert
+                                                        name
+                                                        { info | selected = not info.selected }
+                                                        registry.series
+                                      }
+                    in U.nocmd { model | registry = newRegistry }
+                TypeGroup ->
+                    let registry = model.registry
+                        info = Maybe.withDefault
+                                    emptyInfo
+                                    <| Dict.get
+                                          name
+                                          registry.groups
+                        newRegistry = { registry | groups =
+                                                    Dict.insert
+                                                        name
+                                                        { info | selected = not info.selected }
+                                                        registry.groups
+                                      }
+                    in U.nocmd { model | registry = newRegistry }
 
 
         ToggleAxis dtype name ->
@@ -583,9 +602,10 @@ update msg model =
                             { series = Dict.insert
                                 name
                                 { status = Success
-                                 , cache = False
+                                 , cache = infos.cache
                                  , basket = infos.basket
                                  , secondAxis = infos.secondAxis
+                                 , selected = infos.selected
                                  }
                                 model.registry.series
                             , groups = model.registry.groups
@@ -636,9 +656,10 @@ update msg model =
                             { groups = Dict.insert
                                 name
                                 { status = Success
-                                , cache = False
+                                , cache = infos.cache
                                 , secondAxis = infos.secondAxis
-                                , basket = Nothing
+                                , basket = infos.basket
+                                , selected = infos.selected
                                  }
                                 model.registry.groups
                             , series = model.registry.series
@@ -766,6 +787,7 @@ resetRegistry registry =
                         , status = Loading
                         , secondAxis = (readSInfo name registry).secondAxis
                         , basket = (readSInfo name registry).basket
+                        , selected = (readSInfo name registry).selected
                         }
                         )
             )
@@ -778,6 +800,7 @@ resetRegistry registry =
                         , status = Loading
                         , secondAxis = (readGInfo name registry).secondAxis
                         , basket = (readGInfo name registry).basket
+                        , selected = (readGInfo name registry).selected
                         }
                        )
             )
@@ -817,9 +840,18 @@ multiStatus infos =
 
 hasSecondAxis: Registry -> Bool
 hasSecondAxis infos =
-    let axis = List.map (.secondAxis) ( Dict.values infos.series )
+    let axisSeries = List.map (.secondAxis) ( Dict.values infos.series )
+        axisGroup = List.map (.secondAxis) ( Dict.values infos.groups )
     in
-        List.any identity axis
+        List.any identity ( axisSeries ++ axisGroup )
+
+
+hasSelected: Registry -> Bool
+hasSelected infos =
+    let axisSeries = List.map (.selected) ( Dict.values infos.series )
+        axisGroup = List.map (.selected) ( Dict.values infos.groups )
+    in
+        List.any identity ( axisSeries ++ axisGroup )
 
 
 selectorConfig : SeriesSelector.SelectorConfig Msg
@@ -898,22 +930,29 @@ visibility model name =
                                 allStatus
 
 
-renderColor: Model -> String -> Maybe { color : String }
-renderColor model name =
-    case Set.isEmpty model.fixHighlighted of
-        False ->
-            if Set.member name model.fixHighlighted
-                then Nothing
-                else
-                case model.highlighted of
-                    Nothing -> Just { color = "rgba(0, 0, 0, 0.1)"}
-                    Just highlighted ->
-                        if name == highlighted
-                            then Just { color = "black"}
-                            else Just { color = "rgba(0, 0, 0, 0.1)"}
+renderColor: DataType -> Model -> String -> Maybe { color : String }
+renderColor dtype model name =
+    let info = case dtype of
+                TypeSeries -> Maybe.withDefault
+                                emptyInfo
+                                <| Dict.get
+                                    name
+                                    model.registry.series
+                TypeGroup -> Maybe.withDefault
+                                emptyInfo
+                                <| Dict.get
+                                    name
+                                    model.registry.groups
+        anySelected = hasSelected model.registry
+    in
+    case info.selected of
         True ->
+            Nothing
+        False ->
             case model.highlighted of
-                Nothing -> Nothing
+                Nothing -> case anySelected of
+                            False -> Nothing
+                            True -> Just { color = "rgba(0, 0, 0, 0.1)"}
                 Just highlighted ->
                     if name == highlighted
                         then Just { color = "black"}
@@ -980,7 +1019,7 @@ buildGroupTraces model ( name,  infos ) =
                  { defaultTraceOptions | showlegend = model.showLegend
                                         , visible = visibility model name
                                         , secondAxis = infos.secondAxis
-                                        , line = renderColor model name
+                                        , line = renderColor TypeGroup model name
                  }
         )
         ( Dict.toList ( getGroup model.loaded name ))
@@ -1002,7 +1041,7 @@ buildPlotArgs model =
                      { defaultTraceOptions | showlegend = model.showLegend
                                             , visible = visibility model name
                                             , secondAxis = infos.secondAxis
-                                            , line = renderColor model name
+                                            , line = renderColor TypeSeries model name
                      }
                 )
                 ( Dict.toList model.registry.series )
@@ -1208,11 +1247,11 @@ rowGeneric model dtype ( name, info ) =
             [ H.button
                 [ HA.class "button-table-series"
                 , HA.class ( "btn btn-primary " ++ if
-                                Set.member name model.fixHighlighted
+                                info.selected
                                 then "active"
                                 else ""
                             )
-                , HE.onClick ( FixedHighlight dtype name )
+                , HE.onClick ( Select dtype name )
                 ]
                 [ H.text "Highlight" ]
             ]
@@ -1366,7 +1405,6 @@ main =
                     , loaded = { series = Dict.empty, groups = Dict.empty }
                     , registry = emptyRegistry axis2
                     , highlighted = Nothing
-                    , fixHighlighted = Set.empty
                     , errors = []
                     , panActive = False
                     , legendStatus = Nothing
