@@ -10,6 +10,7 @@ import Html.Events as HE
 import Http
 import Catalog
 import Json.Decode as Decode
+import List.Extra as List
 import Metadata
 import Plotter exposing
     ( Series
@@ -154,7 +155,6 @@ type Msg
     | FilterBasket String
     | ToggleGroup String
     | FilterGroup String
-    | RemoveGroup String
     | Remove DataType String
     | Highlight DataType String
     | Select DataType String
@@ -424,16 +424,34 @@ update msg model =
             )
 
         Remove dType name ->
-            let
-                loaded = model.loaded
-                newloaded = { loaded | series = Dict.remove name loaded.series }
-                registry = model.registry
-                newregistry = { registry | series = Dict.remove name registry.series }
+            case dType of
+                TypeSeries ->
+                    let
+                        loaded = model.loaded
+                        newloaded = { loaded | series = Dict.remove name loaded.series }
+                        registry = model.registry
+                        newregistry = { registry | series = Dict.remove name registry.series }
+                        search = model.searchSeries
+                        newsearch = { search | selected = List.remove name search.selected }
+                    in
+                        U.nocmd { model | loaded = newloaded
+                                        , registry = newregistry
+                                        , searchSeries = newsearch
+                                }
 
-            in
-                U.nocmd { model | loaded = newloaded
-                                , registry = newregistry
-                        }
+                TypeGroup ->
+                    let
+                        loaded = model.loaded
+                        newloaded = { loaded | groups = Dict.remove name loaded.groups }
+                        registry = model.registry
+                        newregistry = { registry | groups = Dict.remove name registry.groups }
+                        search = model.searchGroup
+                        newsearch = { search | selected = List.remove name search.selected }
+                    in
+                        U.nocmd { model | loaded = newloaded
+                                        , registry = newregistry
+                                        , searchGroup = newsearch
+                                }
 
         ToggleBasket name ->
             if  List.member name model.searchBasket.selected
@@ -552,7 +570,7 @@ update msg model =
             in
             if remove
                 then ( newmodel
-                      , Task.perform identity ( Task.succeed ( RemoveGroup name )))
+                      , Task.perform identity ( Task.succeed ( Remove TypeGroup name )))
             else
             -- loading after action on the selection (vs horizon)
             let
@@ -573,16 +591,6 @@ update msg model =
             , fetchgroups newmodel False
             )
 
-        RemoveGroup name ->
-            let
-                loaded = model.loaded
-                newloaded = { loaded | groups = Dict.remove name loaded.groups }
-                registry = model.registry
-                newregistry = { registry | groups = Dict.remove name registry.groups }
-            in
-                U.nocmd { model | loaded = newloaded
-                                , registry = newregistry
-                        }
 
         FilterGroup x ->
             let
