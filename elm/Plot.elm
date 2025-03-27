@@ -948,7 +948,9 @@ view model =
                     []
                 , H.div
                     [ HA.class "under-the-plot" ]
-                    [ seriesTable model ]
+                    [ seriesTable model
+                    , groupTable model
+                    ]
                 ]
             ]]
 
@@ -1154,13 +1156,23 @@ seriesTable model =
 
 groupTable: Model -> H.Html Msg
 groupTable model =
-        H.table
+    if Dict.isEmpty model.registry.groups
+        then H.table
             [ HA.class "under-table group-table"
             ]
-            ( List.map
-                ( rowGeneric model TypeGroup )
-                ( Dict.toList model.registry.groups )
-            )
+            []
+        else
+        H.div
+            []
+            [ H.text "Groups"
+            , H.table
+                [ HA.class "under-table group-table"
+                ]
+                ( List.map
+                    ( rowGeneric model TypeGroup )
+                    ( Dict.toList model.registry.groups )
+                )
+            ]
 
 rowGeneric: Model -> DataType -> ( String,  DataInfos ) -> H.Html Msg
 rowGeneric model dtype ( name, info ) =
