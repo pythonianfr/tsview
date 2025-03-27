@@ -102,6 +102,7 @@ type alias DataInfos =
     , secondAxis: Bool
     , basket: Maybe String
     , selected : Bool
+    , aborted : Bool
     }
 
 
@@ -112,6 +113,7 @@ emptyInfo =
     , secondAxis = False
     , basket = Nothing
     , selected = False
+    , aborted = False
     }
 
 failedInfo : DataInfos
@@ -121,6 +123,7 @@ failedInfo =
     , secondAxis = False
     , basket = Nothing
     , selected = False
+    , aborted = False
     }
 
 type alias BasketItem =
@@ -622,6 +625,7 @@ update msg model =
                                  , basket = infos.basket
                                  , secondAxis = infos.secondAxis
                                  , selected = infos.selected
+                                 , aborted = infos.aborted
                                  }
                                 model.registry.series
                             , groups = model.registry.groups
@@ -676,6 +680,7 @@ update msg model =
                                 , secondAxis = infos.secondAxis
                                 , basket = infos.basket
                                 , selected = infos.selected
+                                , aborted = infos.aborted
                                  }
                                 model.registry.groups
                             , series = model.registry.series
@@ -804,6 +809,7 @@ resetRegistry registry =
                         , secondAxis = (readSInfo name registry).secondAxis
                         , basket = (readSInfo name registry).basket
                         , selected = (readSInfo name registry).selected
+                        , aborted = (readSInfo name registry).aborted
                         }
                         )
             )
@@ -817,6 +823,7 @@ resetRegistry registry =
                         , secondAxis = (readGInfo name registry).secondAxis
                         , basket = (readGInfo name registry).basket
                         , selected = (readGInfo name registry).selected
+                        , aborted = (readGInfo name registry).aborted
                         }
                        )
             )
