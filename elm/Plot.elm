@@ -167,7 +167,7 @@ type Msg
     | NewDragMode Bool
     | Legends ( List ( String, Bool ))
     | ShowLegend Bool
-    | ToggleAxis DataType String
+    | ToggleAxis DataType DataInfos String
 
 
 
@@ -489,10 +489,9 @@ update msg model =
                     in U.nocmd { model | registry = newRegistry }
 
 
-        ToggleAxis dtype name ->
-            case Dict.get name model.registry.series of
-                Nothing -> U.nocmd model
-                Just infos ->
+        ToggleAxis dtype infos name ->
+            case dtype of
+                TypeSeries ->
                     U.nocmd { model | registry =
                                         { series =
                                             Dict.insert
@@ -502,7 +501,16 @@ update msg model =
                                         , groups = model.registry.groups
                                         }
                             }
-
+                TypeGroup ->
+                    U.nocmd { model | registry =
+                                        { groups =
+                                            Dict.insert
+                                                name
+                                                { infos | secondAxis = not infos.secondAxis }
+                                                model.registry.groups
+                                        , series = model.registry.series
+                                        }
+                            }
         FilterSeries x ->
             let
                 search =
@@ -1235,7 +1243,7 @@ rowGeneric model dtype ( name, info ) =
                 , HA.class <| if info.secondAxis
                                 then "btn btn-info"
                                 else "btn btn-success"
-                , HE.onClick ( ToggleAxis dtype name )
+                , HE.onClick ( ToggleAxis dtype info name )
                 ]
                 [ H.text <| if info.secondAxis
                                 then "2nd Axis"
