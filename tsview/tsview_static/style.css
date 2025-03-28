@@ -271,7 +271,7 @@ label.option {
 
 .quickview #plot_div {
     position: sticky;
-    top: 0;
+    top: -25px;
 }
 
 .quickview .show-legend-container {

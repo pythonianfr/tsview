@@ -1169,8 +1169,8 @@ buildPlotArgs model =
                 , dragMode = Just ( if model.panActive
                                      then "pan"
                                      else "zoom" )
-                , margin = { t = 45
-                           , b = 50
+                , margin = { t = 25
+                           , b = 35
                            , l = 40
                            , r = 60
                            }
