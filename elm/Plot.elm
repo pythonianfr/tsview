@@ -656,6 +656,12 @@ update msg model =
                         baksetSource = case basket of
                                         Just b -> Just b
                                         Nothing -> infos.basket
+                        search = model.searchSeries
+                        newSearch = case basket of
+                                        Nothing -> search
+                                        Just b -> { search |
+                                                    selected = search.selected ++ [ name ]
+                                                  }
                         registry =
                             { series = Dict.insert
                                 name
@@ -681,6 +687,7 @@ update msg model =
                             { model
                                 | registry = registry
                                 , loaded = loaded
+                                , searchSeries = newSearch
                                 , horizon =  { horizonmodel | plotStatus = multiStatus registry }}
 
                     in
