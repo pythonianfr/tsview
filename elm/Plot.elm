@@ -653,12 +653,15 @@ update msg model =
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
+                        baksetSource = case basket of
+                                        Just b -> Just b
+                                        Nothing -> infos.basket
                         registry =
                             { series = Dict.insert
                                 name
                                 { status = Success
                                  , cache = infos.cache
-                                 , basket = infos.basket
+                                 , basket = baksetSource
                                  , secondAxis = infos.secondAxis
                                  , selected = infos.selected
                                  , aborted = infos.aborted
