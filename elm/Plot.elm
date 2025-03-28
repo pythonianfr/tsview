@@ -1308,6 +1308,12 @@ rowGeneric model dtype ( name, info ) =
         , HE.onMouseOver (Highlight dtype  name)
         , HE.onMouseLeave (Highlight dtype "no-highlight")
         , HA.class strType
+        , HA.class <| if info.secondAxis
+                                then "axis"
+                                else ""
+        , HA.class <|  if info.selected
+                                then "selected"
+                                else ""
         ]
         [ H.td
             [ HA.class "data-type" ]
@@ -1352,13 +1358,18 @@ rowGeneric model dtype ( name, info ) =
                             )
                 , HE.onClick ( Select dtype name )
                 ]
-                [ H.text "Select" ]
+                [ H.text <| if info.selected
+                                then "Selected"
+                                else "Select"
+                ]
             ]
         , H.td
             []
             [ H.button
                 [ HA.class "button-table-series"
-                , HA.class "btn btn-warning"
+                , HA.class <| if info.aborted
+                                then "btn btn-danger"
+                                else "btn btn-warning"
                 , HE.onClick ( Remove dtype name )
                 ]
                 [ if info.aborted

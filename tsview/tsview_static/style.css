@@ -258,6 +258,22 @@ label.option {
 
 .quickview .data-table {
     font-size: 80%;
+    margin-left: 25px;
+}
+
+.quickview .data-table tr:hover{
+    background-color: #d9d9d9 ;
+}
+
+
+
+.quickview .data-table tr.axis{
+    background-color: rgba(23, 162, 184, 0.2) ;
+
+}
+
+.quickview .data-table tr.selected{
+    background-color: rgba(0, 123, 255, 0.2);
 }
 
 .quickview .button-table-series {
