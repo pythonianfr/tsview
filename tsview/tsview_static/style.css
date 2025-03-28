@@ -228,6 +228,11 @@ label.option {
     margin-left: 20px;
 }
 
+.quickview .data-selector .btn {
+    width: 14ch;
+}
+
+
 .quickview .list-series {
     z-index: 10;
     position: absolute;

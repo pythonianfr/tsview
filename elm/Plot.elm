@@ -1227,7 +1227,7 @@ buildSelector model =
             ]
     in
        H.header
-            []
+            [HA.class "data-selector"]
             [ H.form [ ]
             ( buttons ++
                 [ buttonLegend model ] ++
