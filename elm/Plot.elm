@@ -236,24 +236,26 @@ fetchseries model reload =
     let ( start, end ) = getFetchBounds model.horizon
     in
     Cmd.batch
-    ( List.map
-        ( fetchsingle model start end Nothing )
-        ( if not reload
-            then findmissing model
-            else ( Dict.keys model.registry.series ))
-    )
+    <| List.reverse
+        ( List.map
+            ( fetchsingle model start end Nothing )
+            ( if not reload
+                then findmissing model
+                else ( Dict.keys model.registry.series ))
+        )
 
 fetchgroups: Model -> Bool -> Cmd Msg
 fetchgroups model reload =
     let ( start, end ) = getFetchBounds model.horizon
     in
     Cmd.batch
-    ( List.map
-        ( fetchsinglegroup model start end )
-        ( if not reload
-            then findmissinggroup model
-            else ( Dict.keys model.registry.groups ))
-    )
+    <| List.reverse
+        ( List.map
+            ( fetchsinglegroup model start end )
+            ( if not reload
+                then findmissinggroup model
+                else ( Dict.keys model.registry.groups ))
+        )
 
 fetchbasket : Model -> Bool -> String -> Cmd Msg
 fetchbasket model remove  name =
@@ -369,7 +371,7 @@ update msg model =
                         , Cmd.batch
                             <| List.map
                                     (fetchsingle model start end ( Just basket ))
-                                    names
+                                     ( List.reverse names )
                         )
 
         GotBasket remove basketName (Err err) ->
