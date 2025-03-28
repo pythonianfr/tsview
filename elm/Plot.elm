@@ -1085,9 +1085,7 @@ view model =
                     []
                 , H.div
                     [ HA.class "under-the-plot" ]
-                    [ seriesTable model
-                    , groupTable model
-                    ]
+                    [ seriesTable model ]
                 ]
             ]]
 
@@ -1284,41 +1282,46 @@ buttonLegend model =
 seriesTable: Model -> H.Html Msg
 seriesTable model =
         H.table
-            [ HA.class "under-table series-table"
+            [ HA.class "under-table data-table"
             ]
-            ( List.map
+            ( ( List.map
                 ( rowGeneric model TypeSeries )
                 ( Dict.toList model.registry.series )
-            )
-
-groupTable: Model -> H.Html Msg
-groupTable model =
-    if Dict.isEmpty model.registry.groups
-        then H.table
-            [ HA.class "under-table group-table"
-            ]
-            []
-        else
-        H.div
-            []
-            [ H.text "Groups"
-            , H.table
-                [ HA.class "under-table group-table"
-                ]
+                ) ++
                 ( List.map
                     ( rowGeneric model TypeGroup )
                     ( Dict.toList model.registry.groups )
                 )
-            ]
+            )
 
 rowGeneric: Model -> DataType -> ( String,  DataInfos ) -> H.Html Msg
 rowGeneric model dtype ( name, info ) =
+    let status = case info.status of
+                        None -> "none"
+                        Loading -> "loading"
+                        Success -> "success"
+                        Failure -> "failure"
+        strType = case dtype of
+                    TypeSeries -> "series"
+                    TypeGroup -> "group"
+    in
     H.tr
         [ HA.id ( "remove-" ++ name )
         , HE.onMouseOver (Highlight dtype  name)
         , HE.onMouseLeave (Highlight dtype "no-highlight")
+        , HA.class strType
         ]
         [ H.td
+            [ HA.class "data-type" ]
+            [ H.text <| strType
+            ]
+        , H.td
+            [ HA.class "data-status"
+            , HA.class status
+            , HA.title status
+            ]
+            [H.text "●"]
+        , H.td
             [ ]
             [ H.a
                 [ HA.title "tsinfo"
@@ -1351,7 +1354,7 @@ rowGeneric model dtype ( name, info ) =
                             )
                 , HE.onClick ( Select dtype name )
                 ]
-                [ H.text "Highlight" ]
+                [ H.text "Select" ]
             ]
         , H.td
             []

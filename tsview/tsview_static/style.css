@@ -256,9 +256,17 @@ label.option {
     margin-top: 10px;
 }
 
+.quickview .data-table {
+    font-size: 80%;
+}
+
 .quickview .button-table-series {
     width: 75px;
     margin-right: 10px;
+    margin-top: 1px;
+    margin-bottom: 1px;
+    font-size: 80%;
+    padding: 0px;
 }
 
 .quickview #plot_div {
@@ -280,6 +288,19 @@ label.option {
     display: none;
 }
 
+.quickview .data-status
+    { padding-left: 3px;
+      padding-right: 3px;
+    }
+
+.quickview .data-status.loading
+    {color: orange;}
+
+.quickview .data-status.success
+    {color: green;}
+
+.quickview .data-status.failure
+    {color: red;}
 
 .js-plotly-plot div {
     overflow: visible !important;
