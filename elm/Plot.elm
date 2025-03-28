@@ -1076,9 +1076,6 @@ view model =
                      then ( debugView model )
                      else  []
                     )
-                , H.div
-                    []
-                    [ buttonLegend model ]
                 , H.div [ HA.id plotDiv ] []
                 , plotFigure
                     [ HA.attribute "args" ( buildPlotArgs model )]
@@ -1233,6 +1230,7 @@ buildSelector model =
             []
             [ H.form [ ]
             ( buttons ++
+                [ buttonLegend model ] ++
                 ( case model.selecting of
                     ModeSeries ->
                       [ SeriesSelector.view

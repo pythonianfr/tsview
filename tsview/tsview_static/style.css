@@ -277,6 +277,9 @@ label.option {
 .quickview .show-legend-container {
     height: 24px;
     margin-right: 20px;
+    display: inline-block;
+    float: right;
+
 }
 
 
