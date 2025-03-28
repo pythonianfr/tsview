@@ -150,7 +150,7 @@ type Msg
     | GotSeriesData ( Maybe String ) String (Result Http.Error String)
     | GotGroupData String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
-    | GotBasket String (Result Http.Error String)
+    | GotBasket Bool String (Result Http.Error String)
     | ChangeSelection Selecting
     | ToggleSeries String
     | FilterSeries String
@@ -255,10 +255,10 @@ fetchgroups model reload =
             else ( Dict.keys model.registry.groups ))
     )
 
-fetchbasket : Model -> String -> Cmd Msg
-fetchbasket model name =
+fetchbasket : Model -> Bool -> String -> Cmd Msg
+fetchbasket model remove  name =
     Http.get
-        { expect = Http.expectString ( GotBasket name )
+        { expect = Http.expectString ( GotBasket remove name )
         , url = UB.crossOrigin model.baseurl
               [ "api", "series", "basket" ]
               [ UB.string "name" name ]
@@ -331,12 +331,26 @@ update msg model =
         GotBasketCatalog (Err err) ->
             doerr "gotbasketcatalog network" ""
 
-        GotBasket basket (Ok raw) ->
+        GotBasket remove basket (Ok raw) ->
              case Decode.decodeString ( Decode.list basketItemDecode) raw of
                 Err err ->
                     doerr "gotbasket decode" <| Decode.errorToString err
                 Ok items ->
                     let names = List.map .name items
+                    in
+                    if remove
+                    then ( model
+                         , Cmd.batch
+                            <| List.map
+                                    (\ n ->
+                                        Task.perform
+                                            identity
+                                            ( Task.succeed ( Remove TypeSeries n ))
+                                    )
+                                    names
+                         )
+                    else
+                    let
                         previousRegistry = model.registry
                         newRegistry = Dict.fromList
                                         <| List.map
@@ -358,7 +372,7 @@ update msg model =
                                     names
                         )
 
-        GotBasket basketName (Err err) ->
+        GotBasket remove basketName (Err err) ->
             doerr "gotbasket network" ""
 
         -- never used in this page
@@ -479,10 +493,8 @@ update msg model =
                                 }
 
         ToggleBasket name ->
-            if  List.member name model.searchBasket.selected
-            then U.nocmd model
-            else
             let
+                remove =  List.member name model.searchBasket.selected
                 newmodel =
                     { model
                         | searchBasket = SeriesSelector.updateselected
@@ -491,7 +503,7 @@ update msg model =
                     }
             in
             ( newmodel
-            , fetchbasket model name
+            , fetchbasket model remove name
             )
 
         Highlight dtype name ->
