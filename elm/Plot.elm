@@ -427,33 +427,55 @@ update msg model =
             )
 
         Remove dType name ->
+            let registry = model.registry
+                loaded = model.loaded
+            in
             case dType of
                 TypeSeries ->
                     let
-                        loaded = model.loaded
+                        infos = Maybe.withDefault emptyInfo
+                                    <| Dict.get name model.registry.series
+                        aborting = infos.status == Loading
                         newloaded = { loaded | series = Dict.remove name loaded.series }
-                        registry = model.registry
-                        newregistry = { registry | series = Dict.remove name registry.series }
+                        newregistry = if aborting
+                                        then
+                                            { registry | series = Dict.insert
+                                                                    name
+                                                                    { infos | aborted = True }
+                                                                    registry.series }
+                                        else
+                                            { registry | series = Dict.remove name registry.series }
+
                         search = model.searchSeries
                         newsearch = { search | selected = List.remove name search.selected }
                     in
                         U.nocmd { model | loaded = newloaded
                                         , registry = newregistry
                                         , searchSeries = newsearch
+                                        , highlighted = Nothing
                                 }
 
                 TypeGroup ->
                     let
-                        loaded = model.loaded
+                        infos = Maybe.withDefault emptyInfo
+                                    <| Dict.get name model.registry.groups
+                        aborting = infos.status == Loading
                         newloaded = { loaded | groups = Dict.remove name loaded.groups }
-                        registry = model.registry
-                        newregistry = { registry | groups = Dict.remove name registry.groups }
+                        newregistry = if aborting
+                                        then
+                                            { registry | groups = Dict.insert
+                                                                    name
+                                                                    { infos | aborted = True }
+                                                                    registry.groups }
+                                        else
+                                            { registry | groups = Dict.remove name registry.groups }
                         search = model.searchGroup
                         newsearch = { search | selected = List.remove name search.selected }
                     in
                         U.nocmd { model | loaded = newloaded
                                         , registry = newregistry
                                         , searchGroup = newsearch
+                                        , highlighted = Nothing
                                 }
 
         ToggleBasket name ->
@@ -611,12 +633,26 @@ update msg model =
         -- plot
 
         GotSeriesData basket name (Ok rawdata) ->
+            let infos = readSInfo
+                            name
+                            model.registry
+            in
+            if infos.aborted
+            then
+                let registry = model.registry
+                in
+                    U.nocmd { model |
+                                registry =
+                                    { registry | series =
+                                                    Dict.remove
+                                                    name
+                                                    registry.series
+                                    }
+                            }
+            else
             case Decode.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
-                        infos = readSInfo
-                                    name
-                                    model.registry
                         registry =
                             { series = Dict.insert
                                 name
@@ -666,12 +702,27 @@ update msg model =
                , Cmd.none )
 
         GotGroupData name (Ok rawdata) ->
+            let infos = readGInfo
+                            name
+                            model.registry
+            in
+            if infos.aborted
+            then
+                let registry = model.registry
+                in
+                    U.nocmd
+                        { model |
+                            registry =
+                                { registry | groups =
+                                                Dict.remove
+                                                name
+                                                registry.groups
+                                }
+                        }
+            else
             case Decode.decodeString groupdecoder rawdata of
                 Ok val ->
                     let
-                        infos = readGInfo
-                                    name
-                                    model.registry
                         registry =
                             { groups = Dict.insert
                                 name
@@ -1285,7 +1336,10 @@ rowGeneric model dtype ( name, info ) =
                 , HA.class "btn btn-warning"
                 , HE.onClick ( Remove dtype name )
                 ]
-                [ H.text "Remove" ]
+                [ if info.aborted
+                    then H.text "Aborting"
+                    else H.text "Remove"
+                ]
             ]
          , H.td
             []
