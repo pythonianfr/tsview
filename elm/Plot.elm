@@ -1505,7 +1505,8 @@ sub model =
 main : Program
        { baseurl : String
        , series : List String
-       ,  groups : List String
+       , groups : List String
+       , baskets: List String
        , axis2S: List String
        , axis2G: List String
        , min: String
@@ -1520,7 +1521,10 @@ main =
                     flags.series
                 groups =
                     flags.groups
-                fromScratch = ( List.isEmpty series ) && ( List.isEmpty groups )
+                baskets = flags.baskets
+                fromScratch = ( List.isEmpty series )
+                              && ( List.isEmpty groups )
+                              && ( List.isEmpty baskets )
                 axis2S = flags.axis2S
                 axis2G = flags.axis2G
                 model =
@@ -1534,7 +1538,7 @@ main =
                     , catalog= Catalog.empty
                     , haseditor = False
                     , searchSeries = initSearch series
-                    , searchBasket = initSearch []
+                    , searchBasket = initSearch baskets
                     , searchGroup = initSearch groups
                     , selecting = if fromScratch
                                     then ModeSeries
@@ -1562,7 +1566,11 @@ main =
                                 (\ h -> GotCatalog (Catalog.ReceivedGroups h))
                             , fetchseries model False
                             , fetchgroups model False
-                            ])
+                            ] ++ ( List.map
+                                    ( fetchbasket model False )
+                                    baskets
+                                 )
+                            )
                )
 
     in

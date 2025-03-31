@@ -213,6 +213,7 @@ def tsview(tsa):
             homeurl=homeurl(),
             series=request.args.getlist("series"),
             groups=request.args.getlist("group"),
+            baskets=request.args.getlist("basket"),
             axis2S=request.args.getlist("axis2S"),
             axis2G=request.args.getlist("axis2G"),
             min=min,
