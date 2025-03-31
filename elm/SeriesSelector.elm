@@ -237,7 +237,7 @@ view model cfg =
     let
         searchInput =
             H.div
-                [ ]
+                [ HA.class "selector" ]
                 [ H.input
                     [ HA.value model.search
                     , HE.onInput cfg.onInputMsg

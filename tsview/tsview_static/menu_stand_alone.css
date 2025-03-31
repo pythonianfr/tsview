@@ -68,6 +68,11 @@
     background-color: var(--col-link-back);
 }
 
+.link a {
+    transition: color 1s ease-in-out,background-color 1s ease-in-out,border-color 1s ease-in-out,box-shadow 1s ease-in-out;
+
+}
+
 .menu-refinery .link svg:hover {
     padding:2px;
 }

@@ -268,17 +268,43 @@ label.option {
 
 .quickview .data-table tr:hover{
     background-color: #d9d9d9 ;
+
+}
+
+.quickview .data-table tr {
+
+}
+
+.quickview .data-selector .list-group{
+  animation: fadein 0.15s;
 }
 
 
+@keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.quickview .selector {
+  animation: fadein 0.15s;
+}
+
+.quickview .list-series {
+  animation: fadein 0.15s;
+}
+
+.quickview .data-table tr{
+  animation: fadein 1s;
+}
 
 .quickview .data-table tr.axis{
     background-color: rgba(23, 162, 184, 0.2) ;
-
+    transition: background-color 0.4s ease-in-out;
 }
 
 .quickview .data-table tr.selected{
     background-color: rgba(0, 123, 255, 0.2);
+    transition: background-color 0.4s ease-in-out;
 }
 
 .quickview .button-table-series {

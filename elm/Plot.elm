@@ -1310,10 +1310,10 @@ rowGeneric model dtype ( name, info ) =
         , HA.class strType
         , HA.class <| if info.secondAxis
                                 then "axis"
-                                else ""
+                                else "blend"
         , HA.class <|  if info.selected
                                 then "selected"
-                                else ""
+                                else "and-blend"
         ]
         [ H.td
             [ HA.class "data-type" ]
