@@ -44,6 +44,7 @@ import Horizon exposing
     , extractValues
     , extractZoomDates
     , updateZoom )
+import Process
 import SeriesSelector
 import Set exposing (Set)
 import Task exposing (Task)
@@ -103,6 +104,7 @@ type alias DataInfos =
     , basket: Maybe String
     , selected : Bool
     , aborted : Bool
+    , fading : Bool
     }
 
 
@@ -114,6 +116,7 @@ emptyInfo =
     , basket = Nothing
     , selected = False
     , aborted = False
+    , fading = False
     }
 
 failedInfo : DataInfos
@@ -124,6 +127,7 @@ failedInfo =
     , basket = Nothing
     , selected = False
     , aborted = False
+    , fading = False
     }
 
 type alias BasketItem =
@@ -158,6 +162,7 @@ type Msg
     | FilterBasket String
     | ToggleGroup String
     | FilterGroup String
+    | BeforeRemove DataType String DataInfos
     | Remove DataType String
     | Highlight DataType String
     | Select DataType String
@@ -442,6 +447,50 @@ update msg model =
             , fetchseries newmodel False
             )
 
+        BeforeRemove dType name info ->
+            let
+                loaded = model.loaded
+                registry = model.registry
+                aborting = info.status == Loading
+            in
+            if aborting
+            then ( model
+                 , Task.perform
+                        identity
+                        ( Task.succeed ( Remove dType name )))
+            else
+            case dType of
+                TypeSeries ->
+                    let
+                        newregistry = { registry | series = Dict.insert
+                                                                name
+                                                                { info | fading = True}
+                                                                registry.series
+                                   }
+                    in
+                    ( { model | registry = newregistry
+                              , loaded = { loaded | series = Dict.remove name loaded.series}
+                      }
+                    , Task.perform
+                        (always ( Remove dType name ))
+                        (Process.sleep 500)
+                    )
+                TypeGroup ->
+                    let
+                        newregistry = { registry | groups = Dict.insert
+                                                                name
+                                                                { info | fading = True}
+                                                                registry.groups
+                                   }
+                    in
+                    ( { model | registry = newregistry
+                              , loaded = { loaded | groups = Dict.remove name loaded.groups}
+                      }
+                    , Task.perform
+                        (always ( Remove dType name ))
+                        (Process.sleep 500)
+                    )
+
         Remove dType name ->
             let registry = model.registry
                 loaded = model.loaded
@@ -468,7 +517,6 @@ update msg model =
                         U.nocmd { model | loaded = newloaded
                                         , registry = newregistry
                                         , searchSeries = newsearch
-                                        , highlighted = Nothing
                                 }
 
                 TypeGroup ->
@@ -685,6 +733,7 @@ update msg model =
                                  , secondAxis = infos.secondAxis
                                  , selected = infos.selected
                                  , aborted = infos.aborted
+                                 , fading = infos.fading
                                  }
                                 model.registry.series
                             , groups = model.registry.groups
@@ -756,6 +805,7 @@ update msg model =
                                 , basket = infos.basket
                                 , selected = infos.selected
                                 , aborted = infos.aborted
+                                , fading = infos.fading
                                  }
                                 model.registry.groups
                             , series = model.registry.series
@@ -878,31 +928,19 @@ resetRegistry registry =
     { series =
         Dict.fromList
         <| List.map
-            (\ name -> ( name,
-                        { cache = (readSInfo name registry).cache
-                        , status = Loading
-                        , secondAxis = (readSInfo name registry).secondAxis
-                        , basket = (readSInfo name registry).basket
-                        , selected = (readSInfo name registry).selected
-                        , aborted = (readSInfo name registry).aborted
-                        }
-                        )
+            (\ ( name, info) -> ( name
+                                , { info| status = Loading }
+                                )
             )
-            ( Dict.keys registry.series )
+            ( Dict.toList registry.series )
     , groups =
          Dict.fromList
          <| List.map
-            (\ name -> ( name,
-                        { cache = (readGInfo name registry).cache
-                        , status = Loading
-                        , secondAxis = (readGInfo name registry).secondAxis
-                        , basket = (readGInfo name registry).basket
-                        , selected = (readGInfo name registry).selected
-                        , aborted = (readGInfo name registry).aborted
-                        }
-                       )
+            (\ (name, info) -> ( name
+                               , { info| status = Loading }
+                               )
             )
-            ( Dict.keys registry.groups )
+            ( Dict.toList registry.groups )
     }
 
 
@@ -1294,6 +1332,9 @@ seriesTable model =
 
 rowGeneric: Model -> DataType -> ( String,  DataInfos ) -> H.Html Msg
 rowGeneric model dtype ( name, info ) =
+    if info.fading
+    then fadingRow info
+    else
     let status = case info.status of
                         None -> "none"
                         Loading -> "loading"
@@ -1370,7 +1411,7 @@ rowGeneric model dtype ( name, info ) =
                 , HA.class <| if info.aborted
                                 then "btn btn-danger"
                                 else "btn btn-warning"
-                , HE.onClick ( Remove dtype name )
+                , HE.onClick ( BeforeRemove dtype name info )
                 ]
                 [ if info.aborted
                     then H.text "Aborting"
@@ -1380,6 +1421,20 @@ rowGeneric model dtype ( name, info ) =
          , H.td
             []
             [ H.text ( Maybe.withDefault "" info.basket )]
+        ]
+
+
+fadingRow: DataInfos -> H.Html Msg
+fadingRow info =
+    H.tr
+        [ HA.class "fading" ]
+        [ H.tr [] []
+        , H.tr [] []
+        , H.tr [] []
+        , H.tr [] []
+        , H.tr [] []
+        , H.tr [] []
+        , H.tr [] []
         ]
 
 
