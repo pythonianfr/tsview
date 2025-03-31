@@ -24,15 +24,14 @@
         </div>
         <script src="./tsview_static/plot_elm.js"></script>
         <script>
-         const baseurl = "{{ homeurl }}"
-         const haseditor = {{ haseditor }}
          var app = Elm.Plot.init({
              node: document.getElementById("app"),
              flags: {
-                 baseurl : baseurl,
-                 selected : {{ series | safe }},
-                 axis2 : {{ axis2 | safe }},
-                 haseditor: haseditor,
+                 baseurl : "{{ homeurl }}",
+                 series : {{ series | safe }},
+                 groups : {{ groups | safe }},
+                 axis2S : {{ axis2S | safe }},
+                 axis2G : {{ axis2G | safe }},
                  min: "{{ min }}",
                  max: "{{ max }}",
                  debug: "{{ debug }}",

@@ -211,9 +211,10 @@ def tsview(tsa):
         return render_template(
             'tsview.html',
             homeurl=homeurl(),
-            haseditor=json.dumps(False),  # NOTE: really fix me
             series=request.args.getlist("series"),
-            axis2=request.args.getlist("axis2"),
+            groups=request.args.getlist("group"),
+            axis2S=request.args.getlist("axis2S"),
+            axis2G=request.args.getlist("axis2G"),
             min=min,
             max=max,
             debug=debug,

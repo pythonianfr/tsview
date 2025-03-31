@@ -312,7 +312,7 @@ update msg model =
                     newcat =
                         Catalog.update catmsg Catalog.empty
                     newsearch =
-                        SeriesSelector.null
+                        SeriesSelector.fromcatalog model.searchGroup newcat
                 in
                 U.nocmd { model
                             | searchGroup = { newsearch | items = newcat.groups }
@@ -1422,12 +1422,18 @@ debugView model =
 permalink: Model -> H.Html Msg
 permalink model =
     let
-        names = List.map
+        series = List.map
                     (\name -> UB.string "series" name)
                     ( Dict.keys model.loaded.series )
-        axis = List.map
-            (\name -> UB.string "axis2" name)
-            (secondAxisNames model)
+        groups = List.map
+                    (\name -> UB.string "group" name)
+                    ( Dict.keys model.loaded.groups )
+        axisS = List.map
+            (\name -> UB.string "axis2S" name)
+            ( secondAxisNames model TypeSeries )
+        axisG = List.map
+            (\name -> UB.string "axis2G" name)
+            ( secondAxisNames model TypeGroup )
         addParams = case getFromToDates model.horizon of
                         Nothing -> []
                         Just ( min, max ) -> [ UB.string "startdate" min
@@ -1437,28 +1443,41 @@ permalink model =
     [ HA.class "permalink"
     , HA.href ( UB.relative
                 ["tsview"]
-                ( names ++ axis ++ addParams ))
+                ( series ++ groups ++ axisS ++  axisG ++ addParams )
+              )
     ]
     [ H.text "permalink" ]
 
 
-secondAxisNames: Model -> List String
-secondAxisNames model =
-    Dict.keys
-        <| Dict.filter
-                (\ _ i -> i.secondAxis )
-                ( model.registry.series )
+secondAxisNames: Model -> DataType ->List String
+secondAxisNames model dType =
+    case dType of
+        TypeSeries ->
+            Dict.keys
+                <| Dict.filter
+                    (\ _ i -> i.secondAxis )
+                    ( model.registry.series )
+        TypeGroup ->
+            Dict.keys
+            <| Dict.filter
+                    (\ _ i -> i.secondAxis )
+                    ( model.registry.groups )
 
 
-emptyRegistry: List String -> Registry
-emptyRegistry onSecondAxis =
+emptyRegistry: List String -> List String -> Registry
+emptyRegistry onSecondAxisS onSecondAxisG =
     { series = Dict.fromList
                 <| List.map
                     (\ name -> ( name
                                , { emptyInfo | secondAxis = True })
                                )
-                    onSecondAxis
-    , groups = Dict.empty
+                    onSecondAxisS
+    , groups = Dict.fromList
+                <| List.map
+                    (\ name -> ( name
+                               , { emptyInfo | secondAxis = True })
+                               )
+                    onSecondAxisG
     }
 
 
@@ -1485,9 +1504,10 @@ sub model =
 
 main : Program
        { baseurl : String
-       , selected : List String
-       , axis2: List String
-       , haseditor : Bool
+       , series : List String
+       ,  groups : List String
+       , axis2S: List String
+       , axis2G: List String
        , min: String
        , max : String
        , debug: String
@@ -1496,9 +1516,13 @@ main =
     let
         init flags =
             let
-                selected =
-                    flags.selected
-                axis2 = flags.axis2
+                series =
+                    flags.series
+                groups =
+                    flags.groups
+                fromScratch = ( List.isEmpty series ) && ( List.isEmpty groups )
+                axis2S = flags.axis2S
+                axis2G = flags.axis2G
                 model =
                     { baseurl = flags.baseurl
                     , horizon = initHorizon
@@ -1508,15 +1532,16 @@ main =
                                     flags.debug
                                     None
                     , catalog= Catalog.empty
-                    , haseditor = flags.haseditor
-                    , searchSeries = initSearch []
+                    , haseditor = False
+                    , searchSeries = initSearch series
                     , searchBasket = initSearch []
-                    , searchGroup = initSearch []
-                    , selecting = if (List.isEmpty selected )
+                    , searchGroup = initSearch groups
+                    , selecting = if fromScratch
                                     then ModeSeries
                                     else NoMode
-                    , loaded = { series = Dict.empty, groups = Dict.empty }
-                    , registry = emptyRegistry axis2
+                    , loaded = { series = Dict.empty
+                               , groups = Dict.empty }
+                    , registry = emptyRegistry axis2S axis2G
                     , highlighted = Nothing
                     , errors = []
                     , panActive = False
@@ -1531,10 +1556,12 @@ main =
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
                             , getBasketCatalog
                                 model.baseurl
-                            ,Catalog.get
+                            , Catalog.get
                                 model.baseurl
                                 "group" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedGroups h))
+                            , fetchseries model False
+                            , fetchgroups model False
                             ])
                )
 
