@@ -353,7 +353,7 @@
 
 .edit-table .editable.plain input {
     padding-right: 5px;
-    width: 177px;
+    width: 150px;
 }
 
 .fill-button {
@@ -460,7 +460,7 @@
 
 .column-header a.hidden {
     display: block;
-    width: 177px;
+    width: 150px;
     overflow: hidden;
 }
 
@@ -470,11 +470,11 @@
 
 .column-header a.expanded {
     display: block;
-    width: 177px;
-    overflow: visible;
+    width: 150px;
 }
 
 .column-header a.expanded p {
+    overflow: visible;
     background-color: white;
     box-shadow: 2px 2px 5px #A9A9A9	;
     z-index: 49;
@@ -483,9 +483,7 @@
     height: 100%;
 }
 
-.column-header {
 
-}
 
 .focused.column-header {
     box-shadow:none;
@@ -517,5 +515,5 @@ button.show-diff {
     border: 1px solid #DDD;
     padding: 3px;
     text-align: right;
-    min-width: 177px
+    min-width: 150px
 }
