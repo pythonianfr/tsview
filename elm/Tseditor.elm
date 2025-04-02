@@ -1539,11 +1539,15 @@ update msg model =
 
         DeselectAll keepFocus ->
              let
+                 firstShift = model.firstShift
                  newmodel = ( clearSelection model )
+                 shiftModel = { newmodel | focus = firstShift
+                                         , firstShift = Nothing
+                              }
               in
                 if keepFocus
-                    then applyFocus { newmodel | firstShift = Nothing } model.focus
-                    else applyFocus { newmodel | firstShift = Nothing } Nothing
+                    then applyFocus shiftModel shiftModel.focus
+                    else applyFocus shiftModel Nothing
 
 
         CopySelection ->
