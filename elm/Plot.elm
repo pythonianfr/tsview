@@ -1343,6 +1343,9 @@ rowGeneric model dtype ( name, info ) =
         strType = case dtype of
                     TypeSeries -> "series"
                     TypeGroup -> "group"
+        infoRoute = case dtype of
+                    TypeSeries -> "tsinfo"
+                    TypeGroup -> "groupinfo"
     in
     H.tr
         [ HA.id ( "remove-" ++ name )
@@ -1369,9 +1372,9 @@ rowGeneric model dtype ( name, info ) =
         , H.td
             [ ]
             [ H.a
-                [ HA.title "tsinfo"
+                [ HA.title infoRoute
                 ,  HA.href
-                    <| UB.relative [ "tsinfo" ] [ UB.string "name" name ]]
+                    <| UB.relative [ infoRoute ] [ UB.string "name" name ]]
                 [ H.text name ]
             ]
         , H.td
