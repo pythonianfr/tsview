@@ -811,7 +811,9 @@ getComponents model expand =
 
 getDataComponents: Model -> Bool -> Cmd Msg
 getDataComponents model expand =
-    Cmd.batch ( List.map
+    Cmd.batch
+        <| List.reverse
+               ( List.map
                     ( getRelevantComponent model expand )
                      ( relevantComponents model )
                )
