@@ -188,6 +188,9 @@ def tsview(tsa):
         flags_menu = json.dumps([homeurl(), 'navigation-home'])
         import tshistory_refinery
         version = tshistory_refinery.__version__
+        subversion = tshistory_refinery.__tag__
+        if subversion:
+            version = f'{version}+{subversion}'
         return render_template(
             'homepage.html',
             flags=json.dumps([baseurl, instance, version]),
