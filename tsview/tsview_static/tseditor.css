@@ -166,9 +166,23 @@
     color: #F00;
 }
 
-#creation-multiplier, #creation-value {
+#creation-multiplier {
     text-align: right;
     width: 4rem;
+}
+
+#creation-value {
+    width: 150px;
+    text-align: right;
+}
+
+#creation-value::-webkit-outer-spin-button,
+#creation-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#creation-value[type=number] {
+  -moz-appearance: textfield;
 }
 
 #back-button {
