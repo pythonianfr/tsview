@@ -222,6 +222,26 @@ def test_find_auto_top_level(cn, tsh, name):
     )
 
 
+def get_infos(tsa, names):
+    conditions = []
+    for name in names:
+        conditions.append(f"""(by.name "{name}")""")
+    query = f"(by.or {' '.join(conditions)})"
+    found =  tsa.find(query, meta=True)
+    meta = {
+        str(info): info.imeta
+        for info in found
+    }
+    # conserve order of "names" list
+    return [
+        {'name': name,
+         'type': 'formula' if 'formula' in meta[name] else 'primary',
+         'tzaware': meta[name]['tzaware']
+         }
+        for name in names
+    ]
+
+
 def expand_for_editor(tsa, seriesname, full=False):
     engine = tsa.engine
     tsh = tsa.tsh
@@ -235,20 +255,7 @@ def expand_for_editor(tsa, seriesname, full=False):
             tree = expanded(tsh, cn, tree, remote=True)
 
         names = list(tsh.find_series(cn, tree))
-
-        sql = (
-            'select name, internal_metadata from "tsh".registry '
-            'where name = ANY(%(names)s)'
-        )
-        infos = [
-            {
-                'name': name,
-                'type': 'formula' if 'formula' in meta else 'primary',
-                'tzaware': meta['tzaware'],
-            }
-            for name, meta in cn.execute(sql, names=names).fetchall()
-    ]
-
+        infos = get_infos(tsa, names)
         # auto hack
         if not full:
             autos = test_find_auto_top_level(cn, tsh, seriesname)
