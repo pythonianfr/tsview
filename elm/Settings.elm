@@ -41,7 +41,9 @@ type alias Model =
     { baseUrl: String
     , horizons : Array.Array Record
     , toDelete: Array.Array Record
-    , message : String }
+    , message : String
+    , isPro : Bool
+    }
 
 
 type alias FromServer =
@@ -64,6 +66,16 @@ type Action =
     Update
     | Create
     | Delete
+
+
+initModel: String -> Model
+initModel baseUrl =
+   { baseUrl = baseUrl
+   , horizons = Array.empty
+   , toDelete = Array.empty
+   , message = ""
+   , isPro = False
+   }
 
 
 actionName: Action -> String
@@ -128,6 +140,7 @@ type Msg =
     | Down Int
     | Save
     | Saved ( Result ErrorDetailed (Metadata, String))
+    | GotPro ( Result Http.Error String )
 
 
 
@@ -243,6 +256,8 @@ update msg model =
 
         Saved (Err error) -> ( { model | message = unpackError error }
                              , Cmd.none)
+        GotPro (Ok _) -> ( { model | isPro = True }, Cmd.none )
+        GotPro (Err _) ->( { model | isPro = False }, Cmd.none )
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
@@ -430,15 +445,21 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
 
+getPro: String -> Cmd Msg
+getPro baseUrl =
+    Http.get
+        { url = baseUrl ++ "ispro"
+        , expect = Http.expectString GotPro
+        }
+
 init: String -> ( Model, ( Cmd Msg ))
 init baseUrl =
-    let newModel = { baseUrl = baseUrl
-                   , horizons = Array.empty
-                   , toDelete = Array.empty
-                   , message = "" }
-   in
+    let newModel = initModel baseUrl
+    in
     ( newModel
-    , getHorirzons newModel
+    , Cmd.batch [ getHorirzons newModel
+                , getPro baseUrl
+                ]
     )
 
 
