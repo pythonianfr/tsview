@@ -52,7 +52,8 @@ type alias TreePath = Array.Array Int
 type alias Proposals = Assoc.Dict T.ProposalType (List String)
 
 type alias RowEnv =
-    { treePath : TreePath
+    { tree : EditionTree
+    , treePath : TreePath
     , defaultValue : Maybe T.LiteralExpr
     , proposals : Proposals
     }
@@ -63,7 +64,11 @@ type alias EReader a = Reader.Reader Editor a
 
 type ListAction
     = AddItem Int
+    | SwapBefore Int
+    | SwapAfter Int
     | RemoveItem Int
+    | InsertBefore Int
+    | InsertAfter Int
 
 type SelectorAction
     = OpenSelector Bool
@@ -296,36 +301,67 @@ updateExpand ({rowType, isExpand} as x) =
 
         _ -> x
 
+
 updateNode : EditAction -> EditionTree -> EReader EditionTree
-updateNode editAction tree = ask <| \editor -> case editAction of
-    ToggleExpand -> O.over
-        (o OE.node_ (o isExpand_ OE.just_))
-        (not)
-        tree
+updateNode editAction tree = ask <| \editor ->
+    let
+        addItem : Int -> EditionTree
+        addItem i = varArgs_
+            |> o (o rowType_ rowEntryType_)
+            |> o OE.node_
+            |> flip O.getSome tree
+            |> Maybe.unwrap
+                tree
+                (\(T.Packed t) -> Tree.insertBefore [i] (initAddItem editor t) tree)
 
-    EditEntry entryAction ->
-        let node = O.get OE.node_ tree
-        in Tuple.pair
-            (O.get rowType_ node)
-            (O.get OE.forest_ tree)
-            |> updateRowType entryAction
-            |> RE.run editor
-            |> O.over
-                OE.first_
-                (\r -> O.assign rowType_ r node)
-            |> O.over OE.first_ updateExpand
-            |> newTree
+        swapItem : Int -> Int -> EditionTree
+        swapItem sourceIndex targetIndex = Maybe.map2
+            Tuple.pair
+            (Tree.get [sourceIndex] tree)
+            (Tree.get [targetIndex] tree)
+            |> Maybe.unwrap
+                tree
+                (\(sourceItem, targetItem) -> tree
+                    |> Tree.replaceAt [sourceIndex] targetItem
+                    |> Tree.replaceAt [targetIndex] sourceItem
+                )
 
-    EditList (RemoveItem i) ->
-        Tree.removeAt [i] tree
-
-    EditList (AddItem i) -> varArgs_
-        |> o (o rowType_ rowEntryType_)
-        |> o OE.node_
-        |> flip O.getSome tree
-        |> Maybe.unwrap
+    in case editAction of
+        ToggleExpand -> O.over
+            (o OE.node_ (o isExpand_ OE.just_))
+            (not)
             tree
-            (\(T.Packed t) -> Tree.insertBefore [i] (initAddItem editor t) tree)
+
+        EditEntry entryAction ->
+            let node = O.get OE.node_ tree
+            in Tuple.pair
+                (O.get rowType_ node)
+                (O.get OE.forest_ tree)
+                |> updateRowType entryAction
+                |> RE.run editor
+                |> O.over
+                    OE.first_
+                    (\r -> O.assign rowType_ r node)
+                |> O.over OE.first_ updateExpand
+                |> newTree
+
+        EditList (SwapBefore i) ->
+            swapItem i (i - 1)
+
+        EditList (SwapAfter i) ->
+            swapItem i (i + 1)
+
+        EditList (RemoveItem i) ->
+            Tree.removeAt [i] tree
+
+        EditList (InsertBefore i) ->
+            addItem i
+
+        EditList (InsertAfter i) ->
+            addItem (i + 1)
+
+        EditList (AddItem i) ->
+            addItem i
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = case msg of
@@ -639,16 +675,39 @@ prefix {bullet, label} = H.span []
     ]
 
 listButton : (Int -> ListAction) -> String -> Reader HMsg
-listButton listAction symbol = asks .treePath <| \treePath -> H.span []
-    [ H.button
-        [ Array.toList treePath
-            |> O.getSome OE.consLast_
-            |> Maybe.map (\(i, path) ->
-                listAction i |> EditList |> EditNode (Array.fromList path))
-            |> HX.attributeMaybe HE.onClick
+listButton listAction symbol = ask <| \{tree, treePath} ->
+    let
+        mBind = flip Maybe.andThen
+
+        isSwapBefore = case listAction 0 of
+            SwapBefore _ -> True
+            _ -> False
+
+        isSwapAfter = case listAction 0 of
+            SwapAfter _ -> True
+            _ -> False
+
+        mPath = O.getSome OE.arrUnconsLast_ treePath
+
+        disabled : Bool
+        disabled = Maybe.withDefault False <|
+            mBind mPath <| \(i, path) ->
+            mBind (O.getSome (o (OE.treeArrIx_ path) OE.forest_) tree) <| \forest ->
+                let itemsNb = List.length forest - 1 -- remove RVarEnd
+                in Just <|
+                    (isSwapBefore && i == 0)  ||
+                    (isSwapAfter  && i == itemsNb - 1)
+
+    in H.span []
+        [ H.button
+            [ Maybe.map
+                (\(i, path) -> listAction i |> EditList |> EditNode path)
+                mPath
+                |> HX.attributeMaybe HE.onClick
+            , HA.disabled disabled
+            ]
+            [ H.text symbol ]
         ]
-        [ H.text symbol ]
-    ]
 
 renderRowType : RowType -> Reader (HMsg, List HMsg)
 renderRowType rowType = liftTuple <| case rowType of
@@ -671,10 +730,15 @@ renderRowType rowType = liftTuple <| case rowType of
 
     RVarItem entry ->
         ( prefix {bullet = True, label = ""}
-        , Reader.map List.concat <| RE.sequence
-            [ renderEntry <| O.over entryType_ Primitive entry
-            , listButton RemoveItem "-" |> Reader.map List.singleton
-            ]
+        , Reader.map2 List.append
+            (renderEntry <| O.over entryType_ Primitive entry)
+            <| RE.sequence
+                [ listButton SwapBefore <| Util.fromCharCode 8613
+                , listButton SwapAfter <| Util.fromCharCode 8615
+                , listButton RemoveItem "X" 
+                , listButton InsertBefore <| Util.fromCharCode 8624
+                , listButton InsertAfter <| Util.fromCharCode 8629
+                ]
         )
 
     RVarEnd ->
@@ -756,8 +820,9 @@ view {editor, proposals} =
             H.header [ HA.class cls ] [ H.text txt ]
 
     in O.review treeRoot_ editor.root
-        |> renderTree 0
-        |> RE.run (RowEnv Array.empty Nothing proposals)
+        |> \tree -> RE.run
+            (RowEnv tree Array.empty Nothing proposals)
+            (renderTree 0 tree)
         |> O.assign (o OE.listHead_ prefixNode_) HX.nothing
         |> List.map renderHRow
         |> List.concat

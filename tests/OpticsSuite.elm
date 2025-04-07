@@ -1,8 +1,10 @@
 module OpticsSuite exposing (mainTest)
 
+import Array
 import Test
 
 import List.Nonempty as NE
+import List.Extra as LE
 import RoseTree.Tree exposing (Tree, branch, leaf) 
 
 import Optics.Core as O exposing (o)
@@ -13,14 +15,15 @@ import TestUtil exposing (T)
 
 mainTest : Test.Test
 mainTest = Test.concat
-    [ listIxTest
+    [ listTest
     , neIxTest
+    , arrTest
     , treeIxTest
     ]
 
 
-listIxTest : Test.Test
-listIxTest = TestUtil.buildTest (render renderList) <|
+listTest : Test.Test
+listTest = TestUtil.buildTest (render renderList) <|
     [ T "List Optics modification"
         ([8, 3, 7, 2, 9, 1]
             |> O.over OE.listHead_ ((+) 1)
@@ -35,6 +38,32 @@ listIxTest = TestUtil.buildTest (render renderList) <|
     33
     8
     12
+"""
+    , T "List uncons modification"
+        (O.over
+            OE.uncons_
+            (O.over OE.first_ ((+) 1) >> O.over OE.second_ (LE.setAt 2 18))
+            [7, 3, 5, 9, 1]
+        )
+        """
+    8
+    3
+    5
+    18
+    1
+"""
+    , T "List unconsLast modification"
+        (O.over
+            OE.unconsLast_
+            (O.over OE.first_ ((+) 1) >> O.over OE.second_ (LE.setAt 2 18))
+            [7, 3, 5, 9, 1]
+        )
+        """
+    7
+    3
+    18
+    9
+    2
 """
     ]
 
@@ -54,6 +83,53 @@ neIxTest = TestUtil.buildTest (NE.toList >> (render renderList)) <|
     33
     8
     12
+"""
+    ]
+
+
+arrTest : Test.Test
+arrTest = TestUtil.buildTest (Array.toList >> render renderList) <|
+    [ T "Array Optics modification"
+        ([8, 3, 7, 2, 9, 1]
+            |> Array.fromList
+            |> O.over OE.arrHead_ ((+) 1)
+            |> O.over (OE.arrIx_ 4) (\x -> x - 1)
+            |> O.assign OE.arrLast_ 12
+            |> O.assign (OE.arrIx_ 3) 33
+        )
+        """
+    9
+    3
+    7
+    33
+    8
+    12
+"""
+    , T "Array uncons modification"
+        (O.over
+            OE.arrUncons_
+            (O.over OE.first_ ((+) 1) >> O.over OE.second_ (Array.set 2 18))
+            (Array.fromList [7, 3, 5, 9, 1])
+        )
+        """
+    8
+    3
+    5
+    18
+    1
+"""
+    , T "Array unconsLast modification"
+        (O.over
+            OE.arrUnconsLast_
+            (O.over OE.first_ ((+) 1) >> O.over OE.second_ (Array.set 2 18))
+            (Array.fromList [7, 3, 5, 9, 1])
+        )
+        """
+    7
+    3
+    18
+    9
+    2
 """
     ]
 

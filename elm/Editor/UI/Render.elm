@@ -119,12 +119,12 @@ renderEditionRow i {rowType, isExpand} =
             ]
     in renderRowType rowType |> \(t, rows) -> rows
         |> O.over OE.listHead_ (\x -> renderArgs (Just x :: extra))
-        |> O.over OE.consLast_ (\(x, xs) ->
+        |> O.over OE.unconsLast_ (\(x, xs) ->
             ( x
             , List.map (\y -> y ++ ",") xs
             )
         )
-        |> O.over OE.cons_ (\(x, xs) ->
+        |> O.over OE.uncons_ (\(x, xs) ->
             ( Indent i True t x
             , List.map (Indent i False t) xs
             )

@@ -212,7 +212,58 @@ RArg(EDITOR): Selector[Series],
     ROptArg(weight, Default=None): Selector[Number],
                                    Input[Number]()
     """
+    , T "List transformation"
+    { formulaCode = """
+(priority (series "A") (series "B") (series "C"))
+"""
+    , msgs =
+         [ Tree.EditNode
+             (Array.fromList [0])
+             (Tree.EditList <| Tree.SwapBefore 1)
+         , Tree.EditNode
+             (Array.fromList [0])
+             (Tree.EditList <| Tree.SwapAfter 1)
+        ]
+    }
+    """
+RArg(EDITOR): Selector[Series],
+              Operator(priority => Series)
+  RArg(serieslist): Selector[List[Series]] isExpand=True,
+                    CVarArgs(Series)
+    RVarItem: Selector[Series] isExpand=True,
+              Operator(series => Series)
+      RArg(name): Input[SeriesName](value="B")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[Literal['all', 'bfill'], Int](Literal['all', 'bfill']),
+                                     Input[Literal['all', 'bfill']]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarItem: Selector[Series] isExpand=True,
+              Operator(series => Series)
+      RArg(name): Input[SeriesName](value="C")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[Literal['all', 'bfill'], Int](Literal['all', 'bfill']),
+                                     Input[Literal['all', 'bfill']]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarItem: Selector[Series] isExpand=True,
+              Operator(series => Series)
+      RArg(name): Input[SeriesName](value="A")
+      ROptArgs: OperatorOptions isExpand=False
+        ROptArg(fill, Default=None): Union[Literal['all', 'bfill'], Int](Literal['all', 'bfill']),
+                                     Input[Literal['all', 'bfill']]()
+        ROptArg(weight, Default=None): Selector[Number],
+                                       Input[Number]()
+    RVarEnd: AddItem
+  ROptArgs: OperatorOptions isExpand=False
+    ROptArg(k1, Default=None): Union[String, Number](String),
+                               Input[String]()
+    ROptArg(k2, Default=None): Union[Number, Timestamp](Number),
+                               Selector[Number],
+                               Input[Number]()
+    """
     ]
+
 renderUpdate : UpdateArgs -> String
 renderUpdate {formulaCode, msgs} =
     List.foldl

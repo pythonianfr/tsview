@@ -1,8 +1,11 @@
 module OpticsExtra exposing (..)
 
+import Basics.Extra exposing (uncurry)
+import Array exposing (Array)
 import Either
 import Maybe.Extra as Maybe
 
+import Array.Extra
 import List.Extra
 import List.Nonempty as NE
 import List.Nonempty.Ancillary as NEA
@@ -37,12 +40,14 @@ first_ = OB.first
 second_ : O.Lens n ( c, a ) ( c, b ) a b
 second_ = OB.second
 
--- List XXX uncons !
-cons_ : O.Prism pr (List a) (List b) (a, List a) (b, List b)
-cons_ = OB.cons
+uncons_ : O.Prism pr (List a) (List b) (a, List a) (b, List b)
+uncons_ = O.prism
+    (uncurry (::))
+    (\xs -> List.Extra.uncons xs |> Either.fromMaybe [])
 
-consLast_ : O.Prism pr (List a) (List b) (a, List a) (b, List b)
-consLast_ = O.prism
+
+unconsLast_ : O.Prism pr (List a) (List b) (a, List a) (b, List b)
+unconsLast_ = O.prism
     (\(x, xs) -> List.append xs [x])
     (\xs -> List.Extra.unconsLast xs |> Either.fromMaybe [])
 
@@ -82,6 +87,45 @@ neEach_ : O.Traversal (NE.Nonempty a) (NE.Nonempty b) a b
 neEach_ = O.traversal NE.toList NE.map
 
 
+-- Array
+
+arrUncons_ : O.Prism pr (Array a) (Array b) (a, Array a) (b, Array b)
+arrUncons_ = O.prism 
+    (\(x, xs) -> Array.Extra.insertAt 0 x xs)
+    (\xs -> Array.Extra.splitAt 1 xs |> \(arry, ys) ->
+        case Array.get 0 arry of
+            Just y -> Either.Right (y, ys)
+        
+            Nothing -> Either.Left Array.empty
+    )
+
+arrUnconsLast_ : O.Prism pr (Array a) (Array b) (a, Array a) (b, Array b)
+arrUnconsLast_ = O.prism
+    (\(x, xs) -> Array.Extra.insertAt (Array.length xs) x xs)
+    (\xs -> Array.Extra.splitAt (Array.length xs - 1) xs |> \(ys, arry) ->
+        case Array.get 0 arry of
+            Just y -> Either.Right (y, ys)
+        
+            Nothing -> Either.Left Array.empty
+    )
+
+arrIx_ : Int -> O.SimpleTraversal (Array a) a
+arrIx_ i = O.traversal
+    (\xs -> Array.get i xs |> Maybe.toList)
+    (\f xs -> Array.Extra.update i f xs)
+
+arrHead_ : O.SimpleTraversal (Array a) a
+arrHead_ = arrIx_ 0
+
+arrLast_ : O.SimpleTraversal (Array a) a
+arrLast_ = O.traversal
+    (\xs -> O.getAll (arrIx_ <| Array.length xs - 1) xs)
+    (\f xs -> O.over (arrIx_ <| Array.length xs - 1) f xs)
+
+arrEach_ : O.Traversal (Array a) (Array b) a b
+arrEach_ = O.traversal Array.toList Array.map
+
+
 -- Assoc
 
 assocValues_ : O.SimpleTraversal (Assoc.Dict k v) v
@@ -94,6 +138,8 @@ assocValues_ = O.traversal
 type alias Forest a = List (Tree a)
 
 type alias TreePath = List Int
+
+type alias TreeArrPath = Array.Array Int
 
 node_ : O.SimpleLens ls (Tree a) a
 node_ = O.lens Tree.value (\s a -> Tree.setValue a s)
@@ -111,3 +157,6 @@ treeIx_ treePath = case treePath of
     _ -> O.traversal
         (\tree -> Tree.get treePath tree |> Maybe.toList)
         (\f tree -> Tree.updateAt treePath f tree)
+
+treeArrIx_ : TreeArrPath -> O.SimpleTraversal (Tree a) (Tree a)
+treeArrIx_ path = treeIx_ (Array.toList path)
