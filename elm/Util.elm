@@ -31,6 +31,16 @@ sendCmd : (a -> msg) -> a -> Cmd msg
 sendCmd toMsg a =
     Task.succeed a |> Task.perform toMsg
 
+
+-- Getting name from Python
+-- >>> import unicodedata as U
+-- >>> U.name(chr(8505))
+-- 'INFORMATION SOURCE'
+--
+-- Getting int
+-- >>> ord(u"\N{INFORMATION SOURCE}")
+-- 8505
+
 fromCharCode : Int -> String
 fromCharCode value = Char.fromCode value |> String.fromChar
 

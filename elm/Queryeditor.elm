@@ -519,7 +519,7 @@ viewedition model =
             let
                 txt =
                     if basketname == "" then
-                        U.fromCharCode 127381
+                        U.fromCharCode 127381 -- SQUARED NEW
                     else
                         basketname
             in H.option
@@ -601,6 +601,7 @@ viewedition model =
             H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
         triangleCode =
             if model.editorExpanded then 9660 else 9654
+            -- BLACK DOWN-POINTING TRIANGLE else BLACK RIGHT-POINTING TRIANGLE
     in
     [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
     , H.div

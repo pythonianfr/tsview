@@ -354,8 +354,10 @@ makeUndoButton msg undoList =
     let
         (code, title, enabled) = case msg of
             Undo -> (10226, "Undo", UL.hasPast undoList)
+                -- ANTICLOCKWISE GAPPED CIRCLE ARROW
 
             Redo -> (10227, "Redo", UL.hasFuture undoList)
+                -- CLOCKWISE GAPPED CIRCLE ARROW
 
     in H.div
         [ HA.class "p-2" ]

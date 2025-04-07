@@ -429,7 +429,7 @@ renderCheckInput {value} =
     , H.button
         [ HE.onClick (ReadInput "" |> EditEntry |> EditNode treePath)
         ]
-        [ H.text <| Util.fromCharCode 8634 ]
+        [ H.text <| Util.fromCharCode 8634 ] -- ANTICLOCKWISE OPEN CIRCLE ARROW
     ]
 
 renderInput : Input -> Reader HMsg
@@ -467,7 +467,7 @@ renderClosedSelector {value} {selectedItem} toMsg =
             []
         , H.button
             [ HE.onClick (OpenSelector True |> toMsg) ]
-            [ H.text <| Util.fromCharCode 9998 ]
+            [ H.text <| Util.fromCharCode 9998 ] -- LOWER RIGHT PENCIL
         ]
 
 renderOpenSelector :
@@ -514,7 +514,7 @@ renderOpenSelector {keywords, selectedItem } rawItems toMsg =
     , H.button
         [ HE.onClick (OpenSelector False |> toMsg)
         ]
-        [ H.text <| Util.fromCharCode 10060 ]
+        [ H.text <| Util.fromCharCode 10060 ] -- CROSS MARK
     , H.div
         [ HA.class "proposal_dropdown_menu"
         , HA.style "min-width" (String.fromInt width ++ "ch")
@@ -734,10 +734,14 @@ renderRowType rowType = liftTuple <| case rowType of
             (renderEntry <| O.over entryType_ Primitive entry)
             <| RE.sequence
                 [ listButton SwapBefore <| Util.fromCharCode 8613
+                    -- UPWARDS ARROW FROM BAR
                 , listButton SwapAfter <| Util.fromCharCode 8615
-                , listButton RemoveItem "X" 
+                    -- DOWNWARDS ARROW FROM BAR
+                , listButton RemoveItem "X"
                 , listButton InsertBefore <| Util.fromCharCode 8624
+                    -- UPWARDS ARROW WITH TIP LEFTWARDS
                 , listButton InsertAfter <| Util.fromCharCode 8629
+                    -- DOWNWARDS ARROW WITH CORNER LEFTWARDS
                 ]
         )
 
@@ -844,10 +848,10 @@ renderErrorRow charCode {rowPos, colPos, errMess} = H.tr
 
 renderParserError : PE.ParserError -> NE.Nonempty (Html msg)
 renderParserError {annotation, contextStack} = NE.Nonempty
-    (renderErrorRow 9888 annotation)
+    (renderErrorRow 9888 annotation) -- WARNING SIGN
     (Maybe.unwrap
         []
-        (NE.map (renderErrorRow 8505) >> NE.toList)
+        (NE.map (renderErrorRow 8505) >> NE.toList) -- INFORMATION SOURCE
         contextStack
     )
 
