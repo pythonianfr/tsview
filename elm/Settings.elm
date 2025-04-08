@@ -11,23 +11,29 @@ import Html exposing (
     , br
     , h1
     , h2
+    , option
     , table
     , thead
     , th
     , tr
     , td
     , input
+    , select
     , button
     , br
     , text)
 import Html.Attributes exposing (
     class
-    , hidden
+    , selected
     , type_
-    , value)
+    , value
+    )
 import Html.Events exposing (
     onInput
-    , onClick )
+    , on
+    , onClick
+    , targetValue
+    )
 
 import Http
 import Http exposing (
@@ -48,6 +54,7 @@ type alias Model =
 
 type alias UserModel =
     { users : List User
+    , roleChoices: List String
     }
 
 type alias User =
@@ -88,9 +95,19 @@ initModel baseUrl =
    }
 
 
+roles =
+    [ "guest"
+    , "ro"
+    , "rw"
+    , "admin"
+    ]
+
+
 emptyUserModel : UserModel
 emptyUserModel =
-    { users = [] }
+    { users = []
+    , roleChoices = roles
+    }
 
 errorUser: User
 errorUser =
@@ -179,6 +196,7 @@ type Msg =
 
 type UserMsg =
      GotUsers ( Result Http.Error ( List User ))
+     | ChangeRole Int String
 
 
 getHorirzons: Model -> Cmd Msg
@@ -321,6 +339,22 @@ updateUsers model msg =
             )
         GotUsers ( Err _ ) ->
             ( model, Cmd.none )
+
+        ChangeRole idx role ->
+            let arrayUsers = Array.fromList model.users
+                user = Maybe.withDefault
+                        errorUser
+                        ( Array.get idx arrayUsers )
+                changedUser = { user | role = role }
+                newModel = { model | users = Array.toList
+                                                <| Array.set
+                                                    idx
+                                                    changedUser
+                                                    arrayUsers
+                            }
+            in
+                ( newModel, Cmd.none )
+
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
@@ -471,17 +505,39 @@ tableFooter =
             ]
         ]
 
-rowUser: User -> Html Msg
-rowUser user =
+rowUser: List String -> ( Int,  User ) -> Html Msg
+rowUser choices ( idx, user) =
     tr
         []
         [ td
-            []
-            [ text user.email ]
+            [ class "settings-label"  ]
+            [ input
+                [ value user.email
+                ]
+                []
+            ]
         , td
             []
-            [ text user.role]
+             [ dropDownRole choices idx user.role ]
         ]
+
+dropDownRole: List String -> Int ->  String -> Html Msg
+dropDownRole choices idx role  =
+    let decodeRole: String -> JD.Decoder Msg
+        decodeRole r = JD.succeed ( Users ( ChangeRole idx r ))
+    in
+    select
+        [ on "change" (JD.andThen decodeRole targetValue )]
+        ( List.map (renderRole role) choices )
+
+
+renderRole : String -> String -> Html msg
+renderRole selectedRole role =
+    option
+        [ value role
+        , selected (selectedRole == role)
+        ]
+        [ text role ]
 
 
 viewSettings: Model -> Html Msg
@@ -516,15 +572,30 @@ viewSettings model =
     ]
 
 
+headerUsers : Html Msg
+headerUsers =
+    thead
+        []
+        [ tr
+            []
+            [ th [] [text "Email"]
+            , th [] [text "Role"]
+            ]
+        ]
+
+
 viewUsers: UserModel -> Html Msg
 viewUsers model =
     div
         [ class "settings" ]
         [ table
             [ class "table" ]
-            <| List.map
-                rowUser
-                model.users
+            ([ headerUsers
+             ] ++ ( List.map
+                    ( rowUser model.roleChoices )
+                    ( List.indexedMap Tuple.pair model.users )
+                  )
+             )
         ]
 
 
