@@ -43,8 +43,17 @@ type alias Model =
     , toDelete: Array.Array Record
     , message : String
     , isPro : Bool
+    , userModel : UserModel
     }
 
+type alias UserModel =
+    { users : List User
+    }
+
+type alias User =
+    { email: String
+    , role: String
+    }
 
 type alias FromServer =
     { label: String
@@ -75,7 +84,17 @@ initModel baseUrl =
    , toDelete = Array.empty
    , message = ""
    , isPro = False
+   , userModel = emptyUserModel
    }
+
+
+emptyUserModel : UserModel
+emptyUserModel =
+    { users = [] }
+
+errorUser: User
+errorUser =
+    User "Error" "Error"
 
 
 actionName: Action -> String
@@ -131,6 +150,20 @@ catalogEncode model =
         ++ ( Array.toList model.toDelete ))
 
 
+toUser : List String -> User
+toUser items =
+    case items of
+        [ m, r ] -> User m r
+        _ -> errorUser
+
+
+usersDecoder: JD.Decoder ( List User )
+usersDecoder =
+    JD.list <| JD.map
+                toUser
+                ( JD.list JD.string )
+
+
 type Msg =
     GotHorizons ( Result Http.Error ( List Record ))
     | UserInput (Int, String) String
@@ -141,7 +174,11 @@ type Msg =
     | Save
     | Saved ( Result ErrorDetailed (Metadata, String))
     | GotPro ( Result Http.Error String )
+    | Users UserMsg
 
+
+type UserMsg =
+     GotUsers ( Result Http.Error ( List User ))
 
 
 getHorirzons: Model -> Cmd Msg
@@ -149,6 +186,14 @@ getHorirzons model =
     Http.get
         { url = model.baseUrl ++ "list-horizons"
         , expect = Http.expectJson GotHorizons catalogDecoder
+        }
+
+
+getUsers: Model -> Cmd Msg
+getUsers model =
+    Http.get
+        { url = model.baseUrl ++ "api/permissions/user_roles"
+        , expect = Http.expectJson ( \ m -> Users ( GotUsers m )) usersDecoder
         }
 
 -- dealing  with the lack of proper message return
@@ -256,8 +301,26 @@ update msg model =
 
         Saved (Err error) -> ( { model | message = unpackError error }
                              , Cmd.none)
-        GotPro (Ok _) -> ( { model | isPro = True }, Cmd.none )
+        GotPro (Ok _) -> ( { model | isPro = True }
+                         , getUsers model
+                         )
         GotPro (Err _) ->( { model | isPro = False }, Cmd.none )
+
+        Users uMsg -> let ( uModel, cmd ) = updateUsers model.userModel uMsg
+                      in ( { model | userModel = uModel}
+                         , cmd
+                         )
+
+
+updateUsers : UserModel -> UserMsg -> ( UserModel, Cmd Msg )
+updateUsers model msg =
+    case msg of
+        GotUsers ( Ok payload ) ->
+            ( { model | users = payload }
+            , Cmd.none
+            )
+        GotUsers ( Err _ ) ->
+            ( model, Cmd.none )
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
@@ -408,10 +471,22 @@ tableFooter =
             ]
         ]
 
+rowUser: User -> Html Msg
+rowUser user =
+    tr
+        []
+        [ td
+            []
+            [ text user.email ]
+        , td
+            []
+            [ text user.role]
+        ]
 
-view: Model -> Html Msg
-view model =
-   div
+
+viewSettings: Model -> Html Msg
+viewSettings model =
+    div
     [ class "settings" ]
     [ h1
         [ class "page-title" ]
@@ -438,6 +513,30 @@ view model =
                 [ text model.message ]
             ]
         ]
+    ]
+
+
+viewUsers: UserModel -> Html Msg
+viewUsers model =
+    div
+        [ class "settings" ]
+        [ table
+            [ class "table" ]
+            <| List.map
+                rowUser
+                model.users
+        ]
+
+
+view: Model -> Html Msg
+view model =
+   div
+    []
+    [ viewSettings model
+    , if model.isPro
+        then
+            viewUsers model.userModel
+        else div [] []
     ]
 
 
