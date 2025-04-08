@@ -72,7 +72,6 @@ setup(name='tsview',
           'flask < 3.2',
           'sqlhelp',
           'werkzeug == 3.1.3',
-          'pytest_sa_pg',
           'tshistory >= 0.19.4',
           'plotly < 6.0',
           'tshistory_formula >= 0.15'

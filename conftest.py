@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 import webtest
-from pytest_sa_pg import db
 from sqlhelp.pgapi import pgdb as create_engine
+from sqlhelp.testutil import setup_local_pg_cluster
 
 from tshistory import api, testutil
 from tshistory.http.util import nosecurity
@@ -18,7 +18,7 @@ DBURI = 'postgresql://localhost:5434/postgres'
 
 @pytest.fixture(scope='session')
 def engine(request):
-    db.setup_local_pg_cluster(request, DATADIR, 5434, {
+    setup_local_pg_cluster(request, DATADIR, 5434, {
         'timezone': 'UTC',
         'log_timezone': 'UTC'}
     )
