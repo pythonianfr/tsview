@@ -258,7 +258,7 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = stdmeta
-                                , tzaware = (M.dget "tzaware" model.meta) == "true"
+                                , tzaware = (M.dget "tzaware" stdmeta) == "true"
                             }
                         cmd =
                             Cmd.batch <| [ I.getidates model "group" InsertionDates True ]

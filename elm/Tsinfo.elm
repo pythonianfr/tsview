@@ -449,7 +449,7 @@ update msg model =
                         newmodel =
                             { model
                                 | meta = allmeta
-                                , tzaware = (M.dget "tzaware" model.meta) == "true"
+                                , tzaware = (M.dget "tzaware" allmeta) == "true"
                                 , seriestype = if isformula then I.Formula else I.Primary
                                 , maxNbRevisions = if isformula
                                                     then Just defaultRevMaxFormula
