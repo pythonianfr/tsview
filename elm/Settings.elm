@@ -50,28 +50,34 @@ type alias Model =
     { baseUrl: String
     , tab : Tab
     , isPro : Bool
-    , horizons : Array.Array Record
-    , toDelete: Array.Array Record
-    , message : String
+    , horizonModel: HorizonModel
     , userModel : UserModel
     }
 
 type Tab =
-    Horizon
-    | Roles
+    HorizonTab
+    | UserTab
 
 
 tabList : List Tab
 tabList =
-    [ Horizon
-    , Roles
+    [ HorizonTab
+    , UserTab
     ]
 
 tabLabel: Tab -> String
 tabLabel tab =
     case tab of
-        Horizon -> "Horizons"
-        Roles -> "Users"
+        HorizonTab -> "Horizons"
+        UserTab -> "Users"
+
+
+type alias HorizonModel =
+    { horizons : Array.Array Record
+    , toDelete: Array.Array Record
+    , message : String
+
+    }
 
 
 type alias UserModel =
@@ -112,11 +118,9 @@ type Action =
 initModel: String -> Model
 initModel baseUrl =
    { baseUrl = baseUrl
-   , tab = Horizon
+   , tab = HorizonTab
    , isPro = False
-   , horizons = Array.empty
-   , toDelete = Array.empty
-   , message = ""
+   , horizonModel = emptyHorizonModel
    , userModel = emptyUserModel
    }
 
@@ -128,6 +132,13 @@ roles =
     , "admin"
     ]
 
+
+emptyHorizonModel: HorizonModel
+emptyHorizonModel =
+    { horizons = Array.empty
+    , toDelete = Array.empty
+    , message = ""
+    }
 
 
 emptyUserModel : UserModel
@@ -200,7 +211,7 @@ recordEncode record =
         ]
 
 
-catalogEncode: Model -> JE.Value
+catalogEncode: HorizonModel -> JE.Value
 catalogEncode model =
     JE.list
         recordEncode
@@ -229,6 +240,13 @@ usersDecoder =
 
 
 type Msg =
+    GotPro ( Result Http.Error String )
+    | ChangeTab Tab
+    | Horizons HorizonMsg
+    | Users UserMsg
+
+
+type HorizonMsg =
     GotHorizons ( Result Http.Error ( List Record ))
     | UserInput (Int, String) String
     | AddRow
@@ -237,9 +255,6 @@ type Msg =
     | Down Int
     | Save
     | Saved ( Result ErrorDetailed (Metadata, String))
-    | GotPro ( Result Http.Error String )
-    | ChangeTab Tab
-    | Users UserMsg
 
 
 type UserMsg =
@@ -253,11 +268,13 @@ type UserMsg =
      | RemoveNewUser Int
 
 
-getHorirzons: Model -> Cmd Msg
-getHorirzons model =
+getHorirzons: String -> HorizonModel -> Cmd Msg
+getHorirzons baseUrl model =
     Http.get
-        { url = model.baseUrl ++ "list-horizons"
-        , expect = Http.expectJson GotHorizons catalogDecoder
+        { url = baseUrl ++ "list-horizons"
+        , expect = Http.expectJson
+                    (\r -> (Horizons ( GotHorizons r )))
+                    catalogDecoder
         }
 
 
@@ -318,13 +335,13 @@ expectStringDetailed msg =
 
 -- ending with the 500 error handling
 
-saveHorizons: Model -> Cmd Msg
-saveHorizons model =
+saveHorizons: String -> HorizonModel -> Cmd Msg
+saveHorizons baseUrl model =
     Http.post
-    { url = model.baseUrl ++ "replace-horizons"
+    { url = baseUrl ++ "replace-horizons"
     , body = Http.jsonBody
                 ( catalogEncode model )
-    , expect = expectStringDetailed Saved
+    , expect = expectStringDetailed (\r -> (Horizons ( Saved r )))
     }
 
 
@@ -354,6 +371,34 @@ saveUser baseUrl user =
 
 update: Msg -> Model -> ( Model, (Cmd Msg) )
 update msg model =
+    case msg of
+
+        GotPro (Ok _) -> ( { model | isPro = True }
+                         , getUsers model.baseUrl
+                         )
+        GotPro (Err _) -> ( { model | isPro = False }, Cmd.none )
+
+        ChangeTab tab ->( { model | tab = tab }, Cmd.none )
+
+        Horizons hMsg -> let ( hModel, cmd ) = updateHorizons
+                                                    model.baseUrl
+                                                    model.horizonModel
+                                                    hMsg
+                        in ( { model | horizonModel = hModel}
+                            , cmd
+                            )
+
+        Users uMsg -> let ( uModel, cmd ) = updateUsers
+                                                model.baseUrl
+                                                model.userModel
+                                                uMsg
+                      in ( { model | userModel = uModel}
+                         , cmd
+                         )
+
+
+updateHorizons: String -> HorizonModel -> HorizonMsg -> ( HorizonModel, Cmd Msg)
+updateHorizons baseUrl model msg =
     case msg of
         GotHorizons (Ok stuffs) ->
             ({ model | horizons = Array.fromList stuffs }
@@ -385,7 +430,7 @@ update msg model =
                                        }
                        , Cmd.none )
 
-        Save -> ( model, saveHorizons model )
+        Save -> ( model, saveHorizons baseUrl model )
 
         Saved (Ok _) -> let newModel = { model | message = "New definitions saved"
                                                , horizons = Array.empty
@@ -393,24 +438,11 @@ update msg model =
                                         }
                         in
                             ( newModel
-                            , getHorirzons newModel )
+                            , getHorirzons baseUrl newModel
+                            )
 
         Saved (Err error) -> ( { model | message = unpackError error }
                              , Cmd.none)
-        GotPro (Ok _) -> ( { model | isPro = True }
-                         , getUsers model.baseUrl
-                         )
-        GotPro (Err _) -> ( { model | isPro = False }, Cmd.none )
-
-        ChangeTab tab ->( { model | tab = tab }, Cmd.none )
-
-        Users uMsg -> let ( uModel, cmd ) = updateUsers
-                                                model.baseUrl
-                                                model.userModel
-                                                uMsg
-                      in ( { model | userModel = uModel}
-                         , cmd
-                         )
 
 
 updateUsers : String -> UserModel -> UserMsg -> ( UserModel, Cmd Msg )
@@ -518,7 +550,7 @@ permut array i1 i2 =
                             array))
 
 
-isolateDelete: Model -> Model
+isolateDelete: HorizonModel -> HorizonModel
 isolateDelete model =
     let activeRecords = List.filter
                             (\ rec -> rec.action /= Delete)
@@ -578,8 +610,8 @@ mutateRecord name record value =
                     else record
 
 
-viewRows: Model -> List ( Html Msg )
-viewRows model =
+viewHorizonRows: HorizonModel -> List ( Html Msg )
+viewHorizonRows model =
     List.indexedMap
         viewRow
         ( Array.toList model.horizons )
@@ -593,28 +625,40 @@ viewRow index record =
             [ class "settings-label" ]
             [ input
                 [ value record.label
-                , onInput ( UserInput ( index, "label" ))]
+                , onInput (\ s ->
+                    Horizons ( UserInput ( index, "label" ) s ))
+                ]
                 []
             ]
         , td
              [ class "settings-date" ]
              [  input
                 [ value record.from
-                , onInput ( UserInput ( index, "from" ))]
+                , onInput (\ s ->
+                    Horizons ( UserInput ( index, "from" ) s ))
+                ]
                 []
             ]
         , td
             [ class "settings-date" ]
             [ input
                 [ value record.to
-                , onInput ( UserInput ( index, "to" ))]
+                , onInput (\ s ->
+                    Horizons ( UserInput ( index, "to" ) s ))
+                ]
                 []
             ]
         , td
             []
-            [ button [onClick (Up index)] [text "↑"]
-            , button [onClick (Down index)] [text "↓"]
-            , button [onClick (Remove index)] [text "❌"]]
+            [ button
+                [onClick ( Horizons (Up index))]
+                [text "↑"]
+            , button
+                [onClick ( Horizons (Down index))]
+                [text "↓"]
+            , button
+                [onClick ( Horizons (Remove index))]
+                [text "❌"]]
         ]
 
 viewHeader: Html Msg
@@ -641,7 +685,7 @@ tableFooter =
             [ button
                 [  type_ "button"
                 , class "  add-row"
-                , onClick AddRow ]
+                , onClick ( Horizons AddRow ) ]
                 [ text " + " ]
             ]
         ]
@@ -733,7 +777,7 @@ renderRole selectedRole role =
         [ text role ]
 
 
-viewHorizons: Model -> Html Msg
+viewHorizons: HorizonModel -> Html Msg
 viewHorizons model =
     div
         [ class "horizons"
@@ -742,19 +786,19 @@ viewHorizons model =
         [ table
             [ class "table" ]
             ( [ viewHeader ]
-            ++ ( viewRows model )
+            ++ ( viewHorizonRows model )
             ++ [ tableFooter ] )
         , br [] []
         , div
             []
             [ button
                 [ class "btn btn-success update"
-                , onClick Save ]
+                , onClick (Horizons Save ) ]
                 [ text "Update definitions" ]
-            , div
-                []
-                [ text model.message ]
             ]
+        , div
+            []
+            [ text model.message ]
         ]
 
 
@@ -834,8 +878,8 @@ view model =
         [ text "Settings" ]
     , tabSelector model
     , case model.tab of
-        Horizon -> viewHorizons model
-        Roles -> viewUsers model.userModel model.isPro
+        HorizonTab -> viewHorizons model.horizonModel
+        UserTab -> viewUsers model.userModel model.isPro
     ]
 
 
@@ -855,7 +899,9 @@ init baseUrl =
     let newModel = initModel baseUrl
     in
     ( newModel
-    , Cmd.batch [ getHorirzons newModel
+    , Cmd.batch [ getHorirzons
+                    baseUrl
+                    newModel.horizonModel
                 , getPro baseUrl
                 ]
     )
