@@ -209,6 +209,8 @@ type UserMsg =
      GotUsers ( Result Http.Error ( List User ))
      | ChangeRole Int String
      | ChangeMail Int String
+     | Cancel Int
+     | SaveUsers
 
 
 getHorirzons: Model -> Cmd Msg
@@ -349,6 +351,7 @@ updateUsers model msg =
             ( { model | users = payload }
             , Cmd.none
             )
+
         GotUsers ( Err _ ) ->
             ( model, Cmd.none )
 
@@ -366,6 +369,7 @@ updateUsers model msg =
                             }
             in
                 ( newModel, Cmd.none )
+
         ChangeMail idx mail ->
             let arrayUsers = Array.fromList model.users
                 user = Maybe.withDefault
@@ -380,6 +384,25 @@ updateUsers model msg =
                             }
             in
                 ( newModel, Cmd.none )
+
+        Cancel idx ->
+            let arrayUsers = Array.fromList model.users
+                user = Maybe.withDefault
+                        errorUser
+                        ( Array.get idx arrayUsers )
+                changedUser = { user | editedEmail = Nothing
+                                     , editedRole = Nothing
+                              }
+                newModel = { model | users = Array.toList
+                                                <| Array.set
+                                                    idx
+                                                    changedUser
+                                                    arrayUsers
+                            }
+            in
+                ( newModel, Cmd.none )
+
+        SaveUsers -> ( model, Cmd.none )
 
 
 
@@ -533,6 +556,10 @@ tableFooter =
 
 rowUser: List String -> ( Int,  User ) -> Html Msg
 rowUser choices ( idx, user) =
+    let visible = if isEdited user
+                    then ""
+                    else "invisible"
+    in
     tr
         []
         [ td
@@ -554,7 +581,32 @@ rowUser choices ( idx, user) =
                         user.role
                         user.editedRole
              ]
+         , td
+            []
+            [ button
+                [ class "btn btn-success"
+                , class visible
+                ]
+                [ text "save all" ]
+            , button
+                [ class "btn btn-warning"
+                , class visible
+                , onClick ( Users ( Cancel idx ))
+                ]
+                [ text "cancel" ]
+            ]
         ]
+
+
+isEdited: User -> Bool
+isEdited user =
+    case user.editedEmail of
+        Just _ -> True
+        Nothing ->
+            case user.editedRole of
+                Just _ -> True
+                Nothing -> False
+
 
 dropDownRole: List String -> Int ->  String -> Html Msg
 dropDownRole choices idx role  =
@@ -615,6 +667,7 @@ headerUsers =
             []
             [ th [] [text "Email"]
             , th [] [text "Role"]
+            , th [] []
             ]
         ]
 

@@ -385,4 +385,8 @@ label.option {
     background-color:  #f8f8f8;
 }
 
+.invisible {
+    color: rgba(0, 0, 0, 0)
+}
+
 
