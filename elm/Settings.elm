@@ -118,6 +118,14 @@ errorUser =
     }
 
 
+emptyUser: User
+emptyUser =
+    { email = ""
+    , editedEmail = Nothing
+    , role = ""
+    , editedRole = Nothing
+    }
+
 actionName: Action -> String
 actionName action =
     case action of
@@ -210,6 +218,7 @@ type UserMsg =
      | Cancel Int
      | SaveUsers
      | UserSaved ( Result Http.Error String )
+     | CreateUser
 
 
 getHorirzons: Model -> Cmd Msg
@@ -427,7 +436,9 @@ updateUsers baseUrl model msg =
                             }
             in
                 ( newModel, Cmd.none )
-
+        CreateUser ->
+            ({ model | users = List.append model.users [ emptyUser ]}
+            , Cmd.none )
         SaveUsers ->
             let updated = List.filter
                             isEdited
@@ -440,6 +451,7 @@ updateUsers baseUrl model msg =
                 )
         UserSaved ( Ok _ ) -> ( model, getUsers baseUrl)
         UserSaved ( Err _ ) -> ( model, Cmd.none )
+
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
@@ -721,6 +733,10 @@ viewUsers model =
                     ( List.indexedMap Tuple.pair model.users )
                   )
              )
+        ,  button
+            [ class "btn btn-success update"
+            , onClick ( Users CreateUser ) ]
+            [ text "Create New User" ]
         ]
 
 
