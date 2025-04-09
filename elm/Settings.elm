@@ -60,6 +60,7 @@ type alias User =
     , editedEmail: Maybe String
     , role: String
     , editedRole: Maybe String
+    , new: Bool
     }
 
 type alias FromServer =
@@ -115,6 +116,7 @@ errorUser =
     , editedEmail = Nothing
     , role = "error"
     , editedRole = Nothing
+    , new = False
     }
 
 
@@ -124,6 +126,7 @@ emptyUser =
     , editedEmail = Nothing
     , role = ""
     , editedRole = Nothing
+    , new = True
     }
 
 actionName: Action -> String
@@ -187,6 +190,7 @@ toUser items =
                 , editedEmail = Nothing
                 , role = r
                 , editedRole = Nothing
+                , new = False
                 }
         _ -> errorUser
 
@@ -219,6 +223,7 @@ type UserMsg =
      | SaveUsers
      | UserSaved ( Result Http.Error String )
      | CreateUser
+     | RemoveNewUser Int
 
 
 getHorirzons: Model -> Cmd Msg
@@ -439,6 +444,16 @@ updateUsers baseUrl model msg =
         CreateUser ->
             ({ model | users = List.append model.users [ emptyUser ]}
             , Cmd.none )
+        RemoveNewUser idx ->
+            let removed = List.map
+                            Tuple.second
+                            <| List.filter
+                                (\ ( i, _ ) -> i /= idx )
+                                <| List.indexedMap
+                                        Tuple.pair
+                                        model.users
+            in
+                ({ model | users = removed } , Cmd.none )
         SaveUsers ->
             let updated = List.filter
                             isEdited
@@ -607,6 +622,9 @@ rowUser choices ( idx, user) =
     let visible = if isEdited user
                     then ""
                     else "invisible"
+        newClass = if user.new
+                    then ""
+                    else "invisible"
     in
     tr
         []
@@ -643,6 +661,12 @@ rowUser choices ( idx, user) =
                 , onClick ( Users ( Cancel idx ))
                 ]
                 [ text "cancel" ]
+            , button
+                [ class "btn btn-danger"
+                , class newClass
+                , onClick ( Users ( RemoveNewUser idx ))
+                ]
+                [text "remove"]
             ]
         ]
 
