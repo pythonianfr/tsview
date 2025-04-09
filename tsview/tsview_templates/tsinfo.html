@@ -25,11 +25,15 @@
             </div>
         </div>
         <script>
+        function htmlDecode(input) {
+            var doc = new DOMParser().parseFromString(input, "text/html");
+            return doc.documentElement.textContent;
+        }
          var app = Elm.Tsinfo.init({
              node: document.getElementById('app'),
              flags: {
                  baseurl : "{{ homeurl }}",
-                 name : "{{ name }}",
+                 name : htmlDecode("{{ name }}"),
                  min: "{{ min }}",
                  max: "{{ max }}",
                  debug: "{{ debug }}",
