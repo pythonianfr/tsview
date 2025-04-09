@@ -34,14 +34,12 @@ import Html.Events exposing (
     , onClick
     , targetValue
     )
-
 import Http
 import Http exposing (
     Expect,
     Metadata,
     Response)
-
-import List
+import Url.Builder as UB
 
 type alias Model =
     { baseUrl: String
@@ -211,6 +209,7 @@ type UserMsg =
      | ChangeMail Int String
      | Cancel Int
      | SaveUsers
+     | UserSaved ( Result Http.Error String )
 
 
 getHorirzons: Model -> Cmd Msg
@@ -221,10 +220,10 @@ getHorirzons model =
         }
 
 
-getUsers: Model -> Cmd Msg
-getUsers model =
+getUsers: String -> Cmd Msg
+getUsers baseUrl =
     Http.get
-        { url = model.baseUrl ++ "api/permissions/user_roles"
+        { url = baseUrl ++ "api/permissions/user_roles"
         , expect = Http.expectJson ( \ m -> Users ( GotUsers m )) usersDecoder
         }
 
@@ -288,6 +287,30 @@ saveHorizons model =
     }
 
 
+saveUser: String -> User -> Cmd Msg
+saveUser baseUrl user =
+    Http.request
+        { url = UB.crossOrigin
+                    baseUrl
+                    [ "api", "permissions", "user_roles" ]
+                    [ UB.string "userid" <|
+                                    Maybe.withDefault
+                                        user.email
+                                        user.editedEmail
+                    , UB.string "rolename" <|
+                                    Maybe.withDefault
+                                        user.role
+                                        user.editedRole
+                    ]
+        , body = Http.emptyBody
+        , headers = []
+        , method = "PATCH"
+        , expect =  Http.expectString ( \r -> Users ( UserSaved r ))
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 update: Msg -> Model -> ( Model, (Cmd Msg) )
 update msg model =
     case msg of
@@ -334,18 +357,21 @@ update msg model =
         Saved (Err error) -> ( { model | message = unpackError error }
                              , Cmd.none)
         GotPro (Ok _) -> ( { model | isPro = True }
-                         , getUsers model
+                         , getUsers model.baseUrl
                          )
         GotPro (Err _) ->( { model | isPro = False }, Cmd.none )
 
-        Users uMsg -> let ( uModel, cmd ) = updateUsers model.userModel uMsg
+        Users uMsg -> let ( uModel, cmd ) = updateUsers
+                                                model.baseUrl
+                                                model.userModel
+                                                uMsg
                       in ( { model | userModel = uModel}
                          , cmd
                          )
 
 
-updateUsers : UserModel -> UserMsg -> ( UserModel, Cmd Msg )
-updateUsers model msg =
+updateUsers : String -> UserModel -> UserMsg -> ( UserModel, Cmd Msg )
+updateUsers baseUrl model msg =
     case msg of
         GotUsers ( Ok payload ) ->
             ( { model | users = payload }
@@ -402,8 +428,18 @@ updateUsers model msg =
             in
                 ( newModel, Cmd.none )
 
-        SaveUsers -> ( model, Cmd.none )
-
+        SaveUsers ->
+            let updated = List.filter
+                            isEdited
+                            model.users
+            in ( model,
+                Cmd.batch
+                   <| List.map
+                        ( saveUser baseUrl )
+                        updated
+                )
+        UserSaved ( Ok _ ) -> ( model, getUsers baseUrl)
+        UserSaved ( Err _ ) -> ( model, Cmd.none )
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
@@ -586,6 +622,7 @@ rowUser choices ( idx, user) =
             [ button
                 [ class "btn btn-success"
                 , class visible
+                , onClick ( Users SaveUsers )
                 ]
                 [ text "save all" ]
             , button
