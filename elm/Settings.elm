@@ -59,7 +59,9 @@ type alias UserModel =
 
 type alias User =
     { email: String
+    , editedEmail: Maybe String
     , role: String
+    , editedRole: Maybe String
     }
 
 type alias FromServer =
@@ -111,7 +113,11 @@ emptyUserModel =
 
 errorUser: User
 errorUser =
-    User "Error" "Error"
+    { email = "error"
+    , editedEmail = Nothing
+    , role = "error"
+    , editedRole = Nothing
+    }
 
 
 actionName: Action -> String
@@ -170,7 +176,12 @@ catalogEncode model =
 toUser : List String -> User
 toUser items =
     case items of
-        [ m, r ] -> User m r
+        [ m, r ] ->
+                { email = m
+                , editedEmail = Nothing
+                , role = r
+                , editedRole = Nothing
+                }
         _ -> errorUser
 
 
@@ -197,6 +208,7 @@ type Msg =
 type UserMsg =
      GotUsers ( Result Http.Error ( List User ))
      | ChangeRole Int String
+     | ChangeMail Int String
 
 
 getHorirzons: Model -> Cmd Msg
@@ -345,7 +357,21 @@ updateUsers model msg =
                 user = Maybe.withDefault
                         errorUser
                         ( Array.get idx arrayUsers )
-                changedUser = { user | role = role }
+                changedUser = { user | editedRole = Just role }
+                newModel = { model | users = Array.toList
+                                                <| Array.set
+                                                    idx
+                                                    changedUser
+                                                    arrayUsers
+                            }
+            in
+                ( newModel, Cmd.none )
+        ChangeMail idx mail ->
+            let arrayUsers = Array.fromList model.users
+                user = Maybe.withDefault
+                        errorUser
+                        ( Array.get idx arrayUsers )
+                changedUser = { user | editedEmail = Just mail }
                 newModel = { model | users = Array.toList
                                                 <| Array.set
                                                     idx
@@ -512,13 +538,22 @@ rowUser choices ( idx, user) =
         [ td
             [ class "settings-label"  ]
             [ input
-                [ value user.email
+                [ value <| Maybe.withDefault
+                                user.email
+                                user.editedEmail
+                , onInput (\s -> ( Users ( ChangeMail idx s )))
                 ]
                 []
             ]
         , td
             []
-             [ dropDownRole choices idx user.role ]
+             [ dropDownRole
+                choices
+                idx
+                <| Maybe.withDefault
+                        user.role
+                        user.editedRole
+             ]
         ]
 
 dropDownRole: List String -> Int ->  String -> Html Msg
