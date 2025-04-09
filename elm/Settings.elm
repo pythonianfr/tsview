@@ -17,13 +17,18 @@ import Html exposing (
     , th
     , tr
     , td
+    , a
+    , ul
+    , li
     , input
     , select
     , button
     , br
     , text)
 import Html.Attributes exposing (
-    class
+    attribute
+    , class
+    , href
     , selected
     , type_
     , value
@@ -43,12 +48,31 @@ import Url.Builder as UB
 
 type alias Model =
     { baseUrl: String
+    , tab : Tab
+    , isPro : Bool
     , horizons : Array.Array Record
     , toDelete: Array.Array Record
     , message : String
-    , isPro : Bool
     , userModel : UserModel
     }
+
+type Tab =
+    Horizon
+    | Roles
+
+
+tabList : List Tab
+tabList =
+    [ Horizon
+    , Roles
+    ]
+
+tabLabel: Tab -> String
+tabLabel tab =
+    case tab of
+        Horizon -> "Horizons"
+        Roles -> "Users"
+
 
 type alias UserModel =
     { users : List User
@@ -88,10 +112,11 @@ type Action =
 initModel: String -> Model
 initModel baseUrl =
    { baseUrl = baseUrl
+   , tab = Horizon
+   , isPro = False
    , horizons = Array.empty
    , toDelete = Array.empty
    , message = ""
-   , isPro = False
    , userModel = emptyUserModel
    }
 
@@ -102,6 +127,7 @@ roles =
     , "rw"
     , "admin"
     ]
+
 
 
 emptyUserModel : UserModel
@@ -212,6 +238,7 @@ type Msg =
     | Save
     | Saved ( Result ErrorDetailed (Metadata, String))
     | GotPro ( Result Http.Error String )
+    | ChangeTab Tab
     | Users UserMsg
 
 
@@ -373,7 +400,9 @@ update msg model =
         GotPro (Ok _) -> ( { model | isPro = True }
                          , getUsers model.baseUrl
                          )
-        GotPro (Err _) ->( { model | isPro = False }, Cmd.none )
+        GotPro (Err _) -> ( { model | isPro = False }, Cmd.none )
+
+        ChangeTab tab ->( { model | tab = tab }, Cmd.none )
 
         Users uMsg -> let ( uModel, cmd ) = updateUsers
                                                 model.baseUrl
@@ -704,18 +733,12 @@ renderRole selectedRole role =
         [ text role ]
 
 
-viewSettings: Model -> Html Msg
-viewSettings model =
+viewHorizons: Model -> Html Msg
+viewHorizons model =
     div
-    [ class "settings" ]
-    [ h1
-        [ class "page-title" ]
-        [ text "Settings" ]
-    , h2
-        [ ]
-        [ text "Horizons" ]
-    , div
-        [ class "horizons" ]
+        [ class "horizons"
+        , class "sub-settings"
+        ]
         [ table
             [ class "table" ]
             ( [ viewHeader ]
@@ -733,7 +756,7 @@ viewSettings model =
                 [ text model.message ]
             ]
         ]
-    ]
+
 
 
 headerUsers : Html Msg
@@ -749,10 +772,21 @@ headerUsers =
         ]
 
 
-viewUsers: UserModel -> Html Msg
-viewUsers model =
+viewUsers: UserModel -> Bool -> Html Msg
+viewUsers model isPro =
+    if not isPro
+    then div [] [ text "Only available on the pro version"
+                , br [] []
+                , text "Please check: "
+                , a
+                    [ href "https://timeseries.pythonian.fr/" ]
+                    [ text "our site"]
+                ]
+    else
     div
-        [ class "settings" ]
+        [ class "users"
+        , class "sub-settings"
+        ]
         [ table
             [ class "table" ]
             ([ headerUsers
@@ -768,15 +802,40 @@ viewUsers model =
         ]
 
 
+tabSelector: Model -> Html Msg
+tabSelector model =
+    ul
+        [ class "nav nav-tabs"]
+        <| List.map
+            (\ t ->
+                li
+                 [ class "nav-item"
+                 , attribute "role" "tablist"
+                 ]
+                 [ a
+                    [ class "nav-link"
+                    , class ( if t == model.tab then "active" else "" )
+                    , attribute "data-toggle" "tab"
+                    , attribute "role" "tab"
+                    , onClick ( ChangeTab t )
+                    ]
+                    [ text ( tabLabel t )]
+                 ]
+            )
+            tabList
+
+
 view: Model -> Html Msg
 view model =
    div
-    []
-    [ viewSettings model
-    , if model.isPro
-        then
-            viewUsers model.userModel
-        else div [] []
+    [ class "settings"]
+    [ h1
+        [ class "page-title" ]
+        [ text "Settings" ]
+    , tabSelector model
+    , case model.tab of
+        Horizon -> viewHorizons model
+        Roles -> viewUsers model.userModel model.isPro
     ]
 
 

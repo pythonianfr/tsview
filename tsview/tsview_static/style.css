@@ -13,12 +13,20 @@ div.main-content {
     margin-left: 0.5em;
  }
 
-.action-container {
-    display:flex;
+.nav-link {
+    cursor: pointer;
+}
+
+.invisible {
+    color: rgba(0, 0, 0, 0)
 }
 
 .bi-clipboard {
     cursor: pointer;
+}
+
+.action-container {
+    display:flex;
 }
 
 .action-left {
@@ -369,6 +377,10 @@ label.option {
 
 }
 
+.sub-settings {
+    margin-top: 40px;
+}
+
 .settings h2 {
     font-size: 1.2em;
     color: rgb(92, 91, 91);
@@ -384,9 +396,3 @@ label.option {
     border-style: none;
     background-color:  #f8f8f8;
 }
-
-.invisible {
-    color: rgba(0, 0, 0, 0)
-}
-
-
