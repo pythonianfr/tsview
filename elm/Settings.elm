@@ -642,6 +642,7 @@ rowUser choices ( idx, user) =
             []
              [ dropDownRole
                 choices
+                user.new
                 idx
                 <| Maybe.withDefault
                         user.role
@@ -681,14 +682,17 @@ isEdited user =
                 Nothing -> False
 
 
-dropDownRole: List String -> Int ->  String -> Html Msg
-dropDownRole choices idx role  =
+dropDownRole: List String -> Bool -> Int ->  String -> Html Msg
+dropDownRole choices new idx role  =
     let decodeRole: String -> JD.Decoder Msg
         decodeRole r = JD.succeed ( Users ( ChangeRole idx r ))
+        moreChoices = if new
+                        then "" :: choices
+                        else choices
     in
     select
         [ on "change" (JD.andThen decodeRole targetValue )]
-        ( List.map (renderRole role) choices )
+        ( List.map (renderRole role) moreChoices )
 
 
 renderRole : String -> String -> Html msg
