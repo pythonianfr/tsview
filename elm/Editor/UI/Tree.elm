@@ -705,8 +705,8 @@ prefix {bullet, label} = H.span []
     , H.text label
     ]
 
-listButton : (Int -> ListAction) -> String -> Reader HMsg
-listButton listAction symbol = ask <| \{tree, treePath} ->
+listButton : (Int -> ListAction) -> String -> String -> Reader HMsg
+listButton listAction title symbol = ask <| \{tree, treePath} ->
     let
         mBind = flip Maybe.andThen
 
@@ -736,6 +736,7 @@ listButton listAction symbol = ask <| \{tree, treePath} ->
                 mPath
                 |> HX.attributeMaybe HE.onClick
             , HA.disabled disabled
+            , HA.title title
             ]
             [ H.text symbol ]
         ]
@@ -764,21 +765,21 @@ renderRowType rowType = liftTuple <| case rowType of
         , Reader.map2 List.append
             (renderEntry <| O.over entryType_ Primitive entry)
             <| RE.sequence
-                [ listButton SwapBefore <| Util.fromCharCode 8613
-                    -- UPWARDS ARROW FROM BAR
-                , listButton SwapAfter <| Util.fromCharCode 8615
-                    -- DOWNWARDS ARROW FROM BAR
-                , listButton RemoveItem "X"
-                , listButton InsertBefore <| Util.fromCharCode 8624
-                    -- UPWARDS ARROW WITH TIP LEFTWARDS
-                , listButton InsertAfter <| Util.fromCharCode 8629
-                    -- DOWNWARDS ARROW WITH CORNER LEFTWARDS
+                [ listButton SwapBefore "Move up"
+                    <| Util.fromCharCode 8613 -- UPWARDS ARROW FROM BAR
+                , listButton SwapAfter "Move down"
+                    <| Util.fromCharCode 8615 -- DOWNWARDS ARROW FROM BAR
+                , listButton RemoveItem "Remove" "X"
+                , listButton InsertBefore "Insert above"
+                    <| Util.fromCharCode 8624 -- UPWARDS ARROW WITH TIP LEFTWARDS
+                , listButton InsertAfter "Insert below"
+                    <| Util.fromCharCode 8629 -- DOWNWARDS ARROW WITH CORNER LEFTWARDS
                 ]
         )
 
     RVarEnd ->
         ( prefix {bullet = True, label = ""}
-        , listButton AddItem "+" |> Reader.map List.singleton
+        , listButton AddItem "Add" "+" |> Reader.map List.singleton
         )
 
 renderExpand : Maybe Bool -> Reader HMsg
