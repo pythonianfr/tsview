@@ -9,6 +9,7 @@ import List.Extra exposing (zip)
 
 import Reader
 import ReaderExtra as RE exposing (ask, asks)
+import Debouncer.Basic as Debouncer
 import List.Nonempty as NE
 import RoseTree.Tree as Tree
 import Optics.Core as O exposing (o)
@@ -36,6 +37,7 @@ import Editor.Type as T
 import Editor.SpecRender exposing
     ( renderLiteralType
     , renderPrimitiveType
+    , quoteStr
     )
 import Editor.SpecParser exposing
     ( literalParser
@@ -71,7 +73,7 @@ type ListAction
     | InsertAfter Int
 
 type SelectorAction
-    = OpenSelector Bool
+    = OpenSelector String Bool
     | SetKeywords String
     | SelectItem String
 
@@ -92,6 +94,7 @@ type EditAction
 type alias Model =
     { editor : Editor
     , proposals : Proposals
+    , debouncer : Debouncer.Debouncer () ()
     , specErrors : T.SpecErrors
     }
 
@@ -105,6 +108,8 @@ type Msg
     | TreeEdited T.FormulaCode
     | Edit T.FormulaCode
     | GotProposals T.ProposalType (Result Http.Error (List String))
+    | DebounceSeriesName String (Debouncer.Msg ())
+    | CleanSeriesName ()
 
 
 type alias HMsg = Html Msg
@@ -194,7 +199,7 @@ updateSelector act ({userInput} as input) =
             i
 
     in store <| case act of
-        OpenSelector isOpen ->
+        OpenSelector _ isOpen ->
             ( {selectorInput | isOpen = isOpen}
             , input
             )
@@ -393,6 +398,28 @@ update msg model = case msg of
     TreeEdited _ ->
         model |> withNoCmd
 
+    DebounceSeriesName keywords debMsg ->
+
+        let
+            (debModel, debCmd, emitted) =
+                Debouncer.update debMsg model.debouncer
+
+            cmd = case emitted of
+                Just _ -> getSeriesNameProposals keywords
+
+                Nothing -> Cmd.none
+        in
+        { model | debouncer = debModel }
+            |> withCmd (Cmd.batch
+                [ cmd
+                , Cmd.map (DebounceSeriesName keywords) debCmd
+                ]
+            )
+    
+    CleanSeriesName _ ->
+        { model | proposals = Assoc.insert T.SeriesName [] model.proposals }
+            |> withNoCmd
+
 
 -- HTML rendering
 
@@ -451,7 +478,7 @@ renderInput {literalType, value, userInput, errMess} =
 
 renderClosedSelector :
     Input -> SelectorInput -> (SelectorAction -> Msg) -> HMsg
-renderClosedSelector {value} {selectedItem} toMsg =
+renderClosedSelector {value} {keywords, selectedItem} toMsg =
     let
         name =
             Maybe.withDefault
@@ -466,28 +493,28 @@ renderClosedSelector {value} {selectedItem} toMsg =
             ]
             []
         , H.button
-            [ HE.onClick (OpenSelector True |> toMsg) ]
+            [ HE.onClick (OpenSelector keywords True |> toMsg) ]
             [ H.text <| Util.fromCharCode 9998 ] -- LOWER RIGHT PENCIL
         ]
+
+probeSeriesNameKeywords : String -> Bool
+probeSeriesNameKeywords s =
+    let n = String.words s |> String.concat |> String.length
+    in n > 2
 
 renderOpenSelector :
     SelectorInput -> List String -> (SelectorAction -> Msg) -> HMsg
 renderOpenSelector {keywords, selectedItem } rawItems toMsg =
     let
         limitResults xs =
-            let len = List.length xs
-            in if (len > 100) then
-                [ ((String.fromInt len) ++  " results", False) ]
-            else if len ==0 then
-                    [ ("No result", False) ]
-                else
-                    (List.map (\x -> (x, True)) xs)
+            if not (probeSeriesNameKeywords keywords) then
+                [ ("At least 3 characters required", False) ]
+            else if (List.length xs == 0) then
+                [ ("No result", False) ]
+            else
+                (List.map (\x -> (x, True)) (List.take 100 xs))
 
-        items = List.foldl
-            (\word xs -> List.filter (String.contains word) xs)
-            rawItems
-            (String.words keywords)
-            |> limitResults
+        items = limitResults rawItems
 
         width = List.map (Tuple.first >> String.length) items
             |> List.maximum
@@ -512,7 +539,7 @@ renderOpenSelector {keywords, selectedItem } rawItems toMsg =
         ]
         []
     , H.button
-        [ HE.onClick (OpenSelector False |> toMsg)
+        [ HE.onClick (OpenSelector keywords False |> toMsg)
         ]
         [ H.text <| Util.fromCharCode 10060 ] -- CROSS MARK
     , H.div
@@ -525,8 +552,8 @@ renderOpenSelector {keywords, selectedItem } rawItems toMsg =
         ]
     ]
 
-renderProposals : T.ProposalType -> Input -> Reader HMsg
-renderProposals proposalType ({userInput} as input) =
+renderSeriesProposals : Input -> Reader HMsg
+renderSeriesProposals ({userInput} as input) =
     ask <| \{proposals, treePath} ->
     let
         selectorInput = decodeSelectorInputFromUserInput userInput
@@ -535,7 +562,7 @@ renderProposals proposalType ({userInput} as input) =
         toMsg msg = msg |> SelectorAction |> EditEntry |> EditNode treePath
 
         proposalList =
-            Assoc.get proposalType proposals |> Maybe.withDefault []
+            Assoc.get T.SeriesName proposals |> Maybe.withDefault []
 
     in if selectorInput.isOpen || Maybe.isNothing input.value then
         renderOpenSelector selectorInput proposalList toMsg
@@ -554,11 +581,15 @@ renderKeywords keywords {value} =
         }  
 
 renderNode : Node -> Reader HMsg
-renderNode node = case node of
+renderNode node = RE.askM <| \{proposals} -> case node of
     Primitive (PInput ({literalType} as x)) -> case literalType of
         T.Bool -> renderCheckInput x
 
-        T.Proposal proposalType -> renderProposals proposalType  x
+        T.Proposal T.SeriesName -> renderSeriesProposals x
+
+        T.Proposal proposalType -> renderKeywords
+            (Assoc.get proposalType proposals |> Maybe.withDefault [])
+            x
 
         T.LiteralKeywords keywords -> renderKeywords keywords x
 
@@ -916,20 +947,9 @@ init_ formulaCode returnTypeStr (errs, spec) =
         (\code -> buildEditor spec returnTypeStr code |> updateFormula)
         formulaCode
     , proposals = Assoc.empty
+    , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
+        |> Debouncer.toDebouncer
     , specErrors = errs
-    }
-
-getSeriesName : String -> Cmd Msg
-getSeriesName urlPrefix = Http.get
-    { url = UB.crossOrigin
-        urlPrefix
-        [ "api", "series", "find" ]
-        [ UB.string "query" "(by.everything)"
-        , UB.string "meta" "false"
-        ]
-    , expect = Http.expectJson
-        (GotProposals T.SeriesName)
-        (JD.list (JD.field "name" JD.string))
     }
 
 getSource : String -> Cmd Msg
@@ -978,12 +998,41 @@ getBasketName urlPrefix = Http.get
 
 getProposals : String -> Cmd Msg
 getProposals urlPrefix = Cmd.batch
-    [ getSeriesName urlPrefix
-    , getSource urlPrefix
+    [ getSource urlPrefix
     , getMetaKey urlPrefix
     , getCachePolicy urlPrefix
     , getBasketName urlPrefix
     ]
+
+askSeriesNameProposals : String -> Cmd Msg
+askSeriesNameProposals keywords =
+    Util.sendCmd (DebounceSeriesName keywords) <|  Debouncer.provideInput ()
+
+getSeriesNameProposals : String -> Cmd Msg
+getSeriesNameProposals keywords =
+    if probeSeriesNameKeywords keywords then
+        let names = List.map
+                (\x -> "(by.name " ++ quoteStr x ++ ")")
+                (String.words keywords)
+            query = "(by.and " ++ (String.join " " names) ++ ")"
+        in Http.get
+            { url = UB.crossOrigin
+                ""
+                [ "api", "series", "find" ]
+                [ UB.string "query" query
+                , UB.int "limit" 100
+                , UB.string "meta" "false"
+                ]
+            , expect = Http.expectJson
+                (GotProposals T.SeriesName)
+                (JD.list (JD.field "name" JD.string))
+            }
+    else
+        Cmd.none
+
+cleanSeriesNameProposals : Cmd Msg
+cleanSeriesNameProposals =
+    Util.sendCmd CleanSeriesName ()
 
 init : Flags -> (Model, Cmd Msg)
 init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
@@ -998,9 +1047,20 @@ probeTreeEdited : EditAction -> Model -> Cmd Msg
 probeTreeEdited editAction model = case editAction of
     ToggleExpand -> Cmd.none
 
-    EditEntry (SelectorAction (OpenSelector _)) -> Cmd.none
+    EditEntry (SelectorAction (OpenSelector s True)) ->
+        getSeriesNameProposals s
 
-    EditEntry (SelectorAction (SetKeywords _)) -> Cmd.none
+    EditEntry (SelectorAction (OpenSelector _ False)) ->
+        cleanSeriesNameProposals
+
+    EditEntry (SelectorAction (SetKeywords s)) ->
+        askSeriesNameProposals s
+
+    EditEntry (SelectorAction (SelectItem _)) -> Cmd.batch
+        [ cleanSeriesNameProposals
+        , sendTreeEdited model
+        ]
+
 
     _ -> sendTreeEdited model
 
@@ -1077,6 +1137,8 @@ initModel {jsonSpec, formulaCode} =
             (buildEditor spec "Series")
             formulaCode
         , proposals = Assoc.empty
+        , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
+            |> Debouncer.toDebouncer
         , specErrors = errs
         }
 

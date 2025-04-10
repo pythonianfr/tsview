@@ -8,6 +8,7 @@ module Editor.SpecRender exposing
     , renderSpec
     , findOperators
     , findOperator
+    , quoteStr
     )
 
 import Bool.Extra as Bool
