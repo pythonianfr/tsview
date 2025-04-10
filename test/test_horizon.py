@@ -1,7 +1,9 @@
+import datetime
+
 import pytest
 
 from tsview.horizon import Horizon
-
+from tsview.moment import eval_moment, ConfigurationError
 
 def remove_metadata(tsrepr):
     if 'Freq' in tsrepr or 'Name' in tsrepr:
@@ -269,3 +271,39 @@ def test_bad_horizon(engine):
     with pytest.raises(Exception) as info:
         api.replace_all([def_1, def_2])
     assert str(info.value) == '"From" must precede "To"'
+
+
+def test_eval_error():
+    good_date = """(shifted (date "2025-01-01") #:days -93)"""
+    # keyword error shifted -> shiftoid
+    bad_date_0 = """(shiftoid (date "2025-01-01") #:days -93)"""
+    # type error
+    bad_date_1 = """(shifted (date 2025-01-01) #:days -93)"""
+    # missing closing parenthesis EOF
+    bad_date_2 = """(shifted (date "2025-01-01") #:days -93"""
+    # missing closing parenthesis inside
+    bad_date_2 = """(shifted (date "2025-01-01" #:days -93)"""
+    # missing opening parenthesis
+    bad_date_3 = """shifted (date "2025-01-01") #:days -93)"""
+
+    assert eval_moment(good_date) == datetime.datetime(2024, 9, 30, 0, 0)
+
+    with pytest.raises(ConfigurationError) as info:
+        assert eval_moment(bad_date_0)
+    assert (str(info.value) ==
+             'Value \'(shiftoid (date "2025-01-01") #:days -93)\' is not a valid moment expression')
+
+    with pytest.raises(ConfigurationError) as info:
+        assert eval_moment(bad_date_1)
+    assert (str(info.value) ==
+            "Value '(shifted (date 2025-01-01) #:days -93)' is not a valid moment expression")
+    # so far, so good
+
+    # this error is not registered as a Configuration error
+    # but as a Syntax Error
+    with pytest.raises(SyntaxError) as info:
+        assert eval_moment(bad_date_2)
+    assert str(info.value) == 'unexpected EOF in list'
+
+    # the last one does not even raise an error but return a function
+    assert str(eval_moment(bad_date_3))[:22] == '<function dateshift at'
