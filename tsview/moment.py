@@ -15,11 +15,16 @@ class ConfigurationError(Exception):
 
 def eval_moment(expr):
     try:
-        return lisp.evaluate(
+        result =  lisp.evaluate(
             expr,
             env=_MOMENT_ENV
         )
-    except LookupError:
+        if hasattr(result, '__call__'):
+            raise ConfigurationError(
+                f'Value {repr(expr)} is not a valid moment expression'
+            )
+        return result
+    except (LookupError, SyntaxError):
         import traceback as tb
         tb.print_exc()
         raise ConfigurationError(

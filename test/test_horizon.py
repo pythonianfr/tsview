@@ -297,13 +297,11 @@ def test_eval_error():
         assert eval_moment(bad_date_1)
     assert (str(info.value) ==
             "Value '(shifted (date 2025-01-01) #:days -93)' is not a valid moment expression")
-    # so far, so good
 
-    # this error is not registered as a Configuration error
-    # but as a Syntax Error
-    with pytest.raises(SyntaxError) as info:
+    with pytest.raises(ConfigurationError) as info:
         assert eval_moment(bad_date_2)
-    assert str(info.value) == 'unexpected EOF in list'
+    assert str(info.value) == 'Value \'(shifted (date "2025-01-01" #:days -93)\' is not a valid moment expression'
 
-    # the last one does not even raise an error but return a function
-    assert str(eval_moment(bad_date_3))[:22] == '<function dateshift at'
+    with pytest.raises(ConfigurationError) as info:
+        assert eval_moment(bad_date_3)
+    assert str(info.value) == 'Value \'shifted (date "2025-01-01") #:days -93)\' is not a valid moment expression'
