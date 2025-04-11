@@ -24,11 +24,8 @@
                 <div id="app"></div>
             </div>
         </div>
+        {% include "unescape.html" %}
         <script>
-        function htmlDecode(input) {
-            var doc = new DOMParser().parseFromString(input, "text/html");
-            return doc.documentElement.textContent;
-        }
          var app = Elm.Tsinfo.init({
              node: document.getElementById('app'),
              flags: {
