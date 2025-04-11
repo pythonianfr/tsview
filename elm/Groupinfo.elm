@@ -759,7 +759,7 @@ view model =
                             ( getFromToDates model.horizon )
                         ) ++
                   [ I.viewdeletion model deleteEvents
-                  --, I.viewrenameaction model renameEvents
+                  , I.viewrenameaction model renameEvents
                   ]
             , I.viewtitle model model.clipboardclass CopyNameToClipboard ] ++
                 if model.doesnotexist
