@@ -450,7 +450,14 @@ updateUsers : String -> UserModel -> UserMsg -> ( UserModel, Cmd Msg )
 updateUsers baseUrl model msg =
     case msg of
         GotUsers ( Ok payload ) ->
-            ( { model | users = payload }
+            let previsousEdition = Dict.map
+                                    (\ n u -> Maybe.withDefault "" u.editedRole
+                                    )
+                                    <| Dict.filter
+                                        isEdited
+                                        model.users
+            in
+            ( { model | users = applyPrevious payload previsousEdition }
             , Cmd.none
             )
 
@@ -484,22 +491,14 @@ updateUsers baseUrl model msg =
                 ( newModel, Cmd.none )
 
         Cancel name ->
-            let user = Maybe.withDefault
-                        errorUser
-                        ( Dict.get name model.users )
-                changedUser = { user | editedEmail = Nothing
-                                     , editedRole = Nothing
-                              }
-                newModel = { model | users = Dict.insert
-                                                name
-                                                changedUser
-                                                model.users
-                            }
-            in
-                ( newModel, Cmd.none )
+            ( resetUser model name, Cmd.none )
 
         CreateUser ->
-            ({ model | users = Dict.insert "" emptyUser model.users }
+            ({ model | users = Dict.insert
+                                ""
+                                emptyUser
+                                model.users
+            }
             , Cmd.none )
 
         RemoveNewUser name ->
@@ -511,21 +510,22 @@ updateUsers baseUrl model msg =
             let user = Maybe.withDefault
                         errorUser
                         ( Dict.get name model.users )
-                changedUser = { user | editedRole = Nothing }
-                newModel = { model | users = Dict.insert
-                                                name
-                                                changedUser
-                                                model.users
-                            }
             in
-                ( newModel , ( saveUser baseUrl ) ( name, user ) )
+                ( resetUser model name
+                , ( saveUser baseUrl ) ( name, user ) )
 
         SaveUsers ->
             let updated = Dict.filter
                             isEdited
                             model.users
-            in ( model,
-                Cmd.batch
+                reseted = Dict.map
+                            (\ _ u  -> { u | editedEmail = Nothing
+                                            , editedRole = Nothing
+                                        }
+                            )
+                            model.users
+            in ( { model | users = reseted }
+               , Cmd.batch
                    <| List.map
                         ( saveUser baseUrl )
                         ( Dict.toList updated )
@@ -533,6 +533,40 @@ updateUsers baseUrl model msg =
         UserSaved ( Ok _ ) -> ( model, getUsers baseUrl)
         UserSaved ( Err _ ) -> ( model, Cmd.none )
 
+
+applyPrevious: Dict String User -> Dict String String -> Dict String User
+applyPrevious payload previous =
+    Dict.merge
+        ( \_ _ r -> r )
+        ( \ name pay pre res ->
+            Dict.insert
+                name
+                { pay | editedRole = Just pre }
+                res
+        )
+        ( \ name pre res -> Dict.insert
+                            name
+                            { emptyUser| editedRole = Just pre }
+                            res )
+        payload
+        previous
+        payload
+
+
+resetUser: UserModel -> String -> UserModel
+resetUser model name =
+    let user = Maybe.withDefault
+                        errorUser
+                        ( Dict.get name model.users )
+        changedUser = { user | editedEmail = Nothing
+                             , editedRole = Nothing
+                              }
+    in
+        { model | users = Dict.insert
+                            name
+                            changedUser
+                            model.users
+        }
 
 
 permut: Array.Array a -> Int -> Int -> Array.Array a
