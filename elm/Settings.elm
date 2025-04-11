@@ -262,6 +262,7 @@ type UserMsg =
      | ChangeRole Int String
      | ChangeMail Int String
      | Cancel Int
+     | SaveSingle Int
      | SaveUsers
      | UserSaved ( Result Http.Error String )
      | CreateUser
@@ -515,6 +516,22 @@ updateUsers baseUrl model msg =
                                         model.users
             in
                 ({ model | users = removed } , Cmd.none )
+        SaveSingle idx ->
+            let arrayUsers = Array.fromList model.users
+                user = Maybe.withDefault
+                        errorUser
+                        ( Array.get idx arrayUsers )
+                changedUser = { user | editedRole = Nothing }
+                newModel = { model | users = Array.toList
+                                                <| Array.set
+                                                    idx
+                                                    changedUser
+                                                    arrayUsers
+                            }
+            in
+                ( newModel , ( saveUser baseUrl ) user )
+
+
         SaveUsers ->
             let updated = List.filter
                             isEdited
@@ -730,9 +747,9 @@ rowUser choices ( idx, user) =
             [ button
                 [ class "btn btn-success"
                 , class visible
-                , onClick ( Users SaveUsers )
+                , onClick ( Users ( SaveSingle idx ) )
                 ]
-                [ text "save all" ]
+                [ text "save" ]
             , button
                 [ class "btn btn-warning"
                 , class visible
