@@ -396,3 +396,7 @@ label.option {
     border-style: none;
     background-color:  #f8f8f8;
 }
+
+.settings .users input {
+    width: 30vw;
+}

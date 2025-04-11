@@ -703,13 +703,17 @@ rowUser choices ( idx, user) =
         []
         [ td
             [ class "settings-label"  ]
-            [ input
+            [ if user.new
+              then
+                input
                 [ value <| Maybe.withDefault
                                 user.email
                                 user.editedEmail
                 , onInput (\s -> ( Users ( ChangeMail idx s )))
                 ]
                 []
+              else
+                text user.email
             ]
         , td
             []
@@ -743,6 +747,40 @@ rowUser choices ( idx, user) =
                 [text "remove"]
             ]
         ]
+
+lastRow: UserModel -> List ( Html Msg )
+lastRow model =
+    let visible = List.any
+                    (\  u -> u.editedRole /= Nothing )
+                    model.users
+    in
+    [ tr
+        []
+        [ td [] []
+        , td [] []
+        , td
+            []
+             [ button
+                [ class "btn btn-success"
+                , class <| if visible
+                            then ""
+                            else "invisible"
+                , onClick ( Users SaveUsers )
+                ]
+                [ text "save all" ]
+            , button
+                [ class "btn btn-warning"
+                , class "invisible"
+                ]
+                [ text "cancel" ]
+            , button
+                [ class "btn btn-danger"
+                , class "invisible"
+                ]
+                [text "remove"]
+            ]
+        ]
+    ]
 
 
 isEdited: User -> Bool
@@ -838,6 +876,7 @@ viewUsers model isPro =
                     ( rowUser model.roleChoices )
                     ( List.indexedMap Tuple.pair model.users )
                   )
+               ++ ( lastRow model )
              )
         ,  button
             [ class "btn btn-success update"
