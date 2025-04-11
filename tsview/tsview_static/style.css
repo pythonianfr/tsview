@@ -397,6 +397,6 @@ label.option {
     background-color:  #f8f8f8;
 }
 
-.settings .users input {
+.settings .users input, .settings .users .settings-label {
     width: 30vw;
 }

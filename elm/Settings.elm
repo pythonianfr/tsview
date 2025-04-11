@@ -22,6 +22,7 @@ import Html exposing (
     , ul
     , li
     , input
+    , p
     , select
     , button
     , br
@@ -752,7 +753,7 @@ rowUser choices ( name, user) =
                 ]
                 []
               else
-                text name
+                p [] [ text name ]
             ]
         , td
             []
@@ -824,12 +825,9 @@ lastRow model =
 
 isEdited: String -> User -> Bool
 isEdited name user =
-    case user.editedEmail of
-        Just _ -> True
-        Nothing ->
-            case user.editedRole of
-                Just _ -> True
-                Nothing -> False
+        case user.editedRole of
+            Just _ -> True
+            Nothing -> False
 
 
 dropDownRole: List String -> Bool -> String ->  String -> Html Msg
@@ -913,8 +911,18 @@ viewUsers model isPro =
             ([ headerUsers
              ] ++ ( List.map
                     ( rowUser model.roleChoices )
-                    ( Dict.toList model.users )
+                    <| Dict.toList
+                        <|Dict.filter
+                            (\ _ u -> not u.new )
+                            model.users
                   )
+             ++ ( List.map
+                    ( rowUser model.roleChoices )
+                    <| Dict.toList
+                        <|Dict.filter
+                            (\ _ u -> u.new )
+                            model.users
+                 )
                ++ ( lastRow model )
              )
         ,  button
