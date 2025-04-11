@@ -2,6 +2,7 @@ module Settings exposing (main)
 
 import Array
 import Browser
+import Dict exposing (Dict)
 
 import Json.Decode as JD
 import Json.Encode as JE
@@ -81,13 +82,12 @@ type alias HorizonModel =
 
 
 type alias UserModel =
-    { users : List User
+    { users : Dict String User
     , roleChoices: List String
     }
 
 type alias User =
-    { email: String
-    , editedEmail: Maybe String
+    { editedEmail: Maybe String
     , role: String
     , editedRole: Maybe String
     , new: Bool
@@ -143,14 +143,13 @@ emptyHorizonModel =
 
 emptyUserModel : UserModel
 emptyUserModel =
-    { users = []
+    { users = Dict.empty
     , roleChoices = roles
     }
 
 errorUser: User
 errorUser =
-    { email = "error"
-    , editedEmail = Nothing
+    { editedEmail = Nothing
     , role = "error"
     , editedRole = Nothing
     , new = False
@@ -159,8 +158,7 @@ errorUser =
 
 emptyUser: User
 emptyUser =
-    { email = ""
-    , editedEmail = Nothing
+    { editedEmail = Nothing
     , role = ""
     , editedRole = Nothing
     , new = True
@@ -219,24 +217,26 @@ catalogEncode model =
         ++ ( Array.toList model.toDelete ))
 
 
-toUser : List String -> User
+toUser : List String -> ( String, User )
 toUser items =
     case items of
-        [ m, r ] ->
-                { email = m
-                , editedEmail = Nothing
-                , role = r
-                , editedRole = Nothing
-                , new = False
-                }
-        _ -> errorUser
+        [ m, r ] -> ( m
+                    , {editedEmail = Nothing
+                      , role = r
+                      , editedRole = Nothing
+                      , new = False
+                      }
+                    )
+        _ -> ( "Decoding error", errorUser )
 
 
-usersDecoder: JD.Decoder ( List User )
+usersDecoder: JD.Decoder ( Dict String  User )
 usersDecoder =
-    JD.list <| JD.map
-                toUser
-                ( JD.list JD.string )
+    JD.map
+        Dict.fromList
+            <| JD.list <| JD.map
+                    toUser
+                    ( JD.list JD.string )
 
 
 type Msg =
@@ -258,15 +258,15 @@ type HorizonMsg =
 
 
 type UserMsg =
-     GotUsers ( Result Http.Error ( List User ))
-     | ChangeRole Int String
-     | ChangeMail Int String
-     | Cancel Int
-     | SaveSingle Int
+     GotUsers ( Result Http.Error ( Dict String User ))
+     | ChangeRole String String
+     | ChangeMail String String
+     | Cancel String
+     | SaveSingle String
      | SaveUsers
      | UserSaved ( Result Http.Error String )
      | CreateUser
-     | RemoveNewUser Int
+     | RemoveNewUser String
 
 
 getHorirzons: String -> HorizonModel -> Cmd Msg
@@ -346,15 +346,15 @@ saveHorizons baseUrl model =
     }
 
 
-saveUser: String -> User -> Cmd Msg
-saveUser baseUrl user =
+saveUser: String ->  ( String, User ) -> Cmd Msg
+saveUser baseUrl ( name, user ) =
     Http.request
         { url = UB.crossOrigin
                     baseUrl
                     [ "api", "permissions", "user_roles" ]
                     [ UB.string "userid" <|
                                     Maybe.withDefault
-                                        user.email
+                                        name
                                         user.editedEmail
                     , UB.string "rolename" <|
                                     Maybe.withDefault
@@ -457,90 +457,78 @@ updateUsers baseUrl model msg =
         GotUsers ( Err _ ) ->
             ( model, Cmd.none )
 
-        ChangeRole idx role ->
-            let arrayUsers = Array.fromList model.users
-                user = Maybe.withDefault
+        ChangeRole name role ->
+            let user = Maybe.withDefault
                         errorUser
-                        ( Array.get idx arrayUsers )
+                        ( Dict.get name model.users )
                 changedUser = { user | editedRole = Just role }
-                newModel = { model | users = Array.toList
-                                                <| Array.set
-                                                    idx
-                                                    changedUser
-                                                    arrayUsers
+                newModel = { model | users = Dict.insert
+                                                name
+                                                changedUser
+                                                model.users
                             }
             in
                 ( newModel, Cmd.none )
 
-        ChangeMail idx mail ->
-            let arrayUsers = Array.fromList model.users
-                user = Maybe.withDefault
+        ChangeMail name mail ->
+            let user = Maybe.withDefault
                         errorUser
-                        ( Array.get idx arrayUsers )
+                        ( Dict.get name model.users )
                 changedUser = { user | editedEmail = Just mail }
-                newModel = { model | users = Array.toList
-                                                <| Array.set
-                                                    idx
-                                                    changedUser
-                                                    arrayUsers
+                newModel = { model | users =  Dict.insert
+                                                name
+                                                changedUser
+                                                model.users
                             }
             in
                 ( newModel, Cmd.none )
 
-        Cancel idx ->
-            let arrayUsers = Array.fromList model.users
-                user = Maybe.withDefault
+        Cancel name ->
+            let user = Maybe.withDefault
                         errorUser
-                        ( Array.get idx arrayUsers )
+                        ( Dict.get name model.users )
                 changedUser = { user | editedEmail = Nothing
                                      , editedRole = Nothing
                               }
-                newModel = { model | users = Array.toList
-                                                <| Array.set
-                                                    idx
-                                                    changedUser
-                                                    arrayUsers
+                newModel = { model | users = Dict.insert
+                                                name
+                                                changedUser
+                                                model.users
                             }
             in
                 ( newModel, Cmd.none )
+
         CreateUser ->
-            ({ model | users = List.append model.users [ emptyUser ]}
+            ({ model | users = Dict.insert "" emptyUser model.users }
             , Cmd.none )
-        RemoveNewUser idx ->
-            let removed = List.map
-                            Tuple.second
-                            <| List.filter
-                                (\ ( i, _ ) -> i /= idx )
-                                <| List.indexedMap
-                                        Tuple.pair
-                                        model.users
+
+        RemoveNewUser name ->
+            let removed = Dict.remove name model.users
             in
                 ({ model | users = removed } , Cmd.none )
-        SaveSingle idx ->
-            let arrayUsers = Array.fromList model.users
-                user = Maybe.withDefault
+
+        SaveSingle name ->
+            let user = Maybe.withDefault
                         errorUser
-                        ( Array.get idx arrayUsers )
+                        ( Dict.get name model.users )
                 changedUser = { user | editedRole = Nothing }
-                newModel = { model | users = Array.toList
-                                                <| Array.set
-                                                    idx
-                                                    changedUser
-                                                    arrayUsers
+                newModel = { model | users = Dict.insert
+                                                name
+                                                changedUser
+                                                model.users
                             }
             in
-                ( newModel , ( saveUser baseUrl ) user )
-
+                ( newModel , ( saveUser baseUrl ) ( name, user ) )
 
         SaveUsers ->
-            let updated = List.filter
+            let updated = Dict.filter
                             isEdited
                             model.users
             in ( model,
                 Cmd.batch
                    <| List.map
                         ( saveUser baseUrl )
-                        updated
+                        ( Dict.toList updated )
                 )
         UserSaved ( Ok _ ) -> ( model, getUsers baseUrl)
         UserSaved ( Err _ ) -> ( model, Cmd.none )
@@ -707,9 +695,9 @@ tableFooter =
             ]
         ]
 
-rowUser: List String -> ( Int,  User ) -> Html Msg
-rowUser choices ( idx, user) =
-    let visible = if isEdited user
+rowUser: List String -> ( String,  User ) -> Html Msg
+rowUser choices ( name, user) =
+    let visible = if isEdited name user
                     then ""
                     else "invisible"
         newClass = if user.new
@@ -724,20 +712,20 @@ rowUser choices ( idx, user) =
               then
                 input
                 [ value <| Maybe.withDefault
-                                user.email
+                                ""
                                 user.editedEmail
-                , onInput (\s -> ( Users ( ChangeMail idx s )))
+                , onInput (\s -> ( Users ( ChangeMail name s )))
                 ]
                 []
               else
-                text user.email
+                text name
             ]
         , td
             []
              [ dropDownRole
                 choices
                 user.new
-                idx
+                name
                 <| Maybe.withDefault
                         user.role
                         user.editedRole
@@ -747,19 +735,19 @@ rowUser choices ( idx, user) =
             [ button
                 [ class "btn btn-success"
                 , class visible
-                , onClick ( Users ( SaveSingle idx ) )
+                , onClick ( Users ( SaveSingle name ) )
                 ]
                 [ text "save" ]
             , button
                 [ class "btn btn-warning"
                 , class visible
-                , onClick ( Users ( Cancel idx ))
+                , onClick ( Users ( Cancel name ))
                 ]
                 [ text "cancel" ]
             , button
                 [ class "btn btn-danger"
                 , class newClass
-                , onClick ( Users ( RemoveNewUser idx ))
+                , onClick ( Users ( RemoveNewUser name ))
                 ]
                 [text "remove"]
             ]
@@ -769,7 +757,7 @@ lastRow: UserModel -> List ( Html Msg )
 lastRow model =
     let visible = List.any
                     (\  u -> u.editedRole /= Nothing )
-                    model.users
+                    ( Dict.values model.users )
     in
     [ tr
         []
@@ -800,8 +788,8 @@ lastRow model =
     ]
 
 
-isEdited: User -> Bool
-isEdited user =
+isEdited: String -> User -> Bool
+isEdited name user =
     case user.editedEmail of
         Just _ -> True
         Nothing ->
@@ -810,10 +798,10 @@ isEdited user =
                 Nothing -> False
 
 
-dropDownRole: List String -> Bool -> Int ->  String -> Html Msg
-dropDownRole choices new idx role  =
+dropDownRole: List String -> Bool -> String ->  String -> Html Msg
+dropDownRole choices new name role  =
     let decodeRole: String -> JD.Decoder Msg
-        decodeRole r = JD.succeed ( Users ( ChangeRole idx r ))
+        decodeRole r = JD.succeed ( Users ( ChangeRole name r ))
         moreChoices = if new
                         then "" :: choices
                         else choices
@@ -891,7 +879,7 @@ viewUsers model isPro =
             ([ headerUsers
              ] ++ ( List.map
                     ( rowUser model.roleChoices )
-                    ( List.indexedMap Tuple.pair model.users )
+                    ( Dict.toList model.users )
                   )
                ++ ( lastRow model )
              )
