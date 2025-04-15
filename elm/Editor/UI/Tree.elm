@@ -948,7 +948,7 @@ init_ formulaCode returnTypeStr (errs, spec) =
         (\code -> buildEditor spec returnTypeStr code |> updateFormula)
         formulaCode
     , proposals = Assoc.empty
-    , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
+    , debouncer = Debouncer.debounce (Debouncer.fromSeconds 0.2)
         |> Debouncer.toDebouncer
     , specErrors = errs
     }
