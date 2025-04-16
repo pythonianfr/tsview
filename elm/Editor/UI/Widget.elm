@@ -11,12 +11,15 @@ import Html as H exposing (Html)
 import Html.Attributes as HA
 
 import ParserExtra
+import UndoList as UL
 import AceEditor as Ace
 import Util exposing (sendCmd)
 
 import Editor.Type exposing (FormulaCode, getCode)
+import Editor.UI.UndoRedo as UR
 import Editor.UI.Tree as Tree
 import Editor.UI.CodeEditor as CodeEditor
+import UndoListExtra exposing (newSafeConcise)
 
 
 type Msg
@@ -25,9 +28,14 @@ type Msg
     | NewFormula (Maybe FormulaCode)
 
 
-type alias Model =
+type alias SavedModel =
     { codeEditor : CodeEditor.Model
     , editionTree : Tree.Model
+    }
+
+type alias Model =
+    { savedModel : SavedModel
+    , undoList : UR.UndoList SavedModel
     }
 
 
@@ -39,45 +47,53 @@ init flags =
     let
         (editionTree, treeCmd) = Tree.init flags
         code = getCode editionTree.editor.currentFormula
+
+        savedModel =
+            { codeEditor = CodeEditor.init
+            , editionTree = editionTree
+            }
     in
-    { codeEditor = CodeEditor.init
-    , editionTree = editionTree
+    { savedModel = savedModel
+    , undoList = UL.fresh savedModel
     }
     |> update (CodeEditor.Render code |> CodeEditorMsg)
     |> Tuple.first
     |> CX.withCmd (Cmd.map EditionTreeMsg treeCmd)
 
 viewSpecErrors : Model -> Html msg
-viewSpecErrors {editionTree} = Tree.viewSpecErrors editionTree
+viewSpecErrors {savedModel} = Tree.viewSpecErrors savedModel.editionTree
 
 isReadOnly : Model -> Bool
-isReadOnly model = model.codeEditor.mode == CodeEditor.ReadOnly
+isReadOnly {savedModel} = savedModel.codeEditor.isReadOnly
 
 getFormula : Model -> Maybe FormulaCode
-getFormula {editionTree} =
-    Either.toMaybe editionTree.editor.currentFormula
+getFormula {savedModel} =
+    Either.toMaybe savedModel.editionTree.editor.currentFormula
         |> Maybe.map Tuple.first
 
 setFormula : Maybe FormulaCode -> Model -> (Model, Cmd Msg)
-setFormula code {editionTree} =
+setFormula code {savedModel, undoList} =
     let
-        newTree =  Tree.setFormula code editionTree
+        newTree =  Tree.setFormula code savedModel.editionTree
     in
-    { codeEditor = CodeEditor.init
-    , editionTree = newTree
+    { savedModel =
+        { codeEditor = CodeEditor.init
+        , editionTree = newTree
+        }
+    , undoList = undoList
     }
     |> CX.withCmd (Cmd.map EditionTreeMsg <| Tree.sendTreeEdited newTree)
 
-sendNew : Model -> Cmd Msg
+sendNew : SavedModel -> Cmd Msg
 sendNew {editionTree} = editionTree.editor.currentFormula
     |> Either.toMaybe
     |> Maybe.map Tuple.first
     |> sendCmd NewFormula
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model = case msg of
+updateSaved : Msg -> SavedModel -> ( SavedModel, Cmd Msg )
+updateSaved msg model = case msg of
     CodeEditorMsg (CodeEditor.UserEdited code) ->
-        update (Tree.Edit code |> EditionTreeMsg) model
+        updateSaved (Tree.Edit code |> EditionTreeMsg) model
             |> \(m, cmd) -> (m, Cmd.batch [cmd, sendNew m])
 
     CodeEditorMsg x -> Tuple.mapBoth
@@ -86,7 +102,7 @@ update msg model = case msg of
         (CodeEditor.update x model.codeEditor)
 
     EditionTreeMsg (Tree.TreeEdited code) ->
-        update (CodeEditor.Render code |> CodeEditorMsg) model
+        updateSaved (CodeEditor.Render code |> CodeEditorMsg) model
             |> \(m, cmd) -> (m, Cmd.batch [cmd, sendNew m])
 
     EditionTreeMsg x -> Tuple.mapBoth
@@ -95,6 +111,42 @@ update msg model = case msg of
         (Tree.update x model.editionTree)
 
     NewFormula _ -> (model, Cmd.none)
+
+mergeModel : SavedModel -> SavedModel -> SavedModel
+mergeModel user current =
+    { codeEditor = CodeEditor.mergeModel user.codeEditor current.codeEditor
+    , editionTree = current.editionTree
+    }
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg {savedModel, undoList} =
+    let
+        (newModel, cmd) = updateSaved msg savedModel
+
+        undoRedo newUndoList =
+            ( Model
+                (mergeModel newModel newUndoList.present)
+                newUndoList
+            , cmd )
+
+    in case msg of
+        NewFormula (Just _) ->
+            ( Model newModel (newSafeConcise newModel undoList), cmd )
+
+        CodeEditorMsg (CodeEditor.UndoRedoMsg UR.Undo) ->
+            UL.undo undoList |> undoRedo
+
+        CodeEditorMsg (CodeEditor.UndoRedoMsg UR.Redo) ->
+            UL.redo undoList |> undoRedo
+
+        EditionTreeMsg (Tree.UndoRedoMsg UR.Undo) ->
+            UL.undo undoList |> undoRedo
+
+        EditionTreeMsg (Tree.UndoRedoMsg UR.Redo) ->
+            UL.redo undoList |> undoRedo
+
+        _ ->
+            ( Model newModel undoList, cmd )
 
 convertAnnotation :
         Ace.AnnotationType -> ParserExtra.Annotation -> Ace.Annotation
@@ -114,19 +166,21 @@ getAnnotations xs = flip NE.concatMap xs <| \{annotation, contextStack} ->
         |> NE.Nonempty (convertAnnotation Ace.Warning annotation)
 
 view : Model -> Html Msg
-view model =
+view ({savedModel, undoList} as model) =
     let
         annotations =
-            Tree.getParserErrors model.editionTree  |> Maybe.map getAnnotations
+            Tree.getParserErrors savedModel.editionTree  |> Maybe.map getAnnotations
 
     in H.article [ HA.class "main formula_editor" ]
     [ H.div
         [ HA.class "code_left" ]
-        [ CodeEditor.viewEdition model.codeEditor annotations
+        [ CodeEditor.viewEdition savedModel.codeEditor undoList annotations
             |> H.map CodeEditorMsg
-        , Tree.viewErrors model.editionTree
+        , Tree.viewErrors savedModel.editionTree
         ]
     , H.div
         [ HA.class "code_right" ]
-        [ H.map EditionTreeMsg (Tree.view model.editionTree) ]
+        [ H.map EditionTreeMsg <|
+            Tree.view savedModel.editionTree undoList (isReadOnly model)
+        ]
     ]

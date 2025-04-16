@@ -23,6 +23,7 @@ import Json.Decode as JD
 import Html as H exposing (Html)
 import Html.Events as HE
 import Html.Attributes as HA
+import UndoList as UL
 
 import HtmlExtra as HX
 import Util exposing (sendCmd)
@@ -47,6 +48,7 @@ import Editor.SpecParser exposing
 import Editor.Render exposing (renderBool)
 
 import Editor.UI.Type exposing (..)
+import Editor.UI.UndoRedo as UndoRedo
 
 
 type alias TreePath = Array.Array Int
@@ -111,6 +113,7 @@ type Msg
     | DebounceName String (Debouncer.Msg ())
     | CleanSeriesName ()
     | CleanGroupName ()
+    | UndoRedoMsg UndoRedo.Msg
 
 
 type alias HMsg = Html Msg
@@ -416,7 +419,7 @@ update msg model = case msg of
                 , Cmd.map (DebounceName keywords) debCmd
                 ]
             )
-    
+
     CleanSeriesName _ ->
         { model | proposals = Assoc.insert T.SeriesName [] model.proposals }
             |> withNoCmd
@@ -424,6 +427,9 @@ update msg model = case msg of
     CleanGroupName _ ->
         { model | proposals = Assoc.insert T.GroupName [] model.proposals }
             |> withNoCmd
+
+    UndoRedoMsg _ ->
+        model |> withNoCmd
 
 
 -- HTML rendering
@@ -859,8 +865,8 @@ renderHRow {expandNode, indent, prefixNode, entryNodes} =
         (prefixNode :: entryNodes)
     ]
 
-view : Model -> HMsg
-view {editor, proposals} =
+view : Model -> UndoRedo.UndoList a -> Bool -> HMsg
+view {editor, proposals} undoList isReadOnly =
     let
         col cls txt =
             H.header [ HA.class cls ] [ H.text txt ]
@@ -873,8 +879,13 @@ view {editor, proposals} =
         |> List.map renderHRow
         |> List.concat
         |> List.append
-            [ col "col_expand header" "Expand"
-            , col "col_editor header" "Editor"
+            [ H.header [ HA.class "col_expand header" ] [ H.text "Expand" ] 
+            , H.header
+                [ HA.class "col_editor header" ]
+                [ H.text "Editor"
+                , HX.viewIf isReadOnly <|
+                    H.map UndoRedoMsg (UndoRedo.renderButtons undoList)
+                ] 
             ]
         |> H.section [ HA.class "ui_editor" ]
 
@@ -1138,7 +1149,7 @@ renderReadOnly model =
         ]
     ]
     |> H.section [ HA.class "code_editor" ]
-    |> (\x -> [ x, view model ])
+    |> (\x -> [ x, view model (UL.fresh 0) True ])
 
 -- Optics utils
 treePath_ : O.SimpleLens ls RowEnv TreePath

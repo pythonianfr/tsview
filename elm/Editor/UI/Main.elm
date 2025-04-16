@@ -19,6 +19,7 @@ import List.Nonempty as NE exposing (Nonempty)
 import Debouncer.Basic as Debouncer
 import Cmd.Extra as CX
 
+import Return
 import ParserExtra
 import AceEditor as Ace
 import HtmlExtra as HX
@@ -223,16 +224,21 @@ updatePlotData model res plotData = O.assign loading_ False <|
                         }
 
 
+updateWidget : Widget.Msg -> Model -> ( Model, Cmd Msg )
+updateWidget msg model = Tuple.mapBoth
+    (\m -> { model | editorWidget = m })
+    (Cmd.map WidgetMsg)
+    (Widget.update msg model.editorWidget)
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
-    WidgetMsg (Widget.NewFormula formula) -> model
-        |> O.assign (o formulaCodeRegister_ current_) formula
-        |> askPlotData
+    WidgetMsg (Widget.NewFormula formula as x) ->
+        updateWidget x model
+            |> O.assign (o OE.first_ (o formulaCodeRegister_ current_)) formula
+            |> Return.andThen askPlotData
 
-    WidgetMsg x -> Tuple.mapBoth
-        (\m -> { model | editorWidget = m })
-        (Cmd.map WidgetMsg)
-        (Widget.update x model.editorWidget)
+    WidgetMsg x ->
+        updateWidget x model
 
     UpdateName "" -> model
         |> O.assign (o formulaNameRegister_ current_) Nothing
@@ -284,6 +290,7 @@ update msg model = case msg of
     UndoMsg _ ->
         ( model, Cmd.none )
 
+
 undoUpdate : Msg -> UndoModel -> (UndoModel, Cmd Msg)
 undoUpdate msg {model, undoList} =
     let
@@ -316,6 +323,7 @@ undoUpdate msg {model, undoList} =
         UndoMsg Redo -> UL.redo undoList |> undoRedo
 
         _ -> (UndoModel newModel undoList, cmd)
+
 
 canSave : Model -> Bool
 canSave model =
@@ -409,8 +417,6 @@ makeUndoButton msg undoList =
             [ H.text <| Util.fromCharCode code ]
         ]
 
---view : UndoModel -> Html Msg
---view {model, undoList} =
 view : Model -> Html Msg
 view model =
     H.div
@@ -424,8 +430,6 @@ view model =
             ]
         , H.div
             [ HA.class "d-flex" ]
-            --[ makeUndoButton Undo undoList
-            --, makeUndoButton Redo undoList
             [ HX.viewIf (canSave model) (viewSave model)
             ]
         , Widget.viewSpecErrors model.editorWidget
@@ -522,7 +526,6 @@ initModel model =
         |> UL.fresh
         |> UndoModel model
 
--- main : Program Flags UndoModel Msg
 main : Program Flags Model Msg
 main = Browser.element
     { init = init -- >> Tuple.mapFirst initModel

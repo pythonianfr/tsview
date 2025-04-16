@@ -8,26 +8,24 @@ import Html.Attributes as HA
 import Html.Events as HE
 
 import AceEditor
+import HtmlExtra as HX
 import Util exposing (sendCmd)
 
 import Editor.Type as T
-
-
-type Mode
-    = ReadOnly
-    | Edition
+import Editor.UI.UndoRedo as UndoRedo
 
 
 type Msg
-    = SwitchMode Mode
+    = SwitchMode Bool
     | AceEditorMsg AceEditor.Msg
     | Render T.FormulaCode
     | UserEdited T.FormulaCode
+    | UndoRedoMsg UndoRedo.Msg
 
 
 type alias Model =
     { formulaCode : Maybe String
-    , mode : Mode
+    , isReadOnly : Bool
     , reload : Bool
     }
 
@@ -35,56 +33,66 @@ type alias Model =
 init : Model
 init =
     { formulaCode = Nothing
-    , mode = ReadOnly
+    , isReadOnly = True
     , reload = False
     }
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = case msg of
-    SwitchMode mode ->
-        { model | mode = mode } |> CX.withNoCmd
+    SwitchMode isReadOnly ->
+        { model | isReadOnly = isReadOnly } |> CX.withNoCmd
 
     AceEditorMsg (AceEditor.Edited code) ->
         { model | formulaCode = Just code, reload = False }
             |> CX.withCmd (sendCmd UserEdited code)
 
-    Render code -> case model.mode of
-        ReadOnly -> { model | formulaCode = Just code } |> CX.withNoCmd
+    Render code -> case model.isReadOnly of
+        True -> { model | formulaCode = Just code } |> CX.withNoCmd
         -- Edition -> { model | formulaCode = Just code, reload = True } |> CX.withNoCmd
-        Edition ->  model |> CX.withNoCmd
+        False ->  model |> CX.withNoCmd
 
     UserEdited _ ->
         model |> CX.withNoCmd
 
+    UndoRedoMsg _ ->
+        model |> CX.withNoCmd
+
+mergeModel : Model -> Model -> Model
+mergeModel user current =
+    { user | formulaCode = current.formulaCode, reload = True }
+
 editorHeight =
     HA.attribute "style" "--min-height-editor: 36vh"
 
-viewHeader : Mode -> Html Msg
-viewHeader mode =
+viewHeader : Bool -> UndoRedo.UndoList a -> Html Msg
+viewHeader isReadOnly undoList =
     let
-        ( newMode, sign ) = case mode of
-            ReadOnly -> ( Edition, "✎" )
-            Edition -> ( ReadOnly, "💾" )
+        ( newMode, sign ) = case isReadOnly of
+            True -> ( False, "✎" )
+            False -> ( True, "💾" )
 
     in H.header
     [ HA.class "code_left" ]
     [ H.span [] [ H.text "Formula edition " ]
     , H.a [ HE.onClick (SwitchMode newMode) ] [ H.text sign ]
+    , HX.viewIf
+        (not isReadOnly)
+        (H.map UndoRedoMsg <| UndoRedo.renderButtons undoList)
     ]
 
-viewEdition : Model -> Maybe AceEditor.Annotations -> Html Msg
-viewEdition model annotations =
+viewEdition : Model -> UndoRedo.UndoList a -> Maybe AceEditor.Annotations -> Html Msg
+viewEdition model undoList annotations =
     let code = Maybe.withDefault "" model.formulaCode
-    in H.section [ HA.class "code_editor" ] <| case model.mode of
-    ReadOnly ->
-        [ viewHeader model.mode
+    in H.section [ HA.class "code_editor" ] <| case model.isReadOnly of
+    True ->
+        [ viewHeader model.isReadOnly undoList
         , H.div
             [ HA.class "code_left" ]
             [ AceEditor.readOnly_ annotations code ]
         ]
 
-    Edition ->
-        [ viewHeader model.mode
+    False ->
+        [ viewHeader model.isReadOnly undoList
         , H.div
             [ HA.class "code_left", editorHeight ]
             [ AceEditor.edit_ annotations code model.reload
@@ -93,9 +101,9 @@ viewEdition model annotations =
         ]
 
 viewLastValid : Model -> Maybe String -> Html Msg
-viewLastValid model code = case model.mode of
-    ReadOnly -> H.text ""
-    Edition -> H.section [ HA.class "code_editor" ]
+viewLastValid model code = case model.isReadOnly of
+    True -> H.text ""
+    False -> H.section [ HA.class "code_editor" ]
         [ H.header
             [ HA.class "code_left" ]
             [ H.span [] [ H.text "Last valid formula" ] ]

@@ -88,10 +88,6 @@ footer[class~="code_left"] {
     align-items: center;
 }
 
-.ui_editor div {
-    width: 100%;
-}
-
 .col_expand {
     grid-column: expanded;
     grid-row: span 1;
@@ -112,6 +108,10 @@ footer[class~="code_left"] {
     color: #001b44;
     background-color: LightGrey;
     border-radius: .2em;
+}
+
+.undo_redo {
+    float: right;
 }
 
 .margin_button {
