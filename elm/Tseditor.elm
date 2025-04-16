@@ -2414,7 +2414,7 @@ extractValue: Dict ( Int, Int ) Stuff -> Int -> Int -> String
 extractValue coordData iRow iCol =
     case Dict.get ( iRow, iCol ) coordData of
         Nothing -> ""
-        Just ( Cell entry ) -> showValue entry
+        Just ( Cell entry ) -> showValue entry ""
         Just ( DateRow date ) -> date
         Just ( Header ( name, _ )) -> name
 
@@ -3584,7 +3584,7 @@ buildDiffCell model diff iRow iCol =
                     Nothing -> emptyEntry
                     Just content -> content
     in
-        H.td [] [ H.text <| getValue entry ]
+        H.td [] [ H.text <| getValue entry "-"]
 
 
 buildTable: Model ->  H.Html Msg
@@ -3710,8 +3710,6 @@ buildCell: Model -> Entry -> Int -> Int -> H.Html Msg
 buildCell model entry iRow iCol  =
     let
         statusClass = cellStyle entry
-        value = showValue entry
-        valueCropped = printValue model.roundValues value
         focused = case model.focus of
                     Nothing -> False
                     Just f -> f ==  ( iRow, iCol )
@@ -3723,6 +3721,8 @@ buildCell model entry iRow iCol  =
         active = case model.currentInput of
                     Nothing -> False
                     Just position -> (iRow, iCol) == position
+        value = showValue entry ( if active then "" else "-" )
+        valueCropped = printValue model.roundValues value
    in
     H.td
         ([ if entry.editable
@@ -4116,22 +4116,22 @@ divLinearCorrection model filtredDict =
             [ ]
 
 
-getValue : Entry -> String
-getValue entry =
+getValue : Entry -> String -> String
+getValue entry blankStr =
      case entry.edition of
                 Edition v -> String.fromFloat v
                 Error s -> s
-                Deletion -> "-"
+                Deletion -> blankStr
                 NoEdition ->
                     Maybe.unwrap
                         ""
                         String.fromFloat
                         entry.value
 
-showValue: Entry -> String
-showValue entry =
+showValue: Entry -> String -> String
+showValue entry blankStr =
     case entry.raw of
-        Nothing-> getValue entry
+        Nothing-> getValue entry blankStr
         Just stuff -> stuff
 
 
