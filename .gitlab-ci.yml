@@ -10,7 +10,6 @@ unit-test-job:
   script:
     - cd ..
     - pip install pytest --upgrade
-    - pip install pytest-golden --upgrade
     - pip install setuptools --upgrade
     - hg clone https://heptapod.host/pythonian/timeseries-refinery/sqlhelp
     - hg -R sqlhelp update tip
