@@ -1269,6 +1269,7 @@ viewplot model =
                     [ HA.class "btn btn-warning btn-sm"
                     , HA.attribute "type" "button"
                     , HE.onClick ViewAllHistory
+                    , HA.disabled ( Array.length model.lastIdates /= 0 )
                     ]
                     [ H.text "view all history" ]
                 , historyInput model
