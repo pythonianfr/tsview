@@ -37,6 +37,7 @@ type alias LayoutOptions =
     , height: Maybe Int
     , separators : String
     , margin: Margin
+    , hoverLabel: Maybe HoverLabel
     }
 
 type alias Margin =
@@ -57,6 +58,7 @@ defaultLayoutOptions =
     -- separators: first char for decimal
     -- second for thousands
     , separators = ".\u{00a0}"
+    , hoverLabel = Just { namelength = 30 }
     , margin = { t = 45
                 ,b = 50
                 ,l = 40
@@ -74,6 +76,9 @@ type alias Axis =
 type Range =
     Dates { range: List String }
     | Values { range: List Float }
+
+type alias HoverLabel =
+    { namelength : Int }
 
 defaultAxis =
     { range = Nothing
@@ -175,6 +180,9 @@ encodetrace t =
          , case t.options.secondAxis of
             True -> [( "yaxis", E.string "y2" )]
             False -> []
+        , case t.options.visible of
+            True -> []
+            False -> [( "visible", E.string "legendonly" )]
         ]
 
 
@@ -262,6 +270,14 @@ encodeLayout layoutOptions =
             , case layoutOptions.height of
                 Nothing -> []
                 Just height -> [ ( "height", E.int height ) ]
+            , case layoutOptions.hoverLabel of
+                    Nothing -> []
+                    Just lab
+                        -> [( "hoverlabel"
+                            , E.object [("namelength"
+                                        , E.int lab.namelength
+                                       )]
+                            )]
             , [( "separators", E.string layoutOptions.separators )]
             , [( "margin", E.object [( "t", E.int layoutOptions.margin.t )
                                     ,( "b", E.int layoutOptions.margin.b )
