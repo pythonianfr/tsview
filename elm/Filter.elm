@@ -195,7 +195,7 @@ serialize node =
             Expression [ Atom <| Symbol "by.formula" ]
 
         FormulaContents contents ->
-            Expression [ Atom <| Symbol "by.formula"
+            Expression [ Atom <| Symbol "by.formulacontents"
                        , Atom <| String contents
                        ]
 
