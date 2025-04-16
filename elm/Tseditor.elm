@@ -158,7 +158,7 @@ type alias Model =
     -- data
     , insertion_dates : Array String
     , series : Series
-    , statistics: Statistics
+    , statistics: StatInfos
     , roundStat: Int
     , statVisibility: Bool
     , roundValues: Maybe Int
@@ -350,7 +350,7 @@ type Parameter =
     | Intercept String
 
 
-type alias Statistics =
+type alias StatInfos =
     { first: TypeStat
     , last: TypeStat
     , start : TypeStat
@@ -2088,7 +2088,7 @@ packValues series =
             ( Dict.values ( onlyActiveValues series ))
 
 
-getStatistics: Statistics -> Bool -> Dict String ( Maybe Float )-> Statistics
+getStatistics: StatInfos -> Bool -> Dict String ( Maybe Float )-> StatInfos
 getStatistics previous allowInfer series =
     let dates = List.sort ( Dict.keys series )
         values = List.sort <| justValues series
