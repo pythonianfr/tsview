@@ -787,6 +787,7 @@ getSeries model callback apipoint method name =
         , inferredFreq = model.horizon.inferredFreq
         , keepnans = True
         , apipoint = apipoint
+        , exclude = "right"
         }
 
 
@@ -948,12 +949,8 @@ update msg model =
     case msg of
         GotEditData (Ok rawdata) ->
             case JD.decodeString dataDecoder rawdata of
-                Ok val ->
+                Ok indexedval ->
                     let
-                        indexedval =
-                            cropTs
-                                val
-                                ( getFetchBounds model.horizon )
                         zoomTs = applyZoom model indexedval
                         series = ToEdit { initialTs = indexedval, zoomTs = zoomTs }
                         statistics = getStatistics
@@ -986,19 +983,18 @@ update msg model =
             case JD.decodeString
                     (JD.dict (JD.maybe JD.float))
                     rawdata of
-                Ok val -> let ts = cropTs val ( getFetchBounds model.horizon )
-                              zoomTs = applyZoom model val
+                Ok val -> let zoomTs = applyZoom model val
                           in
                           ( ( buildCoord
-                            { model | series = Naked { initialTs = ts
+                            { model | series = Naked { initialTs = val
                                                      , zoomTs = zoomTs }
                                     , horizon = updateHorizonFromData
                                                 model.horizon
-                                                ts
+                                                val
                                     , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
-                                                ts
+                                                val
                             }
                             )
                            , Cmd.batch [ getComponents model False
@@ -1035,12 +1031,8 @@ update msg model =
             case cType of
                 Primary ->
                     case JD.decodeString dataDecoder rawdata of
-                        Ok val ->
-                            let indexedval =
-                                    cropTs
-                                        val
-                                        ( getFetchBounds model.horizon )
-                                zoomTs = applyZoom model val
+                        Ok indexedval ->
+                            let zoomTs = applyZoom model indexedval
                                 newCD = insertComponentData
                                             ( if expand
                                                 then model.terminalComponents
@@ -2068,15 +2060,6 @@ getLastNaive dates =
                in case mNaive of
                    Nothing -> "No Last"
                    Just naive -> String.replace "T" " " naive
-
-
-cropTs: Dict String e -> (String, String) ->  Dict String e
-cropTs ts bounds =
-    let naive = getLastNaive ( Dict.keys ts )
-    in
-       if naive == ( Tuple.second bounds )
-            then removeLast ts
-            else ts
 
 
 removeLast: Dict String e -> Dict String e

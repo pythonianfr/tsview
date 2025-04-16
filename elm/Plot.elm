@@ -217,6 +217,7 @@ fetchsingle model start end basket name  =
          , inferredFreq = model.horizon.inferredFreq
          , keepnans = False
          , apipoint = "state"
+         , exclude = "right"
          }
 
 

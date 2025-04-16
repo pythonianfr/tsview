@@ -312,6 +312,7 @@ getdata query =
             , stringToMaybe "_keep_nans" (if query.keepnans then "true" else "false")
             , stringToMaybe "inferred_freq" (if query.inferredFreq then "true" else "false")
             , stringToMaybe "tzone" query.tzone
+            , stringToMaybe "exclude" query.exclude
             ]
             ++ Maybe.unwrap
             [ stringToMaybe "from_value_date" query.fromdate

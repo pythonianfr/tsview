@@ -836,6 +836,7 @@ horizonview : HorizonModel -> (Msg -> msg) -> String -> Bool -> H.Html msg
 horizonview model convertmsg klass tzaware =
     let ( min, max, fromZoom ) = viewdate model
         classZoom = ( if fromZoom then " from-zoom" else "" )
+        exclude = "Right date is excluded"
     in
     H.div
         [ HA.class klass ]
@@ -853,7 +854,10 @@ horizonview model convertmsg klass tzaware =
                 -1
                 "btn btn-outline-dark btn-sm" ]
         , if not model.editBounds
-          then H.div [ HA.class "horizon-trinity read"]
+          then H.div
+                  [ HA.class "horizon-trinity read"
+                  , HA.title exclude
+                  ]
                   [ H.div
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HE.onClick ( convertmsg (Internal ToggleEdit ))]
@@ -867,7 +871,10 @@ horizonview model convertmsg klass tzaware =
                     [ H.text max ]
                 ]
 
-          else H.div [ HA.class "horizon-trinity write" ]
+          else H.div
+              [ HA.class "horizon-trinity write"
+              , HA.title exclude
+              ]
               [ H.input
                     [ HA.class ( "widget-date" ++ classZoom )
                     , HA.placeholder "yyyy-mm-dd"

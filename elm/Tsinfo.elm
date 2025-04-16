@@ -311,6 +311,7 @@ getplot model =
         , inferredFreq = model.horizon.inferredFreq
         , keepnans = False
         , apipoint = "state"
+        , exclude = "right"
     }
 
 
