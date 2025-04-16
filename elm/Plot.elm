@@ -344,6 +344,12 @@ update msg model =
                     doerr "gotbasket decode" <| Decode.errorToString err
                 Ok items ->
                     let names = List.map .name items
+                        presents = Set.toList
+                                        <| Set.intersect
+                                            ( Set.fromList
+                                                ( Dict.keys model.registry.series )
+                                            )
+                                            ( Set.fromList names )
                     in
                     if remove
                     then ( model
@@ -354,7 +360,7 @@ update msg model =
                                             identity
                                             ( Task.succeed ( Remove TypeSeries n ))
                                     )
-                                    names
+                                    presents
                          )
                     else
                     let
