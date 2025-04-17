@@ -1531,6 +1531,45 @@ view model =
 
         maybeMedian = Nothing
             -- medianValue (Dict.keys model.horizon.timeSeries)
+
+        viewtabs =
+            [ case model.activetab of
+                  Plot ->
+                      if strseries model.meta
+                      then H.div [] [ head ]
+                      else H.div []
+                          [ head
+                          , tabcontents
+                                [ viewplot model
+                                , I.viewformula model SwitchLevel
+                                ]
+                          ]
+
+                  UserMetadata ->
+                      H.div
+                          []
+                          [ head
+                          , tabcontents [ I.viewusermeta model metaEvents False ]
+                          ]
+
+                  Logs ->
+                      H.div []
+                          [ head
+                          , tabcontents
+                                [ case model.seriestype of
+                                      I.Primary ->
+                                          I.viewlog model False LogsNumber SeeLogs
+                                      I.Formula ->
+                                          H.span [] []
+                                ]
+                          ]
+
+                  FormulaCache ->
+                      H.div [] [ head, tabcontents [ viewcache model ] ]
+
+            , I.viewerrors model
+            ]
+
     in
     H.div
         [ ]
@@ -1558,43 +1597,7 @@ view model =
                       if model.doesnotexist
                       then
                           [ I.msgdoesnotexist "Series"]
-                      else
-                          [ case model.activetab of
-                                Plot ->
-                                    if strseries model.meta
-                                    then H.div [] [ head ]
-                                    else H.div []
-                                        [ head
-                                        , tabcontents
-                                              [ viewplot model
-                                              , I.viewformula model SwitchLevel
-                                              ]
-                                        ]
-
-                                UserMetadata ->
-                                    H.div
-                                        []
-                                        [ head
-                                        , tabcontents [ I.viewusermeta model metaEvents False ]
-                                        ]
-
-                                Logs ->
-                                    H.div []
-                                        [ head
-                                        , tabcontents
-                                              [ case model.seriestype of
-                                                    I.Primary ->
-                                                        I.viewlog model False LogsNumber SeeLogs
-                                                    I.Formula ->
-                                                        H.span [] []
-                                              ]
-                                        ]
-
-                                FormulaCache ->
-                                    H.div [] [ head, tabcontents [ viewcache model ] ]
-
-                          , I.viewerrors model
-                          ]
+                      else viewtabs
                 )
               ]
         ]
