@@ -104,6 +104,7 @@ type alias Model =
     , statistics: StatInfos
     , allowInferFreq: Bool
     , roundStat: Int
+    , stringseries: Dict String String
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -257,6 +258,10 @@ type alias DataItem =
     { date : String
     , value : Float
     }
+
+
+stringseriesdecoder =
+    D.dict D.string
 
 
 dataItemDecoder : D.Decoder DataItem
@@ -570,25 +575,34 @@ update msg model =
             doerr "getpermissions http" <| U.unwraperror err
 
         GotPlotData (Ok rawdata) ->
-            case D.decodeString seriesdecoder rawdata of
-                Ok val ->
-                    U.nocmd { model
-                                | horizon = updateHorizonFromData model.horizon val
-                                , timeseries = val
-                                , statistics = getStatistics
+            case strseries model.meta of
+                True ->
+                    case D.decodeString stringseriesdecoder rawdata of
+                        Ok val ->
+                            U.nocmd { model | stringseries = val }
+                        Err err ->
+                            U.nocmd <|
+                                addError
+                                { model | horizon = setStatusPlot model.horizon Failure }
+                                "gotplotdata decode"
+                                ( D.errorToString err )
+                False ->
+                    case D.decodeString seriesdecoder rawdata of
+                        Ok val ->
+                            U.nocmd { model
+                                        | horizon = updateHorizonFromData model.horizon val
+                                        , timeseries = val
+                                        , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
                                                 val
-                            }
-                Err err ->
-                    if strseries model.meta
-                    then U.nocmd model
-                    else
-                        U.nocmd <|
-                            addError
-                            { model | horizon = setStatusPlot model.horizon Failure }
-                            "gotplotdata decode"
-                            ( D.errorToString err )
+                                    }
+                        Err err ->
+                            U.nocmd <|
+                                addError
+                                { model | horizon = setStatusPlot model.horizon Failure }
+                                "gotplotdata decode"
+                                ( D.errorToString err )
 
         GotPlotData (Err err) ->
             case err of
@@ -1487,6 +1501,40 @@ showHoverData model =
          Just data -> H.text ( "Hover-data, name : " ++ data.name )
 
 
+viewstrseries model =
+    let
+        ts =
+            model.stringseries
+
+        tsrow (stamp, value) =
+            H.tr [ ]
+                [ H.td [ ] [ H.text stamp ]
+                , H.td [ ] [ H.text value ]
+                ]
+
+        showseries =
+            List.map tsrow <| Dict.toList ts
+
+    in
+    H.div [ ]
+        [ I.viewDatesRange
+              model.lastIdates
+              model.historyDateIndex
+              DebounceChangedHistoryIdate
+              ChangedHistoryIdate
+        , H.table [ HA.class "table w-auto" ]
+              [ H.thead [ ]
+                    [ H.tr [ ]
+                          [ H.th [ ] [ H.text "Dates" ]
+                          , H.th [ ] [ H.text "Values" ]
+                          ]
+                    ]
+              , H.tbody [ ]
+                  showseries
+              ]
+        ]
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -1536,7 +1584,11 @@ view model =
             [ case model.activetab of
                   Plot ->
                       if strseries model.meta
-                      then H.div [] [ head ]
+                      then H.div []
+                          [ head
+                          , tabcontents
+                                [ viewstrseries model ]
+                          ]
                       else H.div []
                           [ head
                           , tabcontents
@@ -1639,6 +1691,7 @@ init input =
       , statistics = emptyStat
       , allowInferFreq = False
       , roundStat= 2
+      , stringseries = Dict.empty
       -- formula
       , formula_depth = 0
       , formula_maxdepth = 0
