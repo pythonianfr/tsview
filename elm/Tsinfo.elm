@@ -989,7 +989,14 @@ update msg model =
                 U.nocmd { model | horizon =
                             { horizonmodel | zoomBounds = newZoom.x
                                            , zoomY = newZoom.y
-                            }}
+                            }
+                                , statistics = getStatistics
+                                                model.statistics
+                                                model.allowInferFreq
+                                                <| applyZoom
+                                                    model.timeseries
+                                                    newZoom.x
+                        }
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1107,6 +1114,15 @@ lastDates dates max =
                 ( List.reverse dates ))
      else
         dates
+
+applyZoom: Dict String a ->  Maybe (String, String) -> Dict String a
+applyZoom series bounds =
+    case bounds of
+        Nothing -> series
+        Just ( min, max ) ->
+           Dict.filter
+                (( \k _ -> (( k >= min ) && ( k <= max ))))
+                series
 
 -- views
 
