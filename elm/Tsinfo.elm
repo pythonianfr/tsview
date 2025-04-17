@@ -132,6 +132,7 @@ type alias Model =
     -- horizon
     , horizon : HorizonModel
     -- history mode
+    , wipe: Bool
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
     , historyIdates : Array String
@@ -210,6 +211,7 @@ type Msg
     | Horizon HorizonModule.Msg
     -- history mode
     | HistoryMode Bool
+    | Transitory
     | FromZoom ZoomFromPlotly
     | NewDragMode Bool
     | HistoryIdates (Result Http.Error String)
@@ -954,8 +956,13 @@ update msg model =
                         Nothing -> U.nocmd newmodel
                         Just _ -> ( newmodel
                                   ,  getsomeidates newmodel )
-                    else U.nocmd newmodel
-
+                    else ( { newmodel | wipe = True }
+                        , T.perform
+                            (always Transitory)
+                             (P.sleep 10)
+                         )
+        Transitory ->
+            U.nocmd { model | wipe = False }
 
         FromZoom zoom ->
             let
@@ -1299,6 +1306,9 @@ historyInput model =
 
 viewplot : Model -> H.Html Msg
 viewplot model =
+    if model.wipe
+    then H.div [] []
+    else
     let
         ts = model.timeseries
         defaultLayout = { defaultLayoutOptions |
@@ -1600,6 +1610,7 @@ init input =
                     input.max
                     input.debug
                     Loading
+      , wipe = False
       , historyPlots = Dict.empty
       , historyMode = False
       , historyIdates = Array.empty
