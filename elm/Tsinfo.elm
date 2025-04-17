@@ -235,14 +235,17 @@ convertStat : ModuleStatInfos.Msg -> Msg
 convertStat msg =
     StatInfos msg
 
-type Direction =
-    Prev
+
+type Direction
+    = Prev
     | Next
 
-type Position =
-    Left
+
+type Position
+    = Left
     | Center
     | Right
+
 
 type alias DataFromHover =
     { name : String
@@ -270,8 +273,8 @@ dataFromHoverDecoder =
         (D.field "data" (D.list dataItemDecoder))
 
 
-removeRedondants: DataFromHover -> DataFromHover
-removeRedondants dataHover =
+removeRedundants: DataFromHover -> DataFromHover
+removeRedundants dataHover =
      { name = dataHover.name
      , data = removerepeated dataHover.data Nothing
      }
@@ -318,9 +321,9 @@ getplot model =
     let
         idate =
             Array.get model.date_index model.insertion_dates
-        ( start, end ) = getFetchBounds model.horizon
-    in
-     getdata
+        ( start, end ) =
+            getFetchBounds model.horizon
+    in getdata
         { baseurl = model.baseurl
         , name = model.name
         , idate = idate
@@ -334,7 +337,7 @@ getplot model =
         , keepnans = False
         , apipoint = "state"
         , exclude = "right"
-    }
+        }
 
 
 gethascache : Model -> Cmd Msg
@@ -381,31 +384,36 @@ getcachepolicy baseUrl name =
 
 getsomeidates : Model -> Cmd Msg
 getsomeidates model =
-    let bounds = getFromToDates model.horizon
-    in
     let
-        baseQuery =  [ UB.string "name" model.name
-                     , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache ]
-        boundQuery = case bounds of
-                        Nothing -> []
-                        Just ( min, max ) -> [ UB.string "from_value_date" min
-                                             , UB.string "to_value_date" max ]
-    in
-        Http.get
-            { url =
-                UB.crossOrigin
-                model.baseurl
-                [ "api", "series", "insertion_dates" ]
-                ( baseQuery ++ boundQuery )
-                , expect = Http.expectString HistoryIdates
-            }
+        bounds =
+            getFromToDates model.horizon
+        baseQuery =
+            [ UB.string "name" model.name
+            , UB.int "nocache" <| U.bool2int model.horizon.viewNoCache
+            ]
+        boundQuery =
+            case bounds of
+                Nothing ->
+                    []
+                Just ( min, max ) ->
+                    [ UB.string "from_value_date" min
+                    , UB.string "to_value_date" max
+                    ]
+    in Http.get
+        { url =
+              UB.crossOrigin
+              model.baseurl
+              [ "api", "series", "insertion_dates" ]
+              ( baseQuery ++ boundQuery )
+        , expect = Http.expectString HistoryIdates
+        }
 
 
 getVersions : Model -> List String -> Cmd Msg
 getVersions model idates =
-    let bounds = getFromToDates model.horizon
-    in
     let
+        bounds =
+            getFromToDates model.horizon
         baseQuery: String -> List UB.QueryParameter
         baseQuery idate =
             [ UB.string "name" model.name
@@ -414,12 +422,13 @@ getVersions model idates =
             , UB.string "tzone" model.horizon.timeZone
             , UB.int "nocache" ( U.bool2int model.horizon.viewNoCache )
             ]
-
-        boundQuery = case bounds of
-                        Nothing -> []
-                        Just ( min, max ) -> [ UB.string "from_value_date" min
-                                             , UB.string "to_value_date" max ]
-
+        boundQuery =
+            case bounds of
+                Nothing -> []
+                Just ( min, max ) ->
+                    [ UB.string "from_value_date" min
+                    , UB.string "to_value_date" max
+                    ]
         getVersion : String -> Cmd Msg
         getVersion idate =
             Http.get
@@ -429,7 +438,7 @@ getVersions model idates =
                       [ "api", "series", "state" ]
                       ( (baseQuery idate) ++ boundQuery )
                 , expect = Http.expectString (GotVersion idate)
-            }
+                }
     in
     Cmd.batch <| List.map getVersion idates
 
@@ -449,7 +458,8 @@ updatedChangedHistoryIdateDebouncer =
 
 
 addError: Model -> String -> String -> Model
-addError model tag error = U.adderror model (tag ++ " -> " ++ error)
+addError model tag error =
+    U.adderror model (tag ++ " -> " ++ error)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -485,15 +495,19 @@ update msg model =
                                                     else defaultRevMaxPrimary
                                 , horizon = { model_horizon | hasCache = isformula }
                             }
-                        cmd = Cmd.batch <| [ I.getidates model "series" InsertionDates model.horizon.viewNoCache ]
-                              ++ if isformula
-                                 then [ I.getformula
-                                            model model.name model.formula_depth
-                                            "series" GotFormula
-                                      , getdepth model
-                                      , gethascache model
-                                      ]
-                                 else [ I.getlog model.baseurl model.name model.logsNumber "series" GotLog ]
+                        cmd =
+                            Cmd.batch <|
+                            [ I.getidates model "series" InsertionDates model.horizon.viewNoCache ]
+                            ++ if isformula
+                               then [ I.getformula
+                                          model model.name model.formula_depth
+                                          "series" GotFormula
+                                    , getdepth model
+                                    , gethascache model
+                                    ]
+                               else [ I.getlog model.baseurl model.name
+                                          model.logsNumber "series" GotLog
+                                    ]
                     in ( newmodel, cmd )
                 Err err ->
                     doerr "gotmeta decode" <| D.errorToString err
@@ -558,9 +572,7 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
-                    let
-                        newmodel =
-                            { model
+                    U.nocmd { model
                                 | horizon = updateHorizonFromData model.horizon val
                                 , timeseries = val
                                 , statistics = getStatistics
@@ -568,8 +580,6 @@ update msg model =
                                                 model.allowInferFreq
                                                 val
                             }
-                    in
-                    U.nocmd newmodel
                 Err err ->
                     if strseries model.meta
                     then U.nocmd model
@@ -584,22 +594,20 @@ update msg model =
             case err of
                 Http.BadStatus code ->
                     if code == 404
-                   then U.nocmd { model | doesnotexist = True
-                                        , horizon = setStatusPlot
-                                                     model.horizon
-                                                     Failure }
+                    then U.nocmd { model
+                                     | doesnotexist = True
+                                     , horizon = setStatusPlot model.horizon Failure
+                                 }
                    else U.nocmd <|
-                            addError
-                                { model | horizon = setStatusPlot
-                                                        model.horizon
-                                                        Failure }
-                                "gotplotdata decode"
-                                ( U.unwraperror err )
+                       addError
+                       { model | horizon = setStatusPlot model.horizon Failure }
+                       "gotplotdata decode"
+                       ( U.unwraperror err )
                 _ -> U.nocmd <|
-                        addError
-                        { model | horizon = setStatusPlot model.horizon Failure }
-                        "gotplotdata decode"
-                        ( U.unwraperror err )
+                     addError
+                     { model | horizon = setStatusPlot model.horizon Failure }
+                     "gotplotdata decode"
+                     ( U.unwraperror err )
 
         StatInfos sMsg ->
             case sMsg of
@@ -635,12 +643,15 @@ update msg model =
         -- cache
 
         HasCache (Ok rawhascache) ->
-            let model_horizon = model.horizon
+            let
+                model_horizon = model.horizon
             in
-                U.nocmd { model | horizon =
-                            { model_horizon | hasCache = String.startsWith
-                                                            "true"
-                                                            rawhascache }}
+            U.nocmd { model
+                        | horizon =
+                          { model_horizon
+                              | hasCache = String.startsWith "true" rawhascache
+                          }
+                    }
 
         HasCache (Err error) ->
             doerr "hascache http" <| U.unwraperror error
@@ -657,9 +668,14 @@ update msg model =
             U.nocmd { model | deleting_cache = False }
 
         CacheDeleted (Ok _) ->
-            let model_horizon = model.horizon in
-            let newmodel = { model | horizon =
-                            { model_horizon | viewNoCache = False }}
+            let
+                model_horizon =
+                    model.horizon
+                newmodel =
+                    { model
+                        | horizon =
+                          { model_horizon | viewNoCache = False }
+                    }
             in
             ( newmodel
             , Cmd.batch [ gethascache newmodel
@@ -715,10 +731,12 @@ update msg model =
 
         ChangedIdate strindex ->
             let
-                index = Maybe.withDefault
-                        model.date_index -- keep current
-                        (String.toInt strindex)
-                newmodel = { model | date_index = index }
+                index =
+                    Maybe.withDefault
+                    model.date_index -- keep current
+                    (String.toInt strindex)
+                newmodel =
+                    { model | date_index = index }
             in
             case Array.get index model.insertion_dates of
                 Nothing -> U.nocmd model
@@ -741,8 +759,10 @@ update msg model =
                 newarray =
                     Array.filter (comparedates value) <|
                     Array.map U.cleanupdate model.insertion_dates
-                newindex = max 0 <| Array.length newarray - 1
-                newmodel = { model | date_index = newindex }
+                newindex =
+                    max 0 <| Array.length newarray - 1
+                newmodel =
+                    { model | date_index = newindex }
             in
             ( newmodel
             , getplot newmodel
@@ -799,7 +819,8 @@ update msg model =
                             -- form strings are not json strings
                             -- this is why plain string parsing will fail ...
                             M.MString rawitem
-                newmodel = { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
+                newmodel =
+                    { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
             in
             ( newmodel
             , I.savemeta newmodel "series" MetaSaved
@@ -887,35 +908,36 @@ update msg model =
             U.nocmd { model | clipboardclass = "bi bi-clipboard" }
 
         Horizon hmsg ->
-            let ( newhorizonmodel, commands ) =
-                    updateHorizon
-                    hmsg
-                    convertMsg
-                    model.horizon
-            in
-            let newmodel = { model | horizon =  newhorizonmodel }
-                default = ( newmodel, commands )
-            in
-            let resetmodel  = { newmodel | historyPlots = Dict.empty
-                                         , dataFromHover = Nothing
-                                         , lastIdates = Array.empty
-                                         , nbRevisions = 0
-                              }
-                launchHistory = [ T.succeed ( HistoryMode model.historyMode )
-                                    |> T.perform identity ]
+            let
+                ( newhorizonmodel, commands ) =
+                    updateHorizon hmsg convertMsg model.horizon
+                newmodel =
+                    { model | horizon =  newhorizonmodel }
+                default =
+                    ( newmodel, commands )
+                resetmodel =
+                    { newmodel | historyPlots = Dict.empty
+                    , dataFromHover = Nothing
+                    , lastIdates = Array.empty
+                    , nbRevisions = 0
+                    }
+                launchHistory =
+                    [ T.succeed ( HistoryMode model.historyMode )
+                    |> T.perform identity
+                    ]
             in
             case hmsg of
                 HorizonModule.Fetch fetch ->
                     case fetch of
                         HorizonModule.GotBounds _ ->
                             ( newmodel
-                            , Cmd.batch ([ commands
-                                          , getplot newmodel] ) )
+                            , Cmd.batch [ commands, getplot newmodel ]
+                            )
 
                         HorizonModule.GetDirectData _ ->
                             ( resetmodel
-                            , Cmd.batch ([ commands
-                                          , getplot newmodel] ) )
+                            , Cmd.batch [ commands, getplot newmodel ]
+                            )
 
                         HorizonModule.Option op ->
                             case op of
@@ -923,22 +945,26 @@ update msg model =
                                     ( { resetmodel | insertion_dates = Array.empty }
                                     , Cmd.batch ([ commands
                                                  , getplot newmodel
-                                                 , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
+                                                 , I.getidates newmodel "series" InsertionDates
+                                                     model.horizon.viewNoCache
+                                                 ]
                                                  ++ launchHistory
                                                  )
                                     )
                                 _ -> ( resetmodel
                                      , Cmd.batch ([ commands
-                                                 , getplot newmodel ]
+                                                  , getplot newmodel
+                                                  ]
                                                  ++ launchHistory
                                                 )
                                      )
 
-                HorizonModule.Frame _ -> ( resetmodel
-                                         , commands )
+                HorizonModule.Frame _ ->
+                    ( resetmodel
+                    , commands
+                    )
 
                 _ -> default
-
 
         HistoryMode isChecked ->
             let
@@ -951,56 +977,62 @@ update msg model =
                         , nbRevisions = 0
                     }
             in
-                if isChecked
-                    then case model.horizon.zoomBounds of
-                        Nothing -> U.nocmd newmodel
-                        Just _ -> ( newmodel
-                                  ,  getsomeidates newmodel )
-                    else ( { newmodel | wipe = True }
-                        , T.perform
-                            (always Transitory)
-                             (P.sleep 10)
-                         )
+            if isChecked
+            then
+                case model.horizon.zoomBounds of
+                    Nothing ->
+                        U.nocmd newmodel
+                    Just _ ->
+                        ( newmodel
+                        , getsomeidates newmodel
+                        )
+             else ( { newmodel | wipe = True }
+                  , T.perform
+                        (always Transitory)
+                         (P.sleep 10)
+                 )
         Transitory ->
             U.nocmd { model | wipe = False }
 
         FromZoom zoom ->
             let
                 horizonmodel = model.horizon
-                newZoom = updateZoom
-                                model.horizon
-                                ( extractZoomDates zoom )
+                newZoom = updateZoom model.horizon ( extractZoomDates zoom )
                 rangeX = newZoom.x
             in
             if model.historyMode
             then
                 case rangeX of
-                    Nothing -> U.nocmd { model
-                                            | historyPlots = Dict.empty
-                                            , lastIdates = Array.empty
-                                            , dataFromHover = Nothing
-                                            , nbRevisions = 0
-                                            , horizon = { horizonmodel |
-                                                                zoomBounds = Nothing
-                                                            }
-                                        }
+                    Nothing ->
+                        U.nocmd { model
+                                    | historyPlots = Dict.empty
+                                    , lastIdates = Array.empty
+                                    , dataFromHover = Nothing
+                                    , nbRevisions = 0
+                                    , horizon = { horizonmodel |
+                                                      zoomBounds = Nothing
+                                                }
+                                }
                     Just ( minDate, maxDate ) ->
-                        let newmodel =  { model
-                                            | historyPlots = Dict.empty
-                                            , lastIdates = Array.empty
-                                            , dataFromHover = Nothing
-                                            , horizon = { horizonmodel |
-                                                            zoomBounds = Just ( minDate, maxDate )
-                                                        }
-                                        }
+                        let newmodel =
+                                { model
+                                    | historyPlots = Dict.empty
+                                    , lastIdates = Array.empty
+                                    , dataFromHover = Nothing
+                                    , horizon = { horizonmodel |
+                                                      zoomBounds = Just ( minDate, maxDate )
+                                                }
+                                }
                         in ( newmodel, getsomeidates newmodel )
 
             else
-                U.nocmd { model | horizon =
-                            { horizonmodel | zoomBounds = newZoom.x
-                                           , zoomY = newZoom.y
-                            }
-                                , statistics = getStatistics
+                U.nocmd { model
+                            | horizon =
+                              { horizonmodel
+                                  | zoomBounds = newZoom.x
+                                  , zoomY = newZoom.y
+                              }
+                            , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
                                                 <| applyZoom
@@ -1011,13 +1043,14 @@ update msg model =
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
 
-
         HistoryIdates (Ok rawdates) ->
             case D.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     let
-                        nbRevisions = List.length dates
-                        lasts  = lastDates dates ( Maybe.withDefault 0 model.maxNbRevisions )
+                        nbRevisions =
+                            List.length dates
+                        lasts =
+                            lastDates dates ( Maybe.withDefault 0 model.maxNbRevisions )
                         newmodel =
                             { model
                                 | lastIdates = Array.fromList lasts
@@ -1070,39 +1103,44 @@ update msg model =
             in U.nocmd newmodel
 
         ViewAllHistory ->
-            ( { model | historyPlots = Dict.empty
-                      , lastIdates = Array.empty
+            ( { model
+                  | historyPlots = Dict.empty
+                  , lastIdates = Array.empty
               }
             , getsomeidates model
             )
 
-
         ChangeMaxRevs newMax ->
             case String.toInt newMax of
-                Nothing -> ( { model | maxNbRevisions = Nothing }, Cmd.none )
-                Just max -> let newmodel = { model | maxNbRevisions = Just max }
-                            in ( newmodel, Cmd.none )
+                Nothing ->
+                    U.nocmd { model | maxNbRevisions = Nothing }
+                Just max ->
+                    U.nocmd { model | maxNbRevisions = Just max }
 
-        UpdateMax -> case model.maxNbRevisions of
-                        Nothing -> ( model, Cmd.none )
-                        Just max -> let lasts = lastDates
-                                            ( Array.toList model.historyIdates )
-                                            ( Maybe.withDefault 0 model.maxNbRevisions )
-                                    in
-                                    let newmodel =  { model
-                                                        | historyPlots = Dict.empty
-                                                        , dataFromHover = Nothing
-                                                        , previousMax = max
-                                                        , lastIdates = Array.fromList lasts
-                                                        , historyDateIndex = min (max - 1) ( List.length lasts - 1)
-                                                     }
-                                    in ( newmodel , getVersions model lasts )
+        UpdateMax ->
+            case model.maxNbRevisions of
+                Nothing ->
+                    U.nocmd model
+                Just max ->
+                    let
+                        lasts =
+                            lastDates
+                            ( Array.toList model.historyIdates )
+                            ( Maybe.withDefault 0 model.maxNbRevisions )
+                        newmodel =
+                            { model
+                                | historyPlots = Dict.empty
+                                , dataFromHover = Nothing
+                                , previousMax = max
+                                , lastIdates = Array.fromList lasts
+                                , historyDateIndex = min (max - 1) ( List.length lasts - 1)
+                            }
+                    in ( newmodel , getVersions model lasts )
+
         NewDataFromHover data ->
             case D.decodeString dataFromHoverDecoder data of
                 Ok datadict ->
-                    let
-                        newmodel = { model | dataFromHover = Just (removeRedondants datadict) }
-                    in U.nocmd newmodel
+                    U.nocmd { model | dataFromHover = Just (removeRedundants datadict) }
                 Err _ ->
                     U.nocmd model
 
@@ -1119,9 +1157,7 @@ lastDates: List String -> Int -> List String
 lastDates dates max =
      if (List.length dates) > max
      then
-        List.reverse
-            ( List.take max
-                ( List.reverse dates ))
+        List.reverse ( List.take max ( List.reverse dates ))
      else
         dates
 
@@ -1219,18 +1255,16 @@ viewcache model =
 formatIDate: String -> Position -> Bool -> String
 formatIDate date position actif =
     if not actif
-        then ""
-        else
-            let fdate = String.replace
-                            "T"
-                            " "
-                            ( String.left
-                                14
-                                ( String.dropLeft 2 date ))
-            in case position of
-                Center -> fdate
-                Left -> "<< " ++ fdate
-                Right -> fdate ++ " >>"
+    then ""
+    else
+        let fdate =
+                String.replace "T" " "
+                    ( String.left 14 ( String.dropLeft 2 date ))
+        in case position of
+               Center -> fdate
+               Left -> "<< " ++ fdate
+               Right -> fdate ++ " >>"
+
 
 maybeDate: Model -> Int -> ( String, Bool )
 maybeDate model idx =
@@ -1241,26 +1275,29 @@ maybeDate model idx =
 
 viewWidgetIdates: Model -> H.Html Msg
 viewWidgetIdates model =
-    let idate = Maybe.withDefault
-                    ""
-                    ( Array.get
-                        model.historyDateIndex
-                        model.lastIdates )
-        ( previous, pactive ) = maybeDate
-                                    model
-                                    ( model.historyDateIndex - 1 )
-        ( next, nactive ) = maybeDate
-                                model
-                                ( model.historyDateIndex + 1 )
+    let
+        idate =
+            Maybe.withDefault ""
+                ( Array.get
+                      model.historyDateIndex
+                      model.lastIdates
+                )
+        ( previous, pactive ) =
+            maybeDate model ( model.historyDateIndex - 1 )
+        ( next, nactive ) =
+            maybeDate model ( model.historyDateIndex + 1 )
     in
     H.div
         [ HA.class "widget-idates" ]
         [ H.div
             ([ HA.class "idate-adjacent"
              , HA.title "previous date"
-             ] ++ ( if pactive then [ HA.class "idate-exists"
-                                    , HE.onClick ( IterIDate Prev ) ]
-                               else [] )
+             ] ++ ( if pactive
+                    then [ HA.class "idate-exists"
+                         , HE.onClick ( IterIDate Prev )
+                         ]
+                    else []
+                  )
             )
             [ H.text (formatIDate previous Left pactive)]
         , H.div
@@ -1269,9 +1306,12 @@ viewWidgetIdates model =
         , H.div
             ([ HA.class "idate-adjacent button"
              , HA.title "next date"
-             ] ++ ( if nactive then [ HA.class "idate-exists"
-                                    , HE.onClick ( IterIDate Next ) ]
-                                else [] ))
+             ] ++ ( if nactive
+                    then [ HA.class "idate-exists"
+                         , HE.onClick ( IterIDate Next ) ]
+                    else []
+                  )
+            )
             [ H.text ( formatIDate next Right nactive ) ]
         ]
 
@@ -1286,21 +1326,19 @@ historyInput: Model -> H.Html Msg
 historyInput model =
     if model.nbRevisions > 0
     then
-    H.span
-        []
-        [
-        H.text ("   "
-                 ++ (String.fromInt model.nbRevisions)
-                 ++ " revisions. Only showing the last "
-                 )
-        , H.input
-            [ HA.value ( extractMax model.maxNbRevisions )
-            , HA.class "form-control-sm"
-            , HA.attribute "type" "text"
-            , HA.style "width" "4em"
-            , HE.onInput ChangeMaxRevs ]
-            [ ]
-        ]
+        H.span [ ]
+            [ H.text ( "   " ++
+                       (String.fromInt model.nbRevisions) ++
+                       " revisions. Only showing the last "
+                     )
+            , H.input
+                [ HA.value ( extractMax model.maxNbRevisions )
+                , HA.class "form-control-sm"
+                , HA.attribute "type" "text"
+                , HA.style "width" "4em"
+                , HE.onInput ChangeMaxRevs ]
+                [ ]
+            ]
     else H.div [] []
 
 
@@ -1310,18 +1348,19 @@ viewplot model =
     then H.div [] []
     else
     let
-        ts = model.timeseries
-        defaultLayout = { defaultLayoutOptions |
-                            xaxis = { defaultDateAxis | range = extractDates
-                                                        model.horizon.zoomBounds
-                                    }
-                            , yaxis = { defaultValueAxis |
-                                            range = extractValues
-                                                        model.horizon.zoomY
-                                      }
-                            , dragMode = Just ( if model.panActive
-                                                             then "pan"
-                                                             else "zoom" )}
+        ts =
+            model.timeseries
+
+        defaultLayout =
+            { defaultLayoutOptions
+                | xaxis = { defaultDateAxis
+                              | range = extractDates model.horizon.zoomBounds
+                          }
+                , yaxis = { defaultValueAxis
+                              | range = extractValues model.horizon.zoomY
+                          }
+                , dragMode = Just ( if model.panActive then "pan" else "zoom" )
+            }
     in
     if model.historyMode
     then
@@ -1345,14 +1384,14 @@ viewplot model =
                     , HA.hidden (( model.maxNbRevisions == Just model.previousMax )
                                  || ( model.maxNbRevisions == Nothing ))
                     ]
-                    [H.text "Submit" ]
+                    [ H.text "Submit" ]
                 ]
             , H.div
                 [ HA.class "under-the-header"]
                 [ H.div
                     [ HA.class "plot-and-stuffs" ]
                     [ I.viewgraph
-                        (Dict.fromList [(model.name, ts)])
+                        (Dict.fromList [ (model.name, ts) ])
                         defaultLayout
                         defaultTraceOptions
                         model.horizon.inferredFreq
@@ -1370,13 +1409,12 @@ viewplot model =
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
-            , viewWidgetIdates
-                model
+            , viewWidgetIdates model
             , I.viewHistoryGraph model
             , if Array.isEmpty model.lastIdates then
-                H.div
-                [HA.class "placeholder-text-hover" ]
-                [ ]
+                  H.div
+                      [ HA.class "placeholder-text-hover" ]
+                      [ ]
               else
                 H.div
                     [ ]
@@ -1384,17 +1422,15 @@ viewplot model =
                              the versions of one application date: """
                     ]
             , if model.debug
-                then H.div [] [ showHoverData model ]
-                else H.div [] [  ]
+              then H.div [ ] [ showHoverData model ]
+              else H.div [ ] [ ]
             , case model.dataFromHover of
-                Just data ->
-                    I.viewHoverGraph
-                        data
-                Nothing ->
-                    I.viewHoverGraph
-                         { name = ""
-                         , data = []
-                         }
+                  Just data ->
+                      I.viewHoverGraph data
+                  Nothing ->
+                      I.viewHoverGraph { name = ""
+                                       , data = []
+                                       }
             ]
     else
         H.div []
@@ -1409,7 +1445,7 @@ viewplot model =
                 [ H.div
                     [ HA.class "plot-and-stuffs" ]
                     [ I.viewgraph
-                        (Dict.fromList [(model.name, ts)])
+                        (Dict.fromList [ (model.name, ts) ])
                         defaultLayout
                         defaultTraceOptions
                         model.horizon.inferredFreq
@@ -1499,13 +1535,13 @@ view model =
     H.div
         [ ]
         [ H.div
-            [ HA.class "main-content"
-            , HA.class "tsinfo"
-            ]
+              [ HA.class "main-content"
+              , HA.class "tsinfo"
+              ]
               [ H.div
                 [ ]
                 ( [ H.span [ HA.class "tsinfo action-container" ]
-                      <| (I.viewactionwidgets
+                        <| (I.viewactionwidgets
                             model
                             (I.SeriesType model.seriestype)
                             convertMsg
@@ -1513,47 +1549,54 @@ view model =
                             True
                             "Series Info"
                             ( getFromToDates model.horizon )
-                        ) ++
-                      [ I.viewdeletion model deleteEvents
-                      , I.viewrenameaction model renameEvents
-                      ]
-                , I.viewtitle model model.clipboardclass CopyNameToClipboard
-                ] ++
-                if model.doesnotexist
-                then
-                [ I.msgdoesnotexist "Series"]
-                else
-                [ case model.activetab of
-                      Plot ->
-                          if strseries model.meta
-                          then H.div [] [ head ]
-                          else H.div []
-                              [ head
-                              , tabcontents
-                                    [ viewplot model
-                                    , I.viewformula model SwitchLevel
-                                    ]
-                              ]
+                           ) ++
+                        [ I.viewdeletion model deleteEvents
+                        , I.viewrenameaction model renameEvents
+                        ]
+                  , I.viewtitle model model.clipboardclass CopyNameToClipboard
+                  ] ++
+                      if model.doesnotexist
+                      then
+                          [ I.msgdoesnotexist "Series"]
+                      else
+                          [ case model.activetab of
+                                Plot ->
+                                    if strseries model.meta
+                                    then H.div [] [ head ]
+                                    else H.div []
+                                        [ head
+                                        , tabcontents
+                                              [ viewplot model
+                                              , I.viewformula model SwitchLevel
+                                              ]
+                                        ]
 
-                      UserMetadata ->
-                        H.div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
+                                UserMetadata ->
+                                    H.div
+                                        []
+                                        [ head
+                                        , tabcontents [ I.viewusermeta model metaEvents False ]
+                                        ]
 
-                      Logs ->
-                          H.div []
-                              [ head
-                              , tabcontents
-                                    [ case model.seriestype of
-                                          I.Primary -> I.viewlog model False LogsNumber SeeLogs
-                                          I.Formula -> H.span [] []
-                                    ]
-                              ]
+                                Logs ->
+                                    H.div []
+                                        [ head
+                                        , tabcontents
+                                              [ case model.seriestype of
+                                                    I.Primary ->
+                                                        I.viewlog model False LogsNumber SeeLogs
+                                                    I.Formula ->
+                                                        H.span [] []
+                                              ]
+                                        ]
 
-                      FormulaCache ->
-                          H.div [] [ head, tabcontents [ viewcache model ] ]
-                , I.viewerrors model
-                ]
+                                FormulaCache ->
+                                    H.div [] [ head, tabcontents [ viewcache model ] ]
+
+                          , I.viewerrors model
+                          ]
                 )
-            ]
+              ]
         ]
 
 
@@ -1661,4 +1704,3 @@ main =
                         (\ s -> convertMsg (HorizonModule.FromLocalStorage s))
                   ]
         }
-
