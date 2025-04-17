@@ -4285,10 +4285,7 @@ view model =
                                     else msgDoesNotExist
                     _ -> H.div [ HA.id "plot" ] [ ]
                 , plotNode model
-                , debugView model
                 , underThePlot model
-                , viewRelevantTable model
-                , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
                 ]
                 , H.div
                     [ HA.class "stat-table-container"]
@@ -4300,7 +4297,10 @@ view model =
                                                       ]
                                                 else []
                     )
-            ]
+                ]
+        , debugView model
+        , viewRelevantTable model
+        , H.div [] ( List.map (\ err -> H.p [] [H.text err]) model.errors)
     ]
 
 

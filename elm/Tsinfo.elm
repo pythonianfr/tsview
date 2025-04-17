@@ -1347,11 +1347,24 @@ viewplot model =
                     ]
                     [H.text "Submit" ]
                 ]
-            , I.viewgraph
-                (Dict.fromList [(model.name, ts)])
-                defaultLayout
-                defaultTraceOptions
-                model.horizon.inferredFreq
+            , H.div
+                [ HA.class "under-the-header"]
+                [ H.div
+                    [ HA.class "plot-and-stuffs" ]
+                    [ I.viewgraph
+                        (Dict.fromList [(model.name, ts)])
+                        defaultLayout
+                        defaultTraceOptions
+                        model.horizon.inferredFreq
+                    ]
+                , H.div
+                    [ HA.class "stat-table-container"]
+                    [ viewStatTable
+                        model.statistics
+                        model.roundStat
+                        convertStat
+                    ]
+                ]
             , I.viewDatesRange
                 model.lastIdates
                 model.historyDateIndex
