@@ -1381,15 +1381,24 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , I.viewgraph
-                (Dict.fromList [(model.name, ts)])
-                defaultLayout
-                defaultTraceOptions
-                model.horizon.inferredFreq
-            , viewStatTable
-                model.statistics
-                model.roundStat
-                convertStat
+            , H.div
+                [ HA.class "under-the-header"]
+                [ H.div
+                    [ HA.class "plot-and-stuffs" ]
+                    [ I.viewgraph
+                        (Dict.fromList [(model.name, ts)])
+                        defaultLayout
+                        defaultTraceOptions
+                        model.horizon.inferredFreq
+                    ]
+                , H.div
+                    [ HA.class "stat-table-container"]
+                    [ viewStatTable
+                        model.statistics
+                        model.roundStat
+                        convertStat
+                    ]
+                ]
             ]
 
 
@@ -1467,7 +1476,9 @@ view model =
     H.div
         [ ]
         [ H.div
-            [ HA.class "main-content" ]
+            [ HA.class "main-content"
+            , HA.class "tsinfo"
+            ]
               [ H.div
                 [ ]
                 ( [ H.span [ HA.class "tsinfo action-container" ]

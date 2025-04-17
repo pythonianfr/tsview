@@ -400,3 +400,52 @@ label.option {
 .settings .users input, .settings .users .settings-label {
     width: 30vw;
 }
+
+/* Tsinfo */
+
+.tsinfo {
+    margin-right: 20px;
+}
+
+.tsinfo .under-the-header {
+    display: grid;
+    grid-template: "plot-and-stuffs stat-table";
+    grid-template-columns: auto min-content;
+}
+
+.tsinfo .plot-and-stuffs {
+    grid-area: plot-and-stuffs;
+    margin-left: 20px;
+}
+
+.tsinfo .stat-table-container {
+    width: min-content;
+    grid-area: stat-table;
+    font-size: 90%;
+}
+
+.tsinfo .stat-table {
+    float: right;
+    min-width: 15ch;
+}
+
+.tsinfo .stat-table th {
+    text-align: center;
+}
+
+.tsinfo .stat-table td {
+    white-space:nowrap;
+}
+
+.tsinfo .stat-table tr:nth-child(even){
+    background-color: #e0e0e0;
+}
+
+.tsinfo .stat-table td:nth-child(1){
+    padding-left: 3px;
+}
+
+.tsinfo.stat-table td:nth-child(3){
+    padding-right: 3px;
+    text-align: right;
+}
