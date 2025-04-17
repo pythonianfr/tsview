@@ -57,6 +57,18 @@ import Plotter exposing
     , seriesdecoder
     )
 import Process as P
+import StatInfos as ModuleStatInfos
+import StatInfos exposing
+    ( Msg(..)
+    , StatInfos
+    , TypeStat
+    , StatusFreq
+    , emptyStat
+    , getStatistics
+    , formatNumber
+    , updateFirstLast
+    , viewStatTable
+    )
 import Task as T
 import Url.Builder as UB
 import Util as U
@@ -89,6 +101,9 @@ type alias Model =
     , usermeta : M.UserMetadata
     , seriestype : I.SeriesType
     , timeseries: Dict String ( Maybe Float )
+    , statistics: StatInfos
+    , allowInferFreq: Bool
+    , roundStat: Int
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -150,6 +165,7 @@ type Msg
     -- data
     | GotLog (Result Http.Error String)
     | GotPlotData (Result Http.Error String)
+    | StatInfos ModuleStatInfos.Msg
     -- dates
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
@@ -212,6 +228,10 @@ type Msg
 convertMsg : HorizonModule.Msg -> Msg
 convertMsg msg =
     Horizon msg
+
+convertStat : ModuleStatInfos.Msg -> Msg
+convertStat msg =
+    StatInfos msg
 
 type Direction =
     Prev
@@ -538,6 +558,10 @@ update msg model =
                             { model
                                 | horizon = updateHorizonFromData model.horizon val
                                 , timeseries = val
+                                , statistics = getStatistics
+                                                model.statistics
+                                                model.allowInferFreq
+                                                val
                             }
                     in
                     U.nocmd newmodel
@@ -571,6 +595,18 @@ update msg model =
                         { model | horizon = setStatusPlot model.horizon Failure }
                         "gotplotdata decode"
                         ( U.unwraperror err )
+
+        StatInfos sMsg ->
+            case sMsg of
+                AllowInferFreq ->
+                    ({ model | allowInferFreq = True
+                             , statistics = getStatistics
+                                                model.statistics
+                                                True
+                                                model.timeseries
+                     }
+                    , Cmd.none
+                    )
 
         GotFormula (Ok rawformula) ->
             case D.decodeString I.formuladecoder rawformula of
@@ -1331,6 +1367,10 @@ viewplot model =
                 defaultLayout
                 defaultTraceOptions
                 model.horizon.inferredFreq
+            , viewStatTable
+                model.statistics
+                model.roundStat
+                convertStat
             ]
 
 
@@ -1497,6 +1537,9 @@ init input =
       , usermeta = Dict.empty
       , seriestype = I.Primary
       , timeseries = Dict.empty
+      , statistics = emptyStat
+      , allowInferFreq = False
+      , roundStat= 2
       -- formula
       , formula_depth = 0
       , formula_maxdepth = 0
