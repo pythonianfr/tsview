@@ -514,7 +514,7 @@ def tsview(tsa):
             cls = search.query.klassbyname(kname)
             types[lispname] = cls.__sig__()
 
-        return_first = lambda x: 0 if x[0] == 'return' else 1  # noqa
+        return_first = lambda x: x[0] != 'return'  # noqa
         return [
             (op_name, sorted(op_spec.items(), key=return_first))
             for op_name, op_spec in types.items()
