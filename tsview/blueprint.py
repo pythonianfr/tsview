@@ -23,8 +23,6 @@ from psyl.lisp import (
     serialize,
 )
 
-from rework_ui.helper import argsdict as _args
-
 from sqlhelp import select
 
 from tshistory import (
@@ -404,7 +402,7 @@ def tsview(tsa):
         if not request.files:
             return jsonify({'errors': ['Missing CSV file']})
 
-        args = _args(request.form)
+        args = _argsdict(request.form)
         stdout = io.StringIO()
         output = []
         try:
