@@ -50,13 +50,13 @@ type alias Model =
     -- filter state (all)
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
+    , tzaware : String
     -- filter state/metadata
     , filterbymeta : Dict Int (String, String)
     , errors : List String
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
-    , tzaware : String
     }
 
 
@@ -185,40 +185,6 @@ kindfilter model =
     }
 
 
-tzawarefilter : Model -> Model
-tzawarefilter model =
-    if model.tzaware == "any" then
-        model
-    else
-        let
-            getElement : Maybe M.MetaVal -> String
-            getElement element =
-                case element of
-                    Just el ->
-                        M.metavaltostring el
-                    Nothing ->
-                        ""
-            tzFilter : List String -> Dict String (Dict String M.MetaVal) -> String -> List String
-            tzFilter filtredNames dict tz =
-                let
-                    dictToTuple : (String, Dict String M.MetaVal) -> (String, String)
-                    dictToTuple (key, smallDict) =
-                        (key, getElement (Dict.get "tzaware" smallDict))
-                    newList = List.map dictToTuple (Dict.toList dict)
-                    listFiltred =
-                        List.map
-                            Tuple.first
-                            (List.filter (\(_, bool) -> bool == tz) newList)
-                in List.filter
-                    (\element -> List.member element listFiltred) filtredNames
-
-        in
-        { model
-            | filteredseries = tzFilter model.filteredseries model.seriesmetadata model.tzaware
-            , filteredgroups = tzFilter model.filteredgroups model.groupsmetadata model.tzaware
-        }
-
-
 lower str =
     String.toLower str
 
@@ -292,6 +258,35 @@ metafilter model =
                 { model | filteredseries = List.filter bymeta model.filteredseries }
             Groups ->
                 { model | filteredgroups = List.filter bymeta model.filteredgroups }
+
+
+tzawarefilter : Model -> Model
+tzawarefilter model =
+    if model.tzaware == "any" then model else
+        let
+            metadata =
+                case model.mode of
+                    Series -> model.seriesmetadata
+                    Groups -> model.groupsmetadata
+
+            tzaware tsmeta =
+                case Dict.get "tzaware" tsmeta of
+                    Nothing -> False
+                    Just val ->
+                        model.tzaware == (M.metavaltostring val)
+
+            meta name =
+                case Dict.get name metadata of
+                    Nothing ->
+                        tzaware Dict.empty -- unlikely path
+                    Just val ->
+                        tzaware val
+        in
+        case model.mode of
+            Series ->
+                { model | filteredseries = List.filter meta model.filteredseries }
+            Groups ->
+                { model | filteredgroups = List.filter meta model.filteredgroups }
 
 
 allfilters model =
@@ -884,7 +879,7 @@ tzawareDropdown model =
     in
     H.div
         [ ]
-        [ H.text "Tzaware : "
+        [ H.text "tzaware : "
         , H.select
             [ HE.targetValue
                 |> D.andThen decodetzaware
@@ -930,11 +925,11 @@ main =
                , selectedgroupssources = []
                , filterbyname = Nothing
                , filterbyformula = Nothing
+               , tzaware = "any"
                , filterbymeta = Dict.empty
                , errors = []
                , namefilterdeb = debouncerconfig
                , formulafilterdeb = debouncerconfig
-               , tzaware = "any"
                }
 
            init input =
