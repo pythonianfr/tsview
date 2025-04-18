@@ -135,6 +135,7 @@ type alias Model =
     , horizon : HorizonModel
     -- history mode
     , wipe: Bool
+    , integrity: Int
     , historyPlots : Dict String (Dict String (Maybe Float))
     , historyMode : Bool
     , historyIdates : Array String
@@ -217,7 +218,7 @@ type Msg
     | FromZoom ZoomFromPlotly
     | NewDragMode Bool
     | HistoryIdates (Result Http.Error String)
-    | GotVersion String (Result Http.Error String)
+    | GotVersion Int String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
     | IterIDate Bool Direction
@@ -443,7 +444,7 @@ getVersions model idates =
                       model.baseurl
                       [ "api", "series", "state" ]
                       ( (baseQuery idate) ++ boundQuery )
-                , expect = Http.expectString (GotVersion idate)
+                , expect = Http.expectString (GotVersion model.integrity idate)
                 }
     in
     Cmd.batch <| List.map getVersion idates
@@ -1022,6 +1023,7 @@ update msg model =
                 horizonmodel = model.horizon
                 newZoom = updateZoom model.horizon ( extractZoomDates zoom )
                 rangeX = newZoom.x
+                integrity = model.integrity
             in
             if model.historyMode
             then
@@ -1031,6 +1033,7 @@ update msg model =
                                     | historyPlots = Dict.empty
                                     , lastIdates = Array.empty
                                     , dataFromHover = Nothing
+                                    , integrity = integrity + 1
                                     , nbRevisions = 0
                                     , horizon = { horizonmodel |
                                                       zoomBounds = Nothing
@@ -1042,6 +1045,7 @@ update msg model =
                                     | historyPlots = Dict.empty
                                     , lastIdates = Array.empty
                                     , dataFromHover = Nothing
+                                    , integrity = integrity + 1
                                     , horizon = { horizonmodel |
                                                       zoomBounds = Just ( minDate, maxDate )
                                                 }
@@ -1091,7 +1095,10 @@ update msg model =
         HistoryIdates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        GotVersion idate (Ok rawdata) ->
+        GotVersion when idate (Ok rawdata) ->
+            if when /= model.integrity
+            then U.nocmd model
+            else
             case D.decodeString seriesdecoder rawdata of
                 Ok val ->
                     let
@@ -1103,7 +1110,7 @@ update msg model =
                     then U.nocmd model
                     else doerr "gotplotdata decode" <| D.errorToString err
 
-        GotVersion _ (Err err) ->
+        GotVersion _ _ (Err err) ->
             doerr "gotplotdata error" <| U.unwraperror err
 
         DebounceChangedHistoryIdate val ->
@@ -1126,9 +1133,12 @@ update msg model =
             in U.nocmd newmodel
 
         ViewAllHistory ->
+            let integrity = model.integrity
+            in
             ( { model
                   | historyPlots = Dict.empty
                   , lastIdates = Array.empty
+                  , integrity = integrity
               }
             , getsomeidates model
             )
@@ -1741,6 +1751,7 @@ init input =
                     input.debug
                     Loading
       , wipe = False
+      , integrity = 0
       , historyPlots = Dict.empty
       , historyMode = False
       , historyIdates = Array.empty
