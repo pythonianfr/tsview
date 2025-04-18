@@ -220,7 +220,7 @@ type Msg
     | GotVersion String (Result Http.Error String)
     | DebounceChangedHistoryIdate (Debouncer.Msg Msg)
     | ChangedHistoryIdate String
-    | IterIDate Direction
+    | IterIDate Bool Direction
     | ViewAllHistory
     | ChangeMaxRevs String
     | UpdateMax
@@ -760,12 +760,20 @@ update msg model =
                     , getplot newmodel
                     )
 
-        IterIDate direction ->
+        IterIDate history direction ->
+            if history
+            then
             case direction of
                 Prev -> U.nocmd { model |
                     historyDateIndex = ( model.historyDateIndex - 1 )}
                 Next -> U.nocmd { model |
                     historyDateIndex = ( model.historyDateIndex + 1 )}
+            else
+            case direction of
+                Prev -> U.nocmd { model |
+                    date_index = ( model.date_index - 1 )}
+                Next -> U.nocmd { model |
+                    date_index = ( model.date_index + 1 )}
 
         IdatePickerChanged value ->
             let
@@ -1274,33 +1282,33 @@ formatIDate date position actif =
     else
         let fdate =
                 String.replace "T" " "
-                    ( String.left 14 ( String.dropLeft 2 date ))
+                    ( String.left 16 date)
         in case position of
                Center -> fdate
                Left -> "<< " ++ fdate
                Right -> fdate ++ " >>"
 
 
-maybeDate: Model -> Int -> ( String, Bool )
-maybeDate model idx =
-    case (Array.get idx model.lastIdates) of
+maybeDate: Array String -> Int -> ( String, Bool )
+maybeDate idates idx =
+    case (Array.get idx idates) of
         Just date -> ( date, True)
         Nothing -> ( "", False )
 
 
-viewWidgetIdates: Model -> H.Html Msg
-viewWidgetIdates model =
+viewWidgetIdates: Bool -> Array String -> Int -> H.Html Msg
+viewWidgetIdates history idates index =
     let
         idate =
             Maybe.withDefault ""
                 ( Array.get
-                      model.historyDateIndex
-                      model.lastIdates
+                      index
+                      idates
                 )
         ( previous, pactive ) =
-            maybeDate model ( model.historyDateIndex - 1 )
+            maybeDate idates ( index - 1 )
         ( next, nactive ) =
-            maybeDate model ( model.historyDateIndex + 1 )
+            maybeDate idates ( index + 1 )
     in
     H.div
         [ HA.class "widget-idates" ]
@@ -1309,21 +1317,23 @@ viewWidgetIdates model =
              , HA.title "previous date"
              ] ++ ( if pactive
                     then [ HA.class "idate-exists"
-                         , HE.onClick ( IterIDate Prev )
+                         , HE.onClick ( IterIDate history Prev )
                          ]
                     else []
                   )
             )
             [ H.text (formatIDate previous Left pactive)]
         , H.div
-            [ HA.class "idate-history" ]
+            [ HA.class "idate-history"
+            , HA.title "current revdate"
+            ]
             [ H.text ( formatIDate idate Center True)]
         , H.div
             ([ HA.class "idate-adjacent button"
              , HA.title "next date"
              ] ++ ( if nactive
                     then [ HA.class "idate-exists"
-                         , HE.onClick ( IterIDate Next ) ]
+                         , HE.onClick ( IterIDate history Next ) ]
                     else []
                   )
             )
@@ -1424,7 +1434,10 @@ viewplot model =
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
-            , viewWidgetIdates model
+            , viewWidgetIdates
+                model.historyMode
+                model.lastIdates
+                model.historyDateIndex
             , I.viewHistoryGraph model
             , if Array.isEmpty model.lastIdates then
                   H.div
@@ -1455,6 +1468,10 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
+            , viewWidgetIdates
+                model.historyMode
+                model.insertion_dates
+                model.date_index
             , H.div
                 [ HA.class "under-the-header"]
                 [ H.div
