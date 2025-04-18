@@ -65,6 +65,7 @@ type alias Model =
     , searchSeries : SeriesSelector.Model
     , searchBasket: SeriesSelector.Model
     , searchGroup: SeriesSelector.Model
+    , integrity: Int
     , horizon : HorizonModel
     , selecting : Selecting
     , loaded : Loaded
@@ -151,8 +152,8 @@ basketItemDecode =
 
 type Msg
     = GotCatalog Catalog.Msg
-    | GotSeriesData ( Maybe String ) String (Result Http.Error String)
-    | GotGroupData String (Result Http.Error String)
+    | GotSeriesData Int ( Maybe String ) String (Result Http.Error String)
+    | GotGroupData Int String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
     | GotBasket Bool String (Result Http.Error String)
     | ChangeSelection Selecting
@@ -208,7 +209,7 @@ fetchsingle model start end basket name  =
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotSeriesData basket name
+         , callback = GotSeriesData model.integrity basket name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -227,7 +228,7 @@ fetchsinglegroup model start end name  =
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotGroupData name
+         , callback = GotGroupData model.integrity name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -701,7 +702,10 @@ update msg model =
 
         -- plot
 
-        GotSeriesData basket name (Ok rawdata) ->
+        GotSeriesData integrity basket name (Ok rawdata) ->
+            if integrity /= model.integrity
+            then U.nocmd model
+            else
             let infos = readSInfo
                             name
                             model.registry
@@ -766,7 +770,7 @@ update msg model =
                 Err err ->
                     doerr "gotplotdata decode" <| Decode.errorToString err
 
-        GotSeriesData basket name (Err err) ->
+        GotSeriesData _ basket name (Err err) ->
             let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
                 updatedinfos = { series =
                                     Dict.insert
@@ -781,7 +785,10 @@ update msg model =
                                                                 updatedinfos }}
                , Cmd.none )
 
-        GotGroupData name (Ok rawdata) ->
+        GotGroupData integrity name (Ok rawdata) ->
+            if integrity /= model.integrity
+            then U.nocmd model
+            else
             let infos = readGInfo
                             name
                             model.registry
@@ -841,7 +848,7 @@ update msg model =
                 Err err ->
                     doerr "gotgroupdata decode" <| Decode.errorToString err
 
-        GotGroupData name (Err err) ->
+        GotGroupData _ name (Err err) ->
             let newmodel = U.adderror model ("gotgroupdata error" ++ " -> " ++ name)
                 registry = { groups =
                                 Dict.insert
@@ -865,16 +872,18 @@ update msg model =
                                                     hMsg
                                                     convertMsg
                                                     model.horizon
-            in
-            let resetModel = { model | horizon = newModelHorizon
+                resetModel = { model | horizon = newModelHorizon
                                      , loaded = resetLoad model.loaded
                                      , registry = resetRegistry model.registry
                              }
                 default = ( { model | horizon = newModelHorizon} , commands )
+                integrity = model.integrity
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> ( resetModel
+                ModuleHorizon.Frame _ -> ( { resetModel
+                                                | integrity = integrity + 1
+                                            }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
                                                     , Cmd.batch
@@ -1600,7 +1609,8 @@ main =
                                     flags.max
                                     flags.debug
                                     None
-                    , catalog= Catalog.empty
+                    , catalog = Catalog.empty
+                    , integrity = 0
                     , haseditor = False
                     , searchSeries = initSearch series
                     , searchBasket = initSearch baskets
