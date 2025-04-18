@@ -15,6 +15,7 @@ import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
     , ZoomFromPlotly
+    , extractDates
     , initHorizon
     , getFromToDates
     , getFetchBounds
@@ -4289,6 +4290,10 @@ plotNode model =
         newYaxis =  { yaxis | hoverFormat = Just <| buildFormater
                                                         model.roundValues
                     }
+        xaxis = defaultLayoutOptions.xaxis
+        newXaxis = { xaxis
+                    | range = extractDates model.horizon.zoomBounds
+                   }
     in
     H.node "plot-figure"
             [ HA.attribute
@@ -4308,6 +4313,7 @@ plotNode model =
                     )
                     { defaultLayoutOptions | dragMode = Just dragMode
                                            , yaxis = newYaxis
+                                           , xaxis = newXaxis
                                            , height = Just 350
                     }
                     defaultConfigOptions
