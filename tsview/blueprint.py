@@ -512,9 +512,7 @@ def tsview(tsa):
         types = {}
         for lispname, kname in search._OPMAP.items():
             cls = search.query.klassbyname(kname)
-            # type object 'hascachepolicy' has no attribute '__sig__'
-            if hasattr(cls, '__sig__'):
-                types[lispname] = cls.__sig__()
+            types[lispname] = cls.__sig__()
 
         return_first = lambda x: 0 if x[0] == 'return' else 1  # noqa
         return [
