@@ -124,6 +124,9 @@ testNewCatalogParser =
         series =
             C.buildseriesfromdesc parsed
 
+        sources =
+            C.buildsourcesfromdesc parsed
+
     in Test.concat
         [ test "decodetsdesc" <| \_ ->
               Expect.equal parsed
@@ -190,4 +193,15 @@ testNewCatalogParser =
             Expect.equal series [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
                                 , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
                                 ]
+        , test "buildsourcesfromdesc" <| \_ ->
+            Expect.equal sources <|
+                Dict.fromList
+                    [
+                     ( "local"
+                     , Set.fromList
+                         [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                         , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                         ]
+                     )
+                    ]
         ]

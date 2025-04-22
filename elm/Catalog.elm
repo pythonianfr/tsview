@@ -6,6 +6,7 @@ module Catalog exposing
     , buildseries
     , buildseriesfromdesc
     , buildsources
+    , buildsourcesfromdesc
     , catalogdecoder
     , empty
     , viewError
@@ -192,6 +193,18 @@ rawtsdescdecoder =
 
 buildseriesfromdesc rawdescs =
     List.map .name rawdescs
+
+
+buildsourcesfromdesc rawdescs =
+    let
+        sources =
+            unique <| List.map .source rawdescs
+        namesbysource source =
+            List.map .name <| List.filter (\item -> item.source == source) rawdescs
+        makedictentry source =
+            Tuple.pair source (Set.fromList (namesbysource source))
+    in
+    Dict.fromList (List.map makedictentry sources)
 
 
 find urlprefix dtype event query =
