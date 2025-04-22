@@ -2,6 +2,7 @@ module Catalog exposing
     ( Model
     , Msg(..)
     , Error
+    , buildseries
     , catalogdecoder
     , empty
     , viewError
