@@ -11,6 +11,7 @@ module Catalog exposing
     , get
     , newseries
     , update
+    , rawtsdescdecoder
     , removeSeries
     )
 
@@ -184,8 +185,8 @@ get urlprefix dtype allsources event =
 
 -- another way
 
-type alias DescriptorsCatalog =
-    List S.Series
+rawtsdescdecoder =
+    D.list S.seriesdecoder
 
 
 find urlprefix dtype event query =
