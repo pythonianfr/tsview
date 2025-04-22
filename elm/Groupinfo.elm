@@ -18,6 +18,7 @@ import Horizon exposing
     , extractValues
     , getFromToDates
     , getFetchBounds
+    , getIdates
     , initHorizon
     , loadFromLocalStorage
     , updateHorizon
@@ -199,6 +200,7 @@ getplot model =
             , todate = end
             , horizon = Nothing
             , tzone = model.horizon.timeZone
+            , tzware = model.tzaware
             , keepnans = False
             , apipoint = "state"
             }
@@ -269,7 +271,7 @@ update msg model =
                                 , grouptype = seriestype
                             }
                         cmd =
-                            Cmd.batch <| [ I.getidates model "group" InsertionDates True ]
+                            Cmd.batch <| [ ]
                                 ++ if isformula
                                    then [ I.getformula
                                             model model.name 0 "group" GotFormula
@@ -571,29 +573,17 @@ update msg model =
                 default = ( newmodel, commands )
             in
             case hmsg of
-                HorizonModule.Fetch fetch ->
-                    case fetch of
-                        HorizonModule.Option op ->
-                            case op of
-                                HorizonModule.ViewNoCache ->
-                                    ( { newmodel | insertion_dates = Array.empty }
-                                    , Cmd.batch ([ commands
-                                                 , getplot newmodel
-                                                 , I.getidates newmodel "series" InsertionDates model.horizon.viewNoCache ]
-                                                 )
-                                    )
-
-                                _ -> ( newmodel
-                                     , Cmd.batch ([ commands
-                                                 , getplot newmodel ]
-                                                )
-                                     )
-
-                        _ ->
-                            ( newmodel
-                            , Cmd.batch ([ commands
-                                          , getplot newmodel] ) )
-
+                HorizonModule.Fetch _ ->
+                    ( { newmodel | insertion_dates = Array.empty }
+                     , Cmd.batch ([ commands
+                                  , getplot newmodel
+                                  , getIdates
+                                        newmodel.horizon
+                                        "group"
+                                        InsertionDates
+                                        model.name
+                                  ])
+                    )
                 _ -> default
 
         FromZoom zoom ->
@@ -886,7 +876,6 @@ main =
                , Cmd.batch
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "group"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "group"
-                   , getplot model
                    , I.getwriteperms input.baseurl GetPermissions
                    ]
                )
