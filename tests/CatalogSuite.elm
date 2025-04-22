@@ -6,6 +6,7 @@ import Catalog as C
 import Dict exposing ( Dict )
 import Json.Decode as JD
 import Expect
+import Set exposing ( Set )
 import Test exposing ( Test, test )
 
 
@@ -37,6 +38,9 @@ testCatalogParser =
 
         series =
             C.buildseries parsed
+
+        kinds =
+            C.buildkinds parsed
    in
    Test.concat
        [ test "decodecat" <| \_ ->
@@ -45,4 +49,13 @@ testCatalogParser =
              Expect.equal series [ "meteo.area.at.10u.m.s-1.era5.obs.h"
                                  , "meteo.area.at.10u.m.s-1.hres.ecmwf.fcst.3-6h"
                                  ]
+       , test "buildkinds" <| \_ ->
+             Expect.equal kinds <|
+                 Dict.fromList [
+                      ( "primary",
+                            Set.fromList [ "meteo.area.at.10u.m.s-1.era5.obs.h"
+                                         , "meteo.area.at.10u.m.s-1.hres.ecmwf.fcst.3-6h"
+                                         ]
+                      )
+                     ]
        ]
