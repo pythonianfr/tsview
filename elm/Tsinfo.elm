@@ -250,6 +250,10 @@ type Position
     | Right
 
 
+type TimeSeries
+    = SeriesFloat (Dict String ( Maybe Float ))
+    | SeriesString (Dict String String)
+
 type alias DataFromHover =
     { name : String
     , data : List DataItem
@@ -263,7 +267,20 @@ type alias DataItem =
 
 
 stringseriesdecoder =
-    D.dict D.string
+    --infer freq can produce null for string
+    D.dict <| D.map
+                ( Maybe.withDefault "" )
+                (D.nullable D.string)
+
+
+decodeAndType: String -> Result ( D.Error, D.Error ) TimeSeries
+decodeAndType raw =
+    case D.decodeString seriesdecoder raw  of
+        Ok ts -> Ok ( SeriesFloat ts )
+        Err errFloat ->
+            case D.decodeString stringseriesdecoder raw of
+                Ok ts -> Ok ( SeriesString ts )
+                Err errString -> Err ( errFloat, errString )
 
 
 dataItemDecoder : D.Decoder DataItem
@@ -577,34 +594,26 @@ update msg model =
             doerr "getpermissions http" <| U.unwraperror err
 
         GotPlotData (Ok rawdata) ->
-            case strseries model.meta of
-                True ->
-                    case D.decodeString stringseriesdecoder rawdata of
-                        Ok val ->
-                            U.nocmd { model | stringseries = val }
-                        Err err ->
-                            U.nocmd <|
-                                addError
-                                { model | horizon = setStatusPlot model.horizon Failure }
-                                "gotplotdata decode"
-                                ( D.errorToString err )
-                False ->
-                    case D.decodeString seriesdecoder rawdata of
-                        Ok val ->
+            case decodeAndType rawdata of
+                Ok series ->
+                    case series of
+                        SeriesFloat ts ->
                             U.nocmd { model
-                                        | horizon = updateHorizonFromData model.horizon val
-                                        , timeseries = val
+                                        | horizon = updateHorizonFromData model.horizon ts
+                                        , timeseries = ts
                                         , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
-                                                val
-                                    }
-                        Err err ->
-                            U.nocmd <|
-                                addError
-                                { model | horizon = setStatusPlot model.horizon Failure }
-                                "gotplotdata decode"
-                                ( D.errorToString err )
+                                                ts
+                                        }
+                        SeriesString ts ->
+                            U.nocmd { model | stringseries = ts }
+
+                Err (errFloat, errString) -> U.nocmd <|
+                            addError
+                            { model | horizon = setStatusPlot model.horizon Failure }
+                            "gotplotdata decode"
+                            <| ( D.errorToString errFloat ) ++ ( D.errorToString errString )
 
         GotPlotData (Err err) ->
             case err of

@@ -191,7 +191,7 @@ type alias Series =
 
 
 seriesdecoder =
-    D.dict (D.maybe D.float)
+    D.dict (D.nullable D.float)
 
 
 type alias TraceArgs =
