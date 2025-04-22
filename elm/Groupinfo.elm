@@ -313,7 +313,9 @@ update msg model =
                         newmodel =
                             { model
                                 | plotdata = Just val
-                                , horizon = updateHorizonFromData model.horizon val_ts
+                                , horizon = updateHorizonFromData
+                                                model.horizon
+                                                (Dict.keys val_ts)
                             }
                     in
                     U.nocmd newmodel

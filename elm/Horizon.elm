@@ -566,10 +566,10 @@ updatefromlocalstorage data model =
     }
 
 
-updateHorizonFromData : HorizonModel -> Dict String v -> HorizonModel
-updateHorizonFromData model val =
+updateHorizonFromData : HorizonModel -> List String -> HorizonModel
+updateHorizonFromData model dates =
     let
-        ( min, max ) = formatBoundDates val
+        ( min, max ) = formatBoundDates dates
     in
     { model
         | dataBounds = if min /= ""
@@ -585,8 +585,9 @@ extendHorizonFromData model val =
     then model
     else
         case model.dataBounds of
-            Nothing -> updateHorizonFromData model val
-            Just ( minDate, maxDate ) -> let tsBounds = formatBoundDates val
+            Nothing -> updateHorizonFromData model (Dict.keys val)
+            Just ( minDate, maxDate ) ->
+                let tsBounds = formatBoundDates (Dict.keys val)
                 in
                 { model
                     | dataBounds = Just ( min
@@ -600,10 +601,9 @@ extendHorizonFromData model val =
                 }
 
 
-formatBoundDates : Dict String v -> (String, String)
-formatBoundDates val =
+formatBoundDates : List String -> (String, String)
+formatBoundDates dates =
     let
-        dates = Dict.keys val
         minappdate =
             case dates of
                 head::_ -> U.cleanupdate head

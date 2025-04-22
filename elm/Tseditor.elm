@@ -952,10 +952,9 @@ update msg model =
                                     | series = series
                                     , statistics = statistics
                                     , horizon = updateHorizonFromData
-                                                model.horizon
-                                                indexedval
-                                }
-                            )
+                                                    model.horizon
+                                                    (Dict.keys indexedval)
+                                })
                         ( Just ( 0, 0 ) )
 
                 Err err ->
@@ -968,26 +967,27 @@ update msg model =
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
-            case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
-                Ok val ->
-                    let zoomTs = applyZoom model val in
-                    ( buildCoord
-                          { model
-                              | series = Naked { initialTs = val
-                                               , zoomTs = zoomTs
-                                               }
-                              , horizon = updateHorizonFromData
-                                          model.horizon
-                                          val
-                              , statistics = getStatistics
-                                             model.statistics
-                                             model.allowInferFreq
-                                             val
-                          }
-                    , Cmd.batch [ getComponents model False
-                                , getComponents model True
-                                ]
-                    )
+            case JD.decodeString
+                    (JD.dict (JD.maybe JD.float))
+                    rawdata of
+                Ok val -> let zoomTs = applyZoom model val
+                          in
+                          ( ( buildCoord
+                            { model | series = Naked { initialTs = val
+                                                     , zoomTs = zoomTs }
+                                    , horizon = updateHorizonFromData
+                                                model.horizon
+                                                (Dict.keys val)
+                                    , statistics = getStatistics
+                                                model.statistics
+                                                model.allowInferFreq
+                                                val
+                            }
+                            )
+                          , Cmd.batch [ getComponents model False
+                                    , getComponents model True
+                                    ]
+                          )
                 Err err ->
                     U.nocmd ( addError
                                   { model | horizon = setStatusPlot
@@ -1339,7 +1339,7 @@ update msg model =
                              { model
                                 | horizon = updateHorizonFromData
                                                 model.horizon
-                                                patched
+                                                (Dict.keys patched)
                             }
                     in
                     ( newmodel

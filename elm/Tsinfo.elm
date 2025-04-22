@@ -599,7 +599,9 @@ update msg model =
                     case series of
                         SeriesFloat ts ->
                             U.nocmd { model
-                                        | horizon = updateHorizonFromData model.horizon ts
+                                        | horizon = updateHorizonFromData
+                                                        model.horizon
+                                                        ( Dict.keys ts )
                                         , timeseries = ts
                                         , statistics = getStatistics
                                                 model.statistics
