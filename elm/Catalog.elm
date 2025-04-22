@@ -4,6 +4,7 @@ module Catalog exposing
     , Error
     , buildkinds
     , buildseries
+    , buildseriesfromdesc
     , buildsources
     , catalogdecoder
     , empty
@@ -187,6 +188,10 @@ get urlprefix dtype allsources event =
 
 rawtsdescdecoder =
     D.list S.seriesdecoder
+
+
+buildseriesfromdesc rawdescs =
+    List.map .name rawdescs
 
 
 find urlprefix dtype event query =

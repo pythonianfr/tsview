@@ -121,6 +121,9 @@ testNewCatalogParser =
                 Err _ -> []
                 Ok val -> val
 
+        series =
+            C.buildseriesfromdesc parsed
+
     in Test.concat
         [ test "decodetsdesc" <| \_ ->
               Expect.equal parsed
@@ -183,4 +186,8 @@ testNewCatalogParser =
                 , source = "local"
                 }
               ]
+        , test "buildseriesfromdesc" <| \_ ->
+            Expect.equal series [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                                , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                                ]
         ]
