@@ -3,6 +3,7 @@ module Catalog exposing
     , Msg(..)
     , Error
     , buildkinds
+    , buildkindsfromdesc
     , buildseries
     , buildseriesfromdesc
     , buildsources
@@ -193,6 +194,18 @@ rawtsdescdecoder =
 
 buildseriesfromdesc rawdescs =
     List.map .name rawdescs
+
+
+buildkindsfromdesc rawdescs =
+    let
+        kinds =
+            unique <| List.map .kind rawdescs
+        namesbykind kind =
+            List.map .name <| List.filter (\item -> item.kind == kind) rawdescs
+        makedictentry kind =
+            Tuple.pair kind (Set.fromList (namesbykind kind))
+    in
+    Dict.fromList (List.map makedictentry kinds)
 
 
 buildsourcesfromdesc rawdescs =

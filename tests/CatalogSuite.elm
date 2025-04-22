@@ -127,6 +127,9 @@ testNewCatalogParser =
         sources =
             C.buildsourcesfromdesc parsed
 
+        kinds =
+            C.buildkindsfromdesc parsed
+
     in Test.concat
         [ test "decodetsdesc" <| \_ ->
               Expect.equal parsed
@@ -198,6 +201,17 @@ testNewCatalogParser =
                 Dict.fromList
                     [
                      ( "local"
+                     , Set.fromList
+                         [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                         , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                         ]
+                     )
+                    ]
+        , test "buildkindsfromdesc" <| \_ ->
+            Expect.equal kinds <|
+                Dict.fromList
+                    [
+                     ( "formula"
                      , Set.fromList
                          [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
                          , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
