@@ -1575,10 +1575,14 @@ viewstrseries model ts =
     in
     H.div [ ]
         [ I.viewDatesRange
-              model.lastIdates
-              model.historyDateIndex
-              DebounceChangedHistoryIdate
-              ChangedHistoryIdate
+              model.insertion_dates
+              model.date_index
+              DebounceChangedIdate
+              ChangedIdate
+        , viewWidgetIdates
+              model.historyMode
+              model.insertion_dates
+              model.date_index
         , H.table [ HA.class "table w-auto" ]
               [ H.thead [ ]
                     [ H.tr [ ]
