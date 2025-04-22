@@ -11,6 +11,7 @@ port module Horizon exposing
     , horizonview
     , getFromToDates
     , getFetchBounds
+    , getIdates
     , saveToLocalStorage
     , loadFromLocalStorage
     , localstoragedecoder
@@ -329,6 +330,34 @@ getChoices model convertMsg =
               [ "horizon-choices" ]
               []
         }
+
+
+getIdates: HorizonModel -> String -> ( (Result Http.Error String) -> msg ) -> String -> Cmd msg
+getIdates model dtype callback name =
+    let bounds =
+            getFromToDates model
+        baseQuery =
+            [ UB.string "name" name
+            , UB.int "nocache" <| U.bool2int model.viewNoCache
+            ]
+        boundQuery =
+            case bounds of
+                Nothing ->
+                    []
+                Just ( min, max ) ->
+                    [ UB.string "from_value_date" min
+                    , UB.string "to_value_date" max
+                    ]
+    in
+    Http.get
+        { url =
+              UB.crossOrigin
+              model.baseUrl
+              [ "api", dtype, "insertion_dates" ]
+              ( baseQuery ++ boundQuery )
+        , expect = Http.expectString callback
+        }
+
 
 decodeBounds: D.Decoder Bounds
 decodeBounds =

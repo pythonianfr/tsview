@@ -26,6 +26,7 @@ import Horizon exposing
     , extractValues
     , getFromToDates
     , getFetchBounds
+    , getIdates
     , initHorizon
     , loadFromLocalStorage
     , updateHorizon
@@ -527,7 +528,7 @@ update msg model =
                             }
                         cmd =
                             Cmd.batch <|
-                            [ I.getidates model "series" InsertionDates model.horizon.viewNoCache ]
+                            [ ]
                             ++ if isformula
                                then [ I.getformula
                                           model model.name model.formula_depth
@@ -968,22 +969,33 @@ update msg model =
                     , lastIdates = Array.empty
                     , nbRevisions = 0
                     }
-                launchHistory =
+                loadHistory =
                     [ T.succeed ( HistoryMode model.historyMode )
                     |> T.perform identity
                     ]
+                idates = getIdates
+                            newmodel.horizon
+                            "series"
+                            InsertionDates
+                            model.name
             in
             case hmsg of
                 HorizonModule.Fetch fetch ->
                     case fetch of
                         HorizonModule.GotBounds _ ->
                             ( newmodel
-                            , Cmd.batch [ commands, getplot newmodel ]
+                            , Cmd.batch [ commands
+                                        , getplot newmodel
+                                        , idates
+                                        ]
                             )
 
                         HorizonModule.GetDirectData _ ->
                             ( resetmodel
-                            , Cmd.batch [ commands, getplot newmodel ]
+                            , Cmd.batch [ commands
+                                        , getplot newmodel
+                                        , idates
+                                        ]
                             )
 
                         HorizonModule.Option op ->
@@ -992,17 +1004,16 @@ update msg model =
                                     ( { resetmodel | insertion_dates = Array.empty }
                                     , Cmd.batch ([ commands
                                                  , getplot newmodel
-                                                 , I.getidates newmodel "series" InsertionDates
-                                                     model.horizon.viewNoCache
+                                                 , idates
                                                  ]
-                                                 ++ launchHistory
+                                                 ++ loadHistory
                                                  )
                                     )
                                 _ -> ( resetmodel
                                      , Cmd.batch ([ commands
                                                   , getplot newmodel
                                                   ]
-                                                 ++ launchHistory
+                                                 ++ loadHistory
                                                 )
                                      )
 
