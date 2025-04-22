@@ -1,12 +1,13 @@
 module Queryeditor exposing ( main )
 
 import Array
-import Maybe.Extra as Maybe
-
+import AssocList as Assoc
 import Browser
 import Dict
+import Editor.Type as ET
+import Editor.UI.Widget as Widget
+import Editor.UI.Tree as UITree
 import Either
-import Maybe.Extra as Maybe
 import Filter exposing
     ( FilterNode(..)
     , Value(..)
@@ -17,28 +18,16 @@ import Filter exposing
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
+import HtmlExtra as HEX
 import Http
 import Json.Decode as JD
 import Json.Encode as JE
 import Lisp
+import Maybe.Extra as Maybe
 import Metadata as M
+import Series as S
 import Url.Builder as UB
 import Util as U
-import AssocList as Assoc
-import HtmlExtra as HEX
-
-import Editor.Type as ET
-import Editor.UI.Widget as Widget
-import Editor.UI.Tree as UITree
-
-
-type alias Series =
-    { name : String
-    , imeta : Maybe M.StdMetadata
-    , meta : Maybe M.StdMetadata
-    , source : String
-    , kind : String
-    }
 
 
 type alias BasketFormula =
@@ -61,7 +50,7 @@ type alias Model =
     , creating : Bool
     , newname : String
     -- results
-    , series : List Series
+    , series : List S.Series
     -- editor
     , editorExpanded : Bool
     , editorWidget : Widget.Model
@@ -138,18 +127,9 @@ tryfilter model {node} = Http.get
         [ UB.string "query" <| Lisp.serialize <| serialize node ]
     }
 
-seriesdecoder : JD.Decoder Series
-seriesdecoder =
-    JD.map5 Series
-        (JD.field "name" JD.string)
-        (JD.field "imeta" (JD.succeed Nothing))
-        (JD.field "meta" (JD.succeed Nothing))
-        (JD.field "source" JD.string)
-        (JD.field "kind" JD.string)
-
 
 serieslistdecoder =
-    JD.list seriesdecoder
+    JD.list S.seriesdecoder
 
 
 update : Msg -> Model -> (Model, Cmd Msg)

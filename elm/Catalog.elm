@@ -16,6 +16,7 @@ import Html exposing (Html, div, text, span)
 import Http
 import Json.Decode as D
 import List.Extra exposing (unique)
+import Series as S
 import Set exposing (Set)
 import Url.Builder as UB
 import Util as U
@@ -174,3 +175,22 @@ get urlprefix dtype allsources event =
                 [ "api", dtype, "catalog" ]
                 [ UB.int "allsources" allsources ]
         }
+
+-- another way
+
+type alias DescriptorsCatalog =
+    List S.Series
+
+
+find urlprefix dtype event query =
+    Http.get
+        { expect = Http.expectString event
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", dtype, "find" ]
+                [ UB.string "query" query ]
+        }
+
+
+findall urlprefix dtype event =
+    find urlprefix dtype event "(by.everything)"
