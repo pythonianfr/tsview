@@ -4,7 +4,7 @@ import Browser
 import Catalog as Cat
 import Catalog exposing (Msg(..))
 import Debouncer.Messages as Debouncer exposing
-    (Debouncer
+    ( Debouncer
     , fromSeconds
     , provideInput
     , settleWhenQuietFor

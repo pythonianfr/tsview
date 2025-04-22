@@ -1,7 +1,8 @@
 module Catalog exposing
-    (Model
+    ( Model
     , Msg(..)
     , Error
+    , catalogdecoder
     , empty
     , viewError
     , get
@@ -157,14 +158,16 @@ removeSeries name catalog =
 
 -- catalog fetching
 
-decodetuple =
+tupledecoder =
     D.map2 Tuple.pair
         (D.index 0 D.string)
         (D.index 1 D.string)
 
+catalogdecoder =
+    D.dict (D.list tupledecoder)
 
 decodecatalog rawcat =
-    D.decodeString (D.dict (D.list decodetuple)) rawcat
+    D.decodeString (catalogdecoder) rawcat
 
 
 get urlprefix dtype allsources event =
