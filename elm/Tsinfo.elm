@@ -50,12 +50,15 @@ import Metadata as M
 import Metadata exposing ( Metadata )
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultDateAxis
-    , defaultValueAxis
+    ( defaultConfigOptions
+    , defaultDateAxis
     , defaultLayoutOptions
     , defaultTraceOptions
+    , defaultValueAxis
     , getdata
+    , scatterplot
     , seriesdecoder
+    , serializedPlotArgs
     )
 import Process as P
 import StatInfos as ModuleStatInfos
@@ -1412,6 +1415,45 @@ historyInput model =
     else H.div [] []
 
 
+plotString: Model -> Dict String String -> H.Html Msg
+plotString model ts =
+    let pseudoTs = Dict.map
+                    (\ _ v -> if v /= ""
+                                then Just 1
+                                else Just 0
+                    )
+                    ts
+    in
+     H.div
+     []
+     [ H.div [ HA.id "plot" ] [ ]
+     , H.node "plot-figure"
+            [ HA.attribute
+                "args"
+                ( serializedPlotArgs
+                     "plot"
+                    ( [ scatterplot
+                        "Series String"
+                        (Dict.keys pseudoTs)
+                        (Dict.values pseudoTs)
+                        "markers"
+                        defaultTraceOptions
+                      ]
+                    )
+                    { defaultLayoutOptions |
+                        xaxis = { defaultDateAxis
+                              | range = extractDates model.horizon.zoomBounds
+                          }
+                        , dragMode = Just ( if model.panActive then "pan" else "zoom" )
+                        , height = Just 200
+                    }
+                    defaultConfigOptions
+                )
+            ]
+            [ ]
+    ]
+
+
 viewplot : Model -> Dict String (Maybe Float) -> H.Html Msg
 viewplot model ts =
     if model.wipe
@@ -1568,9 +1610,9 @@ viewstrseries model ts =
                 [ H.td [ ] [ H.text stamp ]
                 , H.td [ ] [ H.text value ]
                 ]
-
+        restricted = applyZoom ts model.horizon.zoomBounds
         showseries =
-            List.map tsrow <| Dict.toList ts
+            List.map tsrow <| Dict.toList restricted
 
     in
     H.div [ ]
@@ -1583,6 +1625,7 @@ viewstrseries model ts =
               model.historyMode
               model.insertion_dates
               model.date_index
+        , plotString model ts
         , H.table [ HA.class "table w-auto" ]
               [ H.thead [ ]
                     [ H.tr [ ]
