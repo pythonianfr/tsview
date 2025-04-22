@@ -4,6 +4,7 @@ module Catalog exposing
     , Error
     , buildkinds
     , buildseries
+    , buildsources
     , catalogdecoder
     , empty
     , viewError

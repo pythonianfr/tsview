@@ -41,6 +41,9 @@ testCatalogParser =
 
         kinds =
             C.buildkinds parsed
+
+        sources =
+            C.buildsources parsed
    in
    Test.concat
        [ test "decodecat" <| \_ ->
@@ -56,6 +59,15 @@ testCatalogParser =
                             Set.fromList [ "meteo.area.at.10u.m.s-1.era5.obs.h"
                                          , "meteo.area.at.10u.m.s-1.hres.ecmwf.fcst.3-6h"
                                          ]
+                      )
+                     ]
+       , test "buildsources" <| \_ ->
+             Expect.equal kinds <|
+                 Dict.fromList [
+                      ( "primary"
+                      , Set.fromList [ "meteo.area.at.10u.m.s-1.era5.obs.h"
+                                     , "meteo.area.at.10u.m.s-1.hres.ecmwf.fcst.3-6h"
+                                     ]
                       )
                      ]
        ]
