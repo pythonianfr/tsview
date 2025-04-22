@@ -101,11 +101,10 @@ type alias Model =
     , meta : M.Metadata
     , usermeta : M.Metadata
     , seriestype : I.SeriesType
-    , timeseries: Dict String ( Maybe Float )
+    , timeseries: TimeSeries
     , statistics: StatInfos
     , allowInferFreq: Bool
     , roundStat: Int
-    , stringseries: Dict String String
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -253,6 +252,7 @@ type Position
 type TimeSeries
     = SeriesFloat (Dict String ( Maybe Float ))
     | SeriesString (Dict String String)
+
 
 type alias DataFromHover =
     { name : String
@@ -507,6 +507,9 @@ update msg model =
                             { model
                                 | meta = allmeta
                                 , tzaware = (M.dget "tzaware" allmeta) == "true"
+                                , timeseries =  if strseries allmeta
+                                                    then SeriesString Dict.empty
+                                                    else SeriesFloat Dict.empty
                                 , seriestype = if isformula then I.Formula else I.Primary
                                 , statistics = updateFirstLast
                                                     model.statistics
@@ -596,25 +599,28 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case decodeAndType rawdata of
                 Ok series ->
-                    case series of
-                        SeriesFloat ts ->
-                            U.nocmd { model
+                    let newmodel = { model
                                         | horizon = updateHorizonFromData
                                                         model.horizon
-                                                        ( Dict.keys ts )
-                                        , timeseries = ts
-                                        , statistics = getStatistics
+                                                        (getDates series)
+                                        , timeseries = series
+                                }
+                    in
+                    case series of
+                        SeriesFloat ts ->
+                            U.nocmd { newmodel |
+                                         statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
                                                 ts
-                                        }
+                                     }
                         SeriesString ts ->
-                            U.nocmd { model | stringseries = ts }
+                            U.nocmd newmodel
 
                 Err (errFloat, errString) -> U.nocmd <|
                             addError
                             { model | horizon = setStatusPlot model.horizon Failure }
-                            "gotplotdata decode"
+                            "decode and type"
                             <| ( D.errorToString errFloat ) ++ ( D.errorToString errString )
 
         GotPlotData (Err err) ->
@@ -637,16 +643,19 @@ update msg model =
                      ( U.unwraperror err )
 
         StatInfos sMsg ->
-            case sMsg of
-                AllowInferFreq ->
-                    ({ model | allowInferFreq = True
-                             , statistics = getStatistics
-                                                model.statistics
-                                                True
-                                                model.timeseries
-                     }
-                    , Cmd.none
-                    )
+            case model.timeseries of
+                SeriesString _ -> U.nocmd model
+                SeriesFloat ts ->
+                    case sMsg of
+                        AllowInferFreq ->
+                            ({ model | allowInferFreq = True
+                                     , statistics = getStatistics
+                                                        model.statistics
+                                                        True
+                                                        ts
+                             }
+                            , Cmd.none
+                            )
 
         GotFormula (Ok rawformula) ->
             case D.decodeString I.formuladecoder rawformula of
@@ -1064,19 +1073,26 @@ update msg model =
                         in ( newmodel, getsomeidates newmodel )
 
             else
-                U.nocmd { model
-                            | horizon =
-                              { horizonmodel
-                                  | zoomBounds = newZoom.x
-                                  , zoomY = newZoom.y
-                              }
-                            , statistics = getStatistics
+                let newmodel = { model
+                                | horizon =
+                                  { horizonmodel
+                                      | zoomBounds = newZoom.x
+                                      , zoomY = newZoom.y
+                                  }
+                               }
+                in
+                case model.timeseries of
+                    SeriesString _ -> U.nocmd newmodel
+                    SeriesFloat ts ->
+                        U.nocmd
+                            { newmodel |
+                                statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
                                                 <| applyZoom
-                                                    model.timeseries
+                                                    ts
                                                     newZoom.x
-                        }
+                            }
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -1204,6 +1220,14 @@ lastDates dates max =
         List.reverse ( List.take max ( List.reverse dates ))
      else
         dates
+
+
+getDates: TimeSeries -> List String
+getDates series =
+    case series of
+        SeriesFloat ts -> Dict.keys ts
+        SeriesString ts -> Dict.keys ts
+
 
 applyZoom: Dict String a ->  Maybe (String, String) -> Dict String a
 applyZoom series bounds =
@@ -1388,15 +1412,12 @@ historyInput model =
     else H.div [] []
 
 
-viewplot : Model -> H.Html Msg
-viewplot model =
+viewplot : Model -> Dict String (Maybe Float) -> H.Html Msg
+viewplot model ts =
     if model.wipe
     then H.div [] []
     else
     let
-        ts =
-            model.timeseries
-
         defaultLayout =
             { defaultLayoutOptions
                 | xaxis = { defaultDateAxis
@@ -1540,11 +1561,8 @@ showHoverData model =
          Just data -> H.text ( "Hover-data, name : " ++ data.name )
 
 
-viewstrseries model =
+viewstrseries model ts =
     let
-        ts =
-            model.stringseries
-
         tsrow (stamp, value) =
             H.tr [ ]
                 [ H.td [ ] [ H.text stamp ]
@@ -1616,25 +1634,25 @@ view model =
             SaveMeta
             AddMetaItem
 
-        maybeMedian = Nothing
-            -- medianValue (Dict.keys model.horizon.timeSeries)
-
         viewtabs =
             [ case model.activetab of
                   Plot ->
-                      if strseries model.meta
-                      then H.div []
-                          [ head
-                          , tabcontents
-                                [ viewstrseries model ]
-                          ]
-                      else H.div []
-                          [ head
-                          , tabcontents
-                                [ viewplot model
-                                , I.viewformula model SwitchLevel
-                                ]
-                          ]
+                      case model.timeseries of
+                          SeriesString ts ->
+                            H.div []
+                              [ head
+                              , tabcontents
+                                    [ viewstrseries model ts ]
+                              ]
+                          SeriesFloat ts ->
+                            H.div
+                              [ ]
+                              [ head
+                              , tabcontents
+                                    [ viewplot model ts
+                                    , I.viewformula model SwitchLevel
+                                    ]
+                              ]
 
                   Metadata ->
                       H.div
@@ -1726,11 +1744,10 @@ init input =
       , meta = Dict.empty
       , usermeta = Dict.empty
       , seriestype = I.Primary
-      , timeseries = Dict.empty
+      , timeseries = SeriesFloat Dict.empty
       , statistics = emptyStat
       , allowInferFreq = False
       , roundStat= 2
-      , stringseries = Dict.empty
       -- formula
       , formula_depth = 0
       , formula_maxdepth = 0
