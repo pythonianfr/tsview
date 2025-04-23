@@ -5,10 +5,11 @@ import Catalog as Cat exposing (Msg(..))
 import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
-import Set exposing (Set)
 import Http
-
 import Icons exposing (Icon, buildSvg, getIcons)
+import Set exposing (Set)
+import Util as U
+
 
 type Status
     = Processing
@@ -24,7 +25,7 @@ type alias Model =
     , version : String
     , status : MultiStatus
     , catalog : Cat.Model
-    , icones : Dict String Icon
+    , icons : Dict String Icon
     }
 
 
@@ -33,25 +34,27 @@ type Msg
     | GotIcons (Result Http.Error (Dict String Icon))
 
 
-nocmd model =
-    ( model, Cmd.none )
-
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotCatalog catmsg ->
-            nocmd { model | catalog = Cat.update catmsg model.catalog }
-        GotIcons (Ok content) -> nocmd { model | icones = content }
-        GotIcons (Err error) -> nocmd model
+            U.nocmd { model | catalog = Cat.update catmsg model.catalog }
+
+        GotIcons (Ok content) ->
+            U.nocmd { model | icons = content }
+
+        GotIcons (Err error)
+            -> U.nocmd model
+
 
 getSeriesNumberOf model seriestype =
     String.fromInt
         (List.length
             (Set.toList
-                (Maybe.withDefault
-                    Set.empty
-                    (Dict.get seriestype model.catalog.seriesbykind))))
+                (Maybe.withDefault Set.empty
+                     (Dict.get seriestype model.catalog.seriesbykind))))
+
 
 buildDetailsDiv : Model -> H.Html Msg
 buildDetailsDiv model =
@@ -64,7 +67,8 @@ buildDetailsDiv model =
                 [ H.text model.instance ]
             , H.text " refinery"
             ]
-        , H.img [ HA.src ("https://img.shields.io/badge/refinery-" ++ model.version ++ "-35845F") ] []
+        , H.img [ HA.src ("https://img.shields.io/badge/refinery-" ++ model.version ++ "-35845F") ]
+            []
         , H.br [] []
         , H.p [] [ H.text "From here, you can access :" ]
         , H.ul []
@@ -72,7 +76,8 @@ buildDetailsDiv model =
                 []
                 [ H.a
                     [ HA.href "/tssearch" ]
-                    [ H.text (String.fromInt (List.length model.catalog.series) ++ " Series") ]]
+                    [ H.text (String.fromInt (List.length model.catalog.series) ++ " Series") ]
+                ]
             , H.p
                 []
                 [ H.text (" ↳ " ++ (getSeriesNumberOf model "primary") ++ " Primaries") ]
@@ -80,7 +85,9 @@ buildDetailsDiv model =
                 []
                 [ H.text (" ↳ " ++ (getSeriesNumberOf model "formula") ++ " Formulas") ]
             ]
-        , H.p [ HA.hidden (Dict.keys model.catalog.seriesbysource == []) ] [ H.text "Sources :" ]
+        , H.p
+            [ HA.hidden (Dict.keys model.catalog.seriesbysource == []) ]
+            [ H.text "Sources :" ]
         , H.p []
             [ H.text (String.join " / " (Dict.keys model.catalog.seriesbysource)) ]
         ]
@@ -94,32 +101,32 @@ buildLinksDiv model =
             [ HA.class "homepage-button"
             , HA.class "apibutton"
             , HA.target "_blank"
-            , HA.href (model.baseUrl ++ "/api") ]
+            , HA.href (model.baseUrl ++ "/api")
+            ]
             [ H.img [ HA.src "./tsview_static/arrow_outward.png" ] []
-            , H.text "API" ]
+            , H.text "API"
+            ]
         , H.br [] []
         , H.a
             [ HA.class "homepage-button"
             , HA.class "greenbutton"
             , HA.target "_blank"
-            , HA.href "https://refinery.docs.pythonian.fr" ]
+            , HA.href "https://refinery.docs.pythonian.fr"
+            ]
             [ H.text "documentation" ]
         , H.br [] []
         , H.a
             [ HA.class "homepage-button"
             , HA.class "redbutton"
             , HA.target "_blank"
-            , HA.href "mailto: contact@pythonian.fr" ]
+            , HA.href "mailto: contact@pythonian.fr"
+            ]
             [ H.text "Contact Pythonian" ]
         ]
 
 
 buildGetStartedDiv : Model -> H.Html Msg
 buildGetStartedDiv model =
-    let
-        icons =
-            model.icones
-    in
     H.div
         [ HA.id "homepage-getstarted" ]
         [ H.p
@@ -131,7 +138,7 @@ buildGetStartedDiv model =
             [ H.div [ HA.class "homepage-card card1" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg icons "bi bi-download" ]
+                    [ buildSvg model.icons "bi bi-download" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -147,7 +154,9 @@ buildGetStartedDiv model =
                         [ HA.class "homepage-card-text" ]
                         [ H.text
                             "To facilitate imports, a python client is available as well as an excel client plugin. "
-                        , H.a [ HA.href "mailto: contact@pythonian.fr" ] [ H.text "Contact Pythonian" ]
+                        , H.a
+                            [ HA.href "mailto: contact@pythonian.fr" ]
+                            [ H.text "Contact Pythonian" ]
                         , H.text
                             " to have access to tutorials."
                         ]
@@ -155,14 +164,16 @@ buildGetStartedDiv model =
                         [ HA.class "homepage-card-text" ]
                         [ H.text
                             "If tasks have been constructed to import data (scraping open data on the internet, csv files to be ingested…), go to the "
-                        , H.a [ HA.href (model.baseUrl ++ "/tasks") ] [ H.text "task launcher." ]
+                        , H.a
+                            [ HA.href (model.baseUrl ++ "/tasks") ]
+                            [ H.text "task launcher." ]
                         ]
                     ]
                 ]
             , H.div [ HA.class "homepage-card card2" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg icons "bi bi-speedometer" ]
+                    [ buildSvg model.icons "bi bi-speedometer" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -171,7 +182,9 @@ buildGetStartedDiv model =
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
                             "To have the complete list of the data available in this refinery, go to the "
-                        , H.a [ HA.href (model.baseUrl ++ "/tssearch") ] [ H.text "catalog." ]
+                        , H.a
+                            [ HA.href (model.baseUrl ++ "/tssearch") ]
+                            [ H.text "catalog." ]
                         ]
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
@@ -187,7 +200,7 @@ buildGetStartedDiv model =
             , H.div [ HA.class "homepage-card card3" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg icons "bi bi-tools" ]
+                    [ buildSvg model.icons "bi bi-tools" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -211,14 +224,16 @@ buildGetStartedDiv model =
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
                             "If a monster formulas has been constructed (with hundreds of dependencies…), don’t hesitate to setup a "
-                        , H.a [ HA.href (model.baseUrl ++ "/formulacache") ] [ H.text "cache policy!" ]
+                        , H.a
+                            [ HA.href (model.baseUrl ++ "/formulacache") ]
+                            [ H.text "cache policy!" ]
                         ]
                     ]
                 ]
             , H.div [ HA.class "homepage-card card4" ]
                 [ H.div
                     [ HA.class "homepage-card-img-top" ]
-                    [ buildSvg icons "bi bi-heart-pulse" ]
+                    [ buildSvg model.icons "bi bi-heart-pulse" ]
                 , H.br [] []
                 , H.div
                     [ HA.class "homepage-card-body" ]
@@ -266,7 +281,9 @@ view model =
                 , buildGetStartedDiv model
                 , H.div
                     [ HA.id "homepage-footer" ]
-                    [ H.img [ HA.class "pythonian-logo", HA.src "./tsview_static/logo-pythonian.png" ] [] ]
+                    [ H.img [ HA.class "pythonian-logo"
+                            , HA.src "./tsview_static/logo-pythonian.png"
+                            ] [] ]
                 ]
             ]
         ]
@@ -283,7 +300,7 @@ initModel baseurl instance version =
     , version = version
     , status = { catalog = Processing }
     , catalog = Cat.empty
-    , icones = Dict.empty
+    , icons = Dict.empty
     }
 
 
@@ -292,7 +309,8 @@ init ( baseurl, instance, version ) =
     ( initModel baseurl instance version
     , Cmd.batch
         [ Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
-        , getIcons baseurl ( \ returnHttp ->  GotIcons returnHttp )]
+        , getIcons baseurl ( \ returnHttp ->  GotIcons returnHttp )
+        ]
     )
 
 
