@@ -34,7 +34,6 @@ type Atom
     | Float Float
     | Int Int
     | Bool Bool
-    | Nil
 
 
 type Expr
@@ -107,16 +106,10 @@ boolparser =
         ]
 
 
-nilparser : Parser ()
-nilparser =
-    Parser.keyword "nil"
-
-
 atomparser : Parser Atom
 atomparser =
     Parser.oneOf
-        [ Parser.succeed Nil |. Parser.keyword "nil"
-        , Parser.map Bool boolparser
+        [ Parser.map Bool boolparser
         , Parser.map Keyword keywordparser
         , Parser.map Symbol symbolparser
         , Parser.map String stringparser
@@ -179,8 +172,6 @@ width formula =
                     String.length <| String.fromInt int
                 Bool bo ->
                     2
-                Nil ->
-                    3
 
         Expression expr ->
             1 + (List.length expr) + (List.sum <| List.map width expr)
@@ -204,8 +195,6 @@ serialize lisp =
                     String.fromInt int
                 Bool bo ->
                     if bo then "#t" else "#f"
-                Nil ->
-                    "nil"
 
         Expression expr ->
             "(" ++ (String.join " " <| List.map serialize expr) ++ ")"
@@ -343,8 +332,6 @@ viewatom overrides indent atomorexpr =
                     [ H.span [ HA.class "mf" ] [ H.text <| String.fromInt int ] ]
                 Bool bool ->
                     [ H.span [ HA.class "mv" ] [ H.text <| if bool then "#t" else "#f"  ] ]
-                Nil ->
-                    [ H.span [ HA.class "mv" ] [ H.text "nil" ] ]
 
 
 -- errors basic decoder

@@ -62,7 +62,7 @@ testLispParser =
         run9 =
             \_ -> Expect.equal
                   (parse "(foo nil)")
-                  (Ok <| Expression [ Atom <| Symbol "foo", Atom <| Nil ])
+                  (Ok <| Expression [ Atom <| Symbol "foo", Atom <| Symbol "nil" ])
         run10 =
             \_ -> Expect.equal
                   (parse "(#t #f)")
