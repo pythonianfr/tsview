@@ -218,4 +218,29 @@ testNewCatalogParser =
                          ]
                      )
                     ]
+        , test "modelfromdesc" <| \_ ->
+            Expect.equal
+                (C.newseriesfromdesc C.empty parsed)
+                { errors = []
+                , groups = []
+                , groupsbykind = Dict.empty
+                , groupsbysource = Dict.empty
+                , series = [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                           , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                           ]
+                , seriesbykind =
+                    Dict.fromList
+                        [ ( "formula"
+                          , Set.fromList [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                                         , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                                         ]
+                          )]
+                , seriesbysource =
+                    Dict.fromList
+                        [ ( "local"
+                          , Set.fromList [ "meteo.area.de_lu.hdd-cumsum.deg.era5.obs.d"
+                                         , "meteo.area.fr.hdd-cumsum.deg.era5.obs.d"
+                                         ]
+                          )]
+                }
         ]

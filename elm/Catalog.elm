@@ -13,6 +13,7 @@ module Catalog exposing
     , viewError
     , get
     , newseries
+    , newseriesfromdesc
     , update
     , rawtsdescdecoder
     , removeSeries
@@ -218,6 +219,14 @@ buildsourcesfromdesc rawdescs =
             Tuple.pair source (Set.fromList (namesbysource source))
     in
     Dict.fromList (List.map makedictentry sources)
+
+
+newseriesfromdesc model raw =
+    { model
+          | series = (buildseriesfromdesc raw)
+          , seriesbysource = (buildsourcesfromdesc raw)
+          , seriesbykind = (buildkindsfromdesc raw)
+    }
 
 
 find urlprefix dtype event query =
