@@ -794,11 +794,13 @@ update msg model =
                 Next -> U.nocmd { model |
                     historyDateIndex = ( model.historyDateIndex + 1 )}
             else
-            case direction of
-                Prev -> U.nocmd { model |
-                    date_index = ( model.date_index - 1 )}
-                Next -> U.nocmd { model |
-                    date_index = ( model.date_index + 1 )}
+            let newM = case direction of
+                        Prev -> { model |
+                            date_index = ( model.date_index - 1 )}
+                        Next -> { model |
+                            date_index = ( model.date_index + 1 )}
+            in
+                ( newM, getplot newM )
 
         IdatePickerChanged value ->
             let
@@ -1355,8 +1357,8 @@ maybeDate idates idx =
         Nothing -> ( "", False )
 
 
-viewWidgetIdates: Bool -> Array String -> Int -> H.Html Msg
-viewWidgetIdates history idates index =
+viewWidgetIdates: Bool -> Array String -> Int -> (Bool -> Direction -> Msg) -> H.Html Msg
+viewWidgetIdates history idates index msg =
     let
         idate =
             Maybe.withDefault ""
@@ -1376,7 +1378,7 @@ viewWidgetIdates history idates index =
              , HA.title "previous date"
              ] ++ ( if pactive
                     then [ HA.class "idate-exists"
-                         , HE.onClick ( IterIDate history Prev )
+                         , HE.onClick ( msg history Prev )
                          ]
                     else []
                   )
@@ -1392,7 +1394,7 @@ viewWidgetIdates history idates index =
              , HA.title "next date"
              ] ++ ( if nactive
                     then [ HA.class "idate-exists"
-                         , HE.onClick ( IterIDate history Next ) ]
+                         , HE.onClick ( msg history Next ) ]
                     else []
                   )
             )
@@ -1533,6 +1535,7 @@ viewplot model ts =
                 model.historyMode
                 model.lastIdates
                 model.historyDateIndex
+                IterIDate
             , I.viewHistoryGraph model
             , if Array.isEmpty model.lastIdates then
                   H.div
@@ -1567,6 +1570,7 @@ viewplot model ts =
                 model.historyMode
                 model.insertion_dates
                 model.date_index
+                IterIDate
             , H.div
                 [ HA.class "under-the-header"]
                 [ H.div
@@ -1636,6 +1640,7 @@ viewstrseries model ts =
               model.historyMode
               model.insertion_dates
               model.date_index
+              IterIDate
         , plotString model ts
         , H.table [ HA.class "table w-auto" ]
               [ H.thead [ ]
