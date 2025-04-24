@@ -285,6 +285,7 @@ def tsview(tsa):
         if not has_roles('admin', 'rw', 'ro'):
             return 'Nothing to see there.'
 
+        # this (sorted types) should be done in tshistory_formula
         return json.dumps(
             sorted(
                 [
