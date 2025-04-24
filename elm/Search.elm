@@ -1,8 +1,6 @@
 module Search exposing (main)
 
 import Browser
-import Catalog as Cat
-import Catalog exposing (Msg(..))
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
@@ -11,6 +9,9 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
+import Finder as F
+import Finder exposing
+    ( Msg(..) )
 import Html as H
 import Html.Attributes as A
 import Html.Events as HE
@@ -18,6 +19,7 @@ import Html.Keyed as K
 import Html.Lazy as L
 import Http
 import Json.Decode as D
+import Lisp as L
 import List.Extra as LE
 import Metadata as M
 import Set exposing (Set)
@@ -33,20 +35,11 @@ type alias Model =
     { baseurl : String
     , mode : Mode
     -- base catalog elements
-    , catalog : Cat.Model
-    , seriesmetadata : Dict String (Dict String M.MetaVal)
-    , seriesformula : Dict String String
-    , groupsmetadata : Dict String (Dict String M.MetaVal)
-    , groupsformula : Dict String String
-    -- filtered items
-    , filteredseries : List String
-    , filteredgroups : List String
+    , sources : List String
+    , catalog : F.Model
     -- filter state (series)
-    , selectedserieskinds : List String
-    , selectedseriessources : List String
-    -- filter state (series)
-    , selectedgroupskinds : List String
-    , selectedgroupssources : List String
+    , selectedkinds : List String
+    , selectedsources : List String
     -- filter state (all)
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
@@ -61,11 +54,8 @@ type alias Model =
 
 
 type Msg
-    = GotCatalog Cat.Msg
-    | GotSeriesMeta (Result Http.Error String)
-    | GotGroupsMeta (Result Http.Error String)
-    | GotAllSeriesFormula (Result Http.Error String)
-    | GotAllGroupsFormula (Result Http.Error String)
+    = GotSources (Result Http.Error String)
+    | GotItemsDesc F.Msg
     | NameFilter String
     | FormulaFilter String
     | KindUpdated String
@@ -83,30 +73,18 @@ type Msg
     | Tzaware String
 
 
-getmeta baseurl dtype event =
+getsources baseurl =
     Http.get
         { expect =
-              Http.expectString event
+              Http.expectString GotSources
         , url =
             UB.crossOrigin baseurl
-                [ if dtype == "series" then "tssearch" else "groupsearch"
-                , "allmetadata"
-                ] []
+                [ "api", "global", "properties" ]
+                [ UB.string "property" "sources" ]
         }
 
-
-decodemeta allmeta =
-    let
-        all = D.dict (D.dict M.decodemetaval)
-    in
-    D.decodeString all allmeta
-
-
-decodeformulae allformula =
-    let
-        all = D.dict D.string
-    in
-    D.decodeString all allformula
+sourcesdecoder =
+    D.list D.string
 
 
 insert list item =
@@ -119,184 +97,75 @@ remove list item =
 
 -- filters
 
-nullfilter model =
-        { model
-            | filteredseries = List.sort model.catalog.series
-            , filteredgroups = List.sort model.catalog.groups
-        }
-
-
-namefilter model =
-    case model.filterbyname of
-        Nothing -> model
-        Just match ->
-            { model
-                | filteredseries = List.filter (U.fragmentsmatcher match) model.filteredseries
-                , filteredgroups = List.filter (U.fragmentsmatcher match) model.filteredgroups
-            }
-
-
-formulafilter model =
-    case model.filterbyformula of
-        Nothing -> model
-        Just match ->
-            { model
-                | filteredseries = U.filterbyformula model.seriesformula model.filteredseries match
-                ,  filteredgroups = U.filterbyformula model.groupsformula model.filteredgroups match
-            }
-
-
-catalogfilter data authority keys =
-    if keys == Dict.keys authority then data else
+query model =
     let
-        dataforkey key =
-                Set.toList
-                    <| Maybe.withDefault Set.empty
-                    <| Dict.get key authority
-        alldata =
-            Set.fromList <| List.concat <| List.map dataforkey keys
-    in
-    List.filter (\item -> (Set.member item alldata)) data
+        quote = String.fromChar '"'
+
+        bykinds =
+            case model.selectedkinds of
+                [ "primary" ] ->  [ "(by.not (by.formula))" ]
+                [ "formula" ] -> [ "(by.formula)" ]
+                [] -> [ "(by.formula)",  "(by.not (by.formula))" ] -- yeah :p
+                _ -> []
+
+        byname =
+            case model.filterbyname of
+                Nothing -> []
+                Just fragment -> [ "(by.name " ++ quote ++ fragment ++ quote ++ ")" ]
+
+        byformula =
+            case model.filterbyformula of
+                Nothing -> []
+                Just fragment -> [ "(by.formulacontents " ++ quote ++ fragment ++ quote ++ ")" ]
+
+        bytzaware =
+            case model.tzaware of
+                "true" -> [ "(by.tzaware)" ]
+                "false" -> [ "(by.not (by.tzaware))" ]
+                _ -> []
+
+        filterfrommeta (key, value) =
+            case value of
+                "" ->
+                    "(by.metakey " ++ quote ++ key ++ quote ++ ")"
+
+                _ ->
+                    "(by.metaitem " ++
+                        quote ++ key ++ quote ++ " " ++
+                        quote ++ value ++ quote ++ ")"
+
+        bymeta =
+            List.map filterfrommeta <| Dict.values model.filterbymeta
+
+        together =
+            List.concat [ bykinds, byname, byformula, bytzaware, bymeta ]
+
+        expr =
+            case List.length together of
+                0 -> "(by.everything))"
+                1 -> String.join " " together
+                _ -> "(by.and " ++ (String.join " " together) ++ ")"
+
+    in expr
 
 
-sourcefilter model =
-    { model
-        | filteredseries = catalogfilter
-                           model.filteredseries
-                           model.catalog.seriesbysource
-                           model.selectedseriessources
-        , filteredgroups = catalogfilter
-                           model.filteredgroups
-                           model.catalog.groupsbysource
-                           model.selectedgroupssources
-    }
-
-
-kindfilter model =
-    { model
-        | filteredseries = catalogfilter
-                           model.filteredseries
-                           model.catalog.seriesbykind
-                           model.selectedserieskinds
-        , filteredgroups = catalogfilter
-                           model.filteredgroups
-                           model.catalog.groupsbykind
-                           model.selectedgroupskinds
-    }
-
-
-lower str =
-    String.toLower str
-
-
-filternothing list =
-    List.filterMap identity list
-
-
-metafilter model =
+doquery model =
     let
-        filterbymeta = List.filter
-                (\data -> data /= ("", ""))
-                (Dict.values model.filterbymeta)
+        cmd =
+            case model.mode of
+                Series ->
+                    Cmd.map GotItemsDesc <|
+                        F.find model.baseurl "series" F.ReceivedSeries
+                            (query model) model.selectedsources
+                Groups ->
+                    Cmd.map GotItemsDesc <|
+                        F.find model.baseurl "group" F.ReceivedGroups
+                            (query model) model.selectedsources
     in
-    if List.length filterbymeta == 0 then model else
-        let
-            lowerkeys metadict =
-                List.map lower <| Dict.keys metadict
+    ( model
+    , cmd
+    )
 
-            lowervalue =
-                M.metavaltostring >> lower
-
-            lowervalues metadict =
-                List.map lowervalue <| Dict.values metadict
-
-            matchkeys key metadict =
-                let lkey = lower key in
-                List.any (\x -> String.contains lkey x) <| lowerkeys metadict
-
-            matchvalue val metaval =
-                String.contains val metaval
-
-            matchvalues value meta =
-                let lvalue = lower value in
-                List.any (matchvalue lvalue) <| lowervalues meta
-
-            matchkeyvalue key val meta =
-                let
-                    dval = Dict.get key meta
-                in
-                case dval of
-                    Nothing ->
-                        False
-                    Just aval ->
-                        (lowervalue aval) == (String.toLower val)
-
-            match meta query =
-                case query of
-                    (key, "") ->
-                        matchkeys key meta
-
-                    ("", value) ->
-                        matchvalues value meta
-
-                    (key, value) ->
-                        matchkeyvalue key value meta
-
-            metadata =
-                case model.mode of
-                    Series -> model.seriesmetadata
-                    Groups -> model.groupsmetadata
-
-            bymeta name =
-                case Dict.get name metadata of
-                    Nothing -> False
-                    Just meta ->
-                        List.all (match meta) filterbymeta
-        in
-        case model.mode of
-            Series ->
-                { model | filteredseries = List.filter bymeta model.filteredseries }
-            Groups ->
-                { model | filteredgroups = List.filter bymeta model.filteredgroups }
-
-
-tzawarefilter : Model -> Model
-tzawarefilter model =
-    if model.tzaware == "any" then model else
-        let
-            metadata =
-                case model.mode of
-                    Series -> model.seriesmetadata
-                    Groups -> model.groupsmetadata
-
-            tzaware tsmeta =
-                case Dict.get "tzaware" tsmeta of
-                    Nothing -> False
-                    Just val ->
-                        model.tzaware == (M.metavaltostring val)
-
-            meta name =
-                case Dict.get name metadata of
-                    Nothing ->
-                        tzaware Dict.empty -- unlikely path
-                    Just val ->
-                        tzaware val
-        in
-        case model.mode of
-            Series ->
-                { model | filteredseries = List.filter meta model.filteredseries }
-            Groups ->
-                { model | filteredgroups = List.filter meta model.filteredgroups }
-
-
-allfilters model =
-    model |> nullfilter
-             >> sourcefilter
-             >> kindfilter
-             >> namefilter
-             >> formulafilter
-             >> metafilter
-             >> tzawarefilter
 
 -- debouncing
 
@@ -317,171 +186,140 @@ updatedformulafilterbouncer =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotCatalog catmsg ->
+        GotSources (Ok rawsources) ->
+            case D.decodeString sourcesdecoder rawsources of
+                Ok sources ->
+                    let
+                        allsources =
+                            List.concat [ [ "local" ], sources ]
+                    in
+                    U.nocmd { model
+                                | sources = allsources
+                                , selectedsources = allsources
+                            }
+
+                Err err ->
+                    U.nocmd model
+
+        GotSources (Err err) ->
+            U.nocmd model
+
+        GotItemsDesc rawdesc ->
             let
-                cat = Cat.update catmsg model.catalog
-                m2 = { model | catalog = cat }
-                ( newmodel, cmds ) = case catmsg of
-                  ReceivedSeries _ ->
-                      ( { m2
-                            | filteredseries = cat.series
-                            , selectedserieskinds = Dict.keys cat.seriesbykind
-                            , selectedseriessources = Dict.keys cat.seriesbysource
-                        }
-                      , [ getmeta model.baseurl "series" GotSeriesMeta
-                        , U.getformulas model.baseurl "series" GotAllSeriesFormula
-                        ]
-                      )
-                  ReceivedGroups _ ->
-                      ( { m2
-                          | filteredgroups = cat.groups
-                          , selectedgroupskinds = Dict.keys cat.groupsbykind
-                          , selectedgroupssources = Dict.keys cat.groupsbysource
-                        }
-                      , [ getmeta model.baseurl "groups" GotGroupsMeta
-                        , U.getformulas model.baseurl "groups" GotAllGroupsFormula
-                        ]
-                      )
+                cat = F.update rawdesc model.catalog
+                newmodel = { model | catalog = cat }
             in
-            ( newmodel
-            , Cmd.batch cmds
-            )
-
-        GotSeriesMeta (Ok rawmeta) ->
-            case decodemeta rawmeta of
-                Ok meta ->
-                    U.nocmd { model | seriesmetadata = meta }
-                Err err ->
-                    U.nocmd <| U.adderror model <| D.errorToString err
-
-        GotSeriesMeta (Err err) ->
-            U.nocmd <| U.adderror model <| U.unwraperror err
-
-        GotGroupsMeta (Ok rawmeta) ->
-            case decodemeta rawmeta of
-                Ok meta ->
-                    U.nocmd { model | groupsmetadata = meta }
-                Err err ->
-                    U.nocmd <| U.adderror model <| D.errorToString err
-
-        GotGroupsMeta (Err err) ->
-            U.nocmd <| U.adderror model <| U.unwraperror err
-
-        GotAllSeriesFormula (Ok rawformulae) ->
-            case decodeformulae rawformulae of
-                Ok formulae ->
-                    U.nocmd { model | seriesformula = formulae }
-                Err err ->
-                    U.nocmd <| U.adderror model <| D.errorToString err
-
-        GotAllSeriesFormula (Err err) ->
-            U.nocmd <| U.adderror model <| U.unwraperror err
-
-        GotAllGroupsFormula (Ok rawformulae) ->
-            case decodeformulae rawformulae of
-                Ok formulae ->
-                    U.nocmd { model | groupsformula = formulae }
-                Err err ->
-                    U.nocmd <| U.adderror model <| D.errorToString err
-
-        GotAllGroupsFormula (Err err) ->
-            U.nocmd <| U.adderror model <| U.unwraperror err
+            U.nocmd newmodel
 
         NameFilter value ->
             let
                 filter = if value /= "" then Just value else Nothing
                 newmodel = { model | filterbyname = filter }
             in
-            U.nocmd <| allfilters newmodel
+            doquery newmodel
 
         FormulaFilter value ->
             let
                 filter = if value /= "" then Just value else Nothing
                 newmodel = { model | filterbyformula = filter }
             in
-            U.nocmd <| allfilters newmodel
+            doquery newmodel
 
         KindUpdated kind ->
             let
-                newserieskinds =
-                    if List.member kind model.selectedserieskinds
-                    then remove model.selectedserieskinds kind
-                    else insert model.selectedserieskinds kind
-
-                newgroupkinds =
-                    if List.member kind model.selectedgroupskinds
-                    then remove model.selectedgroupskinds kind
-                    else insert model.selectedgroupskinds kind
+                newkinds =
+                    if List.member kind model.selectedkinds
+                    then remove model.selectedkinds kind
+                    else insert model.selectedkinds kind
 
                 newmodel =
-                    { model
-                        | selectedserieskinds = List.sort newserieskinds
-                        , selectedgroupskinds = List.sort newgroupkinds
-                    }
+                    { model | selectedkinds = List.sort newkinds }
             in
-            U.nocmd <| allfilters newmodel
+            doquery newmodel
 
         SourceUpdated source ->
             let
-                newseriessources =
-                    if List.member source model.selectedseriessources
-                    then remove model.selectedseriessources source
-                    else insert model.selectedseriessources source
-
-                newgroupsources =
-                    if List.member source model.selectedgroupssources
-                    then remove model.selectedgroupssources source
-                    else insert model.selectedgroupssources source
+                newsources =
+                    if List.member source model.selectedsources
+                    then
+                        (if List.length model.selectedsources > 1
+                         then remove model.selectedsources source
+                         -- let's do nothing: we want at least one source selected
+                         else model.selectedsources
+                        )
+                    else insert model.selectedsources source
 
                 newmodel =
-                    { model
-                        | selectedseriessources = newseriessources
-                        , selectedgroupssources = newgroupsources
-                    }
+                    { model | selectedsources = newsources }
             in
-            U.nocmd <| allfilters newmodel
+            doquery newmodel
 
         -- metadata filtering
 
         NewValue inputId value ->
             let
-                currentKey = U.first
-                    (Maybe.withDefault
-                        ("","")
-                        (Dict.get inputId model.filterbymeta)
-                    )
-                newDict = Dict.insert
-                    inputId
-                    (currentKey, value)
-                    model.filterbymeta
-            in U.nocmd <| allfilters { model | filterbymeta = newDict }
+                currentkey =
+                    U.first
+                        (Maybe.withDefault
+                             ( "", "" )
+                             (Dict.get inputId model.filterbymeta)
+                        )
+
+                newdict =
+                    Dict.insert
+                        inputId
+                        (currentkey, value)
+                        model.filterbymeta
+
+                newmodel =
+                    { model | filterbymeta = newdict }
+            in
+            doquery newmodel
 
         NewKey inputId key ->
             let
-                currentValue = U.snd
-                    (Maybe.withDefault
-                        ("","")
-                        (Dict.get inputId model.filterbymeta)
-                    )
-                newDict = Dict.insert
-                    inputId
-                    (key, currentValue)
-                    model.filterbymeta
-            in U.nocmd <| allfilters { model | filterbymeta = newDict }
+                currentvalue =
+                    U.snd
+                        (Maybe.withDefault
+                             ( "", "" )
+                             (Dict.get inputId model.filterbymeta)
+                        )
+
+                newdict =
+                    Dict.insert
+                        inputId
+                        (key, currentvalue)
+                        model.filterbymeta
+
+                newmodel =
+                    { model | filterbymeta = newdict }
+            in
+            doquery newmodel
 
         AddMetaItem inputId ->
             let
-                newDict = Dict.insert
-                    (inputId + 1)
-                    ("", "")
-                    model.filterbymeta
-           in U.nocmd { model | filterbymeta = newDict }
+                newdict =
+                    Dict.insert
+                        (inputId + 1)
+                        ( "", "" )
+                        model.filterbymeta
+
+                newmodel =
+                    { model | filterbymeta = newdict }
+           in
+           doquery newmodel
 
         MetaItemToDelete inputId ->
             let
-                newDict = Dict.remove inputId model.filterbymeta
+                newdict =
+                    Dict.remove inputId model.filterbymeta
+
+                newmodel =  { model | filterbymeta = newdict }
             in
-            U.nocmd <| allfilters { model | filterbymeta = newDict }
+            doquery newmodel
+
+        Tzaware value ->
+            doquery { model | tzaware = value }
 
         -- Debouncing
 
@@ -494,18 +332,11 @@ update msg model =
         -- Mode
 
         ToggleMode ->
-            let
-                mode =
-                    case model.mode of
-                        Series -> Groups
-                        Groups -> Series
-             in
-             U.nocmd { model | mode = mode }
-
-        Tzaware value ->
-            let
-                newModel = { model | tzaware = value }
-            in U.nocmd <| allfilters newModel
+             doquery { model | mode =
+                           case model.mode of
+                               Series -> Groups
+                               Groups -> Series
+                     }
 
 
 viewnamefilter =
@@ -534,18 +365,6 @@ viewformulafilter =
     H.map (provideInput >> DebounceFormulaFilter) input
 
 
-selectedkinds model =
-    case model.mode of
-        Series -> model.selectedserieskinds
-        Groups -> model.selectedgroupskinds
-
-
-kinds model =
-    case model.mode of
-        Series -> Dict.keys model.catalog.seriesbykind
-        Groups -> Dict.keys model.catalog.groupsbykind
-
-
 viewkindfilter model =
     let
         checkbox kind =
@@ -556,7 +375,7 @@ viewkindfilter model =
                     [ A.attribute "type" "checkbox"
                     , A.class "form-check-input"
                     , A.value kind
-                    , A.checked <| List.member kind <| selectedkinds model
+                    , A.checked <| List.member kind <| model.selectedkinds
                     , HE.onClick <| KindUpdated kind
                     ] []
                 , H.label
@@ -568,24 +387,11 @@ viewkindfilter model =
     H.div [] <|
         H.span
             [ A.class "font-italic" ]
-            [ H.text "series kind → " ] :: (List.map checkbox <| kinds model)
-
-
-bysources model =
-    case model.mode of
-        Series -> Dict.keys model.catalog.seriesbysource
-        Groups -> Dict.keys model.catalog.groupsbysource
-
-
-selectedsources model =
-    case model.mode of
-        Series -> model.selectedseriessources
-        Groups -> model.selectedgroupssources
+            [ H.text "series kind → " ] :: (List.map checkbox [ "primary", "formula" ])
 
 
 viewsourcefilter model =
     let
-        sources = bysources model
         checkbox source =
             H.div
                 [ A.class "form-check form-check-inline"
@@ -594,7 +400,7 @@ viewsourcefilter model =
                       [ A.attribute "type" "checkbox"
                       , A.class "form-check-input"
                       , A.value source
-                      , A.checked <| List.member source <| selectedsources model
+                      , A.checked <| List.member source <| model.selectedsources
                       , HE.onClick <| SourceUpdated source
                       ] []
                 , H.label
@@ -603,20 +409,20 @@ viewsourcefilter model =
                       [ H.text source ]
                 ]
     in
-    if List.length sources > 1
+    if List.length model.sources > 1
     then H.div []  <|
         H.span
             [ A.class "font-italic" ]
-            [ H.text "series sources → " ] :: (List.map checkbox sources)
+            [ H.text "series sources → " ] :: (List.map checkbox model.sources)
     else H.span [] []
 
 
-inputsFiled : String -> (Int, (String, String)) -> H.Html Msg
-inputsFiled action metaData =
+metaactions : String -> (Int, (String, String)) -> H.Html Msg
+metaactions action metadata =
     let
-        inputId = U.first metaData
-        key = U.first ( U.snd metaData )
-        value = U.snd ( U.snd metaData )
+        inputId = U.first metadata
+        key = U.first ( U.snd metadata )
+        value = U.snd ( U.snd metadata )
         keyInput = H.input
             [ A.attribute "type" "text"
                 , A.class "form-control-sm"
@@ -658,24 +464,23 @@ inputsFiled action metaData =
         , if action == "add" then addentry else delete
         ]
 
-viewmetafilter : Model -> H.Html Msg
+
 viewmetafilter model =
     let
         listData = List.reverse (Dict.toList model.filterbymeta)
         header = Maybe.withDefault (1, ("", "")) (List.head listData)
         tail = Maybe.withDefault [] (List.tail listData)
 
-        in H.div
-            [ ]
-            ((inputsFiled "add" header):: List.map (inputsFiled "delete") tail)
+    in
+    H.div
+        []
+        ((metaactions "add" header):: List.map (metaactions "delete") tail)
 
 
 viewfilteredqty model =
     let
         len =
-            case model.mode of
-                Series -> List.length model.filteredseries
-                Groups -> List.length model.filteredgroups
+            List.length model.catalog.items
 
         msg = if len == 0
               then "No item"
@@ -688,100 +493,53 @@ viewfilteredqty model =
     H.p [] [ H.text ("Found " ++ msg2) ]
 
 
-findkeysofvalue out map keys value justone =
-    case keys of
-        head::tail ->
-            if Set.member value <| Maybe.withDefault Set.empty (Dict.get head map)
-            then if justone then [head] else findkeysofvalue (head::out) map tail value justone
-            else findkeysofvalue out map tail value justone
-
-        [] -> out
-
-
-datakind mode name catalog =
+viewfiltered baseurl mode catalog showsource =
     let
-        bykind =
-            case mode of
-                Series -> catalog.seriesbykind
-                Groups -> catalog.groupsbykind
-    in
-    Maybe.withDefault "unknown" <|
-        List.head <|
-            findkeysofvalue [] bykind (Dict.keys bykind) name True
+        makekey elt =
+            elt.name ++ elt.source
 
+        makeurl elt =
+            UB.crossOrigin baseurl
+                [ case mode of
+                      Series -> "tsinfo"
+                      Groups -> "groupinfo"
+                ]
+                [ UB.string "name" elt.name ]
 
-datasources mode name catalog =
-    let
-        bysource =
-            case mode of
-                Series -> catalog.seriesbysource
-                Groups -> catalog.groupsbysource
-    in
-    findkeysofvalue [] bysource (Dict.keys bysource) name False
-
-
-viewfiltered baseurl mode filtered catalog showsource filtersources =
-    let
         item elt =
-            let kind =
-                    datakind mode elt catalog
-                sources =
-                    List.filter
-                        (\src -> List.member src filtersources)
-                        (datasources mode elt catalog)
-            in
-            (elt, H.li
-                 [ A.class "list-group-item p-1" ]
-                 [ H.span
-                       [ A.class <|
-                             case kind of
-                                 "formula" ->  "badge badge-success"
-                                 "bound" -> "badge badge-info"
-                                 _ -> "badge badge-secondary"
-                       ]
-                       [ H.text kind ]
-                 , H.span [] [ H.text " " ]
-                 , H.a [ A.href (UB.crossOrigin
-                                     baseurl
-                                     [ case mode of
-                                           Series -> "tsinfo"
-                                           Groups -> "groupinfo"
-                                     ]
-                                     [ UB.string "name" elt ]
-                                )
-                       ]
-                       [ H.text elt ]
-                 , if showsource
-                   then
-                       H.span
-                           -- alas, Chrome does not know `inline-end`
-                           [ A.style "float" "right" ]
-                           <| List.map
-                               (\source ->
-                                    H.span []
-                                    [ H.span [] [ H.text " " ]
-                                    , H.span
-                                        [ A.class "badge badge-info" ]
-                                        [ H.text source ]
-                                    ]
-                               )
-                               sources
-                   else
-                       H.span [] []
-                 ]
+            ( makekey elt
+            , H.li
+                [ A.class "list-group-item p-1" ]
+                [ H.span
+                      [ A.class <|
+                            case elt.kind of
+                                "formula" ->  "badge badge-success"
+                                "bound" -> "badge badge-info"
+                                _ -> "badge badge-secondary"
+                      ]
+                      [ H.text elt.kind ]
+                , H.span [] [ H.text " " ]
+                , H.a [ A.href (makeurl elt) ]
+                    [ H.text elt.name ]
+                , if showsource then
+                      H.span
+                          -- alas, Chrome does not know `inline-end`
+                          [ A.style "float" "right" ]
+                          [ H.span []
+                                [ H.span
+                                      [ A.class "badge badge-info" ]
+                                      [ H.text elt.source ]
+                                ]
+                          ]
+                  else
+                      H.span [] []
+                ]
             )
-        ufiltered = LE.unique filtered
-
-        filteredslice =
-            List.take 1000 (List.sort ufiltered)
-
-        missing =
-            (List.length filteredslice) < (List.length ufiltered)
 
         items =
-            List.map item filteredslice
+            List.map item catalog.items
 
-        noseries = (List.length ufiltered) == 0
+        noseries = (List.length items) == 0
 
     in
     K.node "ul"
@@ -802,19 +560,12 @@ view : Model -> H.Html Msg
 view model =
     let
         nbsources =
-            case model.mode of
-                Series -> Dict.size model.catalog.seriesbysource
-                Groups -> Dict.size model.catalog.groupsbysource
+            List.length model.sources
 
         mode =
             case model.mode of
                 Series -> "Series"
                 Groups -> "Groups"
-
-        filtered =
-            case model.mode of
-                Series -> model.filteredseries
-                Groups -> model.filteredgroups
 
     in
     H.div [ A.class "main-content" ]
@@ -863,8 +614,7 @@ view model =
               , viewsourcefilter model
               , viewfilteredqty model
               ]
-        , L.lazy6 viewfiltered
-            model.baseurl model.mode filtered model.catalog (nbsources > 1) (selectedsources model)
+        , L.lazy4 viewfiltered model.baseurl model.mode model.catalog (nbsources > 1)
         , viewerrors model
         ]
 
@@ -901,7 +651,7 @@ type alias Input =
     { baseurl : String }
 
 
-main : Program Input  Model Msg
+main : Program Input Model Msg
 main =
        let
            debouncerconfig =
@@ -909,20 +659,13 @@ main =
                settleWhenQuietFor (Just <| fromSeconds 0.3) |>
                toDebouncer
 
-           newmodel input =
+           makemodel input =
                { baseurl = input.baseurl
                , mode = Series
-               , catalog = Cat.empty
-               , seriesmetadata = Dict.empty
-               , seriesformula = Dict.empty
-               , groupsmetadata = Dict.empty
-               , groupsformula = Dict.empty
-               , filteredseries = []
-               , filteredgroups = []
-               , selectedserieskinds = []
-               , selectedseriessources = []
-               , selectedgroupskinds = []
-               , selectedgroupssources = []
+               , sources = []
+               , catalog = F.empty
+               , selectedkinds = [ "primary", "formula" ]
+               , selectedsources = []
                , filterbyname = Nothing
                , filterbyformula = Nothing
                , tzaware = "any"
@@ -933,14 +676,20 @@ main =
                }
 
            init input =
-               ( newmodel input
+               let
+                   model =
+                       makemodel input
+               in
+               ( model
                , Cmd.batch
-                   [ Cmd.map GotCatalog <| Cat.get input.baseurl "series" 1 Cat.ReceivedSeries
-                   , Cmd.map GotCatalog <| Cat.get input.baseurl "group" 1 Cat.ReceivedGroups
+                   [ getsources model.baseurl
+                   , Cmd.map GotItemsDesc <|
+                       F.find input.baseurl "series" F.ReceivedSeries
+                           (query model) model.selectedsources
                    ]
                )
 
-           sub model = Sub.none
+           sub _ = Sub.none
        in
            Browser.element
                { init = init

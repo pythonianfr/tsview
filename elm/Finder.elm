@@ -1,7 +1,10 @@
 module Finder exposing
-    ( find
+    ( empty
+    , find
+    , Msg(..)
     , rawtsdescdecoder
-    , SeriesModel
+    , Model
+    , update
     )
 
 import Http
@@ -21,16 +24,14 @@ type Error
     = Error String
 
 
-type alias SeriesModel =
+type alias Model =
     { items : List S.Series
-    , query : Expr
     , errors : List String
     }
 
 
 empty =
     { items = []
-    , query = Expression [ Atom <| Symbol "by.everything" ]
     , errors = []
     }
 
@@ -45,6 +46,7 @@ rawtsdescdecoder =
 
 type Msg
     = ReceivedSeries (Result Http.Error String)
+    | ReceivedGroups (Result Http.Error String)
 
 
 update msg model =
@@ -57,7 +59,7 @@ update msg model =
         ReceivedSeries (Ok raw) ->
             case JD.decodeString rawtsdescdecoder raw of
                 Ok seriesdesc ->
-                    { model | series = seriesdesc }
+                    { model | items = seriesdesc }
 
                 Err err ->
                     onerror (JD.errorToString err)
@@ -65,12 +67,25 @@ update msg model =
         ReceivedSeries (Err err) ->
             onerror (U.unwraperror err)
 
+        ReceivedGroups (Ok raw) ->
+            case JD.decodeString rawtsdescdecoder raw of
+                Ok groupsdesc ->
+                    { model | items = groupsdesc }
 
-find urlprefix event query =
+                Err err ->
+                    onerror (JD.errorToString err)
+
+        ReceivedGroups (Err err) ->
+            onerror (U.unwraperror err)
+
+
+find baseurl dtype event query sources =
     Http.get
         { expect = Http.expectString event
         , url =
-            UB.crossOrigin urlprefix
-                [ "api", "series", "find" ]
-                [ UB.string "query" <| Lisp.serialize query ]
+            UB.crossOrigin baseurl
+                [ "api", dtype, "find" ]
+                [ UB.string "query" query
+                , UB.string "sources" <| String.join "," sources
+                ]
         }
