@@ -130,6 +130,7 @@ type alias RenameEvents =
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
+    | GotSource (Result Http.Error String)
     -- tabs
     | Tab Tabs
     -- perms
@@ -182,6 +183,16 @@ type Msg
 convertMsg : HorizonModule.Msg -> Msg
 convertMsg msg =
     Horizon msg
+
+
+getsource : String -> String -> Cmd Msg
+getsource baseurl name =
+    Http.get
+        { expect = Http.expectString GotSource
+        , url = UB.crossOrigin baseurl
+              [ "api", "group", "source" ]
+              [ UB.string "name" name ]
+        }
 
 
 getplot : Model -> Cmd Msg
@@ -295,6 +306,16 @@ update msg model =
 
         GotUserMeta (Err err) ->
             doerr "gotusermeta http"  <| U.unwraperror err
+
+        GotSource (Ok rawsource) ->
+            case D.decodeString D.string rawsource of
+                Ok source ->
+                    U.nocmd { model | source = source }
+                Err err ->
+                    doerr "gotsource decode" <| D.errorToString err
+
+        GotSource (Err err) ->
+            doerr "gotsource http" <| U.unwraperror err
 
         GetPermissions (Ok rawperm) ->
             case D.decodeString D.bool rawperm of
@@ -877,6 +898,7 @@ main =
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "group"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "group"
                    , I.getwriteperms input.baseurl GetPermissions
+                   , getsource input.baseurl input.name
                    ]
                )
        in
