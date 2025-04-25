@@ -31,6 +31,7 @@ import Html exposing (..)
 import Html.Attributes as A
 import Http
 import Info as I
+import Info exposing ( Direction(..))
 import Json.Decode as D
 import List.Selection as LS
 import Metadata as M
@@ -142,6 +143,7 @@ type Msg
     | ChangedIdate String
     | DebounceChangedIdate (Debouncer.Msg Msg)
     | IdatePickerChanged String
+    | IterDate Bool Direction
     -- formula
     | GotFormula (Result Http.Error String)
     | InsertionDates (Result Http.Error String)
@@ -445,6 +447,15 @@ update msg model =
                , getplot newmodel
                )
 
+        IterDate _ direction ->
+            let newM = case direction of
+                        Prev -> { model |
+                            date_index = ( model.date_index - 1 )}
+                        Next -> { model |
+                            date_index = ( model.date_index + 1 )}
+            in
+                ( newM, getplot newM )
+
         -- user metadata edition
 
         MetaEditAsked ->
@@ -660,6 +671,11 @@ viewplot model =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
+            , I.viewWidgetIdates
+                False
+                model.insertion_dates
+                model.date_index
+                IterDate
             , I.viewgraph
                 groupdata
                 defaultLayout
