@@ -262,6 +262,12 @@ type alias DataItem =
     }
 
 
+setStatus: Model -> PlotStatus -> Model
+setStatus model status =
+    let horizon = model.horizon
+    in
+        { model | horizon = { horizon | plotStatus = status }}
+
 stringseriesdecoder =
     --infer freq can produce null for string
     D.dict <| D.map
@@ -486,7 +492,9 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         doerr tag error =
-            U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
+            U.nocmd <| U.adderror
+                            ( setStatus model Failure )
+                            (tag ++ " -> " ++ error)
     in
     case msg of
 
@@ -773,7 +781,7 @@ update msg model =
             case Array.get index model.insertion_dates of
                 Nothing -> U.nocmd model
                 Just date ->
-                    ( newmodel
+                    ( setStatus newmodel Loading
                     , getplot newmodel
                     )
 
@@ -792,7 +800,10 @@ update msg model =
                         Next -> { model |
                             date_index = ( model.date_index + 1 )}
             in
-                ( newM, getplot newM )
+                ( setStatus newM Loading
+                , getplot newM
+                )
+
 
         IdatePickerChanged value ->
             let
@@ -806,7 +817,7 @@ update msg model =
                 newmodel =
                     { model | date_index = newindex }
             in
-            ( newmodel
+            ( setStatus newmodel Loading
             , getplot newmodel
             )
 
