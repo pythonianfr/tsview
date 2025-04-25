@@ -128,6 +128,13 @@ type alias RenameEvents =
     }
 
 
+setStatus: Model -> PlotStatus -> Model
+setStatus model status =
+    let horizon = model.horizon
+    in
+        { model | horizon = { horizon | plotStatus = status }}
+
+
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
@@ -256,7 +263,9 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         doerr tag error =
-            U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
+            U.nocmd <| U.adderror
+                        ( setStatus model Failure )
+                        (tag ++ " -> " ++ error)
     in
     case msg of
 
@@ -431,7 +440,7 @@ update msg model =
             case Array.get index model.insertion_dates of
                 Nothing -> U.nocmd model
                 Just date ->
-                    ( newmodel
+                    ( setStatus newmodel Loading
                     , getplot newmodel
                     )
 
@@ -443,7 +452,7 @@ update msg model =
                             Array.map U.cleanupdate model.insertion_dates
                 newindex = max 0 <| Array.length newarray - 1
                 newmodel = { model | date_index = newindex }
-            in ( newmodel
+            in ( setStatus newmodel Loading
                , getplot newmodel
                )
 
@@ -454,7 +463,8 @@ update msg model =
                         Next -> { model |
                             date_index = ( model.date_index + 1 )}
             in
-                ( newM, getplot newM )
+                ( setStatus newM Loading
+                , getplot newM )
 
         -- user metadata edition
 
