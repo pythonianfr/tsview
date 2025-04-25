@@ -135,6 +135,7 @@ naiveTag = "Naive"
 type alias Model =
     { baseurl : String
     , name : String
+    , basket: String
     , mode: EditionMode
     , meta : M.Metadata
     , exist: Bool
@@ -266,6 +267,7 @@ type alias Box =
 type EditionMode
     = Creation CreationMode
     | Existing I.SeriesType
+    | BasketMode
 
 
 type CreationMode
@@ -741,6 +743,7 @@ getPoints model =
         Existing I.Primary -> getSeries model GotEditData "supervision" GET model.name
         Existing I.Formula ->  getSeries model GotValueData "state" GET model.name
         Creation _ -> Cmd.none
+        BasketMode -> Cmd.none
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
@@ -1395,14 +1398,14 @@ update msg model =
                     ( cleanDiff model
                     , Cmd.batch ( getRelevantData model )
                     )
-                Creation _ ->
-                    ( model
-                    , Browser.Navigation.load
-                        <| UB.crossOrigin
-                            model.baseurl
-                            [ "tseditor" ]
-                            [ UB.string "name" model.name ]
-                    )
+                Creation _ -> ( model
+                              , Browser.Navigation.load
+                                    <| UB.crossOrigin
+                                            model.baseurl
+                                            [ "tseditor" ]
+                                            [ UB.string "name" model.name ]
+                              )
+                BasketMode -> ( model, Cmd.none )
 
         Saved (Err _) ->
             U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure ) }
@@ -2527,6 +2530,7 @@ getRelevantData model =
         Existing I.Formula ->
             [ getPoints model ]
         Creation _ -> [ Cmd.none ]
+        BasketMode -> [ Cmd.none ]
 
 
 parseInput : String -> Edited
@@ -3048,6 +3052,7 @@ viewRelevantTable model =
                                 ]
                                 [ nameForm model ]
                             , viewValueTable model ]
+        BasketMode -> H.div [] [ H.text model.basket ]
 
 
 checkMandatory: Maybe String -> String
@@ -4389,11 +4394,13 @@ commandStart model =
         Creation _ -> Cmd.batch [ getCatalog model
                                 , getOffsets model
                                 ]
+        BasketMode -> Cmd.none
 
 
 type alias Input =
     { baseurl : String
     , name : String
+    , basket: String
     , min: String
     , max: String
     , debug: String
@@ -4405,9 +4412,13 @@ init input =
      ({ baseurl = input.baseurl
                     , errors = [ ]
                     , name = input.name
-                    , mode = if input.name == ""
-                                then Creation Form
-                                else Existing I.Primary
+                    , basket = input.basket
+                    , mode = if input.name /= ""
+                                then Existing I.Primary
+                                else
+                                if input.basket /= ""
+                                    then BasketMode
+                                    else Creation Form
                     , meta = Dict.empty
                     , exist = False
                     , tzaware = True

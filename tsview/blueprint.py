@@ -764,6 +764,7 @@ def tsview(tsa):
             return 'Nothing to see there.'
 
         name = request.args.get('name', '')
+        basket = request.args.get('basket', '')
         min = request.args.get('startdate', '')
         max = request.args.get('enddate', '')
         debug = request.args.get('debug', '')
@@ -773,6 +774,7 @@ def tsview(tsa):
             'tseditor.html',
             homeurl=homeurl(),
             name=name,
+            basket=basket,
             min=min,
             max=max,
             debug=debug,
