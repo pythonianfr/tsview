@@ -41,7 +41,10 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Http
 import Info as I
-import Info exposing (SeriesType(..))
+import Info exposing
+    ( SeriesType(..)
+    , Direction(..)
+    )
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as List
@@ -240,17 +243,6 @@ convertMsg msg =
 convertStat : ModuleStatInfos.Msg -> Msg
 convertStat msg =
     StatInfos msg
-
-
-type Direction
-    = Prev
-    | Next
-
-
-type Position
-    = Left
-    | Center
-    | Right
 
 
 type TimeSeries
@@ -1336,70 +1328,9 @@ viewcache model =
             H.div [] []
 
 
-formatIDate: String -> Position -> Bool -> String
-formatIDate date position actif =
-    if not actif
-    then ""
-    else
-        let fdate =
-                String.replace "T" " "
-                    ( String.left 16 date)
-        in case position of
-               Center -> fdate
-               Left -> "<< " ++ fdate
-               Right -> fdate ++ " >>"
 
 
-maybeDate: Array String -> Int -> ( String, Bool )
-maybeDate idates idx =
-    case (Array.get idx idates) of
-        Just date -> ( date, True)
-        Nothing -> ( "", False )
 
-
-viewWidgetIdates: Bool -> Array String -> Int -> (Bool -> Direction -> Msg) -> H.Html Msg
-viewWidgetIdates history idates index msg =
-    let
-        idate =
-            Maybe.withDefault ""
-                ( Array.get
-                      index
-                      idates
-                )
-        ( previous, pactive ) =
-            maybeDate idates ( index - 1 )
-        ( next, nactive ) =
-            maybeDate idates ( index + 1 )
-    in
-    H.div
-        [ HA.class "widget-idates" ]
-        [ H.div
-            ([ HA.class "idate-adjacent"
-             , HA.title "previous date"
-             ] ++ ( if pactive
-                    then [ HA.class "idate-exists"
-                         , HE.onClick ( msg history Prev )
-                         ]
-                    else []
-                  )
-            )
-            [ H.text (formatIDate previous Left pactive)]
-        , H.div
-            [ HA.class "idate-history"
-            , HA.title "current revdate"
-            ]
-            [ H.text ( formatIDate idate Center True)]
-        , H.div
-            ([ HA.class "idate-adjacent button"
-             , HA.title "next date"
-             ] ++ ( if nactive
-                    then [ HA.class "idate-exists"
-                         , HE.onClick ( msg history Next ) ]
-                    else []
-                  )
-            )
-            [ H.text ( formatIDate next Right nactive ) ]
-        ]
 
 
 extractMax max =
@@ -1531,7 +1462,7 @@ viewplot model ts =
                 model.historyDateIndex
                 DebounceChangedHistoryIdate
                 ChangedHistoryIdate
-            , viewWidgetIdates
+            , I.viewWidgetIdates
                 model.historyMode
                 model.lastIdates
                 model.historyDateIndex
@@ -1566,7 +1497,7 @@ viewplot model ts =
                 model.date_index
                 DebounceChangedIdate
                 ChangedIdate
-            , viewWidgetIdates
+            , I.viewWidgetIdates
                 model.historyMode
                 model.insertion_dates
                 model.date_index
@@ -1636,7 +1567,7 @@ viewstrseries model ts =
               model.date_index
               DebounceChangedIdate
               ChangedIdate
-        , viewWidgetIdates
+        , I.viewWidgetIdates
               model.historyMode
               model.insertion_dates
               model.date_index

@@ -16,6 +16,7 @@ module Info exposing
     , rename
     , savemeta
     , SeriesType(..)
+    , Direction(..)
     , viewactionwidgets
     , viewdatespicker
     , viewDatesRange
@@ -30,6 +31,7 @@ module Info exposing
     , viewrenameaction
     , viewtitle
     , viewusermeta
+    , viewWidgetIdates
     )
 
 
@@ -78,6 +80,17 @@ type GroupType
 type DataType
     = SeriesType SeriesType
     | GroupType GroupType
+
+
+type Direction
+    = Prev
+    | Next
+
+
+type Position
+    = Left
+    | Center
+    | Right
 
 
 getwriteperms urlprefix event =
@@ -681,6 +694,72 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
                   , HE.onInput dateMsg
                   ] [ ]
             ]
+
+
+viewWidgetIdates: Bool -> Array String -> Int -> (Bool -> Direction -> msg) -> H.Html msg
+viewWidgetIdates history idates index msg =
+    let
+        idate =
+            Maybe.withDefault ""
+                ( Array.get
+                      index
+                      idates
+                )
+        ( previous, pactive ) =
+            maybeDate idates ( index - 1 )
+        ( next, nactive ) =
+            maybeDate idates ( index + 1 )
+    in
+    H.div
+        [ HA.class "widget-idates" ]
+        [ H.div
+            ([ HA.class "idate-adjacent"
+             , HA.title "previous date"
+             ] ++ ( if pactive
+                    then [ HA.class "idate-exists"
+                         , HE.onClick ( msg history Prev )
+                         ]
+                    else []
+                  )
+            )
+            [ H.text (formatIDate previous Left pactive)]
+        , H.div
+            [ HA.class "idate-history"
+            , HA.title "current revdate"
+            ]
+            [ H.text ( formatIDate idate Center True)]
+        , H.div
+            ([ HA.class "idate-adjacent button"
+             , HA.title "next date"
+             ] ++ ( if nactive
+                    then [ HA.class "idate-exists"
+                         , HE.onClick ( msg history Next ) ]
+                    else []
+                  )
+            )
+            [ H.text ( formatIDate next Right nactive ) ]
+        ]
+
+
+maybeDate: Array String -> Int -> ( String, Bool )
+maybeDate idates idx =
+    case (Array.get idx idates) of
+        Just date -> ( date, True)
+        Nothing -> ( "", False )
+
+
+formatIDate: String -> Position -> Bool -> String
+formatIDate date position actif =
+    if not actif
+    then ""
+    else
+        let fdate =
+                String.replace "T" " "
+                    ( String.left 16 date)
+        in case position of
+               Center -> fdate
+               Left -> "<< " ++ fdate
+               Right -> fdate ++ " >>"
 
 
 viewgraph data layoutOptions options inferredFreq =
