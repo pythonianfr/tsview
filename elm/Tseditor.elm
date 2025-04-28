@@ -1083,48 +1083,73 @@ update msg model =
                 Primary ->
                     case JD.decodeString dataDecoder rawdata of
                         Ok indexedval ->
-                            let zoomTs =
-                                    applyZoom model indexedval
-                                newCD =
-                                    insertComponentData
-                                    ( if expand
-                                      then model.terminalComponents
-                                      else model.directComponents
-                                    )
-                                    name
-                                    ( ToEdit { initialTs = indexedval, zoomTs = zoomTs })
-                                newModel =
-                                    if expand
-                                    then { model | terminalComponents = newCD}
-                                    else { model | directComponents = newCD}
+                            let zoomTs = applyZoom model indexedval
+                                newCD = insertComponentData
+                                            ( if expand
+                                                then model.terminalComponents
+                                                else model.directComponents
+                                            )
+                                            name
+                                            CompLoaded
+                                            ( Just ( ToEdit { initialTs = indexedval, zoomTs = zoomTs }))
+                                newModel = if expand
+                                            then { model | terminalComponents = newCD}
+                                            else { model | directComponents = newCD}
+                                status = if expand
+                                            then multiStatus newModel.terminalComponents
+                                            else multiStatus newModel.directComponents
                             in
-                            U.nocmd ( buildCoord newModel )
-                        Err err ->
-                            U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                                U.nocmd
+                                    <| buildCoord { newModel |
+                                                        horizon = setStatusPlot
+                                                                    model.horizon
+                                                                    status
+                                                  }
+                        Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
                 _ ->
-                    case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
-                        Ok val ->
-                            let zoomTs =
-                                    applyZoom model val
-                                newCD =
-                                    insertComponentData
-                                    ( if expand
-                                      then model.terminalComponents
-                                      else model.directComponents
-                                    )
-                                    name
-                                    ( Naked { initialTs = val, zoomTs = zoomTs })
-                                newModel =
-                                    if expand
-                                    then { model | terminalComponents = newCD}
-                                    else { model | directComponents = newCD}
-                            in
-                            U.nocmd ( buildCoord newModel )
-                        Err err ->
-                            U.nocmd { model | errors = model.errors ++ [ JD.errorToString err ]}
+                    case JD.decodeString
+                        (JD.dict (JD.maybe JD.float))
+                        rawdata of
+                    Ok val ->  let zoomTs = applyZoom model val
+                                   newCD = insertComponentData
+                                            ( if expand
+                                                then model.terminalComponents
+                                                else model.directComponents
+                                            )
+                                            name
+                                            CompLoaded
+                                            ( Just ( Naked { initialTs = val, zoomTs = zoomTs }))
+                                   newModel = if expand
+                                            then { model | terminalComponents = newCD}
+                                            else { model | directComponents = newCD}
+                                   status = if expand
+                                            then multiStatus model.terminalComponents
+                                            else multiStatus model.directComponents
+                               in
+                                   U.nocmd
+                                    <| buildCoord { newModel |
+                                                        horizon = setStatusPlot
+                                                                    model.horizon
+                                                                    status
+                                                  }
+                    Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotComponentData cType name expand (Err _) ->
-            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+            let
+                newCD = insertComponentData
+                            ( if expand
+                                then model.terminalComponents
+                                else model.directComponents
+                            )
+                            name
+                            CompError
+                            Nothing
+                newModel = if expand
+                                then { model | terminalComponents = newCD}
+                                else { model | directComponents = newCD}
+            in
+            U.nocmd { newModel | horizon = setStatusPlot model.horizon Failure }
+
 
         GotGenerated previewType ( Ok rawdata ) ->
              case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
@@ -1925,6 +1950,19 @@ update msg model =
             U.nocmd { model | statusCopy = newStatus }
 
 
+multiStatus: List Component -> PlotStatus
+multiStatus components =
+    let status = List.map
+                    .status
+                    components
+    in
+    if List.any (\ elt -> elt == CompError ) status then Failure
+    else
+    if List.all (\ elt -> elt == CompLoaded ) status then Success
+    else
+    Loading
+
+
 applyFocus: Model -> Maybe ( Int, Int ) -> ( Model, Cmd Msg )
 applyFocus model maybeIndex =
     let
@@ -2108,18 +2146,18 @@ cleanDiff model =
               , intercept = Nothing
       }
 
-
-insertComponentData: List Component -> String -> Series -> List Component
-insertComponentData components name data =
+insertComponentData: List Component -> String -> CompStatus -> Maybe Series -> List Component
+insertComponentData components name status data =
     List.map
         (\ comp -> if comp.name == name
-                    then { comp | data = data
-                                , status = CompLoaded
-                         }
+                    then case data of
+                        Nothing -> { comp | status = status }
+                        Just series -> { comp | status = status
+                                              , data = series
+                                       }
                     else comp
         )
         components
-
 
 getEditionTs: Series -> SeriesToEdit
 getEditionTs series =
@@ -2975,6 +3013,13 @@ printStatus plotstatus =
             "Save"
         Failure ->
             "Saving Impossible"
+
+
+printComptStatus compStatus =
+    case compStatus of
+           CompLoaded -> "Complete"
+           CompError -> "Error"
+           CompEmpty -> "Empty"
 
 
 disableSave: Model -> Bool
@@ -4233,6 +4278,19 @@ debugView model =
                                 (List.map .name model.directComponents )
                           )
                 , H.br [] []
+                , H.div [] <| List.map
+                                (\  c ->  H.div []
+                                            [H.br [] []
+                                            , H.text
+                                                (  c.name
+                                                    ++ " : "
+                                                    ++
+                                                    printComptStatus c.status
+                                                )
+                                            ]
+                                )
+                                model.directComponents
+                , H.br [] []
                 , H.text ( "Raw pasted : " ++ splitRaw model.rawPasted )
                 , ( Markdown.toHtmlWith option [] model.rawPasted )
                 , H.br [] []
@@ -4317,7 +4375,9 @@ displayStatus: Model -> H.Html Msg
 displayStatus model =
     if model.horizon.plotStatus == None
       then H.text ""
-      else if isEmpty model && (model.horizon.plotStatus == Success)
+      else if isEmpty model
+                && (model.horizon.plotStatus == Success)
+                && model.mode /= BasketMode
            then H.text """No data in this interval: select another one."""
            else H.text ""
 
