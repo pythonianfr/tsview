@@ -60,7 +60,7 @@ defaultLayoutOptions =
     -- separators: first char for decimal
     -- second for thousands
     , separators = ".\u{00a0}"
-    , hoverLabel = Just { namelength = 30 }
+    , hoverLabel = Just { namelength = 70 }
     , margin = { t = 45
                 ,b = 50
                 ,l = 40
