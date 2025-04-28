@@ -15,6 +15,7 @@ import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
     , ZoomFromPlotly
+    , extendHorizonFromData
     , extractDates
     , initHorizon
     , getFromToDates
@@ -1103,11 +1104,12 @@ update msg model =
                                 status = if expand
                                             then multiStatus newModel.terminalComponents
                                             else multiStatus newModel.directComponents
+                                newHorizon = extendHorizonFromData model.horizon indexedval
                             in
                                 U.nocmd
                                     <| buildCoord { newModel |
                                                         horizon = setStatusPlot
-                                                                    model.horizon
+                                                                    newHorizon
                                                                     status
                                                   }
                         Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
