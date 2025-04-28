@@ -4461,15 +4461,7 @@ plotSingle model dragMode lineMarker xAxis yAxis =
         previous = previouslyEdited  model.series
         editionTrace = case model.mode of
                         Existing I.Formula -> []
-                        _ -> [ scatterplot
-                                    "edition"
-                                    ( List.map
-                                        (\ e -> e.indexRow)
-                                        diff
-                                    )
-                                    ( diffToFloat diff )
-                                    "markers"
-                                    defaultTraceOptions
+                        _ -> [ showEdition diff
                              ]
         previouslyEditedTrace = case model.mode of
             Existing I.Primary ->
@@ -4507,6 +4499,19 @@ plotSingle model dragMode lineMarker xAxis yAxis =
             ]
             [ ]
 
+
+showEdition diff =
+    scatterplot
+        "edition"
+        ( List.map
+            (\ e -> e.indexRow)
+            diff
+        )
+        ( diffToFloat diff )
+        "markers"
+        defaultTraceOptions
+
+
 traceComp : String -> Component -> Trace
 traceComp lineMarker component =
     let dates = onlyActiveKeys component.data
@@ -4522,6 +4527,8 @@ traceComp lineMarker component =
 
 plotBasket: Model -> String -> String -> Axis -> Axis -> H.Html Msg
 plotBasket model dragMode lineMarker xAxis yAxis =
+    let diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
+    in
         H.node "plot-figure"
             [ HA.attribute
                 "args"
@@ -4530,6 +4537,7 @@ plotBasket model dragMode lineMarker xAxis yAxis =
                     ( List.map
                         ( traceComp lineMarker )
                         model.directComponents
+                     ++ [ showEdition diff ]
                     )
                     { defaultLayoutOptions | dragMode = Just dragMode
                                            , yaxis = yAxis
