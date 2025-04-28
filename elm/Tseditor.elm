@@ -551,14 +551,19 @@ isTzaware meta =
          _ -> False
 
 
-likeComp: Model -> Component
+likeComp: Model -> List Component
 likeComp model =
-    Component
-        model.name
-        ( asCType model.seriestype )
-        model.series
-        model.tzaware
-        CompLoaded
+    case model.mode of
+        BasketMode ->
+            []
+        _ ->
+             [ Component
+                model.name
+                ( asCType model.seriestype )
+                model.series
+                model.tzaware
+                CompLoaded
+            ]
 
 
 type Edited
@@ -2835,7 +2840,7 @@ relevantComponents model =
 
 patchEditedData : Model -> Cmd Msg
 patchEditedData model =
-    let allSeries = [ likeComp model ] ++ relevantComponents model
+    let allSeries = likeComp model ++ relevantComponents model
     in
     Cmd.batch <|  List.map
                         ( saveComponent
@@ -2948,6 +2953,13 @@ underThePlot model =
                     [ roundForm model
                      , buttonShowDiff model
                      , buttonFillAll model
+                     ]
+                BasketMode ->
+                    [ roundForm model
+                     , buttonShowDiff model
+                     , buttonFillAll model
+                     , buttonViewNames model
+
                      ]
                 _ -> [ roundForm model
                      , buttonShowDiff model
@@ -3519,7 +3531,7 @@ buildCoord model =
          NoPoint -> { model | coordData = Dict.empty }
          TooMuchPoints _ -> { model | coordData = Dict.empty }
          Drawable ->
-            let allSeries = [ likeComp model ] ++ relevantComponents model
+            let allSeries = likeComp model ++ relevantComponents model
                 dataAsRows = mergeData allSeries
             in
             setupFill
@@ -3749,17 +3761,22 @@ insideHeader model name cType iCol =
                 []
                 , H.p [] [ H.text "Dates" ]
              ]
-        1 -> [ H.p
-                [ HA.class <| getCopyClass
-                                model.statusCopy
-                                CopyValues
-                , HE.onClick ( CopyToClipboard CopyValues )
-                , HA.class "copy-all"
-                , HA.title "Copy values"
-                ]
-                []
-                , H.p [] [ H.text "Values" ]
-             ]
+        1 ->
+            case model.mode of
+                BasketMode ->
+                    buildLink model iCol name cType
+                _ ->
+                    [ H.p
+                    [ HA.class <| getCopyClass
+                                    model.statusCopy
+                                    CopyValues
+                    , HE.onClick ( CopyToClipboard CopyValues )
+                    , HA.class "copy-all"
+                    , HA.title "Copy values"
+                    ]
+                    []
+                    , H.p [] [ H.text "Values" ]
+                 ]
         _ -> buildLink model iCol name cType
 
 
