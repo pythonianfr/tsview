@@ -145,8 +145,8 @@ parse expr =
                                     onestring "formulacontents" args FormulaContents
                                 "by.metaitem" ->
                                     twoargs "metaitem" args ByMetaITem
-                                "by.internalmetaitem" ->
-                                    twoargs "inetrnalmetaitem" args ByInternalMetaitem
+                                "by.internal-metaitem" ->
+                                    twoargs "internal-metaitem" args ByInternalMetaitem
                                 "by.cache" ->
                                     Ok ByCache
                                 "by.cachepolicy" ->
@@ -238,12 +238,12 @@ serialize node =
         ByInternalMetaitem key val ->
             case val of
                 Str str ->
-                    Expression [ Atom <| Symbol "by.internalmetaitem"
+                    Expression [ Atom <| Symbol "by.internal-metaitem"
                                , Atom <| String key
                                , Atom <| String str
                                ]
                 Number num ->
-                    Expression [ Atom <| Symbol "by.internalmetaitem"
+                    Expression [ Atom <| Symbol "by.internal-metaitem"
                                , Atom <| String key
                                , Atom <| Float num
                                ]

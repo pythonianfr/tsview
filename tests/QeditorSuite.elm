@@ -221,7 +221,7 @@ testSerialize =
         run21 =
             \_ -> Expect.equal
                   (serialize <| ByInternalMetaitem "key" (Str "foo"))
-                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (Expression [ Atom <| Symbol "by.internal-metaitem"
                               , Atom <| String "key"
                               , Atom <| String "foo"
                               ]
@@ -230,7 +230,7 @@ testSerialize =
         run22 =
             \_ -> Expect.equal
                   (serialize <| ByInternalMetaitem "key" (Number 42))
-                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (Expression [ Atom <| Symbol "by.internal-metaitem"
                               , Atom <| String "key"
                               , Atom <| Float 42.0
                               ]
@@ -239,7 +239,7 @@ testSerialize =
         run23 =
             \_ -> Expect.equal
                   (serialize <| ByInternalMetaitem "key" (Number 42.0))
-                  (Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (Expression [ Atom <| Symbol "by.internal-metaitem"
                               , Atom <| String "key"
                               , Atom <| Float 42.0
                               ]
@@ -493,7 +493,7 @@ testParse =
 
         run26 =
             \_ -> Expect.equal
-                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (parse <| Expression [ Atom <| Symbol "by.internal-metaitem"
                                        , Atom <| String "foo"
                                        , Atom <| String "bar"
                                        ]
@@ -502,7 +502,7 @@ testParse =
 
         run27 =
             \_ -> Expect.equal
-                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (parse <| Expression [ Atom <| Symbol "by.internal-metaitem"
                                        , Atom <| String "foo"
                                        , Atom <| Int 42
                                        ]
@@ -511,7 +511,7 @@ testParse =
 
         run28 =
             \_ -> Expect.equal
-                  (parse <| Expression [ Atom <| Symbol "by.internalmetaitem"
+                  (parse <| Expression [ Atom <| Symbol "by.internal-metaitem"
                                        , Atom <| String "foo"
                                        , Atom <| Float 42.0
                                        ]
