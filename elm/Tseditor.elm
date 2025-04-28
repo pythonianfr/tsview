@@ -1488,7 +1488,11 @@ update msg model =
                                             [ "tseditor" ]
                                             [ UB.string "name" model.name ]
                               )
-                BasketMode -> ( model, Cmd.none )
+                BasketMode ->
+                    ( cleanDiff model
+                    , Cmd.batch
+                          ( getRelevantData model)
+                    )
 
         Saved (Err _) ->
             U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure ) }
@@ -2975,7 +2979,11 @@ permaLink model =
         [ HA.href ( UB.crossOrigin
                         model.baseurl
                         ["tseditor"]
-                        ( queryNav model model.name ))
+                        <| case model.mode of
+                            BasketMode -> basketLink model
+                            _ ->
+                                ( queryNav model model.name )
+                  )
         , HA.target "_blank"
         , HA.class "permalink"
         ]
@@ -3990,6 +3998,18 @@ datesComponent model comp =
     in
         Set.fromList allDates
 
+
+basketLink: Model -> List UB.QueryParameter
+basketLink model =
+    let bounds = getFromToDates model.horizon
+        base = UB.string "basket" model.basket
+    in
+    case bounds of
+        Nothing -> [ base ]
+        Just ( min, max )-> [ base
+                            , UB.string "startdate" min
+                            , UB.string "enddate" max
+                            ]
 
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
