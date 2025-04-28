@@ -1069,7 +1069,7 @@ update msg model =
                     rawdata of
                 Ok names -> let newmodel = { model | directComponents = names}
                             in ( newmodel
-                               , Cmd.none
+                               , getDataComponents newmodel False
                                 )
                 Err err -> U.nocmd
                                { model | errors = model.errors ++ [JD.errorToString err]}
@@ -1209,19 +1209,24 @@ update msg model =
                     , moreCommands
                     )
                 ModuleHorizon.FromLocalStorage _ ->
-                    -- we want to fire the commands AFTER getting the metadata:
-                    -- we store these commands in the model -.-
-                    ( { resetModel | initialCommands = moreCommands }
-                    , Cmd.batch [ commandStart resetModel
-                                , T.perform DateNow Date.today
-                                ]
-                    )
-                ModuleHorizon.Fetch _ ->
-                    ( { resetModel | expand = False }
-                    , Cmd.batch ([ moreCommands ]
-                                 ++ getRelevantData resetModel
-                                )
-                    )
+                    case model.mode of
+                        BasketMode -> ( resetModel
+                                       , Cmd.batch [ moreCommands
+                                                   , commandStart resetModel
+                                                   ]
+                                       )
+                        -- we want to fire the commands AFTER getting the metadata:
+                        -- we store these commands in the model -.-
+                        _ ->  ( { resetModel | initialCommands = moreCommands }
+                              , Cmd.batch [ commandStart resetModel
+                                          , T.perform DateNow Date.today
+                                          ]
+                              )
+
+                ModuleHorizon.Fetch _ -> ( { resetModel | expand = False }
+                                         , Cmd.batch ([ moreCommands ]
+                                         ++ getRelevantData resetModel ))
+
 
         Create option ->
             let creation =
@@ -2584,7 +2589,7 @@ getRelevantData model =
         Existing I.Formula ->
             [ getPoints model ]
         Creation _ -> [ Cmd.none ]
-        BasketMode -> [ Cmd.none ]
+        BasketMode ->  [ getDataComponents model False ]
 
 
 parseInput : String -> Edited
@@ -3088,6 +3093,7 @@ viewRelevantTable model =
     case model.mode of
         Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
+        BasketMode ->  viewValueTable model
         Creation Form -> H.table
                             [ HA.class "creation-form"
                             ,  HE.onClick UnFocus
@@ -3106,7 +3112,6 @@ viewRelevantTable model =
                                 ]
                                 [ nameForm model ]
                             , viewValueTable model ]
-        BasketMode -> H.div [] [ H.text model.basket ]
 
 
 checkMandatory: Maybe String -> String
