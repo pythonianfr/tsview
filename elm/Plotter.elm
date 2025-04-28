@@ -1,6 +1,8 @@
 module Plotter exposing
-    ( Range(..)
+    ( Axis
+    , Range(..)
     , Trace
+    , TraceArgs
     , TraceOptions
     , defaultTraceOptions
     , defaultLayoutOptions

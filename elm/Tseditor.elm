@@ -41,7 +41,9 @@ import Maybe.Extra as Maybe
 import Metadata as M
 import OrderedDict as OD
 import Plotter exposing
-    ( defaultLayoutOptions
+    ( Axis
+    , Trace
+    , defaultLayoutOptions
     , defaultTraceOptions
     , defaultConfigOptions
     , getdata
@@ -4327,6 +4329,31 @@ msgDoesNotExist =
 
 plotNode: Model -> H.Html Msg
 plotNode model =
+    let dragMode =
+            if model.panActive
+            then "pan"
+            else "zoom"
+        hoverFormat = Just <| buildFormater
+                                    model.roundValues
+        lineMarker = ( if model.horizon.inferredFreq
+                            then "lines+markers"
+                            else "lines" )
+        yaxis = defaultLayoutOptions.yaxis
+        newYaxis =  { yaxis | hoverFormat = hoverFormat
+                    }
+        xaxis = defaultLayoutOptions.xaxis
+        newXaxis = { xaxis
+                    | range = extractDates model.horizon.zoomBounds
+                   }
+    in
+    case model.mode
+        of BasketMode -> plotBasket model dragMode lineMarker newXaxis newYaxis
+           _ -> plotSingle model dragMode lineMarker newXaxis newYaxis
+
+
+
+plotSingle: Model -> String -> String -> Axis -> Axis -> H.Html Msg
+plotSingle model dragMode lineMarker xAxis yAxis =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
         diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
@@ -4354,18 +4381,6 @@ plotNode model =
                 ]
             _ -> []
 
-        dragMode =
-            if model.panActive
-            then "pan"
-            else "zoom"
-        yaxis = defaultLayoutOptions.yaxis
-        newYaxis =  { yaxis | hoverFormat = Just <| buildFormater
-                                                        model.roundValues
-                    }
-        xaxis = defaultLayoutOptions.xaxis
-        newXaxis = { xaxis
-                    | range = extractDates model.horizon.zoomBounds
-                   }
     in
     H.node "plot-figure"
             [ HA.attribute
@@ -4376,16 +4391,48 @@ plotNode model =
                         model.name
                         dates
                         values
-                        ( if model.horizon.inferredFreq
-                            then "lines+markers"
-                            else "lines" )
+                       lineMarker
                         defaultTraceOptions
                       ] ++ editionTrace
                         ++ previouslyEditedTrace
                     )
                     { defaultLayoutOptions | dragMode = Just dragMode
-                                           , yaxis = newYaxis
-                                           , xaxis = newXaxis
+                                           , yaxis = yAxis
+                                           , xaxis = xAxis
+                                           , height = Just 350
+                    }
+                    defaultConfigOptions
+                )
+            ]
+            [ ]
+
+traceComp : String -> Component -> Trace
+traceComp lineMarker component =
+    let dates = onlyActiveKeys component.data
+        values = Dict.values  ( onlyActiveValues component.data )
+    in
+        scatterplot
+            component.name
+            dates
+            values
+            lineMarker
+            defaultTraceOptions
+
+
+plotBasket: Model -> String -> String -> Axis -> Axis -> H.Html Msg
+plotBasket model dragMode lineMarker xAxis yAxis =
+        H.node "plot-figure"
+            [ HA.attribute
+                "args"
+                ( serializedPlotArgs
+                     "plot"
+                    ( List.map
+                        ( traceComp lineMarker )
+                        model.directComponents
+                    )
+                    { defaultLayoutOptions | dragMode = Just dragMode
+                                           , yaxis = yAxis
+                                           , xaxis = xAxis
                                            , height = Just 350
                     }
                     defaultConfigOptions
