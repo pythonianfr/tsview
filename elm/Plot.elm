@@ -1206,7 +1206,8 @@ buildPlotArgs model =
             { defaultLayoutOptions |
                 xaxis = { defaultDateAxis |
                             range = extractDates
-                                model.horizon.zoomBounds
+                                       <| getFromToDates
+                                            model.horizon
                          }
                 , yaxis = { defaultValueAxis |
                                 range = extractValues
