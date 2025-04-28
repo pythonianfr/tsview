@@ -4343,7 +4343,8 @@ plotNode model =
                     }
         xaxis = defaultLayoutOptions.xaxis
         newXaxis = { xaxis
-                    | range = extractDates model.horizon.zoomBounds
+                    | range = extractDates
+                                <| getFromToDates model.horizon
                    }
     in
     case model.mode
@@ -4416,7 +4417,7 @@ traceComp lineMarker component =
             dates
             values
             lineMarker
-            defaultTraceOptions
+            { defaultTraceOptions | showlegend = True }
 
 
 plotBasket: Model -> String -> String -> Axis -> Axis -> H.Html Msg
@@ -4439,6 +4440,23 @@ plotBasket model dragMode lineMarker xAxis yAxis =
                 )
             ]
             [ ]
+
+
+tableStat: Model -> H.Html Msg
+tableStat model =
+    case model.mode of
+        BasketMode -> H.div [] []
+        _ -> H.div
+                [ HA.class "stat-table-container"]
+                ( [ buttonStat model ]
+                  ++ if model.statVisibility
+                        then  [ viewStatTable
+                                    model.statistics
+                                    model.roundStat
+                                    convertStat
+                              ]
+                        else []
+                )
 
 
 view : Model -> H.Html Msg
@@ -4480,16 +4498,7 @@ view model =
                 , plotNode model
                 , underThePlot model
                 ]
-                , H.div
-                    [ HA.class "stat-table-container"]
-                    ( [ buttonStat model ] ++ if model.statVisibility
-                                                then  [ viewStatTable
-                                                            model.statistics
-                                                            model.roundStat
-                                                            convertStat
-                                                      ]
-                                                else []
-                    )
+                , tableStat model
                 ]
         , debugView model
         , viewRelevantTable model
