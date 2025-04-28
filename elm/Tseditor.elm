@@ -192,6 +192,7 @@ type Msg
     | GotComponents Bool (Result Http.Error String)
     | GotComponentData CType String Bool (Result Http.Error String)
     | GotGenerated PreviewType (Result Http.Error String)
+    | GotBasket (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
@@ -580,6 +581,28 @@ type CompStatus
     | CompLoaded
     | CompError
 
+type alias BasketItem =
+    { name : String
+    , imeta : Maybe M.Metadata
+    , meta : Maybe M.Metadata
+    , source : String
+    , kind : String
+    }
+
+
+toComp: BasketItem -> Component
+toComp basket =
+    { name= basket.name
+    , cType = if basket.kind == "primary" then Primary else Formula
+    , data = emptySeries
+    , tzaware = case basket.imeta of
+                    Nothing -> True
+                    Just imeta -> isTzaware imeta
+    , status = CompEmpty
+    }
+
+
+
 
 asCType: I.SeriesType -> CType
 asCType t =
@@ -634,6 +657,14 @@ pasteWithDataDecoder : JD.Decoder PasteType
 pasteWithDataDecoder =
         JD.map2 PasteType textDecoder indexDecoder
 
+basketItemDecode : JD.Decoder BasketItem
+basketItemDecode =
+    JD.map5 BasketItem
+        (JD.field "name" JD.string)
+        (JD.field "imeta" (JD.succeed Nothing))
+        (JD.field "meta" (JD.succeed Nothing))
+        (JD.field "source" JD.string)
+        (JD.field "kind" JD.string)
 
 separatorReturn raw =
     if String.contains "\r\n" raw then Just "\r\n" -- windows
@@ -785,6 +816,16 @@ getComponents model expand =
               , UB.string "full" <| if expand then "true" else "false"
               ]
         , expect = Http.expectString ( GotComponents expand )
+        }
+
+
+getBasket : String -> String -> Cmd Msg
+getBasket baseUrl name =
+    Http.get
+        { expect = Http.expectString GotBasket
+        , url = UB.crossOrigin baseUrl
+              [ "api", "series", "basket" ]
+              [ UB.string "name" name ]
         }
 
 
@@ -1021,6 +1062,19 @@ update msg model =
 
         GotComponents _ (Err _) ->
             ( model, Cmd.none )
+
+        GotBasket (Ok rawdata) ->
+            case JD.decodeString
+                    ( JD.list ( JD.map toComp basketItemDecode ))
+                    rawdata of
+                Ok names -> let newmodel = { model | directComponents = names}
+                            in ( newmodel
+                               , Cmd.none
+                                )
+                Err err -> U.nocmd
+                               { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotBasket (Err _) -> ( model, Cmd.none )
 
         GotComponentData cType name expand (Ok rawdata) ->
             case cType of
@@ -4164,6 +4218,14 @@ debugView model =
                 , H.br [] []
                 , H.text ( "Name : " ++ model.name )
                 , H.br [] []
+                , H.text ( "Basket : " ++ model.basket )
+                , H.br [] []
+                , H.text ( "Series Basket : "
+                          ++ String.join
+                                " / "
+                                (List.map .name model.directComponents )
+                          )
+                , H.br [] []
                 , H.text ( "Raw pasted : " ++ splitRaw model.rawPasted )
                 , ( Markdown.toHtmlWith option [] model.rawPasted )
                 , H.br [] []
@@ -4394,7 +4456,7 @@ commandStart model =
         Creation _ -> Cmd.batch [ getCatalog model
                                 , getOffsets model
                                 ]
-        BasketMode -> Cmd.none
+        BasketMode -> getBasket model.baseurl model.basket
 
 
 type alias Input =
