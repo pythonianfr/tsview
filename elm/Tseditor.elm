@@ -1198,32 +1198,24 @@ update msg model =
             U.nocmd { model | creation = newCreation }
 
         Horizon hMsg ->
-            let ( newModelHorizon, commands ) =
-                    updateHorizon
-                        hMsg
-                        convertMsg
-                        model.horizon
-                moreCommands =
-                    Cmd.batch [ deselect True , commands ]
-                ( focusM, focusCmd ) =
-                    applyFocus { model | horizon = newModelHorizon} Nothing
-                default =
-                    ( focusM, Cmd.batch [focusCmd, moreCommands ] )
-                resetModel =
-                    buildCoord
-                    <| cleanDiff
-                    <| { model
-                           | horizon = newModelHorizon
-                           , series = case model.series of
-                                          Naked series ->
-                                              Naked { initialTs = series.initialTs
-                                                    , zoomTs = Nothing
-                                                    }
-                                          ToEdit series ->
-                                              ToEdit { initialTs = series.initialTs
-                                                     , zoomTs = Nothing
-                                                     }
-                       }
+            let ( newModelHorizon, commands ) =  updateHorizon
+                                                    hMsg
+                                                    convertMsg
+                                                    model.horizon
+                moreCommands = Cmd.batch [ deselect True , commands]
+                ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
+                default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
+                resetModel = buildCoord
+                            <| cleanDiff
+                            <| { model | horizon = newModelHorizon
+                                       , series = case  model.series of
+                                                    Naked series -> Naked { initialTs = series.initialTs
+                                                                          , zoomTs = Nothing}
+                                                    ToEdit series -> ToEdit { initialTs = series.initialTs
+                                                                            , zoomTs = Nothing}
+                                       , directComponents = cleanComponents model.directComponents
+                                       , terminalComponents = cleanComponents model.terminalComponents
+                              }
             in
             case hMsg of
                 ModuleHorizon.Internal _ ->
@@ -2156,6 +2148,15 @@ insertComponentData components name status data =
                                               , data = series
                                        }
                     else comp
+        )
+        components
+
+cleanComponents: List Component -> List Component
+cleanComponents components =
+    List.map
+        (\ comp -> { comp | status = CompEmpty
+                          , data = emptySeries
+                   }
         )
         components
 
