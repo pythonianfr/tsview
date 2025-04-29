@@ -14,8 +14,8 @@ type alias Series =
     { name : String
     , source : String
     , kind : String
-    , imeta : Maybe M.StdMetadata
-    , meta : Maybe M.StdMetadata
+    , imeta : Maybe M.Metadata
+    , meta : Maybe M.Metadata
     }
 
 

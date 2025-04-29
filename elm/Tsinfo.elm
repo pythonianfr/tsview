@@ -47,6 +47,7 @@ import List.Extra as List
 import List.Selection as LS
 import Maybe.Extra as Maybe
 import Metadata as M
+import Metadata exposing ( Metadata )
 import OrderedDict as OD
 import Plotter exposing
     ( defaultDateAxis
@@ -97,8 +98,8 @@ type alias Model =
     , errors : List String
     , doesnotexist: Bool
     -- metadata, ventilated by std (system) and user
-    , meta : M.StdMetadata
-    , usermeta : M.UserMetadata
+    , meta : M.Metadata
+    , usermeta : M.Metadata
     , seriestype : I.SeriesType
     , timeseries: Dict String ( Maybe Float )
     , statistics: StatInfos
@@ -110,7 +111,7 @@ type alias Model =
     , formula_maxdepth : Int
     , formula : Dict Int String
     -- cache
-    , policy : M.StdMetadata
+    , policy : M.Metadata
     , deleting_cache : Bool
     -- log
     , log : List I.Logentry
@@ -1541,9 +1542,9 @@ view model =
         tablist =
             case model.seriestype of
                 I.Primary ->
-                    [ Plot, UserMetadata, Logs ]
+                    [ Plot, Metadata, Logs ]
                 I.Formula ->
-                    [ Plot, UserMetadata, FormulaCache ]
+                    [ Plot, Metadata, FormulaCache ]
 
         tabs =
             tablist
@@ -1597,7 +1598,7 @@ view model =
                                 ]
                           ]
 
-                  UserMetadata ->
+                  Metadata ->
                       H.div
                           []
                           [ head

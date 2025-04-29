@@ -91,7 +91,7 @@ type alias Logentry =
     { rev : Int
     , author : String
     , date : String
-    , meta : M.UserMetadata
+    , meta : M.Metadata
     }
 
 

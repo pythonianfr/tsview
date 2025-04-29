@@ -13,13 +13,14 @@ import Html.Attributes as HA
 import Html.Events as HE
 import List.Selection as LS
 import Metadata as M
+import Metadata exposing ( Metadata )
 import Util as U
 
 
 type Tabs
     = Plot
     | Logs
-    | UserMetadata
+    | Metadata
     | FormulaCache
 
 
@@ -65,7 +66,7 @@ viewdatespicker date_index insertion_dates msg  =
         ]
 
 
-strseries : M.StdMetadata -> Bool
+strseries : M.Metadata -> Bool
 strseries meta =
     case M.dget "value_type" meta of
         "object" -> True
@@ -76,7 +77,7 @@ strtab : Tabs -> String
 strtab tablelayout =
     case tablelayout of
         Plot -> "Plot"
-        UserMetadata -> "Metadata"
+        Metadata -> "Metadata"
         Logs -> "Logs"
         FormulaCache -> "Cache"
 

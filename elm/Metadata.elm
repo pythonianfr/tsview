@@ -1,7 +1,6 @@
 module Metadata exposing
     ( MetaVal(..)
-    , UserMetadata
-    , StdMetadata
+    , Metadata
     , decodemeta
     , decodemetaval
     , dget
@@ -54,12 +53,9 @@ metavaltostring mv =
         Mnull s -> ""
 
 
-type alias StdMetadata =
+type alias Metadata =
     Dict String MetaVal
 
-
-type alias UserMetadata =
-    Dict String MetaVal
 
 
 getsysmetadata urlprefix name callback dtype =
@@ -70,7 +66,8 @@ getsysmetadata urlprefix name callback dtype =
             UB.crossOrigin urlprefix
                 [ "api", dtype, "metadata" ]
                 [ UB.string "name" name
-                , UB.string "type" "internal" ]
+                , UB.string "type" "internal"
+                ]
         }
 
 
@@ -93,8 +90,10 @@ getmetadata urlprefix name callback dtype =
             UB.crossOrigin urlprefix
                 [ "api", dtype, "metadata" ]
                 [ UB.string "name" name
-                , UB.int "all" 1 ]
+                , UB.int "all" 1
+                ]
         }
+
 
 decodemetaval : D.Decoder MetaVal
 decodemetaval =
@@ -109,7 +108,7 @@ decodemetaval =
         ]
 
 
-decodemeta : D.Decoder UserMetadata
+decodemeta : D.Decoder Metadata
 decodemeta =
     D.dict decodemetaval
 

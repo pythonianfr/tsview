@@ -11,7 +11,7 @@ import Http
 import Catalog
 import Json.Decode as Decode
 import List.Extra as List
-import Metadata
+import Metadata as M
 import Plotter exposing
     ( Series
     , Group
@@ -132,8 +132,8 @@ failedInfo =
 
 type alias BasketItem =
     { name : String
-    , imeta : Maybe Metadata.StdMetadata
-    , meta : Maybe Metadata.StdMetadata
+    , imeta : Maybe M.Metadata
+    , meta : Maybe M.Metadata
     , source : String
     , kind : String
     }

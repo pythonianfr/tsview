@@ -84,8 +84,8 @@ type alias Model =
     , errors : List String
     , doesnotexist: Bool
     -- metadata, ventilated by std (system) and user
-    , meta : M.StdMetadata
-    , usermeta : M.UserMetadata
+    , meta : M.Metadata
+    , usermeta : M.Metadata
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -705,9 +705,9 @@ view model =
         tablist =
             case Dict.get model.formula_depth model.formula of
                 Nothing ->
-                    [ Plot, UserMetadata, Logs ]
+                    [ Plot, Metadata, Logs ]
                 Just _ ->
-                    [ Plot, UserMetadata, FormulaCache ]
+                    [ Plot, Metadata, FormulaCache ]
 
         tabs =
             tablist
@@ -780,7 +780,7 @@ view model =
                                     ]
                               ]
 
-                  UserMetadata ->
+                  Metadata ->
                       div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
 
                   Logs ->

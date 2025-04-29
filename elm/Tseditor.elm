@@ -156,7 +156,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , mode: EditionMode
-    , meta : M.StdMetadata
+    , meta : M.Metadata
     , exist: Bool
     , source : String
     , seriestype : I.SeriesType
@@ -536,7 +536,7 @@ nameSeries series name =
         series
 
 
-isTzaware: M.StdMetadata -> Bool
+isTzaware: M.Metadata -> Bool
 isTzaware meta =
      case Dict.get "tzaware" meta of
                     Just (M.MBool val) -> val

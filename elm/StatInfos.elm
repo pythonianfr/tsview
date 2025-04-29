@@ -12,16 +12,13 @@ module StatInfos exposing
 
 import Dateinterval exposing (medianValue)
 import Dict exposing (Dict)
-import List.Extra as List
-import List.Statistics as Stat
 import Html as H
 import Html exposing (Attribute)
 import Html.Attributes as HA
 import Html.Events as HE
-import Metadata
-import Metadata exposing
-    ( UserMetadata
-    )
+import List.Extra as List
+import List.Statistics as Stat
+import Metadata as M
 import Statistics
 import Round
 
@@ -78,14 +75,14 @@ emptyStat =
 
 maxPoints = 1000
 
-updateFirstLast: StatInfos -> UserMetadata -> StatInfos
+updateFirstLast: StatInfos -> M.Metadata -> StatInfos
 updateFirstLast statInfos meta =
     let first = Date <| case Dict.get "left" meta of
-                            Just (Metadata.MString val)
+                            Just ( M.MString val )
                                 -> Just val
                             _ -> Nothing
         last = Date <| case Dict.get "right" meta of
-                            Just (Metadata.MString val)
+                            Just ( M.MString val )
                                 -> Just val
                             _ -> Nothing
     in
