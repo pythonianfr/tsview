@@ -11,8 +11,6 @@ import Browser.Events exposing
 import Browser.Navigation
 import Dict exposing (Dict)
 import Date
-import Maybe.Extra as Maybe
-import Set exposing (Set)
 import Horizon exposing
     ( HorizonModel
     , PlotStatus(..)
@@ -35,6 +33,7 @@ import Html.Events as HE
 import Info as I
 import Json.Decode as JD
 import Json.Decode.Pipeline exposing (required, hardcoded)
+import Json.Encode as JE
 import List.Extra as List
 import Markdown
 import Maybe.Extra as Maybe
@@ -50,6 +49,7 @@ import Plotter exposing
     )
 import Process as P
 import Round
+import Set exposing (Set)
 import StatInfos as ModuleStatInfos
 import StatInfos exposing
     ( Msg(..)
@@ -62,10 +62,10 @@ import StatInfos exposing
     , updateFirstLast
     , viewStatTable
     )
+import Task as T
 import Url.Builder as UB
 import Util as U
-import Json.Encode as JE
-import Task as T
+
 
 port copyToClipboard : String -> Cmd msg
 port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
@@ -77,7 +77,7 @@ port loadLocal : (String -> msg) -> Sub msg
 
 keyDecoder : Action -> JD.Decoder Msg
 keyDecoder action =
-    JD.map ( toKey action )  (JD.field "key" JD.string)
+    JD.map ( toKey action ) (JD.field "key" JD.string)
 
 
 toKey : Action -> String -> Msg
@@ -91,51 +91,29 @@ toKey action keyValue =
 
 keyToType:  Action -> String -> ControlKey
 keyToType action keyValue =
-    if keyValue == "Escape"
-    then Escape action
-    else
-    if keyValue == "Delete"
-    then Delete action
-    else
-    if keyValue == "Control"
-    then Control action
-    else
-    if keyValue == "Meta"
-    then Meta action
-    else
-    if keyValue == "Shift"
-    then Shift action
-    else
-    if keyValue == "ArrowUp"
-    then ArrowUp action
-    else
-    if keyValue == "ArrowDown"
-    then ArrowDown action
-    else
-    if keyValue == "ArrowLeft"
-    then ArrowLeft action
-    else
-    if keyValue == "ArrowRight"
-    then ArrowRight action
-    else
-    if keyValue == "PageDown"
-    then PageDown action
-    else
-    if keyValue == "PageUp"
-    then PageUp action
-    else
-    if keyValue == "Enter"
-    then Enter action
-    else Other keyValue action
+    case keyValue of
+        "Escape" -> Escape action
+        "Delete" -> Delete action
+        "Control" -> Control action
+        "Meta" -> Meta action
+        "Shift" -> Shift action
+        "ArrowUp" -> ArrowUp action
+        "ArrowDown" -> ArrowDown action
+        "ArrowLeft" -> ArrowLeft action
+        "ArrowRight" -> ArrowRight action
+        "PageDown" -> PageDown action
+        "PageUp" -> PageUp action
+        "Enter" -> Enter action
+        _ ->  Other keyValue action
 
 
-type Action =
-    Up
+type Action
+    = Up
     | Down
 
 
-type ControlKey =
-    Escape Action
+type ControlKey
+    = Escape Action
     | Delete Action
     | Control Action
     | Meta Action
@@ -149,8 +127,9 @@ type ControlKey =
     | Enter Action
     | Other String Action
 
-naiveTag: String
+
 naiveTag = "Naive"
+
 
 type alias Model =
     { baseurl : String
@@ -258,16 +237,22 @@ type Msg
     | NewDragMode Bool
 
 
+type alias SeriesNaked =
+    Dict String (Maybe Float)
 
-type alias SeriesNaked = Dict String (Maybe Float)
-type alias SeriesToEdit = Dict String Entry
+
+type alias SeriesToEdit =
+    Dict String Entry
+
 
 type Series =
     Naked { initialTs: SeriesNaked, zoomTs: Maybe SeriesNaked }
     | ToEdit { initialTs: SeriesToEdit, zoomTs: Maybe SeriesToEdit }
 
+
 emptySeries: Series
 emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
+
 
 type alias Box =
     { t: Int
@@ -276,16 +261,19 @@ type alias Box =
     , l: Int
     }
 
-type EditionMode =
-    Creation CreationMode
+
+type EditionMode
+    = Creation CreationMode
     | Existing I.SeriesType
 
-type CreationMode =
-    Form
+
+type CreationMode
+    = Form
     | Edit
 
-type CreationOptions =
-    Name String
+
+type CreationOptions
+    = Name String
     | From String
     | To String
     | FreqOffset String
@@ -294,14 +282,15 @@ type CreationOptions =
     | Value String
     | Preview PreviewType
 
+
 type Visibility =
     Nope
     | Single Int
     | All
 
 
-type PreviewType =
-    FromScratch
+type PreviewType
+    = FromScratch
     | Patch
 
 
@@ -324,22 +313,26 @@ type alias CreationModel =
     , offsets : List String
     }
 
-type TzSelector =
-    Unchanged
+
+type TzSelector
+    = Unchanged
     | Naive
     | Selected String
 
-type NameStatus =
-    Valid
+
+type NameStatus
+    = Valid
     | Invalid
     | Missing
+
 
 initCreationModel: CreationModel
 initCreationModel =
     { from = Nothing
     , to = Nothing
     , freq = { offset = "h"
-             , multiplier = Nothing }
+             , multiplier = Nothing
+             }
     , tz = Unchanged
     , value = Nothing
     , name = Nothing
@@ -349,16 +342,19 @@ initCreationModel =
     , offsets = []
     }
 
+
 convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
+
 
 convertStat : ModuleStatInfos.Msg -> Msg
 convertStat msg =
     StatInfos msg
 
-type Parameter =
-    Slope String
+
+type Parameter
+    = Slope String
     | Intercept String
 
 
@@ -369,6 +365,7 @@ type alias Holding =
     , meta: Bool
     }
 
+
 emptyHolding: Holding
 emptyHolding =
     { mouse = False
@@ -377,17 +374,20 @@ emptyHolding =
     , meta = False
     }
 
-type ActionRound =
-    Replace String
+
+type ActionRound
+    = Replace String
     | Remove
     | More
     | Less
 
+
 type alias LocalStorage =
-    { round : Maybe String
-    }
+    { round : Maybe String }
+
 
 maxPoints = 1000
+
 
 msgTooManyPoints nbPoints =
     H.text
@@ -397,10 +397,11 @@ msgTooManyPoints nbPoints =
             frame or an area on the graph."""
 
 
-type CopyType =
-    CopyName
+type CopyType
+    = CopyName
     | CopyDates
     | CopyValues
+
 
 type alias StatusCopy =
     { name : Bool
@@ -416,8 +417,10 @@ initialStatusCopy =
     , values = True
     }
 
+
 classClip = "bi bi-clipboard"
 classCheck = "bi bi-check2"
+
 
 getCopyClass: StatusCopy -> CopyType -> String
 getCopyClass statusCopy copyType =
@@ -439,8 +442,8 @@ type alias BaseSupervision =
     }
 
 
-type Stuff =
-    DateRow String
+type Stuff
+    = DateRow String
     | Header ( String, CType )
     | Cell Entry
 
@@ -477,14 +480,14 @@ type alias Entry =
 baseToEntry: BaseSupervision -> Entry
 baseToEntry base =
      { raw = Maybe.map String.fromFloat base.value
-        , value = base.value
-        , edition = NoEdition
-        , editable = True
-        , override = base.override
-        , indexRow = ""
-        , indexCol = ""
-        , fromBatch = False
-    }
+     , value = base.value
+     , edition = NoEdition
+     , editable = True
+     , override = base.override
+     , indexRow = ""
+     , indexCol = ""
+     , fromBatch = False
+     }
 
 
 emptyEntry : Entry
@@ -517,9 +520,8 @@ dressSeries series name =
                                , edition = asEdited v
                                , editable = True
                                , raw = case v of
-                                        Nothing -> Nothing
-                                        Just val -> Just
-                                                      <| String.fromFloat val
+                                           Nothing -> Nothing
+                                           Just val -> Just ( String.fromFloat val )
                                , indexCol = name
                                , indexRow = k
                                , fromBatch = False
@@ -539,8 +541,8 @@ nameSeries series name =
 isTzaware: M.Metadata -> Bool
 isTzaware meta =
      case Dict.get "tzaware" meta of
-                    Just (M.MBool val) -> val
-                    _ -> False
+         Just (M.MBool val) -> val
+         _ -> False
 
 
 likeComp: Model -> Component
@@ -553,8 +555,8 @@ likeComp model =
         CompLoaded
 
 
-type Edited =
-    Edition Float
+type Edited
+    = Edition Float
     | NoEdition
     | Deletion
     | Error String
@@ -569,10 +571,12 @@ type alias Component =
     , status: CompStatus
     }
 
-type CompStatus =
-    CompEmpty
+
+type CompStatus
+    = CompEmpty
     | CompLoaded
     | CompError
+
 
 asCType: I.SeriesType -> CType
 asCType t =
@@ -580,23 +584,23 @@ asCType t =
         I.Primary -> Primary
         I.Formula -> Formula
 
-type CType =
-    Primary
+
+type CType
+    = Primary
     | Formula
     | Auto
 
 
 applyType: String -> CType
-applyType strType =
-    if strType == "auto"
-    then Auto
-    else if strType == "formula"
-    then Formula
-    else Primary
+applyType strtype =
+    case strtype of
+        "auto" -> Auto
+        "formula" -> Formula
+        _  -> Primary
 
 
-type DragMode =
-    On ( Int, Int)
+type DragMode
+    = On ( Int, Int)
     | Off
 
 
@@ -665,9 +669,11 @@ getPos s =
                             ( String.toInt j ))
         _ -> ( 0, 0 )
 
+
 splitByTab: String -> List String
 splitByTab s =
     String.split tab s
+
 
 tab = "\t"
 return = "\n"
@@ -686,14 +692,15 @@ dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
     ( JD.dict ( JD.map baseToEntry entryDecoder ))
 
+
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
     JD.list (JD.map5 Component
-                ( JD.field "name" JD.string )
-                ( JD.map applyType ( JD.field "type" JD.string ))
-                ( JD.succeed emptySeries )
-                ( JD.field "tzaware" JD.bool )
-                ( JD.succeed CompEmpty )
+                 ( JD.field "name" JD.string )
+                 ( JD.map applyType ( JD.field "type" JD.string ))
+                 ( JD.succeed emptySeries )
+                 ( JD.field "tzaware" JD.bool )
+                 ( JD.succeed CompEmpty )
             )
 
 
@@ -767,14 +774,14 @@ getOrPostData method query =
 getComponents: Model -> Bool -> Cmd Msg
 getComponents model expand =
     Http.get
-        { url = (UB.crossOrigin model.baseurl
-                    [ "formula-components" ]
-                    [ UB.string "name" model.name
-                    , UB.string "full" <| if expand
-                                            then "true"
-                                            else "false"
-                    ] )
-        , expect = Http.expectString ( GotComponents expand ) }
+        { url =
+              UB.crossOrigin model.baseurl
+              [ "formula-components" ]
+              [ UB.string "name" model.name
+              , UB.string "full" <| if expand then "true" else "false"
+              ]
+        , expect = Http.expectString ( GotComponents expand )
+        }
 
 
 getDataComponents: Model -> Bool -> Cmd Msg
@@ -782,7 +789,7 @@ getDataComponents model expand =
     Cmd.batch
         <| List.reverse
                ( List.map
-                    ( getRelevantComponent model expand )
+                     ( getRelevantComponent model expand )
                      ( relevantComponents model )
                )
 
@@ -824,26 +831,38 @@ printFreq freq =
 
 getGeneratedTs: Model -> PreviewType -> Cmd Msg
 getGeneratedTs model previewType=
+    let
+        baseparams =
+            [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
+            , UB.string "to" ( Maybe.withDefault "" model.creation.to )
+            , UB.string "freq" ( printFreq model.creation.freq )
+            ]
+
+        createparams1 =
+            case model.creation.tz of
+                Naive ->
+                    [ ]
+                Selected tz ->
+                    [ UB.string "tz" tz ]
+                Unchanged ->
+                    if model.tzaware
+                    then [ UB.string "tz" model.horizon.timeZone ]
+                    else [ ]
+
+        createparams2 =
+            case model.creation.value of
+                Nothing ->
+                    [ ]
+                Just value ->
+                    [ UB.string "value" value]
+    in
     Http.get
-    { url = (UB.crossOrigin model.baseurl
-                [ "generate-ts" ]
-                (( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
-                  , UB.string "to" ( Maybe.withDefault "" model.creation.to )
-                  , UB.string "freq" ( printFreq model.creation.freq )
-                  ] ++ case model.creation.tz of
-                       Naive -> []
-                       Selected tz -> [ UB.string "tz" tz ]
-                       Unchanged -> if model.tzaware
-                                    then [ UB.string "tz" model.horizon.timeZone ]
-                                    else [ ]
-                )
-                   ++ case model.creation.value of
-                       Nothing -> []
-                       Just value ->
-                        [ UB.string "value" value]
-                )
-    )
-    , expect = Http.expectString ( GotGenerated previewType)}
+        { url =
+              UB.crossOrigin model.baseurl
+              [ "generate-ts" ]
+              (baseparams ++ createparams1 ++ createparams2)
+        , expect = Http.expectString ( GotGenerated previewType)
+        }
 
 
 getsource : String -> String -> Cmd Msg
@@ -879,9 +898,8 @@ getOffsets model =
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
 encodeBodyEvalFormula formula from to =
     if from == "" || to == ""
-        then  JE.object [ ("text", JE.string formula) ]
-        else
-             JE.object [ ("text", JE.string formula)
+        then JE.object [ ("text", JE.string formula) ]
+        else JE.object [ ("text", JE.string formula)
                        , ("from_value_date", JE.string from)
                        , ("to_value_date", JE.string to)
                        ]
@@ -889,21 +907,23 @@ encodeBodyEvalFormula formula from to =
 
 postData query =
     Http.post
-        { url = UB.crossOrigin
-                    query.baseurl
-                    [ "api", "series", query.apipoint ]
-                    []
-        , body = Http.jsonBody ( encodeBodyEvalFormula
-                                    query.name
-                                    query.fromdate
-                                    query.todate
-                               )
+        { url =
+              UB.crossOrigin query.baseurl
+              [ "api", "series", query.apipoint ]
+              []
+        , body =
+            Http.jsonBody ( encodeBodyEvalFormula
+                                query.name
+                                query.fromdate
+                                query.todate
+                          )
         , expect = Http.expectString query.callback
         }
 
 
 addError: Model -> String -> String -> Model
-addError model tag error = U.adderror model (tag ++ " -> " ++ error)
+addError model tag error =
+    U.adderror model (tag ++ " -> " ++ error)
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -927,13 +947,13 @@ update msg model =
                     in
                         applyFocus
                             ( buildCoord
-                                ({ model
+                                { model
                                     | series = series
                                     , statistics = statistics
                                     , horizon = updateHorizonFromData
-                                                    model.horizon
-                                                    indexedval
-                                })
+                                                model.horizon
+                                                indexedval
+                                }
                             )
                         ( Just ( 0, 0 ) )
 
@@ -947,100 +967,108 @@ update msg model =
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
-            case JD.decodeString
-                    (JD.dict (JD.maybe JD.float))
-                    rawdata of
-                Ok val -> let zoomTs = applyZoom model val
-                          in
-                          ( ( buildCoord
-                            { model | series = Naked { initialTs = val
-                                                     , zoomTs = zoomTs }
-                                    , horizon = updateHorizonFromData
-                                                model.horizon
-                                                val
-                                    , statistics = getStatistics
-                                                model.statistics
-                                                model.allowInferFreq
-                                                val
-                            }
+            case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
+                Ok val ->
+                    let zoomTs = applyZoom model val in
+                    ( buildCoord
+                          { model
+                              | series = Naked { initialTs = val
+                                               , zoomTs = zoomTs
+                                               }
+                              , horizon = updateHorizonFromData
+                                          model.horizon
+                                          val
+                              , statistics = getStatistics
+                                             model.statistics
+                                             model.allowInferFreq
+                                             val
+                          }
+                    , Cmd.batch [ getComponents model False
+                                , getComponents model True
+                                ]
+                    )
+                Err err ->
+                    U.nocmd ( addError
+                                  { model | horizon = setStatusPlot
+                                                      model.horizon
+                                                      Failure
+                                  }
+                                  "got value data decode"
+                                  ( JD.errorToString err )
                             )
-                           , Cmd.batch [ getComponents model False
-                                       , getComponents model True ]
-                           )
-                Err err -> U.nocmd ( addError
-                                        { model | horizon = setStatusPlot
-                                                                model.horizon
-                                                                Failure
-                                        }
-                                        "got value data decode"
-                                        ( JD.errorToString err ))
 
         GotValueData (Err _) ->
-            ( { model | horizon = setStatusPlot model.horizon Failure }
-            , Cmd.none )
+            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotComponents expand (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
-                Ok val -> let newmodel = if expand
-                                            then { model | terminalComponents = val}
-                                            else { model | directComponents = val}
-                          in ( newmodel
-                             , if not expand
-                                then getDataComponents newmodel False
-                                else Cmd.none
-                             )
-                Err err -> U.nocmd
-                               { model | errors = model.errors ++ [JD.errorToString err]}
+                Ok val ->
+                    let newmodel =
+                            if expand
+                            then { model | terminalComponents = val}
+                            else { model | directComponents = val}
+                    in ( newmodel
+                       , if not expand
+                         then getDataComponents newmodel False
+                         else Cmd.none
+                       )
+                Err err ->
+                    U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotComponents _ (Err _) -> ( model, Cmd.none )
+        GotComponents _ (Err _) ->
+            ( model, Cmd.none )
 
         GotComponentData cType name expand (Ok rawdata) ->
             case cType of
                 Primary ->
                     case JD.decodeString dataDecoder rawdata of
                         Ok indexedval ->
-                            let zoomTs = applyZoom model indexedval
-                                newCD = insertComponentData
-                                            ( if expand
-                                                then model.terminalComponents
-                                                else model.directComponents
-                                            )
-                                            name
-                                            ( ToEdit { initialTs = indexedval, zoomTs = zoomTs })
-                                newModel = if expand
-                                            then { model | terminalComponents = newCD}
-                                            else { model | directComponents = newCD}
+                            let zoomTs =
+                                    applyZoom model indexedval
+                                newCD =
+                                    insertComponentData
+                                    ( if expand
+                                      then model.terminalComponents
+                                      else model.directComponents
+                                    )
+                                    name
+                                    ( ToEdit { initialTs = indexedval, zoomTs = zoomTs })
+                                newModel =
+                                    if expand
+                                    then { model | terminalComponents = newCD}
+                                    else { model | directComponents = newCD}
                             in
-                                U.nocmd ( buildCoord newModel )
-                        Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                            U.nocmd ( buildCoord newModel )
+                        Err err ->
+                            U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
                 _ ->
-                    case JD.decodeString
-                        (JD.dict (JD.maybe JD.float))
-                        rawdata of
-                    Ok val ->  let zoomTs = applyZoom model val
-                                   newCD = insertComponentData
-                                            ( if expand
-                                                then model.terminalComponents
-                                                else model.directComponents
-                                            )
-                                            name
-                                            ( Naked { initialTs = val, zoomTs = zoomTs })
-                                   newModel = if expand
-                                            then { model | terminalComponents = newCD}
-                                            else { model | directComponents = newCD}
-                               in
-                                   U.nocmd ( buildCoord newModel )
-                    Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
-
+                    case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
+                        Ok val ->
+                            let zoomTs =
+                                    applyZoom model val
+                                newCD =
+                                    insertComponentData
+                                    ( if expand
+                                      then model.terminalComponents
+                                      else model.directComponents
+                                    )
+                                    name
+                                    ( Naked { initialTs = val, zoomTs = zoomTs })
+                                newModel =
+                                    if expand
+                                    then { model | terminalComponents = newCD}
+                                    else { model | directComponents = newCD}
+                            in
+                            U.nocmd ( buildCoord newModel )
+                        Err err ->
+                            U.nocmd { model | errors = model.errors ++ [ JD.errorToString err ]}
 
         GotComponentData cType name expand (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotGenerated previewType ( Ok rawdata ) ->
-             case JD.decodeString
-                    (JD.dict (JD.maybe JD.float))
-                    rawdata of
-                Ok val ->
+             case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
+                 Ok val ->
                     case previewType of
                         FromScratch ->
                             U.nocmd
@@ -1067,44 +1095,61 @@ update msg model =
                                                            }
                                     }
 
-                Err err -> U.nocmd
-                            { model | errors = model.errors ++ [JD.errorToString err]}
+                 Err err ->
+                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotGenerated previewType (Err err) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         DateNow date ->
-            let creation = model.creation
-                newCreation = { creation | from = Just (( Date.toIsoString date ) ++ "T00:00" )
-                                         , to = Just (( Date.toIsoString date ) ++ "T00:00" )
-                              }
+            let creation =
+                    model.creation
+                newCreation =
+                    { creation
+                        | from = Just (( Date.toIsoString date ) ++ "T00:00" )
+                        , to = Just (( Date.toIsoString date ) ++ "T00:00" )
+                    }
             in
-                U.nocmd { model | creation = newCreation }
+            U.nocmd { model | creation = newCreation }
 
         Horizon hMsg ->
-            let ( newModelHorizon, commands ) =  updateHorizon
-                                                    hMsg
-                                                    convertMsg
-                                                    model.horizon
-                moreCommands = Cmd.batch [ deselect True , commands]
-                ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
-                default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
-                resetModel = buildCoord
-                            <| cleanDiff
-                            <| { model | horizon = newModelHorizon
-                                       , series = case  model.series of
-                                                    Naked series -> Naked { initialTs = series.initialTs
-                                                                          , zoomTs = Nothing}
-                                                    ToEdit series -> ToEdit { initialTs = series.initialTs
-                                                                            , zoomTs = Nothing}
-                              }
+            let ( newModelHorizon, commands ) =
+                    updateHorizon
+                        hMsg
+                        convertMsg
+                        model.horizon
+                moreCommands =
+                    Cmd.batch [ deselect True , commands ]
+                ( focusM, focusCmd ) =
+                    applyFocus { model | horizon = newModelHorizon} Nothing
+                default =
+                    ( focusM, Cmd.batch [focusCmd, moreCommands ] )
+                resetModel =
+                    buildCoord
+                    <| cleanDiff
+                    <| { model
+                           | horizon = newModelHorizon
+                           , series = case model.series of
+                                          Naked series ->
+                                              Naked { initialTs = series.initialTs
+                                                    , zoomTs = Nothing
+                                                    }
+                                          ToEdit series ->
+                                              ToEdit { initialTs = series.initialTs
+                                                     , zoomTs = Nothing
+                                                     }
+                       }
             in
             case hMsg of
-                ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> ( { resetModel | forceDraw = False
-                                                        , firstSelected = Nothing
-                                           }
-                                         , moreCommands )
+                ModuleHorizon.Internal _ ->
+                    default
+                ModuleHorizon.Frame _ ->
+                    ( { resetModel
+                          | forceDraw = False
+                          , firstSelected = Nothing
+                      }
+                    , moreCommands
+                    )
                 ModuleHorizon.FromLocalStorage _ ->
                     -- we want to fire the commands AFTER getting the metadata:
                     -- we store these commands in the model -.-
@@ -1113,69 +1158,84 @@ update msg model =
                                 , T.perform DateNow Date.today
                                 ]
                     )
-                ModuleHorizon.Fetch _ -> ( { resetModel | expand = False }
-                                         , Cmd.batch ([ moreCommands ]
-                                         ++ getRelevantData resetModel ))
-
+                ModuleHorizon.Fetch _ ->
+                    ( { resetModel | expand = False }
+                    , Cmd.batch ([ moreCommands ]
+                                 ++ getRelevantData resetModel
+                                )
+                    )
 
         Create option ->
-            let creation = model.creation
-                freq = model.creation.freq
-                newCreation = case option of
-                    From val -> { creation | from = Just val }
-                    To val -> { creation | to = Just val }
-                    FreqMultiply val ->
-                        { creation |
-                            freq = { freq |
-                                        multiplier =
-                                            if val == ""
-                                                then Nothing
-                                                else String.toInt val
-                                    }
-                        }
-                    FreqOffset val ->
-                        { creation |
-                            freq = { freq | offset = val }
-                        }
-                    Tz val -> { creation | tz = if val == naiveTag
-                                                    then Naive
-                                                    else Selected val
-                              }
-                    Value val -> { creation | value = Just val }
-                    Name val -> { creation | name = Just val
-                                           , nameStatus = case model.creation.catalog of
-                                                            Nothing -> Invalid
-                                                            Just cat ->
-                                                                if List.member val cat
-                                                                    then Invalid
-                                                                    else
-                                                                        if val == ""
-                                                                            then Missing
-                                                                            else Valid
-                                }
-                    _ -> creation
-                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
-                                                                      newCreation.to /= Nothing
-                                    }
-
-                command = case option of
-                    Preview FromScratch -> getGeneratedTs model FromScratch
-                    Preview Patch -> getGeneratedTs model Patch
-                    _ -> Cmd.none
-                tzawarness = case validatedCreation.tz of
-                                Naive -> False
-                                Unchanged -> model.tzaware
-                                _ -> True
+            let creation =
+                    model.creation
+                freq =
+                    model.creation.freq
+                newCreation =
+                    case option of
+                        From val -> { creation | from = Just val }
+                        To val -> { creation | to = Just val }
+                        FreqMultiply val ->
+                            { creation |
+                                  freq = { freq |
+                                               multiplier =
+                                                   if val == ""
+                                                   then Nothing
+                                                   else String.toInt val
+                                         }
+                            }
+                        FreqOffset val ->
+                            { creation |
+                                  freq = { freq | offset = val }
+                            }
+                        Tz val ->
+                            { creation | tz = if val == naiveTag
+                                              then Naive
+                                              else Selected val
+                            }
+                        Value val ->
+                            { creation | value = Just val }
+                        Name val ->
+                            { creation
+                                | name = Just val
+                                , nameStatus = case model.creation.catalog of
+                                                   Nothing -> Invalid
+                                                   Just cat ->
+                                                       if List.member val cat
+                                                       then Invalid
+                                                       else
+                                                           if val == ""
+                                                           then Missing
+                                                           else Valid
+                            }
+                        _ ->
+                            creation
+                validatedCreation =
+                    { newCreation
+                        | mandatoryValid = newCreation.from /= Nothing &&
+                          newCreation.to /= Nothing
+                    }
+                command =
+                    case option of
+                        Preview FromScratch -> getGeneratedTs model FromScratch
+                        Preview Patch -> getGeneratedTs model Patch
+                        _ -> Cmd.none
+                tzawarness =
+                    case validatedCreation.tz of
+                        Naive -> False
+                        Unchanged -> model.tzaware
+                        _ -> True
             in
-                ( { model | creation = validatedCreation
-                          , name = Maybe.withDefault model.name validatedCreation.name
-                          , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
-                          , meta = Dict.fromList
-                                    [( "tzaware", M.MBool tzawarness )]
-                  }
-                , command )
+            ( { model
+                  | creation = validatedCreation
+                  , name = Maybe.withDefault model.name validatedCreation.name
+                  , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
+                  , meta = Dict.fromList [( "tzaware", M.MBool tzawarness )]
+              }
+            , command
+            )
 
-        Back -> U.nocmd { model | mode = Creation Form }
+        Back ->
+            U.nocmd { model | mode = Creation Form }
 
         SwitchForceDraw ->
             applyFocus
@@ -1183,10 +1243,10 @@ update msg model =
                 ( Just (0 , 0 ))
 
         SwitchBatch ->
-            ({ model | newBatch = not model.newBatch }
+            ( { model | newBatch = not model.newBatch }
             , if not model.newBatch
-                then getOffsets model
-                else Cmd.none
+              then getOffsets model
+              else Cmd.none
             )
 
         StatVisible visible ->
@@ -1195,53 +1255,53 @@ update msg model =
         StatInfos sMsg ->
             case sMsg of
                 AllowInferFreq ->
-                    ({ model | allowInferFreq = True
-                             , statistics = getStatistics
-                                                model.statistics
-                                                True
-                                                ( onlyActiveValues model.series )
-                     }
-                    , Cmd.none
-                    )
+                    U.nocmd { model
+                                | allowInferFreq = True
+                                , statistics = getStatistics
+                                               model.statistics
+                                               True
+                                               ( onlyActiveValues model.series )
+                            }
 
-        ShowDiff -> U.nocmd { model | showDiff = not model.showDiff}
+        ShowDiff ->
+            U.nocmd { model | showDiff = not model.showDiff}
 
         Expand expand ->
-            let newModel = { model | expand = expand }
-            in
-                ( buildCoord ( cleanDiff  newModel )
-                , if ( expand
-                      && loadedComponents model.terminalComponents == 0
-                      )
-                  then getDataComponents newModel True
-                  else Cmd.none
-                )
+            let newModel = { model | expand = expand } in
+            ( buildCoord ( cleanDiff  newModel )
+            , if ( expand
+                       && loadedComponents model.terminalComponents == 0
+                 )
+              then getDataComponents newModel True
+              else Cmd.none
+            )
 
         Visible eCol ->
             case model.nameVisbility of
                 All -> U.nocmd model
                 _ -> U.nocmd { model | nameVisbility = Single eCol }
 
-        AllVisible all -> U.nocmd { model | nameVisbility = if all
-                                                        then All
-                                                        else Nope
-                                    }
+        AllVisible all ->
+            U.nocmd { model | nameVisbility = if all then All else Nope }
 
         InputChanged row col rawvalue ->
             let
-                rawstring = String.replace " " "" rawvalue
-                edition = parseInput rawstring
-                raw = if rawstring == ""
-                            then Nothing
-                            else Just rawstring
+                rawstring =
+                    String.replace " " "" rawvalue
+                edition =
+                    parseInput rawstring
+                raw =
+                    if rawstring == ""
+                    then Nothing
+                    else Just rawstring
             in
-            ( applyDiff
-                <| updateCoordData
-                    model
-                    ( row, col )
-                    raw
-                    edition
-            , Cmd.none )
+            U.nocmd ( applyDiff
+                          <| updateCoordData
+                          model
+                          ( row, col )
+                          raw
+                          edition
+                    )
 
         GetLastInsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
@@ -1292,7 +1352,7 @@ update msg model =
             U.nocmd model
 
         SaveEditedData ->
-            ( { model | horizon = ( setStatusPlot model.horizon Loading )}
+            ( { model | horizon = ( setStatusPlot model.horizon Loading ) }
             , Cmd.batch
                 [ patchEditedData model
                 , deselect False
@@ -1300,11 +1360,12 @@ update msg model =
             )
 
         SaveAnyway ->
-            let modelToSendNotToDraw = applyDiff
-                                        <| buildCoord
-                                            { model | forceDraw = True }
+            let modelToSendNotToDraw =
+                    applyDiff
+                    <| buildCoord
+                        { model | forceDraw = True }
             in
-            ( { model | horizon = ( setStatusPlot model.horizon Loading )}
+            ( { model | horizon = ( setStatusPlot model.horizon Loading ) }
             , Cmd.batch
                 [ patchEditedData modelToSendNotToDraw
                 , deselect False
@@ -1315,62 +1376,69 @@ update msg model =
             applyFocus
                 ( cleanDiff
                     ( buildCoord
-                        ( cleanBatch { model | showDiff = False })
+                        ( cleanBatch { model | showDiff = False } )
                     )
                 )
                 model.focus
 
         Correction param ->
             case param of
-                Slope value ->  U.nocmd ( applyDiff { model | slope = Just value })
-                Intercept value -> U.nocmd ( applyDiff { model | intercept = Just value })
+                Slope value ->
+                    U.nocmd ( applyDiff { model | slope = Just value } )
+                Intercept value ->
+                    U.nocmd ( applyDiff { model | intercept = Just value } )
 
         Saved (Ok _) ->
             case model.mode of
                 Existing _ ->
                     ( cleanDiff model
-                    , Cmd.batch
-                          ( getRelevantData model)
+                    , Cmd.batch ( getRelevantData model )
                     )
-                Creation _ -> ( model
-                              , Browser.Navigation.load
-                                    <| UB.crossOrigin
-                                            model.baseurl
-                                            [ "tseditor" ]
-                                            [ UB.string "name" model.name ]
-                              )
+                Creation _ ->
+                    ( model
+                    , Browser.Navigation.load
+                        <| UB.crossOrigin
+                            model.baseurl
+                            [ "tseditor" ]
+                            [ UB.string "name" model.name ]
+                    )
 
         Saved (Err _) ->
-            U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure )}
+            U.nocmd { model | horizon = ( setStatusPlot model.horizon Failure ) }
 
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                   let seriestype = if Dict.member "formula" allmeta
-                                                            then I.Formula
-                                                            else  I.Primary
-                       horizon = model.horizon
-                       newmodel = { model | meta = allmeta
-                                          , tzaware = isTzaware allmeta
-                                          , statistics = updateFirstLast
-                                                            model.statistics
-                                                            allmeta
-                                          , exist = True
-                                          , seriestype = seriestype
-                                          , mode = case seriestype of
-                                              I.Primary -> Existing I.Primary
-                                              I.Formula -> Existing I.Formula
-                                          , horizon = { horizon | hasCache =
-                                                            case seriestype of
-                                                              I.Primary -> False
-                                                              I.Formula -> True }
-                                  }
+                    let seriestype =
+                            if Dict.member "formula" allmeta
+                            then I.Formula
+                            else  I.Primary
+                        horizon =
+                            model.horizon
+                        newmodel =
+                           { model
+                               | meta = allmeta
+                               , tzaware = isTzaware allmeta
+                               , statistics = updateFirstLast
+                                              model.statistics
+                                              allmeta
+                               , exist = True
+                               , seriestype = seriestype
+                               , mode = case seriestype of
+                                            I.Primary -> Existing I.Primary
+                                            I.Formula -> Existing I.Formula
+                               , horizon = { horizon | hasCache =
+                                                 case seriestype of
+                                                     I.Primary -> False
+                                                     I.Formula -> True
+                                           }
+                           }
                    in
-                       ( newmodel
-                       , Cmd.batch ([ model.initialCommands
-                                    , getsource model.baseurl model.name
-                                    ])
-                       )
+                   ( newmodel
+                   , Cmd.batch [ model.initialCommands
+                               , getsource model.baseurl model.name
+                               ]
+                   )
                 Err err ->
                     doerr "gotmeta decode" <| JD.errorToString err
 
