@@ -292,6 +292,11 @@ viewactionwidgets model datatype convertmsg permalink editor pagetitle bounds =
                             [ UB.string "name" model.name ]
                       ]
                       [ H.text "edit formula" ]
+              GroupType GroupFormula ->
+                  H.a [ HA.href <| UB.crossOrigin model.baseurl [ "tsformula-group" ]
+                            [ UB.string "name" model.name ]
+                      ]
+                      [ H.text "edit formula" ]
               _ ->
                   H.span [ ] [ ]
         ]

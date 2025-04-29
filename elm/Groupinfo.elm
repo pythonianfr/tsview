@@ -85,6 +85,7 @@ type alias Model =
     , doesnotexist: Bool
     -- metadata, ventilated by std (system) and user
     , meta : M.Metadata
+    , grouptype : I.GroupType
     , usermeta : M.Metadata
     -- formula
     , formula_depth : Int
@@ -253,12 +254,19 @@ update msg model =
                     let
                         isformula = Dict.member "formula" allmeta
                         isbindings = Dict.member "bound" allmeta
+                        seriestype =
+                            if isformula
+                            then I.GroupFormula
+                            else if isbindings
+                                    then I.GroupBound
+                                    else I.GroupPrimary
                         (stdmeta, usermeta) =
                             Dict.partition (\k v -> (List.member k M.metanames)) allmeta
                         newmodel =
                             { model
                                 | meta = stdmeta
                                 , tzaware = (M.dget "tzaware" stdmeta) == "true"
+                                , grouptype = seriestype
                             }
                         cmd =
                             Cmd.batch <| [ I.getidates model "group" InsertionDates True ]
@@ -751,7 +759,7 @@ view model =
                   [ A.class "groupinfo action-container" ]
                   <| (I.viewactionwidgets
                             model
-                            (I.GroupType I.GroupPrimary)
+                            (I.GroupType model.grouptype)
                             convertMsg
                             Nothing
                             True
@@ -840,6 +848,7 @@ main =
                        , doesnotexist= False
                        -- metadata
                        , meta = Dict.empty
+                       , grouptype = I.GroupPrimary
                        , usermeta = Dict.empty
                        -- formula
                        , formula_depth = 0
