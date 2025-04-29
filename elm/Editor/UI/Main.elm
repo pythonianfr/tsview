@@ -1,11 +1,12 @@
 module Editor.UI.Main exposing (main)
 
-import Dict
+import Dict exposing (Dict)
 import Maybe.Extra as Maybe
 import Basics.Extra exposing (flip)
 
 import Browser
 import Http
+import Info as I
 import Url.Builder as UB
 import Json.Encode as JE
 import Json.Decode as JD
@@ -28,11 +29,9 @@ import Common exposing (expectJsonMessage)
 import Util exposing (unwraperror)
 import Plotter exposing
     ( defaultLayoutOptions
-    , defaultConfigOptions
-    , Series
+    , defaultTraceOptions
+    , groupdecoder
     , seriesdecoder
-    , scatterplot
-    , serializedPlotArgs
     )
 
 import Editor.Type exposing (ReturnTypeStr)
@@ -44,6 +43,9 @@ type UndoMsg
     = Undo
     | Redo
 
+type ReturnType
+    = Series
+    | Group
 
 type Msg
     = WidgetMsg Widget.Msg
@@ -59,7 +61,8 @@ type Msg
 type alias PlotData =
     { debouncer : Debouncer.Debouncer () ()
     , loading : Bool
-    , series : Series
+    , data : Dict String ( Dict String (Maybe Float))
+    , title : String
     , errMess : Maybe String
     }
 
@@ -76,6 +79,7 @@ type alias Model =
     , formulaNames : List String
     , saveErrMess : Maybe String
     , plotData : PlotData
+    , returnType : ReturnType
     }
 
 type alias SavedModel =
@@ -143,15 +147,21 @@ askPlotData model =
     )
 
 getPlotData : Model -> Cmd Msg
-getPlotData {urlPrefix, formulaCodeRegister} =
+getPlotData {urlPrefix, formulaCodeRegister, returnType} =
     case formulaCodeRegister.current of
-        Just code -> Http.get
-            { url = UB.crossOrigin
-                urlPrefix
-                [ "tsformula", "try" ]
-                [ UB.string "formula" code ]
-            , expect = Http.expectString GotPlotData
-            }
+        Just code ->
+            let
+                endpoint = case returnType of
+                               Series -> "tsformula"
+                               Group -> "tsformula-group"
+            in
+                Http.get
+                    { url = UB.crossOrigin
+                        urlPrefix
+                        [ endpoint, "try" ]
+                        [ UB.string "formula" code ]
+                    , expect = Http.expectString GotPlotData
+                    }
 
         _ -> JE.object []
             |> JE.encode 0
@@ -159,26 +169,53 @@ getPlotData {urlPrefix, formulaCodeRegister} =
             |> Util.sendCmd GotPlotData
 
 
-updatePlotData : Result Http.Error String -> PlotData -> PlotData
-updatePlotData res plotData = O.assign loading_ False <|
-    case Result.map (JD.decodeString seriesdecoder) res of
-        (Ok (Ok val)) ->
-            { plotData
-                | series = val
-                , errMess = Nothing
-            }
+updatePlotData : Model -> Result Http.Error String -> PlotData -> PlotData
+updatePlotData model res plotData = O.assign loading_ False <|
+    let
+        name = Maybe.withDefault "" model.formulaNameRegister.current
+    in
+        case model.returnType of
+            Series ->
+                case Result.map (JD.decodeString seriesdecoder) res of
+                    (Ok (Ok val)) ->
+                        { plotData
+                            | data = (Dict.fromList [ ("", val) ])
+                            , title = name
+                            , errMess = Nothing
+                        }
 
-        (Ok (Err err)) ->
-            { plotData
-                | series = Dict.empty
-                , errMess = Just (JD.errorToString err)
-            }
+                    (Ok (Err err)) ->
+                        { plotData
+                            | data = Dict.empty
+                            , errMess = Just (JD.errorToString err)
+                        }
 
-        (Err err) ->
-            { plotData
-                | series = Dict.empty
-                , errMess = Just (unwraperror err)
-            }
+                    (Err err) ->
+                        { plotData
+                            | data = Dict.empty
+                            , errMess = Just (unwraperror err)
+                        }
+            Group ->
+                case Result.map (JD.decodeString groupdecoder) res of
+                    (Ok (Ok val)) ->
+                        { plotData
+                            | data = val
+                            , title = name
+                            , errMess = Nothing
+                        }
+
+                    (Ok (Err err)) ->
+                        { plotData
+                            | data = Dict.empty
+                            , errMess = Just (JD.errorToString err)
+                        }
+
+                    (Err err) ->
+                        { plotData
+                            | data = Dict.empty
+                            , errMess = Just (unwraperror err)
+                        }
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = case msg of
@@ -236,7 +273,7 @@ update msg model = case msg of
         model |> CX.withNoCmd
 
     GotPlotData res ->
-        O.over plotData_ (updatePlotData res) model |> CX.withNoCmd
+        O.over plotData_ (updatePlotData model res) model |> CX.withNoCmd
 
     UndoMsg _ ->
         ( model, Cmd.none )
@@ -247,7 +284,7 @@ undoUpdate msg {model, undoList} =
         (newModel, cmd) = update msg model
 
         storeNew hasPlotData =
-            O.over plotData_ (\x -> { x | series = Dict.empty}) newModel
+            O.over plotData_ (\x -> { x | data = Dict.empty}) newModel
                 |> SavedModel hasPlotData
                 |> flip newSafeConcise undoList
                 |> UndoModel newModel
@@ -315,26 +352,20 @@ viewError mStr = HX.viewMaybe
     mStr
 
 viewPlot : Model -> Html Msg
-viewPlot {formulaNameRegister, plotData} =
-    let
-        name = Maybe.withDefault "" formulaNameRegister.current
-        plot = scatterplot
-            name
-            (Dict.keys plotData.series)
-            (Dict.values plotData.series)
-            "lines"
-            Plotter.defaultTraceOptions
-        args = serializedPlotArgs
-                "plot"
-                [plot]
-                { defaultLayoutOptions | title = Just name }
-                defaultConfigOptions
-    in
-    -- the "plot-figure" node is pre-built in the template side
-    -- (html component)
+viewPlot {plotData} =
     H.section
         []
-        [ H.node "plot-figure" [ HA.attribute "args" args ] []
+        [ I.viewgraph
+            plotData.data
+            { defaultLayoutOptions | title = Just plotData.title
+                                   , margin = { t = 110
+                                              , b = 40
+                                              , l = 40
+                                              , r = 20
+                                              }
+            }
+            defaultTraceOptions
+            False
         , viewError plotData.errMess
         ]
 
@@ -443,6 +474,10 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
 
         formulaName = Maybe.map .name formula
         code = Widget.getFormula wid
+        returnType = case returnTypeStr of
+                       "Series" -> Series
+                       "DataFrame" -> Group
+                       _ -> Series
     in
     { urlPrefix = urlPrefix
     , editorWidget = wid
@@ -460,9 +495,11 @@ init { urlPrefix, jsonSpec, formula, returnTypeStr } =
         { debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
             |> Debouncer.toDebouncer
         , loading = False
-        , series = Dict.empty
+        , data = Dict.empty
+        , title = ""
         , errMess = Nothing
         }
+    , returnType = returnType
     }
     |> CX.withCmd (Cmd.batch
         [ Cmd.map WidgetMsg cmd
