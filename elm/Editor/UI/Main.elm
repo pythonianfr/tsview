@@ -375,16 +375,19 @@ viewPlot {plotData} =
         , viewError plotData.errMess
         ]
 
-viewSeriesInfo : Model -> Html msg
-viewSeriesInfo model =
+viewInfo : Model -> Html msg
+viewInfo model =
     flip HX.viewMaybe model.formulaNameRegister.saved <| \name ->
         let
+            (endpoint, dataType) = case model.returnType of
+                  Group -> ("groupinfo", "group")
+                  Series -> ("tsinfo", "series")
             href = UB.crossOrigin
                 model.urlPrefix
-                [ "tsinfo" ]
+                [ endpoint ]
                 [ UB.string "name" name ]
 
-        in H.a [ HA.href href  ] [ H.text "series info" ]
+        in H.a [ HA.href href  ] [ H.text (dataType ++ " info") ]
 
 makeUndoButton : UndoMsg -> UndoList -> Html Msg
 makeUndoButton msg undoList =
@@ -417,7 +420,7 @@ view model =
             [ H.h1
                 [ HA.class "mr-auto p-2 page-title" ]
                 [ H.text "Formula editor" ]
-            , H.div [ HA.class "p-2" ] [ viewSeriesInfo model ]
+            , H.div [ HA.class "p-2" ] [ viewInfo model ]
             ]
         , H.div
             [ HA.class "d-flex" ]
