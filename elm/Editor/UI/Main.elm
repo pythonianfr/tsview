@@ -122,23 +122,29 @@ plotLoading_ : O.SimpleLens ls Model Bool
 plotLoading_ = o plotData_ loading_
 
 saveFormula : Model -> String -> String -> Cmd Msg
-saveFormula {urlPrefix} name code = Http.request
-    { method = "PATCH"
-    , headers = []
-    , url = UB.crossOrigin
-        urlPrefix
-        [ "api", "series", "formula" ]
-        []
-    , body = Http.jsonBody (JE.object
-        [ ( "name", JE.string name )
-        , ( "text", JE.string code )
-        , ( "reject_unknown", JE.bool True )
-        ]
-    )
-    , expect = expectJsonMessage SaveDone JD.string
-    , timeout = Nothing
-    , tracker = Nothing
-    }
+saveFormula {urlPrefix, returnType} name code =
+    let
+        (endpoint, method) = case returnType of
+          Group -> ("group", "PUT")
+          Series -> ("series", "PATCH")
+    in
+        Http.request
+            { method = method
+            , headers = []
+            , url = UB.crossOrigin
+                urlPrefix
+                [ "api", endpoint, "formula" ]
+                []
+            , body = Http.jsonBody (JE.object
+                [ ( "name", JE.string name )
+                , ( "text", JE.string code )
+                , ( "reject_unknown", JE.bool True )
+                ]
+            )
+            , expect = expectJsonMessage SaveDone JD.string
+            , timeout = Nothing
+            , tracker = Nothing
+            }
 
 askPlotData : Model -> (Model, Cmd Msg)
 askPlotData model =
