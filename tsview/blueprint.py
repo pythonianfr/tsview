@@ -40,7 +40,7 @@ from tshistory_formula.registry import (
     AUTO,
     FUNCS
 )
-from tshistory_formula.interpreter import jsontypes
+from tshistory_formula.interpreter import jsontypes, gjsontypes
 
 from tsview.util import (
     argsdict as _argsdict,
@@ -293,6 +293,21 @@ def tsview(tsa):
             )
         )
 
+    @bp.route('/gspec')
+    def gspec():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        return json.dumps(
+            sorted(
+                [
+                    (op_name, list(op_spec.items()))
+                    for op_name, op_spec in json.loads(gjsontypes()).items()
+                ],
+                key=lambda x: ("\x00",) if x[0] == 'series' else x
+            )
+        )
+
     @bp.route('/tsformula')
     def tsformula():
         if not has_roles('admin', 'rw', 'ro'):
@@ -310,7 +325,34 @@ def tsview(tsa):
         return render_template(
             'tsformula.html',
             homeurl=homeurl(),
+            return_type="Series",
             spec=spec(),
+            formula=json.dumps(formula),
+            flags_menu=flags_menu,
+            title=title
+        )
+
+
+    @bp.route('/tsformula-group')
+    def tsformulag():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        name = request.args.get('name')
+        formula = None
+        if name:
+            formula = dict(
+                name=name,
+                code=tsa.group_formula(name) or ''
+            )
+        flags_menu = json.dumps([homeurl(), 'formula-create'])
+        title = 'Group form: edit'
+        print(homeurl())
+        return render_template(
+            'tsformula.html',
+            homeurl=homeurl(),
+            return_type="DataFrame",
+            spec=gspec(),
             formula=json.dumps(formula),
             flags_menu=flags_menu,
             title=title
@@ -378,6 +420,24 @@ def tsview(tsa):
             request.args['formula']
         ).to_json(
             orient='index',
+            date_format='iso'
+        )
+
+    @bp.route('/tsformula-group/try')
+    def tryformula_group():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        # here we take a big bad shortcut ...
+        # we want to think on how to expose that
+        # in tshistory rest api
+        # and for all sources ...
+        # for now we are single source only
+
+        return tsa.group_eval_formula(
+            request.args['formula']
+        ).to_json(
+            orient='columns',
             date_format='iso'
         )
 
