@@ -79,7 +79,7 @@ update msg model =
             onerror (U.unwraperror err)
 
 
-find baseurl dtype event query sources =
+find baseurl dtype event query sources limit =
     Http.get
         { expect = Http.expectString event
         , url =
@@ -87,5 +87,6 @@ find baseurl dtype event query sources =
                 [ "api", dtype, "find" ]
                 [ UB.string "query" query
                 , UB.string "sources" <| String.join "," sources
+                , UB.int "limit" limit
                 ]
         }

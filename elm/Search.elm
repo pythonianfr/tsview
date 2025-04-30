@@ -37,6 +37,9 @@ type alias Model =
     -- base catalog elements
     , sources : List String
     , catalog : F.Model
+    -- query
+    , limit : Int
+    , editlimit : Bool
     -- filter state (series)
     , selectedkinds : List String
     , selectedsources : List String
@@ -60,6 +63,9 @@ type Msg
     | FormulaFilter String
     | KindUpdated String
     | SourceUpdated String
+    -- limit widget
+    | EditLimit Bool
+    | EditedLimit String
     -- metadata filter
     | NewValue Int String
     | NewKey Int String
@@ -157,11 +163,11 @@ doquery model =
                 Series ->
                     Cmd.map GotItemsDesc <|
                         F.find model.baseurl "series" F.ReceivedSeries
-                            (query model) model.selectedsources
+                            (query model) model.selectedsources model.limit
                 Groups ->
                     Cmd.map GotItemsDesc <|
                         F.find model.baseurl "group" F.ReceivedGroups
-                            (query model) model.selectedsources
+                            (query model) model.selectedsources model.limit
     in
     ( model
     , cmd
@@ -254,6 +260,25 @@ update msg model =
                     { model | selectedsources = newsources }
             in
             doquery newmodel
+
+        EditLimit editing ->
+            let
+                newmodel =
+                    { model | editlimit = not model.editlimit }
+            in
+            case model.editlimit of
+                False -> U.nocmd newmodel
+                True -> doquery newmodel
+
+        EditedLimit limit ->
+            case limit of
+                "" -> U.nocmd { model | limit = 0 }
+                _ ->
+                    case String.toInt limit of
+                        Nothing ->
+                            U.nocmd model
+                        Just newlimit ->
+                            U.nocmd { model | limit = newlimit }
 
         -- metadata filtering
 
@@ -527,6 +552,7 @@ viewfilteredqty model =
             List.length model.catalog.items
 
         msg =
+            "Found " ++
             case len of
                 0 -> "No item"
                 1 -> "1 item"
@@ -536,7 +562,46 @@ viewfilteredqty model =
             if len > 1000 then msg ++ " (only first 1000 items shown)." else msg ++ "."
 
     in
-    H.p [] [ H.text ("Found " ++ msg2) ]
+    H.p [] [ H.text msg2 ]
+
+
+viewlimitwidget model =
+    let
+        strlimit =
+            String.fromInt model.limit
+
+        welcome =
+            case model.limit of
+                0 -> "There is currently no query limit."
+                _ -> "The current query limit is set at " ++ strlimit ++ " items per source. "
+
+        limitwidget =
+            case model.editlimit of
+                False ->
+                    H.span []
+                        [H.text welcome
+                        , H.button
+                            [ A.type_ "button"
+                            , A.class "btn btn-secondary btn-sm"
+                            , HE.onClick <| EditLimit model.editlimit ]
+                            [ H.text "Edit the limit." ]
+                        ]
+
+                True ->
+                    H.div []
+                        [ H.input
+                            [ HE.onInput EditedLimit
+                            , A.value strlimit
+                            ] []
+                        , H.button
+                            [ A.type_ "button"
+                            , A.class "btn btn-secondary btn-sm"
+                            , HE.onClick <| EditLimit model.editlimit
+                            ]
+                            [ H.text "Done editing." ]
+                        ]
+    in
+    H.span [] [ limitwidget ]
 
 
 viewfiltered baseurl mode catalog showsource =
@@ -659,6 +724,7 @@ view model =
               , viewkindfilter model
               , viewsourcefilter model
               , viewfilteredqty model
+              , viewlimitwidget model
               ]
         , L.lazy4 viewfiltered model.baseurl model.mode model.catalog (nbsources > 1)
         , viewerrors model
@@ -682,6 +748,8 @@ main =
                , mode = Series
                , sources = []
                , catalog = F.empty
+               , limit = 50000
+               , editlimit = False
                , selectedkinds = [ "primary", "formula" ]
                , selectedsources = []
                , filterbyname = Nothing
@@ -703,7 +771,7 @@ main =
                    [ getsources model.baseurl
                    , Cmd.map GotItemsDesc <|
                        F.find input.baseurl "series" F.ReceivedSeries
-                           (query model) model.selectedsources
+                           (query model) model.selectedsources model.limit
                    ]
                )
 
