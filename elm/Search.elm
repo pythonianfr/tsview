@@ -482,13 +482,15 @@ viewfilteredqty model =
         len =
             List.length model.catalog.items
 
-        msg = if len == 0
-              then "No item"
-              else
-                  (if len == 1
-                   then "1 item"
-                   else String.fromInt len ++ " items")
-        msg2 = if len > 1000 then msg ++ " (only first 1000 items shown)." else msg ++ "."
+        msg =
+            case len of
+                0 -> "No item"
+                1 -> "1 item"
+                _ -> String.fromInt len ++ " items"
+
+        msg2 =
+            if len > 1000 then msg ++ " (only first 1000 items shown)." else msg ++ "."
+
     in
     H.p [] [ H.text ("Found " ++ msg2) ]
 
