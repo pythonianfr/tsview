@@ -43,7 +43,7 @@ type alias Model =
     -- filter state (all)
     , filterbyname : Maybe String
     , filterbyformula : Maybe String
-    , tzaware : String
+    , tzaware : Maybe Bool
     -- filter state/metadata
     , filterbymeta : Dict Int (String, String)
     , errors : List String
@@ -120,9 +120,10 @@ query model =
 
         bytzaware =
             case model.tzaware of
-                "true" -> [ "(by.tzaware)" ]
-                "false" -> [ "(by.not (by.tzaware))" ]
-                _ -> []
+                Nothing -> []
+                Just aware -> case aware of
+                    True -> [ "(by.tzaware)" ]
+                    False -> [ "(by.not (by.tzaware))" ]
 
         filterfrommeta (key, value) =
             case value of
@@ -319,7 +320,15 @@ update msg model =
             doquery newmodel
 
         Tzaware value ->
-            doquery { model | tzaware = value }
+            let
+                aware =
+                    case value of
+                        "true" -> Just True
+                        "false" -> Just False
+                        _ -> Nothing
+
+            in
+            doquery { model | tzaware = aware }
 
         -- Debouncing
 
@@ -477,6 +486,36 @@ viewmetafilter model =
         ((metaactions "add" header):: List.map (metaactions "delete") tail)
 
 
+tzawarefilter model =
+    let
+        viewtzaware tzaware =
+            let
+                selected =
+                    case model.tzaware of
+                        Nothing -> "any"
+                        Just aware ->
+                            case aware of
+                                True -> "true"
+                                False -> "false"
+            in
+            H.option
+                [ A.value tzaware
+                , A.selected (selected == tzaware)
+                ]
+                [ H.text tzaware ]
+    in
+    H.div
+        [ ]
+        [ H.text "tzaware : "
+        , H.select
+            [ HE.targetValue
+                |> D.map Tzaware
+                |> HE.on "change"
+            ]
+            ( List.map viewtzaware [ "any", "true", "false" ] )
+        ]
+
+
 viewfilteredqty model =
     let
         len =
@@ -611,7 +650,7 @@ view model =
               [ H.div [] [ viewnamefilter ]
               , H.div [] [ viewformulafilter ]
               , viewmetafilter model
-              , tzawareDropdown model
+              , tzawarefilter model
               , viewkindfilter model
               , viewsourcefilter model
               , viewfilteredqty model
@@ -619,34 +658,6 @@ view model =
         , L.lazy4 viewfiltered model.baseurl model.mode model.catalog (nbsources > 1)
         , viewerrors model
         ]
-
-
-tzawareDropdown : Model -> H.Html Msg
-tzawareDropdown model =
-    let
-        decodetzaware : String -> D.Decoder String
-        decodetzaware tzaware =
-            D.succeed tzaware
-
-    in
-    H.div
-        [ ]
-        [ H.text "tzaware : "
-        , H.select
-            [ HE.targetValue
-                |> D.andThen decodetzaware
-                |> D.map Tzaware
-                |> HE.on "change" ]
-            (List.map (renderTzaware model.tzaware) ["any", "true", "false"])
-        ]
-
-renderTzaware : String -> String -> H.Html Msg
-renderTzaware selectedTzaware tzaware =
-    H.option
-        [ A.value tzaware
-        , A.selected (selectedTzaware == tzaware)
-        ]
-        [ H.text tzaware ]
 
 
 type alias Input =
@@ -670,7 +681,7 @@ main =
                , selectedsources = []
                , filterbyname = Nothing
                , filterbyformula = Nothing
-               , tzaware = "any"
+               , tzaware = Nothing
                , filterbymeta = Dict.empty
                , errors = []
                , namefilterdeb = debouncerconfig
