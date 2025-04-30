@@ -132,8 +132,11 @@ query model =
                     False -> [ "(by.not (by.tzaware))" ]
 
         filterfrommeta (key, value) =
-            case value of
-                "" ->
+            case (key, value) of
+                ( "", "" ) ->
+                    ""
+
+                ( _, "" ) ->
                     "(by.metakey " ++ quote ++ key ++ quote ++ ")"
 
                 _ ->
@@ -142,7 +145,9 @@ query model =
                         quote ++ value ++ quote ++ ")"
 
         bymeta =
-            List.map filterfrommeta <| Dict.values model.filterbymeta
+            List.filter (\item -> item /= "") <|
+                List.map filterfrommeta <|
+                    Dict.values model.filterbymeta
 
         together =
             List.concat [ bykinds, byname, byformula, bytzaware, bymeta ]
@@ -496,6 +501,8 @@ metaactions action metadata =
                 , HE.onClick (MetaItemToDelete inputid)
                 ]
                 [ H.text "delete" ]
+        null =
+            H.span [] []
     in
     H.div
         [ A.id <| String.fromInt inputid ]
@@ -503,7 +510,10 @@ metaactions action metadata =
         , H.span [] [ H.text " " ]
         , inputvalue
         , H.span [] [ H.text " " ]
-        , if action == "add" then addentry else delete
+        , if action == "add"
+          then
+              if (key /= "") && (key /= "") then addentry else null
+          else delete
         ]
 
 
