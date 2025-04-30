@@ -1,13 +1,13 @@
 module Delete exposing (main)
 
 import Browser
+import Catalog
 import Common
 import Dict exposing(Dict, fromList, keys, values)
 import Html as H
 import Html.Attributes as HA
 import Http
 import Json.Decode as Decode
-import Catalog
 import SeriesSelector
 import Time
 import Url.Builder as UB
@@ -15,7 +15,7 @@ import Util as U
 
 
 type alias Model =
-    { urlPrefix : String
+    { baseurl : String
     , catalog : Catalog.Model
     , search : SeriesSelector.Model
     , errors : Maybe (List String) -- why many ?
@@ -53,7 +53,7 @@ deleteseries model =
 
         head :: tail ->
             let
-                mkurl name = UB.crossOrigin model.urlPrefix
+                mkurl name = UB.crossOrigin model.baseurl
                              [ "api", "series", "state" ]
                              [ UB.string "name" name ]
                 expect = Http.expectString (DeleteDone head)
@@ -214,13 +214,12 @@ main : Program String Model Msg
 main =
     let
         init prefix =
-            ( Model
-                  prefix
-                  Catalog.empty
-                  SeriesSelector.null
-                  Nothing
-            ,
-                Cmd.map GotCatalog (Catalog.get prefix "series" 0 Catalog.ReceivedSeries)
+            ( { baseurl = prefix
+              , catalog = Catalog.empty
+              , search = SeriesSelector.null
+              , errors = Nothing
+              }
+            , Cmd.map GotCatalog (Catalog.get prefix "series" 0 Catalog.ReceivedSeries)
             )
 
         sub model =
