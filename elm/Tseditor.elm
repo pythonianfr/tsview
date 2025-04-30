@@ -243,13 +243,14 @@ type Msg
     | NewDragMode Bool
 
 
-type alias SeriesNaked =
-    Dict String (Maybe Float)
+type ScalarType f s
+    = Float f
+    | String s
 
+type Scalar = ScalarType Float String
 
-type alias SeriesToEdit =
-    Dict String Entry
-
+type alias SeriesNaked = Dict String ( Maybe ( ScalarType Float String ))
+type alias SeriesToEdit = Dict String Entry
 
 type Series =
     Naked { initialTs: SeriesNaked, zoomTs: Maybe SeriesNaked }
@@ -474,7 +475,7 @@ filterEntry coordData =
 
 type alias Entry =
     { raw : Maybe String
-    , value : Maybe Float
+    , value : Maybe ( ScalarType Float String )
     , edition : Edited
     , editable: Bool
     , override : Bool
@@ -487,7 +488,7 @@ type alias Entry =
 baseToEntry: BaseSupervision -> Entry
 baseToEntry base =
      { raw = Maybe.map String.fromFloat base.value
-     , value = base.value
+     , value = Maybe.map Float base.value
      , edition = NoEdition
      , editable = True
      , override = base.override
@@ -496,6 +497,32 @@ baseToEntry base =
      , fromBatch = False
      }
 
+
+toScalar: Maybe Float -> Maybe ( ScalarType Float String )
+toScalar mf =
+    Maybe.map Float mf
+
+
+mapToFloat : SeriesNaked -> Dict String ( Maybe Float )
+mapToFloat =
+    Dict.map
+        (\_ v -> toFloat v )
+
+
+toFloat: Maybe ( ScalarType Float String ) -> Maybe Float
+toFloat ms =
+    case ms of
+        Nothing -> Nothing
+        Just scal ->
+            case scal of
+                Float f -> Just f
+                String _ -> Nothing
+
+toRaw: ( ScalarType Float String ) -> String
+toRaw scal =
+    case scal of
+        String s -> s
+        Float f -> String.fromFloat f
 
 emptyEntry : Entry
 emptyEntry =
@@ -510,7 +537,7 @@ emptyEntry =
     }
 
 
-asEdited: Maybe Float -> Edited
+asEdited: Maybe ( ScalarType Float String ) -> Edited
 asEdited value =
     case value of
         Nothing -> Deletion
@@ -527,8 +554,13 @@ dressSeries series name =
                                , edition = asEdited v
                                , editable = True
                                , raw = case v of
-                                           Nothing -> Nothing
-                                           Just val -> Just ( String.fromFloat val )
+                                        Nothing -> Nothing
+                                        Just val ->
+                                            case val of
+                                                Float f ->
+                                                    Just
+                                                      <| String.fromFloat f
+                                                String s -> Just s
                                , indexCol = name
                                , indexRow = k
                                , fromBatch = False
@@ -567,8 +599,9 @@ likeComp model =
             ]
 
 
+
 type Edited
-    = Edition Float
+    = Edition ( ScalarType Float String )
     | NoEdition
     | Deletion
     | Error String
@@ -734,6 +767,10 @@ dataDecoder : JD.Decoder (Dict String Entry)
 dataDecoder =
     ( JD.dict ( JD.map baseToEntry entryDecoder ))
 
+
+decodeNaked : JD.Decoder SeriesNaked
+decodeNaked =
+        (JD.dict (JD.map toScalar (JD.maybe JD.float)))
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
@@ -1019,9 +1056,7 @@ update msg model =
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
-            case JD.decodeString
-                    (JD.dict (JD.maybe JD.float))
-                    rawdata of
+            case JD.decodeString decodeNaked rawdata of
                 Ok val -> let zoomTs = applyZoom model val
                           in
                           ( ( buildCoord
@@ -1033,7 +1068,7 @@ update msg model =
                                     , statistics = getStatistics
                                                 model.statistics
                                                 model.allowInferFreq
-                                                val
+                                                ( mapToFloat val )
                             }
                             )
                           , Cmd.batch [ getComponents model False
@@ -1115,7 +1150,7 @@ update msg model =
                         Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
                 _ ->
                     case JD.decodeString
-                        (JD.dict (JD.maybe JD.float))
+                        decodeNaked
                         rawdata of
                     Ok val ->  let zoomTs = applyZoom model val
                                    newCD = insertComponentData
@@ -1159,8 +1194,10 @@ update msg model =
 
 
         GotGenerated previewType ( Ok rawdata ) ->
-             case JD.decodeString (JD.dict (JD.maybe JD.float)) rawdata of
-                 Ok val ->
+             case JD.decodeString
+                    decodeNaked
+                    rawdata of
+                Ok val ->
                     case previewType of
                         FromScratch ->
                             U.nocmd
@@ -1187,7 +1224,7 @@ update msg model =
                                                            }
                                     }
 
-                 Err err ->
+                Err err ->
                      U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotGenerated previewType (Err err) ->
@@ -2063,8 +2100,14 @@ applyZoom model series =
 onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
 onlyValues series =
     Dict.map
-        (\ _ e -> e.value )
+        ( \ k v -> case v.value of
+                    Nothing -> Nothing
+                    Just s -> case s of
+                        Float f -> Just f
+                        String _ -> Nothing
+        )
         series
+
 
 resetZoom: Series -> Series
 resetZoom series =
@@ -2079,8 +2122,8 @@ onlyActiveValues series =
     case series of
         Naked ts ->
             case ts.zoomTs of
-                Nothing -> ts.initialTs
-                Just zoom -> zoom
+                Nothing -> mapToFloat ts.initialTs
+                Just zoom -> mapToFloat zoom
         ToEdit ts ->
             case ts.zoomTs of
                 Nothing -> onlyValues ts.initialTs
@@ -2113,7 +2156,13 @@ previouslyEdited series =
 extractPrevious: SeriesToEdit -> Dict String ( Maybe Float )
 extractPrevious ts =
     Dict.map
-        (\ _ e -> e.value)
+        (\ _ e -> case e.value of
+                    Nothing -> Nothing
+                    Just v ->
+                        case v of
+                            Float f -> Just f
+                            String _ -> Nothing
+        )
         <| Dict.filter
                 (\ _ e -> e.override)
                 ts
@@ -2221,7 +2270,7 @@ packValues series =
             ( Dict.values ( onlyActiveValues series ))
 
 
-getCurrentValue: Entry -> Maybe Float
+getCurrentValue: Entry -> Maybe ( ScalarType Float String )
 getCurrentValue entry =
     case entry.edition of
         Edition edition -> Just edition
@@ -2382,7 +2431,7 @@ findLastValidRec entries previousIsValue found =
                         else ( findLastValidRec xs True found )
 
 
-fillNas: Dict ( Int, Int ) Stuff -> Float -> ( Int, Int ) ->  Dict ( Int, Int ) Stuff
+fillNas: Dict ( Int, Int ) Stuff -> ( ScalarType Float String ) -> ( Int, Int ) ->  Dict ( Int, Int ) Stuff
 fillNas coordData lastValue positionLastValue =
     let nbNas = getNbNas ( filterEntry coordData ) positionLastValue
     in
@@ -2403,7 +2452,7 @@ fillSelection model =
                     in fillSelected model select val
 
 
-fillSelected: Model -> Box -> Float -> Model
+fillSelected: Model -> Box -> ScalarType Float String -> Model
 fillSelected model select value =
     let
         edited = Dict.map
@@ -2411,7 +2460,6 @@ fillSelected model select value =
                                 then
                                     updateCell
                                         e
-                                        pos
                                         value
                                 else
                                     e
@@ -2421,7 +2469,8 @@ fillSelected model select value =
         { model | coordData = edited }
 
 
-applyValue: ( Int, Int ) -> Float  -> Int -> ( Int, Int ) -> Stuff -> Stuff
+
+applyValue: ( Int, Int ) -> ( ScalarType Float String )  -> Int -> ( Int, Int ) -> Stuff -> Stuff
 applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
     case stuff of
         DateRow d -> DateRow d
@@ -2429,7 +2478,7 @@ applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
         Cell entry ->
             if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
                 then Cell { entry | edition = Edition lastValue
-                                  , raw= Just ( String.fromFloat lastValue )}
+                                  , raw = Just ( toRaw lastValue )}
                 else Cell entry
 
 
@@ -2509,16 +2558,18 @@ extractValue coordData iRow iCol =
         Just ( Header ( name, _ )) -> name
 
 
-getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> Float
+getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> ScalarType Float String
 getValueFromIndex coordData position =
     let
         stuff = Dict.get position coordData
     in
         case stuff of
-            Nothing -> 0
-            Just ( DateRow _ )  -> 0
-            Just ( Header _ )  -> 0
-            Just ( Cell entry ) -> Maybe.withDefault 0 ( getCurrentValue entry )
+            Nothing -> Float 0
+            Just ( DateRow _ )  -> Float 0
+            Just ( Header _ )  -> Float 0
+            Just ( Cell entry ) -> Maybe.withDefault
+                                    ( Float 0 )
+                                    ( getCurrentValue entry )
 
 
 bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
@@ -2656,7 +2707,7 @@ parseInput value =
                             value
             of
                 Just val ->
-                    Edition val
+                    Edition ( Float val )
                 Nothing ->
                     Error value
 
@@ -2774,7 +2825,7 @@ patchCurrent base patch name  =
                         Just v -> Dict.insert
                                     d
                                     { b
-                                    | raw = Just ( String.fromFloat v )
+                                    | raw = Just ( toRaw v )
                                     , edition = Edition v
                                     }
                                     r
@@ -2790,7 +2841,7 @@ patchCurrent base patch name  =
                                     d
                                     { baseEntry
                                     | indexCol = d
-                                    , raw = Just ( String.fromFloat v )
+                                    , raw = Just ( toRaw v )
                                     , edition = Edition v
                                     }
                                     r
@@ -2895,29 +2946,32 @@ linearCorrection model value =
         Deletion -> Deletion
         Error s -> Error s
         Edition v ->
-            let a = case model.slope of
-                        Nothing -> Nothing
-                        Just slope ->
-                            case String.toFloat slope of
+            case v of
+                String _ -> Edition v
+                Float f ->
+                    let a = case model.slope of
                                 Nothing -> Nothing
-                                Just s -> Just s
-                b = case model.intercept of
-                        Nothing -> Nothing
-                        Just inter ->
-                            case String.toFloat inter of
+                                Just slope ->
+                                    case String.toFloat slope of
+                                        Nothing -> Nothing
+                                        Just s -> Just s
+                        b = case model.intercept of
                                 Nothing -> Nothing
-                                Just i -> Just i
-            in
-                case a of
-                    Nothing ->
-                        case b of
-                            Nothing -> Edition v
-                            Just inter -> Edition ( v + inter )
-                    Just slope ->
-                        case b of
-                            Nothing -> Edition ( v * slope )
-                            Just inter ->
-                                Edition ( v * slope + inter )
+                                Just inter ->
+                                    case String.toFloat inter of
+                                        Nothing -> Nothing
+                                        Just i -> Just i
+                    in
+                        case a of
+                            Nothing ->
+                                case b of
+                                    Nothing -> Edition v
+                                    Just inter -> Edition (Float ( f + inter ))
+                            Just slope ->
+                                case b of
+                                    Nothing -> Edition (Float ( f * slope ))
+                                    Just inter ->
+                                        Edition (Float ( f * slope + inter ))
 
 
 filterAndConvert: Dict ( Int, Int ) Entry -> String -> Dict String ( Maybe Float )
@@ -2930,7 +2984,12 @@ filterAndConvert editedData name =
                             NoEdition -> []
                             Error _ -> []
                             Deletion -> [(e.indexRow, Nothing)]
-                            Edition val -> [(e.indexRow, Just val)]
+                            Edition val ->
+                                case val of
+                                    Float f ->
+                                        [(e.indexRow, Just f)]
+                                    String s ->
+                                        [(e.indexRow, Nothing )]
                 )
                 <| Dict.filter
                     ( \ _ e  -> e.indexCol == name )
@@ -3572,8 +3631,8 @@ updateCoordData model position raw edition =
                             in
                                 { model | coordData = newCoord }
 
-updateCell : Stuff -> (Int, Int) -> Float -> Stuff
-updateCell stuff position value =
+updateCell : Stuff -> ScalarType Float String -> Stuff
+updateCell stuff value =
     case stuff of
         DateRow _  -> stuff
         Header _  -> stuff
@@ -3581,7 +3640,7 @@ updateCell stuff position value =
            if not entry.editable
                 then stuff
                 else
-                    Cell { entry | raw = Just (String.fromFloat value )
+                    Cell { entry | raw = Just (toRaw value)
                                  , edition = Edition value
                          }
 
@@ -3930,15 +3989,15 @@ getEntry date ( name, series ) =
                         Just value ->  { defaultEntry | value = value
                                                           , raw = Maybe.andMap
                                                                     value
-                                                                    (Just String.fromFloat)
+                                                                    ( Just toRaw )
                                            }
                         Nothing -> defaultEntry
                 Nothing ->
                     case Dict.get date ts.initialTs of
                         Just value ->  { defaultEntry | value = value
-                                                          , raw = Maybe.andMap
-                                                                    value
-                                                                    (Just String.fromFloat)
+                                                      , raw = Maybe.andMap
+                                                                value
+                                                                ( Just toRaw )
                                             }
                         Nothing -> defaultEntry
         ToEdit ts ->
@@ -3950,7 +4009,7 @@ getEntry date ( name, series ) =
                                             , edition = entry.edition
                                             , raw = Maybe.andMap
                                                         entry.value
-                                                        (Just String.fromFloat)
+                                                        (Just toRaw)
                                             , override = entry.override
                                             , editable = True
                               }
@@ -3962,7 +4021,7 @@ getEntry date ( name, series ) =
                                            , override = entry.override
                                            , raw = Maybe.andMap
                                                         entry.value
-                                                        (Just String.fromFloat)
+                                                        (Just toRaw)
                                            , editable = True
                                }
 
@@ -4091,7 +4150,10 @@ entryToFloat entry =
         NoEdition -> Nothing
         Error _ -> Nothing
         Deletion -> Nothing
-        Edition edit -> Just edit
+        Edition edit ->
+            case edit of
+                String _ -> Nothing
+                Float f -> Just f
 
 
 saveButtons: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
@@ -4188,14 +4250,18 @@ divLinearCorrection model filtredDict =
 getValue : Entry -> String -> String
 getValue entry blankStr =
      case entry.edition of
-                Edition v -> String.fromFloat v
+                Edition v -> toRaw v
                 Error s -> s
                 Deletion -> blankStr
                 NoEdition ->
-                    Maybe.unwrap
-                        ""
-                        String.fromFloat
-                        entry.value
+                    case entry.value of
+                        Nothing -> ""
+                        Just v ->
+                            case v of
+                                String s -> s
+                                Float f ->
+                                    String.fromFloat f
+
 
 showValue: Entry -> String -> String
 showValue entry blankStr =
@@ -4252,7 +4318,7 @@ debugAttributes debug entry =
         then [ ]
         else
             [ HA.attribute "raw" ( displayRaw entry.raw )
-            , HA.attribute "value" ( displayValue entry.value )
+            , HA.attribute "value" ( displayRaw ( Maybe.map toRaw entry.value ))
             , HA.attribute "edition" ( displayEdition entry.edition )
             , HA.attribute "overridden"  <| if entry.override then "True" else "False"
             , HA.attribute "indexRow" entry.indexRow
@@ -4275,7 +4341,7 @@ displayValue value =
 displayEdition: Edited -> String
 displayEdition edited =
     case edited of
-        Edition value -> "Edition-" ++ String.fromFloat value
+        Edition value -> "Edition-" ++ toRaw value
         NoEdition -> "NoEdition"
         Deletion -> "Deletion"
         Error e -> "Error-" ++ e
