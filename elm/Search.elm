@@ -236,7 +236,11 @@ update msg model =
             let
                 newkinds =
                     if List.member kind model.selectedkinds
-                    then remove model.selectedkinds kind
+                    then
+                        if (List.length model.selectedkinds > 1)
+                        then remove model.selectedkinds kind
+                        -- let's do nothing: we need one kind
+                        else model.selectedkinds
                     else insert model.selectedkinds kind
 
                 newmodel =
