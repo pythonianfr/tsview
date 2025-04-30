@@ -257,18 +257,18 @@ update msg model =
 
         -- metadata filtering
 
-        NewValue inputId value ->
+        NewValue inputid value ->
             let
                 currentkey =
                     U.first
                         (Maybe.withDefault
                              ( "", "" )
-                             (Dict.get inputId model.filterbymeta)
+                             (Dict.get inputid model.filterbymeta)
                         )
 
                 newdict =
                     Dict.insert
-                        inputId
+                        inputid
                         (currentkey, value)
                         model.filterbymeta
 
@@ -277,18 +277,18 @@ update msg model =
             in
             doquery newmodel
 
-        NewKey inputId key ->
+        NewKey inputid key ->
             let
                 currentvalue =
                     U.snd
                         (Maybe.withDefault
                              ( "", "" )
-                             (Dict.get inputId model.filterbymeta)
+                             (Dict.get inputid model.filterbymeta)
                         )
 
                 newdict =
                     Dict.insert
-                        inputId
+                        inputid
                         (key, currentvalue)
                         model.filterbymeta
 
@@ -297,11 +297,11 @@ update msg model =
             in
             doquery newmodel
 
-        AddMetaItem inputId ->
+        AddMetaItem inputid ->
             let
                 newdict =
                     Dict.insert
-                        (inputId + 1)
+                        (inputid + 1)
                         ( "", "" )
                         model.filterbymeta
 
@@ -310,10 +310,10 @@ update msg model =
            in
            doquery newmodel
 
-        MetaItemToDelete inputId ->
+        MetaItemToDelete inputid ->
             let
                 newdict =
-                    Dict.remove inputId model.filterbymeta
+                    Dict.remove inputid model.filterbymeta
 
                 newmodel =  { model | filterbymeta = newdict }
             in
@@ -429,31 +429,34 @@ viewsourcefilter model =
 metaactions : String -> (Int, (String, String)) -> H.Html Msg
 metaactions action metadata =
     let
-        inputId = U.first metadata
-        key = U.first ( U.snd metadata )
-        value = U.snd ( U.snd metadata )
-        keyInput = H.input
-            [ A.attribute "type" "text"
+        inputid =
+            U.first metadata
+        key =
+            U.first ( U.snd metadata )
+        value =
+            U.snd ( U.snd metadata )
+        inputkey =
+            H.input
+                [ A.attribute "type" "text"
                 , A.class "form-control-sm"
                 , A.placeholder "filter by metadata key"
                 , A.value key
-                , HE.onInput (NewKey inputId)
-            ]
-            []
-        valueInput = H.input
-            [ A.attribute "type" "text"
+                , HE.onInput (NewKey inputid)
+                ] []
+        inputvalue =
+            H.input
+                [ A.attribute "type" "text"
                 , A.class "form-control-sm"
                 , A.placeholder "filter by metadata value"
                 , A.value value
-                , HE.onInput (NewValue inputId)
-            ]
-            []
+                , HE.onInput (NewValue inputid)
+                ] []
         addentry =
             H.button
                 [ A.attribute "type" "button"
                 , A.title "add the metadata filter rule"
                 , A.class "btn btn-primary btn-sm"
-                , HE.onClick (AddMetaItem inputId)
+                , HE.onClick (AddMetaItem inputid)
                 ]
                 [ H.text "add" ]
         delete =
@@ -461,14 +464,15 @@ metaactions action metadata =
                 [ A.attribute "type" "button"
                 , A.title "remove the metadata filter rule"
                 , A.class "btn btn-warning btn-sm"
-                , HE.onClick (MetaItemToDelete inputId)
+                , HE.onClick (MetaItemToDelete inputid)
                 ]
                 [ H.text "delete" ]
-    in  H.div
-        [ A.id (String.fromInt inputId) ]
-        [ keyInput
+    in
+    H.div
+        [ A.id <| String.fromInt inputid ]
+        [ inputkey
         , H.span [] [ H.text " " ]
-        , valueInput
+        , inputvalue
         , H.span [] [ H.text " " ]
         , if action == "add" then addentry else delete
         ]
@@ -476,14 +480,15 @@ metaactions action metadata =
 
 viewmetafilter model =
     let
-        listData = List.reverse (Dict.toList model.filterbymeta)
-        header = Maybe.withDefault (1, ("", "")) (List.head listData)
-        tail = Maybe.withDefault [] (List.tail listData)
-
+        data =
+            List.reverse <| Dict.toList model.filterbymeta
+        header =
+            Maybe.withDefault (1, ("", "")) <| List.head data
+        tail =
+            Maybe.withDefault [] <| List.tail data
     in
-    H.div
-        []
-        ((metaactions "add" header):: List.map (metaactions "delete") tail)
+    H.div [] <|
+        (metaactions "add" header):: List.map (metaactions "delete") tail
 
 
 tzawarefilter model =
