@@ -1,13 +1,19 @@
 module Homepage exposing (main)
 
 import Browser
-import Catalog as Cat exposing (Msg(..))
-import Dict exposing (Dict)
+import Dict exposing ( Dict )
 import Html as H
 import Html.Attributes as HA
 import Http
-import Icons exposing (Icon, buildSvg, getIcons)
-import Set exposing (Set)
+import Icons exposing
+    ( Icon
+    , buildSvg
+    , getIcons
+    )
+import Json.Decode as JD
+import Metadata as M
+import Set exposing ( Set )
+import Url.Builder as UB
 import Util as U
 
 
@@ -20,44 +26,78 @@ type alias MultiStatus =
 
 
 type alias Model =
-    { baseUrl : String
+    { baseurl : String
     , instance : String
     , version : String
     , status : MultiStatus
-    , catalog : Cat.Model
+    , stats : Dict String M.Metadata
     , icons : Dict String Icon
     }
 
 
+sourcessum: Dict String M.Metadata -> String -> Int
+sourcessum stats key =
+    -- sum things using the key, from all sources
+    let
+        sumbysource source =
+            case Maybe.withDefault (M.MInt 0) <| Dict.get key source of
+                M.MInt val -> val
+                _ -> 0
+
+    in
+    List.foldl (+) 0 <| List.map sumbysource <| Dict.values stats
+
+
 type Msg
-    = GotCatalog Cat.Msg
+    = GotInfo (Result Http.Error String)
     | GotIcons (Result Http.Error (Dict String Icon))
 
+
+getinfo model =
+    Http.get
+        { expect = Http.expectString GotInfo
+        , url = UB.crossOrigin model.baseurl
+                [ "api", "global", "properties" ]
+              [ UB.string "property" "info" ]
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotCatalog catmsg ->
-            U.nocmd { model | catalog = Cat.update catmsg model.catalog }
+        GotInfo (Ok rawinfo) ->
+            case JD.decodeString (JD.dict M.decodemeta) rawinfo of
+                Ok info ->
+                    U.nocmd { model | stats = info }
+                Err _ ->
+                    U.nocmd model
+
+        GotInfo (Err _) ->
+            U.nocmd model
 
         GotIcons (Ok content) ->
             U.nocmd { model | icons = content }
 
-        GotIcons (Err error)
-            -> U.nocmd model
-
-
-getSeriesNumberOf model seriestype =
-    String.fromInt
-        (List.length
-            (Set.toList
-                (Maybe.withDefault Set.empty
-                     (Dict.get seriestype model.catalog.seriesbykind))))
+        GotIcons (Err error) ->
+            U.nocmd model
 
 
 buildDetailsDiv : Model -> H.Html Msg
 buildDetailsDiv model =
+    let
+        x=Debug.log "S" model.stats
+        primaries =
+            sourcessum model.stats "primary_series"
+
+        formulas =
+            sourcessum model.stats "formula_series"
+
+        allseries =
+            primaries + formulas
+
+        sources =
+            List.filter (\item -> item /= "local") <| Dict.keys model.stats
+    in
     H.div
         [ HA.class "homepage-details" ]
         [ H.h1
@@ -67,7 +107,8 @@ buildDetailsDiv model =
                 [ H.text model.instance ]
             , H.text " refinery"
             ]
-        , H.img [ HA.src ("https://img.shields.io/badge/refinery-" ++ model.version ++ "-35845F") ]
+        , H.img
+            [ HA.src ("https://img.shields.io/badge/refinery-" ++ model.version ++ "-35845F") ]
             []
         , H.br [] []
         , H.p [] [ H.text "From here, you can access :" ]
@@ -76,20 +117,20 @@ buildDetailsDiv model =
                 []
                 [ H.a
                     [ HA.href "/tssearch" ]
-                    [ H.text (String.fromInt (List.length model.catalog.series) ++ " Series") ]
+                    [ H.text <| (String.fromInt allseries) ++ " Series" ]
                 ]
             , H.p
                 []
-                [ H.text (" ↳ " ++ (getSeriesNumberOf model "primary") ++ " Primaries") ]
+                [ H.text (" ↳ " ++ (String.fromInt primaries) ++ " Primaries") ]
             , H.p
                 []
-                [ H.text (" ↳ " ++ (getSeriesNumberOf model "formula") ++ " Formulas") ]
+                [ H.text (" ↳ " ++ (String.fromInt formulas) ++ " Formulas") ]
             ]
         , H.p
-            [ HA.hidden (Dict.keys model.catalog.seriesbysource == []) ]
+            [ HA.hidden <| List.length (Dict.keys model.stats) <= 1 ]
             [ H.text "Sources :" ]
         , H.p []
-            [ H.text (String.join " / " (Dict.keys model.catalog.seriesbysource)) ]
+            [ H.text (String.join " / " sources) ]
         ]
 
 
@@ -101,7 +142,7 @@ buildLinksDiv model =
             [ HA.class "homepage-button"
             , HA.class "apibutton"
             , HA.target "_blank"
-            , HA.href (model.baseUrl ++ "/api")
+            , HA.href (model.baseurl ++ "/api")
             ]
             [ H.img [ HA.src "./tsview_static/arrow_outward.png" ] []
             , H.text "API"
@@ -148,7 +189,7 @@ buildGetStartedDiv model =
                         [ HA.class "homepage-card-text" ]
                         [ H.text
                             "Data can be imported through the "
-                        , H.a [ HA.href (model.baseUrl ++ "/api") ] [ H.text "API." ]
+                        , H.a [ HA.href (model.baseurl ++ "/api") ] [ H.text "API." ]
                         ]
                     , H.p
                         [ HA.class "homepage-card-text" ]
@@ -165,7 +206,7 @@ buildGetStartedDiv model =
                         [ H.text
                             "If tasks have been constructed to import data (scraping open data on the internet, csv files to be ingested…), go to the "
                         , H.a
-                            [ HA.href (model.baseUrl ++ "/tasks") ]
+                            [ HA.href (model.baseurl ++ "/tasks") ]
                             [ H.text "task launcher." ]
                         ]
                     ]
@@ -183,7 +224,7 @@ buildGetStartedDiv model =
                         [ H.text
                             "To have the complete list of the data available in this refinery, go to the "
                         , H.a
-                            [ HA.href (model.baseUrl ++ "/tssearch") ]
+                            [ HA.href (model.baseurl ++ "/tssearch") ]
                             [ H.text "catalog." ]
                         ]
                     , H.p [ HA.class "homepage-card-text" ]
@@ -191,7 +232,7 @@ buildGetStartedDiv model =
                             "From here, there is a redirection for each series to its own information page. There, every interesting information will be found (tzawareness, metadata, last updates, version history… and obviously… a plot!)."
                         ]
                     , H.p [ HA.class "homepage-card-text" ]
-                        [ H.a [ HA.href (model.baseUrl ++ "/tsview") ] [ H.text "Quick view " ]
+                        [ H.a [ HA.href (model.baseurl ++ "/tsview") ] [ H.text "Quick view " ]
                         , H.text
                             " will be useful to compare several series on a plot and share the permalinks with colleagues."
                         ]
@@ -213,19 +254,19 @@ buildGetStartedDiv model =
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
                             "For series transformation, welcome to the world of formulas ! Operator documentation is available "
-                        , H.a [ HA.href (model.baseUrl ++ "/tsformula/operators") ] [ H.text " here. " ]
+                        , H.a [ HA.href (model.baseurl ++ "/tsformula/operators") ] [ H.text " here. " ]
                         , H.text
                             "The "
-                        , H.a [ HA.href (model.baseUrl ++ "/tsformula") ] [ H.text "formula editor" ]
+                        , H.a [ HA.href (model.baseurl ++ "/tsformula") ] [ H.text "formula editor" ]
                         , H.text
                             " is useful to construct one formula. If a batch of formulas has to be pushed, prefer the "
-                        , H.a [ HA.href (model.baseUrl ++ "/addformulas") ] [ H.text "csv solution." ]
+                        , H.a [ HA.href (model.baseurl ++ "/addformulas") ] [ H.text "csv solution." ]
                         ]
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
                             "If a monster formulas has been constructed (with hundreds of dependencies…), don’t hesitate to setup a "
                         , H.a
-                            [ HA.href (model.baseUrl ++ "/formulacache") ]
+                            [ HA.href (model.baseurl ++ "/formulacache") ]
                             [ H.text "cache policy!" ]
                         ]
                     ]
@@ -246,12 +287,12 @@ buildGetStartedDiv model =
                     , H.p [ HA.class "homepage-card-text" ]
                         [ H.text
                                 "Go to "
-                        , H.a [ HA.href (model.baseUrl ++ "/tswatch") ] [ H.text "tswatch " ]
+                        , H.a [ HA.href (model.baseurl ++ "/tswatch") ] [ H.text "tswatch " ]
                         , H.text
                                 " to check if the data is correctly updated."
                         ]
                     , H.p [ HA.class "homepage-card-text" ]
-                        [ H.a [ HA.href (model.baseUrl ++ "/tasks") ] [ H.text "Task " ]
+                        [ H.a [ HA.href (model.baseurl ++ "/tasks") ] [ H.text "Task " ]
                         , H.text
                                 "page will be also useful to check if all the recent tasks are «done» (tips: it is possible to filter the «status» column)."
                         ]
@@ -283,33 +324,30 @@ view model =
                     [ HA.id "homepage-footer" ]
                     [ H.img [ HA.class "pythonian-logo"
                             , HA.src "./tsview_static/logo-pythonian.png"
-                            ] [] ]
+                            ] []
+                    ]
                 ]
             ]
         ]
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.none
-
-
-initModel baseurl instance version =
-    { baseUrl = baseurl
-    , instance = instance
-    , version = version
-    , status = { catalog = Processing }
-    , catalog = Cat.empty
-    , icons = Dict.empty
-    }
-
 
 init : ( String, String, String ) -> ( Model, Cmd Msg )
 init ( baseurl, instance, version ) =
-    ( initModel baseurl instance version
+    let
+        model =
+            { baseurl = baseurl
+            , instance = instance
+            , version = version
+            , status = { catalog = Processing }
+            , stats = Dict.empty
+            , icons = Dict.empty
+            }
+    in
+    ( model
     , Cmd.batch
-        [ Cmd.map GotCatalog <| Cat.get baseurl "series" 1 Cat.ReceivedSeries
-        , getIcons baseurl ( \ returnHttp ->  GotIcons returnHttp )
+        [ getinfo model
+        , getIcons baseurl <| \returnHttp ->  GotIcons returnHttp
         ]
     )
 
@@ -318,6 +356,6 @@ main =
     Browser.element
         { init = init
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         , view = view
         }
