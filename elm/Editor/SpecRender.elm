@@ -64,6 +64,8 @@ renderLiteralType t = case t of
 
         T.BasketName -> "BasketName"
 
+        T.GroupName -> "groupname"
+
     T.LiteralKeywords xs -> String.concat
         [ "Literal["
         ,  String.join ", " <| List.map singleQuoteStr xs

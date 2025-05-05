@@ -22,6 +22,7 @@ type ProposalType
     | MetaKey
     | CachePolicy
     | BasketName
+    | GroupName
 
 type LiteralType
     = Bool

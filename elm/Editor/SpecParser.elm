@@ -105,6 +105,7 @@ literalTypeParser = ask <| \({toToken} as env) -> PA.oneOf
 
     , PA.succeed (T.Proposal T.BasketName) |. PA.keyword (toToken "BasketName")
     , PA.succeed T.LiteralKeywords |= Reader.run literalKeywordsParser env
+    , PA.succeed (T.Proposal T.GroupName) |. PA.keyword (toToken "groupname")
     ]
 
 operatorOutputTypeParser : Parser c x T.OperatorOutputType

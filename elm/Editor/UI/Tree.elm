@@ -108,8 +108,9 @@ type Msg
     | TreeEdited T.FormulaCode
     | Edit T.FormulaCode
     | GotProposals T.ProposalType (Result Http.Error (List String))
-    | DebounceSeriesName String (Debouncer.Msg ())
+    | DebounceName String (Debouncer.Msg ())
     | CleanSeriesName ()
+    | CleanGroupName ()
 
 
 type alias HMsg = Html Msg
@@ -398,26 +399,30 @@ update msg model = case msg of
     TreeEdited _ ->
         model |> withNoCmd
 
-    DebounceSeriesName keywords debMsg ->
+    DebounceName keywords debMsg ->
 
         let
             (debModel, debCmd, emitted) =
                 Debouncer.update debMsg model.debouncer
 
             cmd = case emitted of
-                Just _ -> getSeriesNameProposals keywords
+                Just _ -> getNameProposals model.editor.returnTypeStr keywords
 
                 Nothing -> Cmd.none
         in
         { model | debouncer = debModel }
             |> withCmd (Cmd.batch
                 [ cmd
-                , Cmd.map (DebounceSeriesName keywords) debCmd
+                , Cmd.map (DebounceName keywords) debCmd
                 ]
             )
     
     CleanSeriesName _ ->
         { model | proposals = Assoc.insert T.SeriesName [] model.proposals }
+            |> withNoCmd
+
+    CleanGroupName _ ->
+        { model | proposals = Assoc.insert T.GroupName [] model.proposals }
             |> withNoCmd
 
 
@@ -497,8 +502,8 @@ renderClosedSelector {value} {keywords, selectedItem} toMsg =
             [ H.text <| Util.fromCharCode 9998 ] -- LOWER RIGHT PENCIL
         ]
 
-probeSeriesNameKeywords : String -> Bool
-probeSeriesNameKeywords s =
+probeNameKeywords : String -> Bool
+probeNameKeywords s =
     let n = String.words s |> String.concat |> String.length
     in n > 2
 
@@ -507,7 +512,7 @@ renderOpenSelector :
 renderOpenSelector {keywords, selectedItem } rawItems toMsg =
     let
         limitResults xs =
-            if not (probeSeriesNameKeywords keywords) then
+            if not (probeNameKeywords keywords) then
                 [ ("At least 3 characters required", False) ]
             else if (List.length xs == 0) then
                 [ ("No result", False) ]
@@ -552,8 +557,8 @@ renderOpenSelector {keywords, selectedItem } rawItems toMsg =
         ]
     ]
 
-renderSeriesProposals : Input -> Reader HMsg
-renderSeriesProposals ({userInput} as input) =
+renderProposals : T.ReturnTypeStr -> Input -> Reader HMsg
+renderProposals returnTypeStr ({userInput} as input) =
     ask <| \{proposals, treePath} ->
     let
         selectorInput = decodeSelectorInputFromUserInput userInput
@@ -561,8 +566,11 @@ renderSeriesProposals ({userInput} as input) =
         toMsg : SelectorAction -> Msg
         toMsg msg = msg |> SelectorAction |> EditEntry |> EditNode treePath
 
-        proposalList =
-            Assoc.get T.SeriesName proposals |> Maybe.withDefault []
+        proposalList = case returnTypeStr of
+            "Series" -> Assoc.get T.SeriesName proposals |> Maybe.withDefault []
+            "DataFrame" -> Assoc.get T.GroupName proposals |> Maybe.withDefault []
+            _ -> []
+
 
     in if selectorInput.isOpen || Maybe.isNothing input.value then
         renderOpenSelector selectorInput proposalList toMsg
@@ -585,7 +593,9 @@ renderNode node = RE.askM <| \{proposals} -> case node of
     Primitive (PInput ({literalType} as x)) -> case literalType of
         T.Bool -> renderCheckInput x
 
-        T.Proposal T.SeriesName -> renderSeriesProposals x
+        T.Proposal T.SeriesName -> renderProposals "Series" x
+
+        T.Proposal T.GroupName -> renderProposals "DataFrame" x
 
         T.Proposal proposalType -> renderKeywords
             (Assoc.get proposalType proposals |> Maybe.withDefault [])
@@ -1005,35 +1015,45 @@ getProposals urlPrefix = Cmd.batch
     , getBasketName urlPrefix
     ]
 
-askSeriesNameProposals : String -> Cmd Msg
-askSeriesNameProposals keywords =
-    Util.sendCmd (DebounceSeriesName keywords) <|  Debouncer.provideInput ()
+askNameProposals : String -> Cmd Msg
+askNameProposals keywords =
+    Util.sendCmd (DebounceName keywords) <|  Debouncer.provideInput ()
 
-getSeriesNameProposals : String -> Cmd Msg
-getSeriesNameProposals keywords =
-    if probeSeriesNameKeywords keywords then
+getNameProposals : T.ReturnTypeStr -> String -> Cmd Msg
+getNameProposals returnTypeStr keywords =
+    if probeNameKeywords keywords then
         let names = List.map
                 (\x -> "(by.name " ++ quoteStr x ++ ")")
                 (String.words keywords)
             query = "(by.and " ++ (String.join " " names) ++ ")"
+            (endpoint, dataType) = case returnTypeStr of
+                "Series" -> ("series", T.SeriesName)
+                "DataFrame" -> ("group", T.GroupName)
+                _ -> ("", T.SeriesName)
         in Http.get
             { url = UB.crossOrigin
                 ""
-                [ "api", "series", "find" ]
+                [ "api", endpoint, "find" ]
                 [ UB.string "query" query
                 , UB.int "limit" 100
                 , UB.string "meta" "false"
                 ]
             , expect = Http.expectJson
-                (GotProposals T.SeriesName)
+                (GotProposals dataType)
                 (JD.list (JD.field "name" JD.string))
             }
     else
         Cmd.none
 
-cleanSeriesNameProposals : Cmd Msg
-cleanSeriesNameProposals =
-    Util.sendCmd CleanSeriesName ()
+cleanNameProposals : T.ReturnTypeStr -> Cmd Msg
+cleanNameProposals returnTypeStr =
+    case returnTypeStr of
+        "DataFrame" ->
+            Util.sendCmd CleanGroupName ()
+        "Series" ->
+            Util.sendCmd CleanSeriesName ()
+        _ -> Cmd.none
+
 
 init : Flags -> (Model, Cmd Msg)
 init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
@@ -1049,16 +1069,16 @@ probeTreeEdited editAction model = case editAction of
     ToggleExpand -> Cmd.none
 
     EditEntry (SelectorAction (OpenSelector s True)) ->
-        getSeriesNameProposals s
+        getNameProposals model.editor.returnTypeStr s
 
     EditEntry (SelectorAction (OpenSelector _ False)) ->
-        cleanSeriesNameProposals
+        cleanNameProposals model.editor.returnTypeStr
 
     EditEntry (SelectorAction (SetKeywords s)) ->
-        askSeriesNameProposals s
+        askNameProposals s
 
     EditEntry (SelectorAction (SelectItem _)) -> Cmd.batch
-        [ cleanSeriesNameProposals
+        [ cleanNameProposals  model.editor.returnTypeStr
         , sendTreeEdited model
         ]
 
@@ -1131,11 +1151,11 @@ updateTree : Msg -> Model -> (Model, Cmd Msg)
 updateTree msg model = update msg model
 
 initModel : Flags -> Model
-initModel {jsonSpec, formulaCode} =
+initModel {jsonSpec, formulaCode, returnTypeStr} =
     parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
         { editor = Maybe.unwrap
-            (buildEditor spec "Series" formulaDev)
-            (buildEditor spec "Series")
+            (buildEditor spec returnTypeStr formulaDev)
+            (buildEditor spec returnTypeStr)
             formulaCode
         , proposals = Assoc.empty
         , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
