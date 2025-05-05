@@ -449,6 +449,10 @@ type alias BaseSupervision =
     , override : Bool
     }
 
+type alias BaseSupervisionString =
+    { value : Maybe String
+    , override : Bool
+    }
 
 type Stuff
     = DateRow String
@@ -487,21 +491,35 @@ type alias Entry =
 
 baseToEntry: BaseSupervision -> Entry
 baseToEntry base =
-     { raw = Maybe.map String.fromFloat base.value
-     , value = Maybe.map Float base.value
-     , edition = NoEdition
-     , editable = True
-     , override = base.override
-     , indexRow = ""
-     , indexCol = ""
-     , fromBatch = False
-     }
+    { raw = Maybe.map String.fromFloat base.value
+    , value = Maybe.map Float base.value
+    , edition = NoEdition
+    , editable = True
+    , override = base.override
+    , indexRow = ""
+    , indexCol = ""
+    , fromBatch = False
+    }
 
+baseToEntryString: BaseSupervisionString -> Entry
+baseToEntryString base =
+     { raw = base.value
+    , value = Maybe.map String base.value
+    , edition = NoEdition
+    , editable = True
+    , override = base.override
+    , indexRow = ""
+    , indexCol = ""
+    , fromBatch = False
+    }
 
 toScalar: Maybe Float -> Maybe ( ScalarType Float String )
 toScalar mf =
     Maybe.map Float mf
 
+toString: Maybe String -> Maybe ( ScalarType Float String )
+toString mf =
+    Maybe.map String mf
 
 mapToFloat : SeriesNaked -> Dict String ( Maybe Float )
 mapToFloat =
@@ -759,18 +777,51 @@ return = "\n"
 entryDecoder : JD.Decoder BaseSupervision
 entryDecoder =
     JD.map2 BaseSupervision
-        (JD.field "series" (JD.maybe JD.float))
+        (JD.field "series" (JD.nullable JD.float))
+        (JD.field "markers" JD.bool)
+
+entryDecoderString : JD.Decoder BaseSupervisionString
+entryDecoderString =
+    JD.map2 BaseSupervisionString
+        (JD.field "series" (JD.nullable JD.string))
         (JD.field "markers" JD.bool)
 
 
-dataDecoder : JD.Decoder (Dict String Entry)
-dataDecoder =
+decodeToEdit : JD.Decoder (Dict String Entry)
+decodeToEdit =
     ( JD.dict ( JD.map baseToEntry entryDecoder ))
 
+decodeToEditString : JD.Decoder (Dict String Entry)
+decodeToEditString =
+    ( JD.dict ( JD.map baseToEntryString entryDecoderString ))
 
 decodeNaked : JD.Decoder SeriesNaked
 decodeNaked =
-        (JD.dict (JD.map toScalar (JD.maybe JD.float)))
+        (JD.dict (JD.map toScalar (JD.nullable JD.float)))
+
+decodeNakedString : JD.Decoder SeriesNaked
+decodeNakedString =
+        (JD.dict (JD.map toString (JD.nullable JD.string)))
+
+decodeSupervised: String ->  Result ( JD.Error, JD.Error ) SeriesToEdit
+decodeSupervised raw =
+    case JD.decodeString decodeToEdit raw of
+        Ok ts -> Ok ts
+        Err errFloat ->
+            case JD.decodeString decodeToEditString raw of
+                Ok ts -> Ok ts
+                Err errString -> Err ( errFloat, errString )
+
+
+decodeValues: String ->  Result ( JD.Error, JD.Error ) SeriesNaked
+decodeValues raw =
+    case JD.decodeString decodeNaked raw of
+        Ok ts -> Ok ts
+        Err errFloat ->
+            case JD.decodeString decodeNakedString raw of
+                Ok ts -> Ok ts
+                Err errString -> Err ( errFloat, errString )
+
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
@@ -1025,7 +1076,7 @@ update msg model =
     in
     case msg of
         GotEditData (Ok rawdata) ->
-            case JD.decodeString dataDecoder rawdata of
+            case decodeSupervised rawdata of
                 Ok indexedval ->
                     let
                         zoomTs = applyZoom model indexedval
@@ -1046,17 +1097,19 @@ update msg model =
                                 })
                         ( Just ( 0, 0 ) )
 
-                Err err ->
+                Err (errFloat, errString) ->
                   U.nocmd ( addError
                                 model
                                 "got edit data decode"
-                                ( JD.errorToString err ))
+                                (( JD.errorToString errFloat )
+                                ++  ( JD.errorToString errString ))
+                                )
 
         GotEditData (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
-            case JD.decodeString decodeNaked rawdata of
+            case decodeValues rawdata of
                 Ok val -> let zoomTs = applyZoom model val
                           in
                           ( ( buildCoord
@@ -1071,19 +1124,17 @@ update msg model =
                                                 ( mapToFloat val )
                             }
                             )
-                          , Cmd.batch [ getComponents model False
-                                    , getComponents model True
-                                    ]
-                          )
-                Err err ->
-                    U.nocmd ( addError
-                                  { model | horizon = setStatusPlot
-                                                      model.horizon
-                                                      Failure
-                                  }
-                                  "got value data decode"
-                                  ( JD.errorToString err )
-                            )
+                           , Cmd.batch [ getComponents model False
+                                       , getComponents model True ]
+                           )
+                Err  (errFloat, errString) -> U.nocmd ( addError
+                                        { model | horizon = setStatusPlot
+                                                                model.horizon
+                                                                Failure
+                                        }
+                                        "got value data decode"
+                                        (( JD.errorToString errFloat ) ++ ( JD.errorToString errString ))
+                                        )
 
         GotValueData (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
@@ -1122,7 +1173,7 @@ update msg model =
         GotComponentData cType name expand (Ok rawdata) ->
             case cType of
                 Primary ->
-                    case JD.decodeString dataDecoder rawdata of
+                    case decodeSupervised rawdata of
                         Ok indexedval ->
                             let zoomTs = applyZoom model indexedval
                                 newCD = insertComponentData
@@ -1147,7 +1198,11 @@ update msg model =
                                                                     newHorizon
                                                                     status
                                                   }
-                        Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                        Err (eS, eF) -> U.nocmd
+                                    { model | errors = model.errors
+                                                        ++ [JD.errorToString eS]
+                                                        ++ [JD.errorToString eF]
+                                    }
                 _ ->
                     case JD.decodeString
                         decodeNaked
@@ -1452,7 +1507,7 @@ update msg model =
             doerr "idates http" <| U.unwraperror error
 
         GetLastEditedData (Ok rawdata) ->
-            case JD.decodeString dataDecoder rawdata of
+            case decodeSupervised rawdata of
                 Ok val ->
                     let
                         patched =
