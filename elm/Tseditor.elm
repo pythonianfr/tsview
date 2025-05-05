@@ -44,6 +44,7 @@ import OrderedDict as OD
 import Plotter exposing
     ( Axis
     , Trace
+    , defaultDateAxis
     , defaultLayoutOptions
     , defaultTraceOptions
     , defaultConfigOptions
@@ -145,6 +146,7 @@ type alias Model =
     , source : String
     , seriestype : I.SeriesType
     , tzaware: Bool
+    , string: Bool
     , horizon : HorizonModel
     , creation: CreationModel
     , newBatch : Bool
@@ -526,6 +528,16 @@ mapToFloat =
     Dict.map
         (\_ v -> toFloat v )
 
+mapToString : SeriesNaked -> Dict String ( Maybe String )
+mapToString =
+    Dict.map
+        (\_ v -> case v of
+                    Nothing -> Nothing
+                    Just scal ->
+                        case scal of
+                            Float _ -> Nothing
+                            String s -> Just s
+        )
 
 toFloat: Maybe ( ScalarType Float String ) -> Maybe Float
 toFloat ms =
@@ -600,6 +612,13 @@ isTzaware meta =
      case Dict.get "tzaware" meta of
          Just (M.MBool val) -> val
          _ -> False
+
+
+isStr : M.Metadata -> Bool
+isStr meta =
+    case M.dget "value_type" meta of
+        "object" -> True
+        _ -> False
 
 
 likeComp: Model -> List Component
@@ -1594,30 +1613,28 @@ update msg model =
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                    let seriestype =
-                            if Dict.member "formula" allmeta
-                            then I.Formula
-                            else  I.Primary
-                        horizon =
-                            model.horizon
-                        newmodel =
-                           { model
-                               | meta = allmeta
-                               , tzaware = isTzaware allmeta
-                               , statistics = updateFirstLast
-                                              model.statistics
-                                              allmeta
-                               , exist = True
-                               , seriestype = seriestype
-                               , mode = case seriestype of
-                                            I.Primary -> Existing I.Primary
-                                            I.Formula -> Existing I.Formula
-                               , horizon = { horizon | hasCache =
-                                                 case seriestype of
-                                                     I.Primary -> False
-                                                     I.Formula -> True
-                                           }
-                           }
+                   let seriestype = if Dict.member "formula" allmeta
+                                                            then I.Formula
+                                                            else  I.Primary
+                       horizon = model.horizon
+                       newmodel = { model | meta = allmeta
+                                          , tzaware = isTzaware allmeta
+                                          , string = isStr allmeta
+                                          , statVisibility = not (isStr allmeta)
+                                          , statistics = updateFirstLast
+                                                            model.statistics
+                                                            allmeta
+                                          , exist = True
+                                          , seriestype = seriestype
+                                          , mode = case seriestype of
+                                              I.Primary -> Existing I.Primary
+                                              I.Formula -> Existing I.Formula
+                                          , horizon = { horizon | hasCache =
+                                                            case seriestype of
+                                                              I.Primary -> False
+                                                              I.Formula -> True
+                                                      }
+                                  }
                    in
                    ( newmodel
                    , Cmd.batch [ model.initialCommands
@@ -2163,6 +2180,16 @@ onlyValues series =
         )
         series
 
+onlyStrings: SeriesToEdit -> Dict String ( Maybe String )
+onlyStrings series =
+    Dict.map
+        ( \ k v -> case v.value of
+                    Nothing -> Nothing
+                    Just s -> case s of
+                        Float _ -> Nothing
+                        String st -> Just st
+        )
+        series
 
 resetZoom: Series -> Series
 resetZoom series =
@@ -2184,6 +2211,17 @@ onlyActiveValues series =
                 Nothing -> onlyValues ts.initialTs
                 Just zoom -> onlyValues zoom
 
+onlyActiveStrings : Series -> Dict String ( Maybe String )
+onlyActiveStrings series =
+    case series of
+        Naked ts ->
+            case ts.zoomTs of
+                Nothing -> mapToString ts.initialTs
+                Just zoom -> mapToString zoom
+        ToEdit ts ->
+            case ts.zoomTs of
+                Nothing -> onlyStrings ts.initialTs
+                Just zoom -> onlyStrings zoom
 
 onlyActiveKeys : Series -> List String
 onlyActiveKeys series =
@@ -4570,7 +4608,11 @@ plotNode model =
     in
     case model.mode
         of BasketMode -> plotBasket model dragMode lineMarker newXaxis newYaxis
-           _ -> plotSingle model dragMode lineMarker newXaxis newYaxis
+           _ ->
+               case model.string of
+                   True -> plotString model
+                   False ->
+                    plotSingle model dragMode lineMarker newXaxis newYaxis
 
 
 
@@ -4621,29 +4663,48 @@ plotSingle model dragMode lineMarker xAxis yAxis =
             [ ]
 
 
-showEdition diff =
-    scatterplot
-        "edition"
-        ( List.map
-            (\ e -> e.indexRow)
-            diff
-        )
-        ( diffToFloat diff )
-        "markers"
-        defaultTraceOptions
-
-
-traceComp : String -> Component -> Trace
-traceComp lineMarker component =
-    let dates = onlyActiveKeys component.data
-        values = Dict.values  ( onlyActiveValues component.data )
+plotString: Model -> H.Html Msg
+plotString model =
+    let dates = onlyActiveKeys model.series
+        values = Dict.values ( onlyActiveStrings model.series )
+        pseudoTs = List.map
+                    (\ v -> case v of
+                                Nothing -> Nothing
+                                Just str ->
+                                    if str == ""
+                                        then Just 0
+                                        else Just 1
+                    )
+                    values
     in
-        scatterplot
-            component.name
-            dates
-            values
-            lineMarker
-            { defaultTraceOptions | showlegend = True }
+     H.div
+     []
+     [ H.div [ HA.id "plot" ] [ ]
+     , H.node "plot-figure"
+            [ HA.attribute
+                "args"
+                ( serializedPlotArgs
+                     "plot"
+                    ( [ scatterplot
+                        "Series String"
+                        dates
+                        pseudoTs
+                        "markers"
+                        defaultTraceOptions
+                      ]
+                    )
+                    { defaultLayoutOptions |
+                        xaxis = { defaultDateAxis
+                              | range = extractDates model.horizon.zoomBounds
+                          }
+                        , dragMode = Just ( if model.panActive then "pan" else "zoom" )
+                        , height = Just 200
+                    }
+                    defaultConfigOptions
+                )
+            ]
+            [ ]
+    ]
 
 
 plotBasket: Model -> String -> String -> Axis -> Axis -> H.Html Msg
@@ -4669,6 +4730,32 @@ plotBasket model dragMode lineMarker xAxis yAxis =
                 )
             ]
             [ ]
+
+
+
+showEdition diff =
+    scatterplot
+        "edition"
+        ( List.map
+            (\ e -> e.indexRow)
+            diff
+        )
+        ( diffToFloat diff )
+        "markers"
+        defaultTraceOptions
+
+
+traceComp : String -> Component -> Trace
+traceComp lineMarker component =
+    let dates = onlyActiveKeys component.data
+        values = Dict.values  ( onlyActiveValues component.data )
+    in
+        scatterplot
+            component.name
+            dates
+            values
+            lineMarker
+            { defaultTraceOptions | showlegend = True }
 
 
 tableStat: Model -> H.Html Msg
@@ -4774,6 +4861,7 @@ init input =
                     , meta = Dict.empty
                     , exist = False
                     , tzaware = True
+                    , string = False
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon
