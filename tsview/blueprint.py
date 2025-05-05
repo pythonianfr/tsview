@@ -790,6 +790,7 @@ def tsview(tsa):
         fromdate = request.args.get('from')
         todate = request.args.get('to')
         tz = request.args.get('tz')
+        is_string = request.args.get('is_string') == '1'
         value = request.args.get('value', np.nan)
         freq = request.args.get('freq')
         index = pd.date_range(
@@ -798,7 +799,10 @@ def tsview(tsa):
             tz=tz,
             freq=freq,
         )
-        values = [float(value)] * len(index)
+        if is_string:
+            values = [value] * len(index)
+        else :
+            values = [float(value)] * len(index)
         ts = pd.Series(values, index=index)
         return make_response(
                     http.util.series_to_json(ts)

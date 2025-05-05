@@ -289,6 +289,7 @@ type CreationOptions
     | FreqOffset String
     | FreqMultiply String
     | Tz String
+    | SwitchDType
     | Value String
     | Preview PreviewType
 
@@ -315,6 +316,7 @@ type alias CreationModel =
     , to: Maybe String
     , freq: FreqType
     , tz: TzSelector
+    , isString: Bool
     , value: Maybe String
     , name: Maybe String
     , nameStatus: NameStatus
@@ -344,6 +346,7 @@ initCreationModel =
              , multiplier = Nothing
              }
     , tz = Unchanged
+    , isString = False
     , value = Nothing
     , name = Nothing
     , nameStatus = Missing
@@ -1021,10 +1024,27 @@ getGeneratedTs model previewType=
                     [ UB.string "value" value]
     in
     Http.get
-        { url =
-              UB.crossOrigin model.baseurl
-              [ "generate-ts" ]
-              (baseparams ++ createparams1 ++ createparams2)
+        { url = (UB.crossOrigin model.baseurl
+                [ "generate-ts" ]
+                (( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
+                  , UB.string "to" ( Maybe.withDefault "" model.creation.to )
+                  , UB.string "freq" ( printFreq model.creation.freq )
+                  , UB.int "is_string"  <| if model.creation.isString
+                                                then 1
+                                                else 0
+                  ] ++ case model.creation.tz of
+                       Naive -> []
+                       Selected tz -> [ UB.string "tz" tz ]
+                       Unchanged -> if model.tzaware
+                                    then [ UB.string "tz" model.horizon.timeZone ]
+                                    else [ ]
+                )
+                   ++ case model.creation.value of
+                       Nothing -> []
+                       Just value ->
+                        [ UB.string "value" value]
+                )
+                )
         , expect = Http.expectString ( GotGenerated previewType)
         }
 
@@ -1272,9 +1292,7 @@ update msg model =
 
 
         GotGenerated previewType ( Ok rawdata ) ->
-             case JD.decodeString
-                    decodeNaked
-                    rawdata of
+             case decodeValues rawdata of
                 Ok val ->
                     case previewType of
                         FromScratch ->
@@ -1302,8 +1320,20 @@ update msg model =
                                                            }
                                     }
 
+<<<<<<< dest
                 Err err ->
                      U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+=======
+                Err (errFloat, errString) ->
+                    U.nocmd ( addError
+                        { model | horizon = setStatusPlot
+                                                model.horizon
+                                                Failure
+                        }
+                        "got value data decode"
+                        (( JD.errorToString errFloat ) ++ ( JD.errorToString errString ))
+                        )
+>>>>>>> source
 
         GotGenerated previewType (Err err) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
@@ -1370,6 +1400,7 @@ update msg model =
 
 
         Create option ->
+<<<<<<< dest
             let creation =
                     model.creation
                 freq =
@@ -1428,7 +1459,61 @@ update msg model =
                         Naive -> False
                         Unchanged -> model.tzaware
                         _ -> True
+=======
+            let creation = model.creation
+                freq = model.creation.freq
+                newCreation = case option of
+                    From val -> { creation | from = Just val }
+                    To val -> { creation | to = Just val }
+                    FreqMultiply val ->
+                        { creation |
+                            freq = { freq |
+                                        multiplier =
+                                            if val == ""
+                                                then Nothing
+                                                else String.toInt val
+                                    }
+                        }
+                    FreqOffset val ->
+                        { creation |
+                            freq = { freq | offset = val }
+                        }
+                    Tz val -> { creation | tz = if val == naiveTag
+                                                    then Naive
+                                                    else Selected val
+                              }
+                    SwitchDType ->  { creation | isString = not model.creation.isString }
+                    Value val -> { creation | value = Just val }
+                    Name val -> { creation | name = Just val
+                                           , nameStatus = case model.creation.catalog of
+                                                            Nothing -> Invalid
+                                                            Just cat ->
+                                                                if List.member val cat
+                                                                    then Invalid
+                                                                    else
+                                                                        if val == ""
+                                                                            then Missing
+                                                                            else Valid
+                                }
+                    _ -> creation
+                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
+                                                                      newCreation.to /= Nothing
+                                    }
+
+                command = case option of
+                    Preview FromScratch -> getGeneratedTs model FromScratch
+                    Preview Patch -> getGeneratedTs model Patch
+                    _ -> Cmd.none
+                tzawarness = case validatedCreation.tz of
+                                Naive -> False
+                                Unchanged -> model.tzaware
+                                _ -> True
+                dType = if validatedCreation.isString
+                            then "object"
+                            else "float64"
+>>>>>>> source
             in
+<<<<<<< dest
             ( { model
                   | creation = validatedCreation
                   , name = Maybe.withDefault model.name validatedCreation.name
@@ -1440,6 +1525,20 @@ update msg model =
 
         Back ->
             U.nocmd { model | mode = Creation Form }
+=======
+                ( { model | creation = validatedCreation
+                          , name = Maybe.withDefault model.name validatedCreation.name
+                          , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
+                          , string = newCreation.isString
+                          , meta = Dict.fromList
+                                    [( "tzaware", M.MBool tzawarness )
+                                    , ( "value_type", M.MString dType )
+                                    ]
+                  }
+                , command )
+
+        Back -> U.nocmd { model | mode = Creation Form }
+>>>>>>> source
 
         SwitchForceDraw ->
             applyFocus
@@ -1614,6 +1713,7 @@ update msg model =
                                                             then I.Formula
                                                             else  I.Primary
                        horizon = model.horizon
+                       creation = model.creation
                        newmodel = { model | meta = allmeta
                                           , tzaware = isTzaware allmeta
                                           , string = isStr allmeta
@@ -1631,6 +1731,9 @@ update msg model =
                                                               I.Primary -> False
                                                               I.Formula -> True
                                                       }
+                                          , creation = { creation |
+                                                            isString = isStr allmeta
+                                                       }
                                   }
                    in
                    ( newmodel
@@ -3021,17 +3124,18 @@ patchEditedData model =
                             model.baseurl
                             model.horizon.timeZone
                             model.diff
+                            model.string
                         )
                         allSeries
 
 
-saveComponent: String -> String -> Dict ( Int, Int ) Entry -> Component -> Cmd Msg
-saveComponent baseUrl tzone series component =
+saveComponent: String -> String -> Dict ( Int, Int ) Entry ->  Bool ->  Component -> Cmd Msg
+saveComponent baseUrl tzone series isString component =
     let name = component.name
         tzaware = component.tzaware
-        patch = filterAndConvert series name
+        patch = encodeSeries series name
     in
-        if Dict.isEmpty patch
+        if Dict.isEmpty series
             then Cmd.none
         else
         Http.request
@@ -3040,12 +3144,14 @@ saveComponent baseUrl tzone series component =
                      ([ ("name", JE.string name )
                      , ("author" , JE.string "webui" )
                      , ("tzaware", JE.bool tzaware )
-                     , ("series", encodeEditedData patch )
+                     , ("series", patch )
                      , ("supervision", JE.bool True )
                      , ("keepnans", JE.bool True)
-                     ] ++ if tzaware
+                     ] ++ ( if tzaware
                             then [( "tzone", JE.string tzone )]
                             else []
+                          )
+                       ++  [("dtype", JE.string "object" )]
                      )
             , headers = [ ]
             , timeout = Nothing
@@ -3091,26 +3197,33 @@ linearCorrection model value =
                                         Edition (Float ( f * slope + inter ))
 
 
-filterAndConvert: Dict ( Int, Int ) Entry -> String -> Dict String ( Maybe Float )
-filterAndConvert editedData name =
-    Dict.fromList
-        <| List.concat
-        <| Dict.values
-            <| Dict.map
-                (\ _ e -> case e.edition of
-                            NoEdition -> []
-                            Error _ -> []
-                            Deletion -> [(e.indexRow, Nothing)]
-                            Edition val ->
-                                case val of
-                                    Float f ->
-                                        [(e.indexRow, Just f)]
-                                    String s ->
-                                        [(e.indexRow, Nothing )]
-                )
-                <| Dict.filter
-                    ( \ _ e  -> e.indexCol == name )
-                    editedData
+encodeSeries: Dict ( Int, Int ) Entry -> String -> JE.Value
+encodeSeries editedData name =
+    let flatten = Dict.fromList
+                    <| List.concat
+                    <| Dict.values
+                        <| Dict.map
+                            (\ _ e -> case e.edition of
+                                        NoEdition -> []
+                                        Error _ -> []
+                                        Deletion -> [(e.indexRow, Nothing)]
+                                        Edition val -> [(e.indexRow, Just val )]
+                            )
+                            <| Dict.filter
+                                ( \ _ e  -> e.indexCol == name )
+                                editedData
+    in
+        JE.dict
+            identity
+            ( \value ->
+                case value of
+                    Nothing -> JE.null --deletion
+                    Just val ->
+                        case val of
+                            String s  -> JE.string s
+                            Float f -> JE.float f
+            )
+            flatten
 
 
 encodeEditedData : Dict String (Maybe Float) -> JE.Value
@@ -3511,6 +3624,29 @@ creationForm model showTz previewType =
             [ H.td
                 []
                 [ H.label
+                    [ ]
+                    [ H.text "Data type " ]
+                ]
+            , H.td
+                [ ]
+                [ H.button
+                    [ HA.class "bluebutton custom-button"
+                    , HA.disabled <| case model.mode of
+                                        Existing _ -> True
+                                        _ -> False
+                    , HE.onClick ( Create SwitchDType )
+                    ]
+                    [ if model.string
+                        then H.text "String"
+                        else H.text "Float"
+                    ]
+                ]
+            ]
+        , H.tr
+            []
+            [ H.td
+                []
+                [ H.label
                     [ HA.for "creation-value"]
                     [ H.text "Value " ]
                 ]
@@ -3518,14 +3654,18 @@ creationForm model showTz previewType =
                 []
                 [ H.input
                     [ HA.id "creation-value"
-                    , HA.type_ "number"
+                    , HA.type_ <| if model.string
+                                    then "text"
+                                    else "number"
                     , HA.name "value"
-                    , HA.placeholder "NaN"
+                    , HA.autocomplete False
+                    , HA.placeholder <| if model.string
+                                            then "text"
+                                            else "NaN"
                     , HE.onInput ( \s -> Create ( Value s ) )
-                    , HA.value ( case model.creation.value of
+                    , HA.value <| case model.creation.value of
                                     Nothing -> ""
                                     Just f -> f
-                               )
                     ]
                     []
                 ]
@@ -4492,6 +4632,14 @@ debugView model =
                 ( [ H.text " debug active "
                 , H.br [] []
                 , H.text ( "Name : " ++ model.name )
+                , H.br [] []
+                , H.text ( "value_type: "
+                            ++ ( M.metavaltostring
+                                    <| Maybe.withDefault
+                                        ( M.Mnull "not-found" )
+                                        (Dict.get "value_type" model.meta)
+                                )
+                        )
                 , H.br [] []
                 , H.text ( "Basket : " ++ model.basket )
                 , H.br [] []
