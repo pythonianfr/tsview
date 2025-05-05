@@ -750,10 +750,14 @@ separatorReturn raw =
     else Nothing
 
 
-parsePasted : String -> List ( List String )
-parsePasted raw =
+parsePasted : String -> Bool -> List ( List String )
+parsePasted raw isString =
     let
-        removedSpace = String.replace " " "" raw
+        removedSpace = if isString
+                        then
+                            raw
+                        else
+                            String.replace " " "" raw
         sepR =
             separatorReturn raw
     in
@@ -1486,14 +1490,7 @@ update msg model =
 
         InputChanged row col rawvalue ->
             let
-                rawstring =
-                    String.replace " " "" rawvalue
-                edition =
-                    parseInput rawstring
-                raw =
-                    if rawstring == ""
-                    then Nothing
-                    else Just rawstring
+                ( raw, edition ) = parseStuff rawvalue model.string
             in
             U.nocmd ( applyDiff
                           <| updateCoordData
@@ -1688,10 +1685,10 @@ update msg model =
 
 
         Paste payload ->
-            let parsed = parsePasted payload.text
+            let parsed = parsePasted payload.text model.string
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
-                merged = pasteRectangle model.coordData coordPatch corner
+                merged = pasteRectangle model.coordData coordPatch corner model.string
             in
             U.nocmd <| applyDiff { model | rawPasted = payload.text
                                          , coordData = merged
@@ -2804,6 +2801,31 @@ parseInput value =
                 Nothing ->
                     Error value
 
+parseString : String -> Edited
+parseString value =
+    if value == ""
+        then Deletion
+        else
+            Edition ( String value )
+
+
+parseStuff: String -> Bool -> (Maybe String, Edited)
+parseStuff raw isString =
+    if not isString
+    then
+        let rawstring = String.replace " " "" raw
+            edition = parseInput rawstring
+            cleanedRaw = if rawstring == ""
+                            then Nothing
+                            else Just rawstring
+        in ( cleanedRaw, edition )
+    else
+        let edition = parseString raw
+            cleanedRaw = if raw == ""
+                then Nothing
+                else Just raw
+        in ( cleanedRaw, edition )
+
 
 cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
 cartesianDataRec mergedData currentRow minCol i j myDict =
@@ -2944,8 +2966,8 @@ patchCurrent base patch name  =
         base
 
 
-pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
-pasteRectangle base patch ( cornerRow, cornerCol ) =
+pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Bool -> Dict ( Int, Int ) Stuff
+pasteRectangle base patch ( cornerRow, cornerCol ) isString =
     let translatedPatch = Dict.fromList
                             <| List.map
                                 (\ (( i, j ), v ) ->
@@ -2963,7 +2985,7 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
                             then
                                 Dict.insert
                                     position
-                                    ( patchEntry stuffBase sPatch )
+                                    ( patchEntry stuffBase sPatch isString )
                                     dict
                             else dict
             )
@@ -2973,13 +2995,15 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
             base
 
 
-patchEntry: Stuff -> String -> Stuff
-patchEntry stuff s =
+patchEntry: Stuff -> String -> Bool ->Stuff
+patchEntry stuff s isString =
     case stuff of
         DateRow date -> DateRow date
         Header h -> Header h
         Cell entry -> Cell { entry | raw = Just s
-                                    , edition = parseInput s
+                                    , edition = if not isString
+                                                then parseInput s
+                                                else parseString s
                             }
 
 relevantComponents: Model -> List Component
