@@ -940,7 +940,7 @@ How a cache is filled:
 * initial revision date indicates the very first revision that will be
   stored
 
-* for eache new revision date from the initial revision date, the
+* for each new revision date from the initial revision date, the
   cache refresher will try to build a new revision using a moving
   window centered around the new revision
 
@@ -972,7 +972,7 @@ available:
 How to configure a cache policy:
 
 This is heavily dependant on the profile of the series. We distinguish
-between three fondamentally different profiles:
+between three fundamentally different profiles:
 
 * observed series with a good correlation between revision date and
   value dates.
@@ -993,7 +993,7 @@ Each one specifies a part of the rule.
 │ ┌───────────── hour (0 - 23)
 │ │ ┌───────────── day of the month (1 - 31)
 │ │ │ ┌───────────── month (1 - 12)
-│ │ │ │ ┌───────────── day of the week (0 - 6 or mon,tue,wed,thu,fri,sat,sun)
+│ │ │ │ ┌───────────── day of the week (0 - 6 or sun,mon,tue,wed,thu,fri,sat)
 │ │ │ │ │
 │ │ │ │ │
 │ │ │ │ │
