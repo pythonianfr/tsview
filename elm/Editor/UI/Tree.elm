@@ -1140,86 +1140,9 @@ renderReadOnly model =
     |> H.section [ HA.class "code_editor" ]
     |> (\x -> [ x, view model ])
 
-viewTree : Model -> HMsg
-viewTree model =
-    renderReadOnly model
-    |> H.div [ HA.class "code_left" ]
-    |> List.singleton
-    |> H.article [ HA.class "main" ]
-
-updateTree : Msg -> Model -> (Model, Cmd Msg)
-updateTree msg model = update msg model
-
-initModel : Flags -> Model
-initModel {jsonSpec, formulaCode, returnTypeStr} =
-    parseSpecValue {reduce = True} jsonSpec |> \(errs, spec) ->
-        { editor = Maybe.unwrap
-            (buildEditor spec returnTypeStr formulaDev)
-            (buildEditor spec returnTypeStr)
-            formulaCode
-        , proposals = Assoc.empty
-        , debouncer = Debouncer.debounce (Debouncer.fromSeconds 2)
-            |> Debouncer.toDebouncer
-        , specErrors = errs
-        }
-
-main : Program Flags Model Msg
-main = Browser.element
-    { init = initModel >> withNoCmd
-    , update = updateTree
-    , view = viewTree
-    , subscriptions = always Sub.none
-    }
-
-
 -- Optics utils
 treePath_ : O.SimpleLens ls RowEnv TreePath
 treePath_ = O.lens .treePath <| \s a -> { s | treePath = a }
 
 defaultValue_ : O.SimpleLens ls RowEnv (Maybe T.LiteralExpr)
 defaultValue_ = O.lens .defaultValue <| \s a -> { s | defaultValue = a }
-
-
--- dev
-formulaDev : String
-formulaDev = """
-(resample
-    (*
-        0.0005
-        (mul
-            (sub
-                (resample
-                    (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
-                    "30min"
-                    #:method "mean")
-                (resample
-                    (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
-                    "30min"
-                    #:method "interpolate"))
-            (add
-                (mul
-                    (series "power.price.imbalance.fr.short.eurmwh.entsoe.obs.30min")
-                    (<
-                        (resample
-                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
-                            "30min"
-                            #:method "mean")
-                        (resample
-                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
-                            "30min"
-                            #:method "interpolate")))
-                (mul
-                    (series "power.price.imbalance.fr.long.eurmwh.entsoe.obs.30min")
-                    (>
-                        (resample
-                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.obs.10min")
-                            "30min"
-                            #:method "mean")
-                        (resample
-                            (series "powerplant.prod.wind.fr.autremencourt.kw.kallista.constant.fcst.h")
-                            "30min"
-                            #:method "interpolate"))))))
-    "H"
-    #:method "sum")
-    """
-

@@ -56,11 +56,6 @@ formulas:
 formula:
 	elm make elm/Editor/UI/Main.elm $(FLAGS) --output tsview/tsview_static/formula_elm.js
 
-# Dev components for formula
-editor_tree:
-	elm make elm/Editor/UI/Tree.elm $(FLAGS) --output tsview/tsview_static/editor_tree.js
-
-
 pygmentize:
 	pygmentize -S default -f html -a .highlight > tsview/tsview_static/pygmentize.css
 
