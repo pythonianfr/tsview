@@ -146,7 +146,6 @@ type alias Model =
     , source : String
     , seriestype : I.SeriesType
     , tzaware: Bool
-    , string: Bool
     , horizon : HorizonModel
     , creation: CreationModel
     , newBatch : Bool
@@ -316,8 +315,8 @@ type alias CreationModel =
     , to: Maybe String
     , freq: FreqType
     , tz: TzSelector
-    , isString: Bool
     , value: Maybe String
+    , isString: Bool
     , name: Maybe String
     , nameStatus: NameStatus
     , mandatoryValid: Bool
@@ -346,8 +345,8 @@ initCreationModel =
              , multiplier = Nothing
              }
     , tz = Unchanged
-    , isString = False
     , value = Nothing
+    , isString = False
     , name = Nothing
     , nameStatus = Missing
     , mandatoryValid = True
@@ -1029,7 +1028,7 @@ getGeneratedTs model previewType=
                 (( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
                   , UB.string "to" ( Maybe.withDefault "" model.creation.to )
                   , UB.string "freq" ( printFreq model.creation.freq )
-                  , UB.int "is_string"  <| if model.creation.isString
+                  , UB.int "is_string"  <| if ( isStr model.meta )
                                                 then 1
                                                 else 0
                   ] ++ case model.creation.tz of
@@ -1320,10 +1319,6 @@ update msg model =
                                                            }
                                     }
 
-<<<<<<< dest
-                Err err ->
-                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
-=======
                 Err (errFloat, errString) ->
                     U.nocmd ( addError
                         { model | horizon = setStatusPlot
@@ -1333,7 +1328,6 @@ update msg model =
                         "got value data decode"
                         (( JD.errorToString errFloat ) ++ ( JD.errorToString errString ))
                         )
->>>>>>> source
 
         GotGenerated previewType (Err err) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
@@ -1400,66 +1394,6 @@ update msg model =
 
 
         Create option ->
-<<<<<<< dest
-            let creation =
-                    model.creation
-                freq =
-                    model.creation.freq
-                newCreation =
-                    case option of
-                        From val -> { creation | from = Just val }
-                        To val -> { creation | to = Just val }
-                        FreqMultiply val ->
-                            { creation |
-                                  freq = { freq |
-                                               multiplier =
-                                                   if val == ""
-                                                   then Nothing
-                                                   else String.toInt val
-                                         }
-                            }
-                        FreqOffset val ->
-                            { creation |
-                                  freq = { freq | offset = val }
-                            }
-                        Tz val ->
-                            { creation | tz = if val == naiveTag
-                                              then Naive
-                                              else Selected val
-                            }
-                        Value val ->
-                            { creation | value = Just val }
-                        Name val ->
-                            { creation
-                                | name = Just val
-                                , nameStatus = case model.creation.catalog of
-                                                   Nothing -> Invalid
-                                                   Just cat ->
-                                                       if List.member val cat
-                                                       then Invalid
-                                                       else
-                                                           if val == ""
-                                                           then Missing
-                                                           else Valid
-                            }
-                        _ ->
-                            creation
-                validatedCreation =
-                    { newCreation
-                        | mandatoryValid = newCreation.from /= Nothing &&
-                          newCreation.to /= Nothing
-                    }
-                command =
-                    case option of
-                        Preview FromScratch -> getGeneratedTs model FromScratch
-                        Preview Patch -> getGeneratedTs model Patch
-                        _ -> Cmd.none
-                tzawarness =
-                    case validatedCreation.tz of
-                        Naive -> False
-                        Unchanged -> model.tzaware
-                        _ -> True
-=======
             let creation = model.creation
                 freq = model.creation.freq
                 newCreation = case option of
@@ -1504,41 +1438,31 @@ update msg model =
                     Preview FromScratch -> getGeneratedTs model FromScratch
                     Preview Patch -> getGeneratedTs model Patch
                     _ -> Cmd.none
+                meta = model.meta
                 tzawarness = case validatedCreation.tz of
                                 Naive -> False
                                 Unchanged -> model.tzaware
                                 _ -> True
-                dType = if validatedCreation.isString
-                            then "object"
-                            else "float64"
->>>>>>> source
+                strMeta =   Dict.insert
+                                "value_type"
+                                ( M.MString
+                                    <| if newCreation.isString
+                                        then "object"
+                                        else "float64"
+                                )
+                                <| Dict.insert
+                                    "tzaware"
+                                    ( M.MBool tzawarness )
+                                    meta
             in
-<<<<<<< dest
-            ( { model
-                  | creation = validatedCreation
-                  , name = Maybe.withDefault model.name validatedCreation.name
-                  , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
-                  , meta = Dict.fromList [( "tzaware", M.MBool tzawarness )]
-              }
-            , command
-            )
-
-        Back ->
-            U.nocmd { model | mode = Creation Form }
-=======
                 ( { model | creation = validatedCreation
                           , name = Maybe.withDefault model.name validatedCreation.name
                           , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
-                          , string = newCreation.isString
-                          , meta = Dict.fromList
-                                    [( "tzaware", M.MBool tzawarness )
-                                    , ( "value_type", M.MString dType )
-                                    ]
+                          , meta = strMeta
                   }
                 , command )
 
         Back -> U.nocmd { model | mode = Creation Form }
->>>>>>> source
 
         SwitchForceDraw ->
             applyFocus
@@ -1589,7 +1513,9 @@ update msg model =
 
         InputChanged row col rawvalue ->
             let
-                ( raw, edition ) = parseStuff rawvalue model.string
+                ( raw, edition ) = parseStuff
+                                    rawvalue
+                                    (isStr model.meta)
             in
             U.nocmd ( applyDiff
                           <| updateCoordData
@@ -1716,7 +1642,6 @@ update msg model =
                        creation = model.creation
                        newmodel = { model | meta = allmeta
                                           , tzaware = isTzaware allmeta
-                                          , string = isStr allmeta
                                           , statVisibility = not (isStr allmeta)
                                           , statistics = updateFirstLast
                                                             model.statistics
@@ -1788,10 +1713,10 @@ update msg model =
 
 
         Paste payload ->
-            let parsed = parsePasted payload.text model.string
+            let parsed = parsePasted payload.text (isStr model.meta)
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
-                merged = pasteRectangle model.coordData coordPatch corner model.string
+                merged = pasteRectangle model.coordData coordPatch corner (isStr model.meta)
             in
             U.nocmd <| applyDiff { model | rawPasted = payload.text
                                          , coordData = merged
@@ -3124,7 +3049,7 @@ patchEditedData model =
                             model.baseurl
                             model.horizon.timeZone
                             model.diff
-                            model.string
+                            (isStr model.meta)
                         )
                         allSeries
 
@@ -3636,7 +3561,7 @@ creationForm model showTz previewType =
                                         _ -> False
                     , HE.onClick ( Create SwitchDType )
                     ]
-                    [ if model.string
+                    [ if (isStr model.meta)
                         then H.text "String"
                         else H.text "Float"
                     ]
@@ -3654,12 +3579,12 @@ creationForm model showTz previewType =
                 []
                 [ H.input
                     [ HA.id "creation-value"
-                    , HA.type_ <| if model.string
+                    , HA.type_ <| if (isStr model.meta)
                                     then "text"
                                     else "number"
                     , HA.name "value"
                     , HA.autocomplete False
-                    , HA.placeholder <| if model.string
+                    , HA.placeholder <| if (isStr model.meta)
                                             then "text"
                                             else "NaN"
                     , HE.onInput ( \s -> Create ( Value s ) )
@@ -4781,7 +4706,7 @@ plotNode model =
     case model.mode
         of BasketMode -> plotBasket model dragMode lineMarker newXaxis newYaxis
            _ ->
-               case model.string of
+               case (isStr model.meta) of
                    True -> plotString model
                    False ->
                     plotSingle model dragMode lineMarker newXaxis newYaxis
@@ -5033,7 +4958,6 @@ init input =
                     , meta = Dict.empty
                     , exist = False
                     , tzaware = True
-                    , string = False
                     , source = ""
                     , seriestype = I.Primary
                     , horizon = initHorizon
