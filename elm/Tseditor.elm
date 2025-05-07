@@ -1708,7 +1708,7 @@ update msg model =
             let parsed = parsePasted payload.text (isStr model.meta)
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
-                merged = pasteRectangle model.coordData coordPatch corner (isStr model.meta)
+                merged = pasteRectangle model.coordData coordPatch corner
             in
             U.nocmd <| applyDiff { model | rawPasted = payload.text
                                          , coordData = merged
@@ -2942,6 +2942,7 @@ currentDiff model coordData =
             coordData
 
 
+--
 patchCurrent : SeriesToEdit -> SeriesNaked -> String -> SeriesToEdit
 patchCurrent base patch name  =
     let baseEntryF = { raw = Nothing
@@ -3018,8 +3019,8 @@ patchCurrent base patch name  =
         base
 
 
-pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Bool -> Dict ( Int, Int ) Stuff
-pasteRectangle base patch ( cornerRow, cornerCol ) isString =
+pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
+pasteRectangle base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
                             <| List.map
                                 (\ (( i, j ), v ) ->
@@ -3037,7 +3038,7 @@ pasteRectangle base patch ( cornerRow, cornerCol ) isString =
                             then
                                 Dict.insert
                                     position
-                                    ( patchEntry stuffBase sPatch isString )
+                                    ( patchEntry stuffBase sPatch )
                                     dict
                             else dict
             )
@@ -3047,15 +3048,16 @@ pasteRectangle base patch ( cornerRow, cornerCol ) isString =
             base
 
 
-patchEntry: Stuff -> String -> Bool ->Stuff
-patchEntry stuff s isString =
+patchEntry: Stuff -> String ->Stuff
+patchEntry stuff s =
     case stuff of
         DateRow date -> DateRow date
         Header h -> Header h
         Cell entry -> Cell { entry | raw = Just s
-                                    , edition = if not isString
-                                                then parseInput s
-                                                else parseString s
+                                    , edition =
+                                        case entry.value of
+                                            MFloat _-> parseInput s
+                                            MString _-> parseString s
                             }
 
 relevantComponents: Model -> List Component
