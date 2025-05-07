@@ -4790,12 +4790,15 @@ plotString model =
         values = Dict.values ( onlyActiveStrings model.series )
         pseudoTs = List.map
                     (\ v -> case v of
-                                Nothing -> Nothing
+                                Nothing -> Just 0
                                 Just str ->
                                     if str == ""
                                         then Just 0
                                         else Just 1
                     )
+                    values
+        filled = List.map
+                    ( Maybe.withDefault "None" )
                     values
     in
      H.div
@@ -4811,7 +4814,10 @@ plotString model =
                         dates
                         pseudoTs
                         "markers"
-                        defaultTraceOptions
+                        { defaultTraceOptions
+                            | text = Just filled
+                            , hoverinfo = Just "text"
+                        }
                       ]
                     )
                     { defaultLayoutOptions |
