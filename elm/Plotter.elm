@@ -118,6 +118,8 @@ type alias TraceOptions =
     , opacity: Float
     , visible: Bool
     , secondAxis: Bool
+    , text: Maybe ( List String )
+    , hoverinfo: Maybe String
     }
 
 
@@ -128,6 +130,8 @@ defaultTraceOptions =
     , opacity = 1
     , visible = True
     , secondAxis = False
+    , text = Nothing
+    , hoverinfo = Nothing
     }
 
 
@@ -182,9 +186,12 @@ encodetrace t =
          , case t.options.secondAxis of
             True -> [( "yaxis", E.string "y2" )]
             False -> []
-        , case t.options.visible of
-            True -> []
-            False -> [( "visible", E.string "legendonly" )]
+        , case t.options.text of
+            Nothing -> []
+            Just words -> [( "text", E.list E.string words )]
+        , case t.options.hoverinfo of
+            Nothing -> []
+            Just info -> [( "hoverinfo", E.string info )]
         ]
 
 

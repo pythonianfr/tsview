@@ -1392,7 +1392,10 @@ plotString model ts =
                         (Dict.keys pseudoTs)
                         (Dict.values pseudoTs)
                         "markers"
-                        defaultTraceOptions
+                        { defaultTraceOptions
+                            | text = Just ( Dict.values ts )
+                            , hoverinfo = Just "text"
+                        }
                       ]
                     )
                     { defaultLayoutOptions |
