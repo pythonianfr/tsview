@@ -19,7 +19,7 @@ class tsview_schema:
         with engine.begin() as cn:
             cn.execute('drop schema if exists "tsview" cascade')
             cn.execute('create schema "tsview"')
-            cn.execute(sqlfile(SCHEMA, ns="tsview"), binary=False)
+            cn.execute(sqlfile(SCHEMA, ns="tsview"), _binary=False)
 
         api = Horizon(engine)
         def_1 = {
