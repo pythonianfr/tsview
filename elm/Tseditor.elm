@@ -625,7 +625,7 @@ likeComp model =
                 model.name
                 ( asCType model.seriestype )
                 model.series
-                model.tzaware
+                ( isTzaware model.meta )
                 CompLoaded
             ]
 
