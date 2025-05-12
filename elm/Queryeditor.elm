@@ -166,7 +166,7 @@ update msg model =
             let
                 (wid, cmd) = Widget.setFormula Nothing model.editorWidget
 
-                editor = model.editorWidget.editionTree.editor
+                editor = model.editorWidget.savedModel.editionTree.editor
 
                 byAndCmd =
                     Assoc.get
