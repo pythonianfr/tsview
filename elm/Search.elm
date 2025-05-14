@@ -117,12 +117,23 @@ query model =
         byname =
             case model.filterbyname of
                 Nothing -> []
-                Just fragment -> [ "(by.name " ++ quote ++ fragment ++ quote ++ ")" ]
+                Just fragment ->
+                    let
+                        frags =
+                            String.split " " fragment
+                        clause frag =
+                            "(by.name " ++ quote ++ frag ++ quote ++ ")"
+                    in
+                    List.concat [ [ "(by.and " ]
+                                , List.map clause frags
+                                , [ ")" ]
+                                ]
 
         byformula =
             case model.filterbyformula of
                 Nothing -> []
-                Just fragment -> [ "(by.formulacontents " ++ quote ++ fragment ++ quote ++ ")" ]
+                Just fragment ->
+                    [ "(by.formulacontents " ++ quote ++ fragment ++ quote ++ ")" ]
 
         bytzaware =
             case model.tzaware of
