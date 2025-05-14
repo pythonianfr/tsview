@@ -346,7 +346,14 @@ getplot : Model -> Cmd Msg
 getplot model =
     let
         idate =
-            Array.get model.date_index model.insertion_dates
+            if model.date_index == Array.length model.insertion_dates - 1
+            then
+                -- last rev-date
+                Nothing
+            else
+                Array.get
+                    model.date_index
+                    model.insertion_dates
         ( start, end ) =
             getFetchBounds model.horizon
     in getdata
