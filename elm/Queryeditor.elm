@@ -373,9 +373,6 @@ viewterm term  =
         ByName name ->
             viewstrparam "byname " name
 
-        BySource name ->
-            viewstrparam "bysource " name
-
         ByCachePolicy name ->
             viewstrparam "cachepolicy " name
 

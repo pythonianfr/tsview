@@ -210,14 +210,6 @@ testSerialize =
                               ]
                   )
 
-        run20 =
-            \_ -> Expect.equal
-                  (serialize <| BySource "remote")
-                  (Expression [ Atom <| Symbol "by.source"
-                              , Atom <| String "remote"
-                              ]
-                  )
-
         run21 =
             \_ -> Expect.equal
                   (serialize <| ByInternalMetaitem "key" (Str "foo"))
@@ -271,7 +263,6 @@ testSerialize =
         , test "lte str str" run17
         , test "lte str int" run18
         , test "lte str float" run19
-        , test "bysource" run20
         , test "internalmetaitem str str" run21
         , test "internalmetaitem str int" run22
         , test "internalmetaitem str float" run23
@@ -478,14 +469,6 @@ testParse =
                   )
                   (Ok <| ByMetaITem "foo" (Number 42.0))
 
-        run24 =
-            \_ -> Expect.equal
-                  (parse <| Expression [ Atom <| Symbol "by.source"
-                                       , Atom <| String "remote"
-                                       ]
-                  )
-                  (Ok <| BySource "remote")
-
         run25 =
             \_ -> Expect.equal
                   (parse <| Expression [ Atom <| Symbol "by.everything" ])
@@ -574,7 +557,6 @@ testParse =
         , test "parse metaitem str str" run21
         , test "parse metaitem str int" run22
         , test "parse metaitem str float" run23
-        , test "parse bysource" run24
         , test "parse everything" run25
         , test "parse imetaitem str str" run26
         , test "parse imetaitem str int" run27

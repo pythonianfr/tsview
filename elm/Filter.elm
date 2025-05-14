@@ -25,7 +25,6 @@ type FilterNode
     | Formula
     | FormulaContents String
     | ByName String
-    | BySource String
     | ByCache
     | ByCachePolicy String
     | ByMetakey String
@@ -137,8 +136,6 @@ parse expr =
                                     Ok Formula
                                 "by.name" ->
                                     onestring "name" args ByName
-                                "by.source" ->
-                                    onestring "source" args BySource
                                 "by.metakey" ->
                                     onestring "metakey" args ByMetakey
                                 "by.formulacontents" ->
@@ -202,11 +199,6 @@ serialize node =
         ByName name ->
             Expression [ Atom <| Symbol "by.name"
                        , Atom <| String name
-                       ]
-
-        BySource source ->
-            Expression [ Atom <| Symbol "by.source"
-                       , Atom <| String source
                        ]
 
         ByCache ->
