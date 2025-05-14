@@ -42,12 +42,14 @@ type alias LayoutOptions =
     , hoverLabel: Maybe HoverLabel
     }
 
+
 type alias Margin =
     { t: Int
     , b: Int
     , l: Int
     , r: Int
     }
+
 
 defaultLayoutOptions: LayoutOptions
 defaultLayoutOptions =
@@ -240,72 +242,78 @@ encodeRange range =
     case range of
         Dates record ->
               [ ( "range"
-                 , E.list E.string [ Maybe.withDefault
-                                        ""
-                                        (List.head record.range)
-                                   , Maybe.withDefault
-                                        ""
-                                        (List.last record.range)
-                                   ]
-                 )
-               ]
+                , E.list E.string
+                    [ Maybe.withDefault ""
+                          (List.head record.range)
+                    , Maybe.withDefault ""
+                        (List.last record.range)
+                    ]
+                )
+              ]
         Values record ->
-              [ ( "range"
-                         , E.list E.float [ Maybe.withDefault
-                                                0
-                                                (List.head record.range)
-                                           , Maybe.withDefault
-                                                0
-                                                (List.last record.range)
-                                           ]
-                         )
-                       ]
+            [ ( "range"
+              , E.list E.float
+                  [ Maybe.withDefault 0
+                        (List.head record.range)
+                  , Maybe.withDefault 0
+                      (List.last record.range)
+                  ]
+              )
+            ]
 
 
 encodeLayout : LayoutOptions -> E.Value
 encodeLayout layoutOptions =
-    (E.object ( List.concat [
-            case layoutOptions.title of
-                Nothing -> []
-                Just title -> [( "title", E.string title )]
+    E.object <|
+        List.concat
+            [ case layoutOptions.title of
+                  Nothing -> []
+                  Just title -> [( "title", E.string title )]
             , encodeAxis "xaxis" layoutOptions.xaxis
             , encodeAxis "yaxis" layoutOptions.yaxis
             , case layoutOptions.yaxis2 of
-                Nothing -> []
-                Just axis -> encodeAxis "yaxis2" axis
+                  Nothing -> []
+                  Just axis -> encodeAxis "yaxis2" axis
             , case layoutOptions.dragMode of
-                Nothing -> []
-                Just drag -> [("dragmode", E.string drag )]
+                  Nothing -> []
+                  Just drag -> [("dragmode", E.string drag )]
             , case layoutOptions.height of
-                Nothing -> []
-                Just height -> [ ( "height", E.int height ) ]
+                  Nothing -> []
+                  Just height -> [ ( "height", E.int height ) ]
             , case layoutOptions.hoverLabel of
-                    Nothing -> []
-                    Just lab
-                        -> [( "hoverlabel"
-                            , E.object [("namelength"
-                                        , E.int lab.namelength
-                                       )]
-                            )]
+                  Nothing -> []
+                  Just lab
+                      -> [ ( "hoverlabel"
+                          , E.object [ ( "namelength"
+                                       , E.int lab.namelength
+                                       )
+                                     ]
+                           )
+                         ]
             , [( "separators", E.string layoutOptions.separators )]
-            , [( "margin", E.object [( "t", E.int layoutOptions.margin.t )
-                                    ,( "b", E.int layoutOptions.margin.b )
-                                    ,( "l", E.int layoutOptions.margin.l )
-                                    ,( "r", E.int layoutOptions.margin.r )
-                                    ]
+            , [( "margin", E.object
+                     [( "t", E.int layoutOptions.margin.t )
+                     ,( "b", E.int layoutOptions.margin.b )
+                     ,( "l", E.int layoutOptions.margin.l )
+                     ,( "r", E.int layoutOptions.margin.r )
+                     ]
                )
               ]
-            ] ))
+            ]
 
 
 encodeConfig: ConfiOptions -> E.Value
 encodeConfig configOptions =
-   (E.object ( List.concat [
-                [ ( "displaylogo", E.bool configOptions.displaylogo )
-                , ( "displayModeBar", E.bool configOptions.displayModeBar )
-                , ( "modeBarButtonsToRemove", E.list E.string configOptions.modeBarButtonsToRemove )
-                , ( "responsive", E.bool configOptions.responsive )
-                , ( "showlegend", E.bool configOptions.showlegend )]]))
+    E.object <|
+        List.concat
+            [ [ ( "displaylogo", E.bool configOptions.displaylogo )
+              , ( "displayModeBar", E.bool configOptions.displayModeBar )
+              , ( "modeBarButtonsToRemove",
+                      E.list E.string configOptions.modeBarButtonsToRemove
+                )
+              , ( "responsive", E.bool configOptions.responsive )
+              , ( "showlegend", E.bool configOptions.showlegend )]
+            ]
 
 
 encodeplotargs: String -> List Trace -> LayoutOptions -> ConfiOptions ->E.Value
@@ -313,8 +321,8 @@ encodeplotargs div data layoutOptions configOptions =
     E.object
         [ ( "div", E.string div )
         , ( "data", E.list encodetrace data )
-        , ( "layout", encodeLayout layoutOptions)
-        , ("config", encodeConfig configOptions)
+        , ( "layout", encodeLayout layoutOptions )
+        , ("config", encodeConfig configOptions )
         ]
 
 
