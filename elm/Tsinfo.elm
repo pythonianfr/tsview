@@ -603,6 +603,9 @@ update msg model =
         GotPlotData (Ok rawdata) ->
             case decodeAndType rawdata of
                 Ok series ->
+                    if isEmpty series
+                    then cleanView model series
+                    else
                     let newmodel = { model
                                         | horizon = updateHorizonFromData
                                                         model.horizon
@@ -1410,6 +1413,24 @@ plotString model ts =
             ]
             [ ]
     ]
+
+
+isEmpty: TimeSeries -> Bool
+isEmpty series =
+    case series of
+        SeriesFloat ts -> Dict.isEmpty ts
+        SeriesString ts -> Dict.isEmpty ts
+
+
+cleanView: Model -> TimeSeries -> (Model, Cmd Msg)
+cleanView model series =
+    ( { model | timeseries = series
+              , wipe = True
+      }
+    , T.perform
+        (always Transitory)
+         (P.sleep 10)
+    )
 
 
 viewplot : Model -> Dict String (Maybe Float) -> H.Html Msg
