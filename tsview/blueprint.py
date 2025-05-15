@@ -930,4 +930,13 @@ def tsview(tsa):
         except ConfigurationError as err:
             return make_response(jsonify(error=str(err)), 500)
 
+    # folders
+    @bp.route('/folders')
+    def folders():
+        baseurl = homeurl()
+        return render_template(
+            'folders.html',
+            baseurl=baseurl
+        )
+
     return bp
