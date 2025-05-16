@@ -1,13 +1,14 @@
 module Formulas exposing (main)
+
 import Browser
 import Http
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Url.Builder as UB
+import Info as I
 import Json.Decode as D
+import Url.Builder as UB
 import Util as U
-import Info exposing (layoutFormula)
 
 
 type alias Model =
@@ -19,8 +20,8 @@ type alias Model =
     }
 
 
-type Msg =
-    GotFormulas (Result Http.Error String)
+type Msg
+    = GotFormulas (Result Http.Error String)
     | InputChanged String
 
 
@@ -128,7 +129,7 @@ formatTableBody model =
                     [ formatNamelinks model formula ]
                 , H.td
                     [ ]
-                    [layoutFormula model formula.imeta.formula]
+                    [ I.showformula model formula.imeta.formula ]
                 ]
     in H.tbody [ ]
         [ H.tr
@@ -205,7 +206,8 @@ getSeriesInfo  model =
         , url = UB.crossOrigin model.baseurl
                 [ "api",  "series", "find" ]
                 [ UB.string "query" "(by.formula)"
-                , UB.string "meta" "true"]
+                , UB.string "meta" "true"
+                ]
         }
 
 
@@ -227,7 +229,7 @@ main =
                     , name = input.name
                     , valueSearched = ""
                     }
-            in ( model , getSeriesInfo model )
+            in ( model, getSeriesInfo model )
 
     in Browser.element
         { init = init

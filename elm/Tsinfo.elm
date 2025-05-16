@@ -117,6 +117,7 @@ type alias Model =
     , formula_depth : Int
     , formula_maxdepth : Int
     , formula : Dict Int String
+    , oldformulas : List I.OldFormula
     -- cache
     , policy : M.Metadata
     , deleting_cache : Bool
@@ -170,6 +171,7 @@ type Msg
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
     | GotMetaHistory (Result Http.Error String)
+    | GotFormulaHistory (Result Http.Error String)
     -- tabs
     | Tab Tabs
     -- perms
@@ -581,6 +583,16 @@ update msg model =
 
         GotMetaHistory (Err err) ->
             doerr "gotmetahistory http"  <| U.unwraperror err
+
+        GotFormulaHistory (Ok rawhist) ->
+            case D.decodeString I.oldformulasdecoder rawhist of
+                Ok hist ->
+                    U.nocmd { model | oldformulas = hist }
+                Err err ->
+                    doerr "gotformulahistory decode" <| D.errorToString err
+
+        GotFormulaHistory (Err err) ->
+            doerr "gotformulahistory http"  <| U.unwraperror err
 
         GotDepth (Ok rawdepth) ->
             let
@@ -1650,7 +1662,11 @@ view model =
                 I.Primary ->
                     [ Plot, Metadata, Logs ]
                 I.Formula ->
-                    [ Plot, Metadata, FormulaCache ]
+                    case List.length model.oldformulas of
+                        0 ->
+                            [ Plot, Metadata, FormulaCache ]
+                        _ ->
+                            [ Plot, Metadata, FormulaCache, FormulaHistory ]
 
         tabs =
             tablist
@@ -1725,6 +1741,9 @@ view model =
 
                   FormulaCache ->
                       H.div [] [ head, tabcontents [ viewcache model ] ]
+
+                  FormulaHistory ->
+                      H.div [] [ head, tabcontents [ I.viewoldformulas model ] ]
 
             , I.viewerrors model
             ]
@@ -1803,6 +1822,7 @@ init input =
       , formula_depth = 0
       , formula_maxdepth = 0
       , formula = Dict.empty
+      , oldformulas = []
       -- cache
       , policy = Dict.empty
       , deleting_cache = False
@@ -1847,6 +1867,7 @@ init input =
         [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
         , M.getusermetadata input.baseurl input.name GotUserMeta "series"
         , I.getoldmetadata input.baseurl input.name GotMetaHistory "series"
+        , I.getoldformulas input.baseurl input.name GotFormulaHistory "series"
         , getsource input.baseurl input.name
         , I.getwriteperms input.baseurl GetPermissions
         , getcachepolicy input.baseurl input.name

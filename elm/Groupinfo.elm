@@ -857,6 +857,10 @@ view model =
 
                   FormulaCache ->
                       div [] [ head ]
+
+                  FormulaHistory ->
+                      div [] [ head ]
+
             , I.viewerrors model
             ]
             )

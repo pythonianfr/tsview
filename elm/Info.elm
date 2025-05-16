@@ -1,11 +1,11 @@
 module Info exposing
     ( delete
     , DataType(..)
-    , layoutFormula
     , formuladecoder
     , getformula
     , getidates
     , getlog
+    , getoldformulas
     , getoldmetadata
     , getwriteperms
     , GroupType(..)
@@ -14,10 +14,13 @@ module Info exposing
     , logdecoder
     , metatype
     , msgdoesnotexist
+    , OldFormula
+    , oldformulasdecoder
     , OldMetadata
     , oldmetasdecoder
     , rename
     , savemeta
+    , showformula
     , SeriesType(..)
     , Direction(..)
     , viewactionwidgets
@@ -30,6 +33,7 @@ module Info exposing
     , viewHoverGraph
     , viewHistoryGraph
     , viewlog
+    , viewoldformulas
     , viewrenameaction
     , viewtitle
     , viewusermeta
@@ -254,6 +258,35 @@ getoldmetadata baseurl name callback dtype =
               [ UB.string "name" name
               , UB.string "type" "archive"
               ]
+        }
+
+
+type alias OldFormula =
+    { formula : String
+    , stamp : String
+    , tz : String
+    , user : String
+    }
+
+
+oldformulasdecoder =
+    let
+        decoder =
+            D.map4 OldFormula
+                (D.index 0 D.string)
+                (D.index 1 D.string)
+                (D.index 2 D.string)
+                (D.index 3 D.string)
+    in
+    D.list decoder
+
+
+getoldformulas baseurl name callback dtype =
+    Http.get
+        { expect = Http.expectString callback
+        , url = UB.crossOrigin baseurl
+              [ "api", dtype, "old_formulas" ]
+              [ UB.string "name" name ]
         }
 
 
@@ -682,10 +715,10 @@ viewformula model toggleevent =
             H.div [ ]
                 <| [ H.h2 [ ] [ H.text "Formula" ] ]
                     ++ (depthslider formula)
-                    ++ [ layoutFormula model formula ]
+                    ++ [ showformula model formula ]
 
 
-layoutFormula model formula =
+showformula model formula =
     let
         viewparsed parsed =
             case parsed of
@@ -697,6 +730,31 @@ layoutFormula model formula =
                             , ( "integration", viewintegrationnames model )
                             ]
     in H.span [] <| viewparsed <| Lisp.parse formula
+
+
+viewoldformulas model =
+    let
+        renderitem item =
+            H.tr [ ]
+                [ H.td [ ] [ H.text item.stamp ]
+                , H.td [ ] [ showformula model item.formula ]
+                , H.td [ ] [ H.text item.user ]
+                ]
+
+        renderall =
+            H.table [ HA.class "table w-auto" ]
+                [ H.thead [ ]
+                      [ H.tr [ ]
+                            [ H.td [ ] [ H.text "Archived at" ]
+                            , H.td [ ] [ H.text "Formula" ]
+                            , H.td [ ] [ H.text "User" ]
+                            ]
+                      ]
+                , H.tbody [ ]
+                    <| List.map renderitem model.oldformulas
+                ]
+
+    in renderall
 
 
 metadicttostring d =
@@ -1062,6 +1120,7 @@ viewrenameaction model events =
                   , HE.onClick events.askrename ]
                   [ H.text "rename" ]
             ]
+
 
 msgdoesnotexist dtype =
     H.div

@@ -22,6 +22,7 @@ type Tabs
     | Logs
     | Metadata
     | FormulaCache
+    | FormulaHistory
 
 
 type alias MetaEvents msg =
@@ -80,6 +81,7 @@ strtab tablelayout =
         Metadata -> "Metadata"
         Logs -> "Logs"
         FormulaCache -> "Cache"
+        FormulaHistory -> "Old versions"
 
 
 maketab : Bool -> ( Tabs -> msg ) -> Tabs -> H.Html msg
