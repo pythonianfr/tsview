@@ -279,7 +279,7 @@ viewerrors model =
     else H.span [ ] [ ]
 
 
-tzawareseries: { a | meta: Dict String M.MetaVal }-> Bool
+tzawareseries: { a | meta: Dict String M.MetaVal } -> Bool
 tzawareseries model =
     (M.dget "tzaware" model.meta) == "true"
 
@@ -292,22 +292,28 @@ type alias PartialModel a =
         , tzaware: Bool
     }
 
-viewactionwidgets: PartialModel a -> DataType -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg)
-                    -> Bool -> String -> Maybe (String, String) -> List ( H.Html msg )
+
+viewactionwidgets: PartialModel a -> DataType -> (ModuleHorizon.Msg -> msg) -> Maybe (H.Html msg) -> Bool -> String -> Maybe (String, String) -> List ( H.Html msg )
 viewactionwidgets model datatype convertmsg permalink editor pagetitle bounds =
     let
         editorlabel =
             case datatype of
-                SeriesType Primary ->  if editor then "edit values" else "view values"
-                SeriesType Formula ->  "show values"
-                _ -> ""
+                SeriesType Primary ->
+                    if editor then "edit values" else "view values"
+                SeriesType Formula ->
+                    "show values"
+                _ ->
+                    ""
         queryParameters =
             case bounds of
-                Nothing -> [ UB.string "name" model.name ]
-                Just ( min, max ) -> if editor
+                Nothing ->
+                    [ UB.string "name" model.name ]
+                Just ( min, max ) ->
+                    if editor
                     then  [ UB.string "name" model.name
                           , UB.string "startdate" min
-                          , UB.string "enddate" max ]
+                          , UB.string "enddate" max
+                          ]
                     else [ UB.string "name" model.name ]
     in
     [ H.div
@@ -351,14 +357,20 @@ viewtitle model copyclass copyevent =
     let
         ( tzaware, tzbadge, tztitle ) =
             if tzawareseries model
-            then ( "tzaware", "badge-success", "This series is time zone aware." )
-            else ( "tznaive", "badge-warning", "This series is not associated with a time zone." )
+            then ( "tzaware"
+                 , "badge-success"
+                 , "This series is time zone aware."
+                 )
+            else ( "tznaive"
+                 , "badge-warning"
+                 , "This series is not associated with a time zone."
+                 )
 
         supervision =
             M.dget "supervision_status" model.meta
     in
     H.p
-        [HA.class "series-info" ]
+        [ HA.class "series-info" ]
         [ H.i
               [ HA.class copyclass
               , HE.onClick copyevent
@@ -416,7 +428,8 @@ viewdatespicker model events =
             , H.span [ ] [ H.text (" : " ++ model.maxdate) ]
             ]
 
-        spacer = [ H.span [ ] [ H.text " " ] ]
+        spacer =
+            [ H.span [ ] [ H.text " " ] ]
 
     in H.div
         [ ]
@@ -441,14 +454,14 @@ viewusermetaheader model events showtitle =
                     ] [ H.text "cancel" ]
             else H.span [ ] [ ]
     in
-        if showtitle
-        then H.h2  [ ]
-            [ H.text "User Metadata"
-            , H.span [ ] [ H.text " "]
-            , editaction
-            ]
-        else H.div [ ]
-            [ editaction ]
+    if showtitle
+    then H.h2  [ ]
+        [ H.text "User Metadata"
+        , H.span [ ] [ H.text " "]
+        , editaction
+        ]
+    else H.div [ ]
+        [ editaction ]
 
 
 viewusermeta model events showtitle =
@@ -583,11 +596,14 @@ editusermeta model events showtitle =
 
 getstring fromatom =
     case fromatom of
-        Lisp.Expression _ -> "nope"
+        Lisp.Expression _ ->
+            "nope"
         Lisp.Atom atom ->
             case atom of
-                Lisp.String str -> str
-                _ -> "nope"
+                Lisp.String str ->
+                    str
+                _ ->
+                    "nope"
 
 
 linkname model arg =
@@ -676,9 +692,10 @@ layoutFormula model formula =
                 Nothing -> []
                 Just parsedformula ->
                     Lisp.view parsedformula <|
-                        Dict.fromList [ ("series", viewseriesname model)
-                                        , ("integration", viewintegrationnames model)
-                                    ]
+                        Dict.fromList
+                            [ ( "series", viewseriesname model )
+                            , ( "integration", viewintegrationnames model )
+                            ]
     in H.span [] <| viewparsed <| Lisp.parse formula
 
 
@@ -690,20 +707,21 @@ metadicttostring d =
     String.join "," <| List.map builditem (Dict.toList d)
 
 
-viewlogentry entry =
-    H.tr [ ]
-        [ H.th [ HA.scope "row" ] [ H.text (String.fromInt entry.rev) ]
-        , H.td [ ] [ H.text entry.author ]
-        , H.td [ ] [ H.text ( cleanMs entry.date )]
-        , H.td [ ] [ H.text <| metadicttostring entry.meta ]
-        ]
-
-cleanMs: String -> String
-cleanMs strDate =
+cleandate strdate =
     String.replace
         "T"
         " "
-        ( String.left 19 strDate ) ++ " " ++ ( String.right 6 strDate )
+        ( String.left 19 strdate ) ++ " " ++ ( String.right 6 strdate )
+
+
+viewlogentry entry =
+    H.tr [ ]
+        [ H.th [ HA.scope "row" ]
+              [ H.text (String.fromInt entry.rev) ]
+        , H.td [ ] [ H.text entry.author ]
+        , H.td [ ] [ H.text ( cleandate entry.date )]
+        , H.td [ ] [ H.text <| metadicttostring entry.meta ]
+        ]
 
 
 viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
@@ -878,21 +896,25 @@ buildOptions default lastIdate currentIdate idate =
 
 buildTrace:  (String -> TraceOptions) -> ( String , Dict String ( Maybe Float )) -> Trace
 buildTrace partialOption ( idate, series )  =
-                { type_ = "scatter"
-                , name = cleanMs idate
-                , x = Dict.keys series
-                , y = Dict.values series
-                , mode = "lines"
-                , options = partialOption idate
-                }
+    { type_ = "scatter"
+    , name = cleandate idate
+    , x = Dict.keys series
+    , y = Dict.values series
+    , mode = "lines"
+    , options = partialOption idate
+    }
 
 
 viewHoverGraph dictData =
     let
-        title = "Application date : " ++ dictData.name
-        sortedData = List.sortBy .date dictData.data
-        dates = List.map (\dict -> dict.date) sortedData
-        values = List.map (\dict -> Just dict.value) sortedData
+        title =
+            "Application date : " ++ dictData.name
+        sortedData =
+            List.sortBy .date dictData.data
+        dates =
+            List.map (\dict -> dict.date) sortedData
+        values =
+            List.map (\dict -> Just dict.value) sortedData
         plot =
             scatterplot
                 dictData.name
@@ -904,12 +926,13 @@ viewHoverGraph dictData =
             serializedPlotArgs
                 "plot-hover"
                 [ plot ]
-                { defaultLayoutOptions | title = Just title
-                                       , margin = { t = 45
-                                                  , b = 110
-                                                  , l = 40
-                                                  , r = 20
-                                                  }
+                { defaultLayoutOptions
+                    | title = Just title
+                    , margin = { t = 45
+                               , b = 110
+                               , l = 40
+                               , r = 20
+                               }
                 }
                 defaultConfigOptions
     in
@@ -927,7 +950,7 @@ viewlog model showtitle msgLogNumber msgSeeLogs =
             [ if showtitle
               then H.h2 [ ] [ H.text "History Log" ]
               else H.span [ ] [ ]
-            , logsNumberInput model msgLogNumber msgSeeLogs
+            , loglimitinput model msgLogNumber msgSeeLogs
             , H.table
                 [ HA.class "table table-striped table-hover table-sm" ]
                 [ H.thead [ ]
@@ -942,7 +965,7 @@ viewlog model showtitle msgLogNumber msgSeeLogs =
     else H.div [ ] [ ]
 
 
-logsNumberInput model msgLogNumber msgSeeLogs =
+loglimitinput model msgLogNumber msgSeeLogs =
     let
         logNumber = case model.logsNumber of
             Just number ->
