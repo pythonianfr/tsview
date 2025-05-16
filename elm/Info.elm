@@ -120,6 +120,13 @@ type alias FormulaResponse =
     }
 
 
+cleandate strdate =
+    String.replace
+        "T"
+        " "
+        ( String.left 19 strdate ) ++ " " ++ ( String.right 6 strdate )
+
+
 formuladecoder =
     D.map2 FormulaResponse
         (D.field "level" D.int)
@@ -525,7 +532,7 @@ viewusermeta model events showtitle =
             let
                 renderitem item =
                     H.tr [ ]
-                        [ H.td [ ] [ H.text item.stamp ]
+                        [ H.td [ ] [ H.text <| cleandate item.stamp ]
                         , H.td [ ] <| List.map elt <| Dict.toList item.metadata
                         , H.td [ ] [ H.text item.user ]
                         ]
@@ -736,7 +743,7 @@ viewoldformulas model =
     let
         renderitem item =
             H.tr [ ]
-                [ H.td [ ] [ H.text item.stamp ]
+                [ H.td [ ] [ H.text <| cleandate item.stamp ]
                 , H.td [ ] [ showformula model item.formula ]
                 , H.td [ ] [ H.text item.user ]
                 ]
@@ -763,13 +770,6 @@ metadicttostring d =
             U.first ab ++ " → " ++ (M.metavaltostring <| U.snd ab)
     in
     String.join "," <| List.map builditem (Dict.toList d)
-
-
-cleandate strdate =
-    String.replace
-        "T"
-        " "
-        ( String.left 19 strdate ) ++ " " ++ ( String.right 6 strdate )
 
 
 viewlogentry entry =
