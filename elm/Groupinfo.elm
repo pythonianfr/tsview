@@ -89,6 +89,7 @@ type alias Model =
     , meta : M.Metadata
     , grouptype : I.GroupType
     , usermeta : M.Metadata
+    , metahistory : List I.OldMetadata
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -139,6 +140,7 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
+    | GotMetaHistory (Result Http.Error String)
     -- tabs
     | Tab Tabs
     -- perms
@@ -317,6 +319,16 @@ update msg model =
 
         GotUserMeta (Err err) ->
             doerr "gotusermeta http"  <| U.unwraperror err
+
+        GotMetaHistory (Ok rawhist) ->
+            case D.decodeString I.oldmetasdecoder rawhist of
+                Ok hist ->
+                    U.nocmd { model | metahistory = hist }
+                Err err ->
+                    doerr "gotmetahistory decode" <| D.errorToString err
+
+        GotMetaHistory (Err err) ->
+            doerr "gotmetahistory http"  <| U.unwraperror err
 
         GotSource (Ok rawsource) ->
             case D.decodeString D.string rawsource of
@@ -517,18 +529,21 @@ update msg model =
                             -- form strings are not json strings
                             -- this is why plain string parsing will fail ...
                             M.MString rawitem
-                newmodel = { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
+                newmodel =
+                    { model | usermeta = Dict.map (\k v -> decode v) model.editeditems }
             in
             ( newmodel
             , I.savemeta newmodel "group" MetaSaved
             )
 
         MetaSaved (Ok _) ->
-            U.nocmd { model
-                        | editing = False
-                        , editeditems = Dict.empty
-                        , metaitem = ("", "")
-                    }
+            ( { model
+                  | editing = False
+                  , editeditems = Dict.empty
+                  , metaitem = ("", "")
+              }
+            , I.getoldmetadata model.baseurl model.name GotMetaHistory "group"
+            )
 
         MetaSaved (Err err) ->
             doerr "metasaved http" <| U.unwraperror err
@@ -889,6 +904,7 @@ main =
                        , meta = Dict.empty
                        , grouptype = I.GroupPrimary
                        , usermeta = Dict.empty
+                       , metahistory = []
                        -- formula
                        , formula_depth = 0
                        , formula_maxdepth = 0
@@ -923,6 +939,7 @@ main =
                , Cmd.batch
                    [ M.getsysmetadata input.baseurl input.name GotSysMeta "group"
                    , M.getusermetadata input.baseurl input.name GotUserMeta "group"
+                   , I.getoldmetadata input.baseurl input.name GotMetaHistory "group"
                    , I.getwriteperms input.baseurl GetPermissions
                    , getsource input.baseurl input.name
                    ]

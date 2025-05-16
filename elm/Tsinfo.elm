@@ -107,6 +107,7 @@ type alias Model =
     -- metadata, ventilated by std (system) and user
     , meta : M.Metadata
     , usermeta : M.Metadata
+    , metahistory : List I.OldMetadata
     , seriestype : I.SeriesType
     , timeseries: TimeSeries
     , statistics: StatInfos
@@ -168,6 +169,7 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotSource (Result Http.Error String)
+    | GotMetaHistory (Result Http.Error String)
     -- tabs
     | Tab Tabs
     -- perms
@@ -570,6 +572,16 @@ update msg model =
         GotUserMeta (Err err) ->
             doerr "gotusermeta http"  <| U.unwraperror err
 
+        GotMetaHistory (Ok rawhist) ->
+            case D.decodeString I.oldmetasdecoder rawhist of
+                Ok hist ->
+                    U.nocmd { model | metahistory = hist }
+                Err err ->
+                    doerr "gotmetahistory decode" <| D.errorToString err
+
+        GotMetaHistory (Err err) ->
+            doerr "gotmetahistory http"  <| U.unwraperror err
+
         GotDepth (Ok rawdepth) ->
             let
                 depth =
@@ -890,11 +902,13 @@ update msg model =
             )
 
         MetaSaved (Ok _) ->
-            U.nocmd { model
-                        | editing = False
-                        , editeditems = Dict.empty
-                        , metaitem = ("", "")
-                    }
+            ( { model
+                  | editing = False
+                  , editeditems = Dict.empty
+                  , metaitem = ("", "")
+              }
+            , I.getoldmetadata model.baseurl model.name GotMetaHistory "series"
+            )
 
         MetaSaved (Err err) ->
             doerr "metasaved http" <| U.unwraperror err
@@ -1779,6 +1793,7 @@ init input =
       -- metadata
       , meta = Dict.empty
       , usermeta = Dict.empty
+      , metahistory = []
       , seriestype = I.Primary
       , timeseries = SeriesFloat Dict.empty
       , statistics = emptyStat
@@ -1831,6 +1846,7 @@ init input =
     , Cmd.batch
         [ M.getsysmetadata input.baseurl input.name GotSysMeta "series"
         , M.getusermetadata input.baseurl input.name GotUserMeta "series"
+        , I.getoldmetadata input.baseurl input.name GotMetaHistory "series"
         , getsource input.baseurl input.name
         , I.getwriteperms input.baseurl GetPermissions
         , getcachepolicy input.baseurl input.name

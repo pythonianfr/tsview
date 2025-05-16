@@ -6,6 +6,7 @@ module Info exposing
     , getformula
     , getidates
     , getlog
+    , getoldmetadata
     , getwriteperms
     , GroupType(..)
     , idatesdecoder
@@ -13,6 +14,8 @@ module Info exposing
     , logdecoder
     , metatype
     , msgdoesnotexist
+    , OldMetadata
+    , oldmetasdecoder
     , rename
     , savemeta
     , SeriesType(..)
@@ -27,7 +30,6 @@ module Info exposing
     , viewHoverGraph
     , viewHistoryGraph
     , viewlog
-    , viewmeta
     , viewrenameaction
     , viewtitle
     , viewusermeta
@@ -226,6 +228,35 @@ getlog urlprefix name logLimit dtype callback =
         }
 
 
+type alias OldMetadata =
+    { stamp : String
+    , metadata : M.Metadata
+    , user : String
+    }
+
+
+oldmetasdecoder =
+    let
+        decoder =
+            D.map3 OldMetadata
+                (D.index 0 D.string)
+                (D.index 1 M.decodemeta)
+                (D.index 2 D.string)
+    in
+    D.list decoder
+
+
+getoldmetadata baseurl name callback dtype =
+    Http.get
+        { expect = Http.expectString callback
+        , url = UB.crossOrigin baseurl
+              [ "api", dtype, "metadata" ]
+              [ UB.string "name" name
+              , UB.string "type" "archive"
+              ]
+        }
+
+
 metatype val =
     case val of
         Nothing -> "virt"
@@ -392,28 +423,6 @@ viewdatespicker model events =
         (idate ++ spacer ++ fvdate ++ spacer ++ tvdate)
 
 
-viewmeta model =
-    let
-        hidden = [ "index_names", "index_type", "index_dtype", "value_dtype", "supervision_status" ]
-        fixval name val =
-            if name == "supervision_status" && val == ""
-            then "formula"
-            else val
-        elt name =
-            H.li [ ] [ H.text <| name
-                        ++ " → "
-                        ++ (fixval name <| M.dget name model.meta)
-                        ++ " ["
-                        ++ (metatype <| Dict.get name model.meta)
-                        ++ "]"
-                   ]
-    in
-    H.div [ ]
-    [ H.h2 [ ] [ H.text "Metadata" ]
-    , H.ul [ ] <| List.map elt <| List.filter (\x -> not <| List.member x hidden) M.metanames
-    ]
-
-
 viewusermetaheader model events showtitle =
     let
         editaction =
@@ -453,17 +462,50 @@ viewusermeta model events showtitle =
                            ++ (metatype <| Just v)
                            ++ "]"
                    ]
+
+        showmeta =
+            if not <| Dict.isEmpty model.usermeta then
+                H.div [ ]
+                    [ viewusermetaheader model events showtitle
+                    , H.ul [ ] <| List.map elt (Dict.toList model.usermeta)
+                    ]
+            else
+                H.div [ ]
+                    [ viewusermetaheader model events showtitle
+                    , H.text "No user-defined metadata yet."
+                    ]
+
+        showoldmetas =
+            let
+                renderitem item =
+                    H.tr [ ]
+                        [ H.td [ ] [ H.text item.stamp ]
+                        , H.td [ ] <| List.map elt <| Dict.toList item.metadata
+                        , H.td [ ] [ H.text item.user ]
+                        ]
+
+                renderall =
+                    H.table [ HA.class "table w-auto" ]
+                        [ H.thead [ ]
+                              [ H.tr [ ]
+                                    [ H.td [ ] [ H.text "Archived at" ]
+                                    , H.td [ ] [ H.text "Metadata" ]
+                                    , H.td [ ] [ H.text "User" ]
+                                    ]
+                              ]
+                        , H.tbody [ ]
+                            <| List.map renderitem model.metahistory
+                        ]
+
+            in
+            if List.length model.metahistory > 0 then renderall else
+                H.span [ ] [ ]
+
     in
-    if not <| Dict.isEmpty model.usermeta then
-        H.div [ ]
-            [ viewusermetaheader model events showtitle
-            , H.ul [ ] <| List.map elt (Dict.toList model.usermeta)
-            ]
-    else
-        H.div [ ]
-            [ viewusermetaheader model events showtitle
-            , H.text "No user-defined metadata yet."
-            ]
+    H.div [ ]
+        [ showmeta
+        , showoldmetas
+        ]
 
 
 editusermeta model events showtitle =
