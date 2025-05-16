@@ -1,32 +1,80 @@
 module Folders exposing (main)
 
 import Browser
+import Json.Decode as JD
 import Html exposing
     ( Html
     , Attribute
+    , br
     , div
+    , li
     , text
+    , ul
     )
+import Html.Attributes exposing
+    ( class )
+import Http
+import Url.Builder as UB
+
+import FoldersUtil exposing
+    (decodeTree)
+import Util as U
 
 type alias Model =
-    { baseUrl: String }
+    { baseUrl: String
+    , paths: List String
+    , errors: List String
+    }
+
 
 type Msg =
-    Something
+    GotPaths ( Result Http.Error String )
+
 
 update: Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        GotPaths (Ok raw ) ->
+            case JD.decodeString decodeTree raw of
+                ( Ok paths ) ->
+                    ( { model | paths = paths }
+                    , Cmd.none )
+                ( Err err ) ->
+                    U.nocmd { model | errors = model.errors
+                                               ++ [JD.errorToString err]
+                            }
+        GotPaths ( Err err ) ->
+            U.nocmd model
 
 
-initModel: String -> Model
-initModel baseUrl =
-    { baseUrl = baseUrl }
+getPaths: String -> Cmd Msg
+getPaths baseUrl =
+    Http.get
+        { url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "tree"]
+                []
+        , expect = Http.expectString GotPaths
+        }
 
 
 view: Model -> Html Msg
 view model =
-    div [] [text "Hello world"]
+    div
+        [ class "folders" ]
+        <| List.map
+            (\ p -> li [] [ text p ] )
+            model.paths
+
+
+
+initModel: String -> Model
+initModel baseUrl =
+    { baseUrl = baseUrl
+    , paths = []
+    , errors = []
+    }
 
 
 sub: Model -> Sub Msg
@@ -38,7 +86,7 @@ type alias Input =
 init: Input -> ( Model, ( Cmd Msg ))
 init input =
     ( initModel input.baseurl
-    , Cmd.none
+    , getPaths input.baseurl
    )
 
 main = Browser.element
