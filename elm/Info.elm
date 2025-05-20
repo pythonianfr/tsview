@@ -646,14 +646,17 @@ getstring fromatom =
                     "nope"
 
 
-linkname model arg =
+linkname model datatype arg =
     let
         name =
             getstring arg
 
-        nameurl =
-            UB.crossOrigin model.baseurl
-                [ "tsinfo" ] [ UB.string "name" name ]
+        nameurl = case datatype of
+            SeriesType _ -> UB.crossOrigin model.baseurl
+                            [ "tsinfo" ] [ UB.string "name" name ]
+            GroupType _ -> UB.crossOrigin model.baseurl
+                            [ "groupinfo" ] [ UB.string "name" name ]
+
     in
     [ H.a [ HA.class "s"
           , HA.href nameurl
@@ -665,18 +668,18 @@ linkname model arg =
     ]
 
 
-viewseriesname model index arg baseview =
-    -- decorate the name in (series "<name>" ...)
+viewname model datatype index arg baseview =
+    -- decorate the name in (series "<name>" ...) or (group "<name>" ...)
     case index of
-        0 -> linkname model arg
+        0 -> linkname model datatype arg
         _ -> baseview arg
 
 
-viewintegrationnames model index arg baseview =
+viewintegrationnames model datatype index arg baseview =
     -- decorate the names in (integration "<name1>" "<name2>" ...)
     case index of
-        0 -> linkname model arg
-        1 -> linkname model arg
+        0 -> linkname model datatype arg
+        1 -> linkname model datatype arg
         _ -> baseview arg
 
 
@@ -733,8 +736,9 @@ showformula model formula =
                 Just parsedformula ->
                     Lisp.view parsedformula <|
                         Dict.fromList
-                            [ ( "series", viewseriesname model )
-                            , ( "integration", viewintegrationnames model )
+                            [ ( "series", viewname model (SeriesType Primary))
+                            , ( "group", viewname model (GroupType GroupPrimary))
+                            , ( "integration", viewintegrationnames model (SeriesType Primary))
                             ]
     in H.span [] <| viewparsed <| Lisp.parse formula
 
