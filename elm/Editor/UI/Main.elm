@@ -419,33 +419,51 @@ makeUndoButton msg undoList =
 
 view : Model -> Html Msg
 view model =
-    H.div
-        [ HA.class "main-content formula_editor" ] <|
-        [ H.div
-            [ HA.class "d-flex" ]
-            [ H.h1
-                [ HA.class "mr-auto p-2 page-title" ]
-                [ H.text "Formula editor" ]
-            , H.div [ HA.class "p-2" ] [ viewInfo model ]
-            ]
-        , H.div
-            [ HA.class "d-flex" ]
-            [ HX.viewIf (canSave model) (viewSave model)
-            ]
-        , Widget.viewSpecErrors model.editorWidget
-        , Widget.view model.editorWidget |> H.map WidgetMsg
-        ] ++
-        if O.get plotLoading_ model then
-            [ H.img
-                [ HA.class "img_loading"
-                , HA.src "./tsview_static/loading_wheel.gif"
+    let
+        (endpoint, linkname) = case model.returnType of
+            Series -> ("tsformula-group", "go to Group")
+            Group -> ("tsformula", "go to Series")
+
+        editor_link =
+            H.a
+                [ HA.href (UB.crossOrigin model.urlPrefix [endpoint] []) ]
+                [ H.text linkname ]
+
+        page_title = case model.returnType of
+            Series -> "Series formula editor"
+            Group -> "Group formula editor"
+    in
+        H.div
+            [ HA.class "main-content formula_editor" ] <|
+            [ H.span
+              [ HA.style "float" "right"
+              , HA.style "margin-right" "0.5em"]
+              [ editor_link ]
+            , H.div
+                [ HA.class "d-flex" ]
+                [ H.h1
+                    [ HA.class "mr-auto p-2 page-title" ]
+                    [ H.text page_title ]
+                , H.div [ HA.class "p-2" ] [ viewInfo model ]
                 ]
-                []
-            ]
-        else
-            [ H.div [ HA.id "plot" ] []
-            , viewPlot model
-            ]
+            , H.div
+                [ HA.class "d-flex" ]
+                [ HX.viewIf (canSave model) (viewSave model)
+                ]
+            , Widget.viewSpecErrors model.editorWidget
+            , Widget.view model.editorWidget |> H.map WidgetMsg
+            ] ++
+            if O.get plotLoading_ model then
+                [ H.img
+                    [ HA.class "img_loading"
+                    , HA.src "./tsview_static/loading_wheel.gif"
+                    ]
+                    []
+                ]
+            else
+                [ H.div [ HA.id "plot" ] []
+                , viewPlot model
+                ]
 
 
 getFormulaNames : String -> Cmd Msg
