@@ -31,7 +31,7 @@ import Util as U
 type alias Model =
     { baseUrl: String
     , paths: List String
-    , tree: Tree String
+    , tree: Tree (String, Bool)
     , errors: List String
     }
 

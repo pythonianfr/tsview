@@ -54,10 +54,10 @@ buildSinglePath =
     T.test "Build branch"
         ( \ _ -> Expect.equal
                     rTree
-                    ( tree "root"
-                        [tree "a0"
-                            [tree "b0"
-                                [tree "c0"
+                    ( tree ( "root", False )
+                        [tree ( "a0", False )
+                            [tree ("b0", False )
+                                [tree ("c0", False )
                                     []
                                 ]
                             ]
@@ -79,10 +79,10 @@ suiteMergeMBranch =
     [ T.test "Merge branch01"
         (\_ -> Expect.equal
                 merge01
-                ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
-                            [tree "c0"
+                ( tree ( "root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
+                            [tree ("c0", False )
                                 []
                             ]
                         ]
@@ -92,14 +92,14 @@ suiteMergeMBranch =
     , T.test "Merge branch12"
         (\_ -> Expect.equal
                 merge12
-                ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
-                            [tree "c0"
+                ( tree ("root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
+                            [tree ("c0", False )
                                 []
                             ]
-                        , tree "b1"
-                            [tree"c0"
+                        , tree ("b1", False )
+                            [tree ("c0", False )
                                 []
                             ]
                         ]
@@ -109,10 +109,10 @@ suiteMergeMBranch =
     ,T.test "Merge branch10"
         (\_ -> Expect.equal
                 merge10
-                ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
-                            [tree"c0"
+                ( tree ("root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
+                            [tree ("c0", False )
                                 []
                             ]
                         ]
@@ -154,17 +154,19 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
-                            [tree"c0"
+                 ( tree ("root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
+                            [tree ("c0", False )
                                 []
                             ]
-                        , tree "b1"
+                        , tree ("b1", False )
                             []
                         ]
-                    , tree "a1"
-                        [tree "b0" []]
+                    , tree ("a1", False )
+                        [tree ("b0", False )
+                            []
+                        ]
                     ]
                 )
             )
@@ -172,9 +174,9 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree0
-                 ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
+                 ( tree ("root", False)
+                    [tree ("a0", False)
+                        [tree ("b0", False)
                             []
                         ]
                     ]
@@ -184,11 +186,11 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree1
-                 ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
+                 ( tree ("root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
                             []
-                        , tree "b1"
+                        , tree ("b1", False )
                             []
                         ]
                     ]
@@ -198,13 +200,13 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree2
-                 ( tree "root"
-                    [tree "a0"
-                        [tree "b0"
-                            [tree"c0"
+                 ( tree ("root", False )
+                    [tree ("a0", False )
+                        [tree ("b0", False )
+                            [tree ("c0", False )
                                 []
                             ]
-                        , tree "b1"
+                        , tree ("b1", False )
                             []
                         ]
                     ]

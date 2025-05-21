@@ -13,6 +13,8 @@ import Tree exposing
 
 type MyTree = MyTree ( Dict String  MyTree )
 
+type alias Payload = ( String, Bool )
+
 decodeTree: JD.Decoder ( List String )
 decodeTree =
     JD.list JD.string
@@ -20,7 +22,7 @@ decodeTree =
 
 emptyMTree = MyTree Dict.empty
 
-emptyTree = tree "root" []
+emptyTree = tree ("root", False) []
 
 
 stepTree: String -> MyTree -> MyTree
@@ -38,21 +40,21 @@ buildSingle path =
         ( String.split "." path )
 
 
-convertTree : MyTree -> Tree String
+convertTree : MyTree -> Tree Payload
 convertTree myTree =
     Maybe.withDefault
-        ( tree "empty" [] )
+        ( tree ( "empty", False ) [] )
         <| List.head
             <| convertTreeT
                 <| MyTree ( Dict.singleton "root" myTree )
 
 
-convertTreeT : MyTree -> List ( Tree String )
+convertTreeT : MyTree -> List ( Tree Payload )
 convertTreeT myTree =
     case myTree of
         MyTree dict ->
             ( List.map
-                (\ (k, lmT) -> tree k ( convertTreeT lmT ))
+                (\ (k, lmT) -> tree ( k, False ) ( convertTreeT lmT ))
                 ( Dict.toList dict )
             )
 
@@ -86,14 +88,14 @@ buildMTree paths =
             emptyMTree
             branchs
 
-buildTree : List String -> Tree String
+buildTree : List String -> Tree Payload
 buildTree paths =
     convertTree
         <| buildMTree paths
 
-labelToHtml : String -> Html msg
-labelToHtml l =
-    Html.text l
+labelToHtml : Payload -> Html msg
+labelToHtml (label, open) =
+    Html.text label
 
 toListItems : Html msg -> List (Html msg) -> Html msg
 toListItems label children =
@@ -106,6 +108,6 @@ toListItems label children =
                 , Html.ul [] children
                 ]
 
-viewTree: Tree String -> Html msg
+viewTree: Tree Payload -> Html msg
 viewTree tree =
     restructure labelToHtml toListItems tree
