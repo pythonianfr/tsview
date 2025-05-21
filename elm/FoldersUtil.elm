@@ -16,6 +16,8 @@ decodeTree =
     JD.list JD.string
 
 
+emptyTree = MyTree Dict.empty
+
 stepTree: String -> MyTree -> MyTree
 stepTree label previsouTree =
     MyTree
@@ -55,7 +57,7 @@ unpack mTree =
         MyTree dict -> dict
 
 mergeMBranch: MyTree -> MyTree -> MyTree
-mergeMBranch tree branch =
+mergeMBranch branch tree =
     let dictT = unpack tree
         dictB = unpack branch
     in
@@ -67,5 +69,15 @@ mergeMBranch tree branch =
                     Just subTree -> MyTree
                                         <| Dict.insert
                                                 k
-                                                (mergeMBranch subTree v)
+                                                (mergeMBranch v subTree)
                                                 dictT
+
+
+buildMTree : List String -> MyTree
+buildMTree paths =
+    let branchs = List.map buildSingle paths
+    in
+        List.foldr
+            mergeMBranch
+            emptyTree
+            branchs

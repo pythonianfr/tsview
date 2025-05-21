@@ -14,6 +14,7 @@ import Json.Decode as JD
 
 import FoldersUtil exposing
     ( MyTree(..)
+    , buildMTree
     , buildSingle
     , convertTree
     , decodeTree
@@ -118,4 +119,95 @@ suiteMergeMBranch =
                     ]
                 )
         )
+    ]
+
+
+suiteConvertTree : T.Test
+suiteConvertTree =
+    let paths = [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                , "a0.b0.c0"
+                , "a1.b0"
+                ]
+        mTree = buildMTree paths
+        rTree = convertTree mTree
+        step0 = [ "a0"
+                , "a0.b0"
+                ]
+        rTree0 = convertTree ( buildMTree step0 )
+        step1 = [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                ]
+        rTree1 = convertTree ( buildMTree step1 )
+        step2 =  [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                , "a0.b0.c0"
+                ]
+        rTree2 = convertTree ( buildMTree step2 )
+    in
+    T.concat
+    [
+        T.test "Build Tree"
+            (\ _ ->
+                Expect.equal
+                 rTree
+                 ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            [tree"c0"
+                                []
+                            ]
+                        , tree "b1"
+                            []
+                        ]
+                    , tree "a1"
+                        [tree "b0" []]
+                    ]
+                )
+            )
+    ,    T.test "Build Tree step0"
+            (\ _ ->
+                Expect.equal
+                 rTree0
+                 ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            []
+                        ]
+                    ]
+                )
+            )
+    ,   T.test "Build Tree step1"
+            (\ _ ->
+                Expect.equal
+                 rTree1
+                 ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            []
+                        , tree "b1"
+                            []
+                        ]
+                    ]
+                )
+            )
+    ,   T.test "Build Tree step2"
+            (\ _ ->
+                Expect.equal
+                 rTree2
+                 ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            [tree"c0"
+                                []
+                            ]
+                        , tree "b1"
+                            []
+                        ]
+                    ]
+                )
+            )
     ]
