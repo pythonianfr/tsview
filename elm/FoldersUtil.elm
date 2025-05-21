@@ -4,6 +4,9 @@ import Dict exposing (Dict)
 import Json.Decode as JD
 import Html exposing
     ( Html )
+import Html.Events exposing
+    ( onClick )
+import Set exposing (Set)
 import Tree
 import Tree exposing
     ( Tree
@@ -13,7 +16,31 @@ import Tree exposing
 
 type MyTree = MyTree ( Dict String  MyTree )
 
-type alias Payload = ( String, Bool )
+type alias Payload =
+    { label: String
+    , position: Int
+    , path: String
+    , open: Bool
+    , status: LoadingStatus
+    , series: Set String
+    }
+
+initPayload: Payload
+initPayload =
+    { label= ""
+    , position = -1
+    , path = ""
+    , open = False
+    , status = Start
+    , series = Set.empty
+    }
+
+type LoadingStatus =
+    Start
+    | Loading
+    | Success
+    | LoadingError
+
 
 decodeTree: JD.Decoder ( List String )
 decodeTree =
@@ -22,7 +49,8 @@ decodeTree =
 
 emptyMTree = MyTree Dict.empty
 
-emptyTree = tree ("root", False) []
+emptyTree: Tree Payload
+emptyTree = tree initPayload []
 
 
 stepTree: String -> MyTree -> MyTree
@@ -43,7 +71,7 @@ buildSingle path =
 convertTree : MyTree -> Tree Payload
 convertTree myTree =
     Maybe.withDefault
-        ( tree ( "empty", False ) [] )
+        ( tree initPayload [] )
         <| List.head
             <| convertTreeT
                 <| MyTree ( Dict.singleton "root" myTree )
@@ -53,10 +81,12 @@ convertTreeT : MyTree -> List ( Tree Payload )
 convertTreeT myTree =
     case myTree of
         MyTree dict ->
-            ( List.map
-                (\ (k, lmT) -> tree ( k, False ) ( convertTreeT lmT ))
+            List.map
+                (\ (k, lmT) -> tree
+                                {initPayload | label=k}
+                                ( convertTreeT lmT ))
                 ( Dict.toList dict )
-            )
+
 
 unpack: MyTree -> ( Dict String  MyTree )
 unpack mTree =
@@ -94,20 +124,33 @@ buildTree paths =
         <| buildMTree paths
 
 labelToHtml : Payload -> Html msg
-labelToHtml (label, open) =
-    Html.text label
+labelToHtml payload =
+    Html.text payload.label
 
-toListItems : Html msg -> List (Html msg) -> Html msg
-toListItems label children =
+toListItems : msg -> Html msg -> List (Html msg) -> Html msg
+toListItems openMsg label children =
     case children of
         [] ->
-            Html.li [] [ label ]
+            Html.li
+                []
+                [ Html.p
+                    [ onClick openMsg ]
+                    [ label ]
+                ]
         _ ->
             Html.li []
-                [ label
+                [ Html.p
+                    [ onClick openMsg ]
+                    [ label ]
                 , Html.ul [] children
                 ]
 
-viewTree: Tree Payload -> Html msg
-viewTree tree =
-    restructure labelToHtml toListItems tree
+viewTree: Tree Payload -> msg -> Html msg
+viewTree tree openMsg =
+    Html.ul
+        []
+        [ restructure
+            labelToHtml
+            ( toListItems openMsg )
+            tree
+        ]

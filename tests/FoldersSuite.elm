@@ -18,6 +18,7 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , initPayload
     , mergeMBranch
     )
 
@@ -54,10 +55,10 @@ buildSinglePath =
     T.test "Build branch"
         ( \ _ -> Expect.equal
                     rTree
-                    ( tree ( "root", False )
-                        [tree ( "a0", False )
-                            [tree ("b0", False )
-                                [tree ("c0", False )
+                    ( tree { initPayload | label = "root"}
+                        [tree { initPayload | label = "a0"}
+                            [tree { initPayload | label = "b0"}
+                                [tree { initPayload | label = "c0"}
                                     []
                                 ]
                             ]
@@ -79,10 +80,10 @@ suiteMergeMBranch =
     [ T.test "Merge branch01"
         (\_ -> Expect.equal
                 merge01
-                ( tree ( "root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
-                            [tree ("c0", False )
+                ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
                         ]
@@ -92,14 +93,14 @@ suiteMergeMBranch =
     , T.test "Merge branch12"
         (\_ -> Expect.equal
                 merge12
-                ( tree ("root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
-                            [tree ("c0", False )
+                ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
-                        , tree ("b1", False )
-                            [tree ("c0", False )
+                        , tree { initPayload | label = "b1"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
                         ]
@@ -109,10 +110,10 @@ suiteMergeMBranch =
     ,T.test "Merge branch10"
         (\_ -> Expect.equal
                 merge10
-                ( tree ("root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
-                            [tree ("c0", False )
+                ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
                         ]
@@ -154,17 +155,17 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree ("root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
-                            [tree ("c0", False )
+                 ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
-                        , tree ("b1", False )
+                        , tree { initPayload | label = "b1"}
                             []
                         ]
-                    , tree ("a1", False )
-                        [tree ("b0", False )
+                    , tree { initPayload | label = "a1"}
+                        [tree { initPayload | label = "b0"}
                             []
                         ]
                     ]
@@ -174,9 +175,9 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree0
-                 ( tree ("root", False)
-                    [tree ("a0", False)
-                        [tree ("b0", False)
+                 ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
                             []
                         ]
                     ]
@@ -186,11 +187,11 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree1
-                 ( tree ("root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
+                 ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
                             []
-                        , tree ("b1", False )
+                        , tree { initPayload | label = "b1"}
                             []
                         ]
                     ]
@@ -200,13 +201,13 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree2
-                 ( tree ("root", False )
-                    [tree ("a0", False )
-                        [tree ("b0", False )
-                            [tree ("c0", False )
+                 ( tree { initPayload | label = "root"}
+                    [tree { initPayload | label = "a0"}
+                        [tree { initPayload | label = "b0"}
+                            [tree { initPayload | label = "c0"}
                                 []
                             ]
-                        , tree ("b1", False )
+                        , tree { initPayload | label = "b1"}
                             []
                         ]
                     ]

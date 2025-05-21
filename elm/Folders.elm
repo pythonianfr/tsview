@@ -21,7 +21,8 @@ import Tree exposing
 import Url.Builder as UB
 
 import FoldersUtil exposing
-    ( decodeTree
+    ( Payload
+    , decodeTree
     , buildTree
     , emptyTree
     , viewTree
@@ -31,13 +32,14 @@ import Util as U
 type alias Model =
     { baseUrl: String
     , paths: List String
-    , tree: Tree (String, Bool)
+    , tree: Tree Payload
     , errors: List String
     }
 
 
-type Msg =
-    GotPaths ( Result Http.Error String )
+type Msg
+    = GotPaths ( Result Http.Error String )
+    | Open
 
 
 update: Msg -> Model -> ( Model, Cmd Msg )
@@ -57,6 +59,8 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
+        Open -> U.nocmd model
+
 
 getPaths: String -> Cmd Msg
 getPaths baseUrl =
@@ -74,7 +78,7 @@ view: Model -> Html Msg
 view model =
     div
         [ class "folders" ]
-        [ viewTree model.tree ]
+        [ viewTree model.tree Open ]
 
 
 
