@@ -4,15 +4,19 @@ import Dict exposing (Dict)
 import Expect exposing (Expectation)
 import Set exposing (Set)
 import Test as T
+import Tree
+import Tree exposing
+    ( Tree
+    , tree
+    )
 
 import Json.Decode as JD
 
 import FoldersUtil exposing
     ( MyTree(..)
     , buildSingle
+    , convertTree
     , decodeTree
-    , emptyTree
-    , stepTree
     )
 
 
@@ -43,9 +47,18 @@ buildSinglePath =
         ds = Dict.singleton
         ss = Set.singleton
         myTree = buildSingle path
+        rTree = convertTree myTree
     in
     T.test "Build branch"
         ( \ _ -> Expect.equal
-                    myTree
-                    ( buildSingle path )
+                    rTree
+                    ( tree "root"
+                        [tree "a0"
+                            [tree "b0"
+                                [tree "c0"
+                                    []
+                                ]
+                            ]
+                        ]
+                    )
         )
