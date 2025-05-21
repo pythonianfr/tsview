@@ -48,3 +48,24 @@ convertTreeT myTree =
                 (\ (k, lmT) -> tree k ( convertTreeT lmT ))
                 ( Dict.toList dict )
             )
+
+unpack: MyTree -> ( Dict String  MyTree )
+unpack mTree =
+    case mTree of
+        MyTree dict -> dict
+
+mergeMBranch: MyTree -> MyTree -> MyTree
+mergeMBranch tree branch =
+    let dictT = unpack tree
+        dictB = unpack branch
+    in
+        case Dict.toList dictB of
+            [] -> tree
+            (k, v) :: xs ->
+                case Dict.get k dictT of
+                    Nothing -> MyTree ( Dict.insert k v dictT )
+                    Just subTree -> MyTree
+                                        <| Dict.insert
+                                                k
+                                                (mergeMBranch subTree v)
+                                                dictT

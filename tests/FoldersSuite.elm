@@ -17,6 +17,7 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , mergeMBranch
     )
 
 
@@ -62,3 +63,59 @@ buildSinglePath =
                         ]
                     )
         )
+
+
+suiteMergeMBranch : T.Test
+suiteMergeMBranch =
+    let branch0 = buildSingle "a0"
+        branch1 = buildSingle "a0.b0.c0"
+        branch2 = buildSingle "a0.b1.c0"
+        merge01 = convertTree ( mergeMBranch branch0 branch1 )
+        merge12 = convertTree ( mergeMBranch branch1 branch2 )
+        merge10 = convertTree ( mergeMBranch branch1 branch0 )
+    in
+    T.concat
+    [ T.test "Merge branch01"
+        (\_ -> Expect.equal
+                merge01
+                ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            [tree "c0"
+                                []
+                            ]
+                        ]
+                    ]
+                )
+        )
+    , T.test "Merge branch12"
+        (\_ -> Expect.equal
+                merge12
+                ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            [tree "c0"
+                                []
+                            ]
+                        , tree "b1"
+                            [tree"c0"
+                                []
+                            ]
+                        ]
+                    ]
+                )
+        )
+    ,T.test "Merge branch10"
+        (\_ -> Expect.equal
+                merge10
+                ( tree "root"
+                    [tree "a0"
+                        [tree "b0"
+                            [tree"c0"
+                                []
+                            ]
+                        ]
+                    ]
+                )
+        )
+    ]
