@@ -1,11 +1,13 @@
 module FoldersUtil exposing (..)
 
 import Dict exposing (Dict)
-import Set exposing (Set)
 import Json.Decode as JD
+import Html exposing
+    ( Html )
 import Tree
 import Tree exposing
     ( Tree
+    , restructure
     , tree
     )
 
@@ -16,7 +18,10 @@ decodeTree =
     JD.list JD.string
 
 
-emptyTree = MyTree Dict.empty
+emptyMTree = MyTree Dict.empty
+
+emptyTree = tree "root" []
+
 
 stepTree: String -> MyTree -> MyTree
 stepTree label previsouTree =
@@ -72,12 +77,35 @@ mergeMBranch branch tree =
                                                 (mergeMBranch v subTree)
                                                 dictT
 
-
 buildMTree : List String -> MyTree
 buildMTree paths =
     let branchs = List.map buildSingle paths
     in
         List.foldr
             mergeMBranch
-            emptyTree
+            emptyMTree
             branchs
+
+buildTree : List String -> Tree String
+buildTree paths =
+    convertTree
+        <| buildMTree paths
+
+labelToHtml : String -> Html msg
+labelToHtml l =
+    Html.text l
+
+toListItems : Html msg -> List (Html msg) -> Html msg
+toListItems label children =
+    case children of
+        [] ->
+            Html.li [] [ label ]
+        _ ->
+            Html.li []
+                [ label
+                , Html.ul [] children
+                ]
+
+viewTree: Tree String -> Html msg
+viewTree tree =
+    restructure labelToHtml toListItems tree

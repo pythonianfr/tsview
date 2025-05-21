@@ -14,15 +14,24 @@ import Html exposing
 import Html.Attributes exposing
     ( class )
 import Http
+import Tree exposing
+    ( Tree
+    , tree
+    )
 import Url.Builder as UB
 
 import FoldersUtil exposing
-    (decodeTree)
+    ( decodeTree
+    , buildTree
+    , emptyTree
+    , viewTree
+    )
 import Util as U
 
 type alias Model =
     { baseUrl: String
     , paths: List String
+    , tree: Tree String
     , errors: List String
     }
 
@@ -37,7 +46,9 @@ update msg model =
         GotPaths (Ok raw ) ->
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
-                    ( { model | paths = paths }
+                    ( { model | paths = paths
+                              , tree = buildTree paths
+                      }
                     , Cmd.none )
                 ( Err err ) ->
                     U.nocmd { model | errors = model.errors
@@ -63,9 +74,7 @@ view: Model -> Html Msg
 view model =
     div
         [ class "folders" ]
-        <| List.map
-            (\ p -> li [] [ text p ] )
-            model.paths
+        [ viewTree model.tree ]
 
 
 
@@ -73,6 +82,7 @@ initModel: String -> Model
 initModel baseUrl =
     { baseUrl = baseUrl
     , paths = []
+    , tree = emptyTree
     , errors = []
     }
 
