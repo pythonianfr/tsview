@@ -461,3 +461,7 @@ label.option {
 .menu-folders .folder.open {
     background-color: red;
 }
+
+.menu-folders .folder.not.open {
+    background-color: red;
+}

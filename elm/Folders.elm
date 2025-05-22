@@ -26,6 +26,7 @@ import FoldersUtil exposing
     , buildTree
     , emptyTree
     , fillPostion
+    , getPayload
     , mutePayload
     , viewTree
     )
@@ -51,8 +52,12 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree = fillPostion
-                                        <| buildTree paths
+                              , tree =
+                                mutePayload
+                                    0
+                                    (\ p -> {p | open = True})
+                                        <| fillPostion
+                                            <| buildTree paths
                       }
                     , Cmd.none )
                 ( Err err ) ->

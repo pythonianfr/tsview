@@ -187,6 +187,15 @@ getZipper idx menu =
                         nextStep
 
 
+getPayload: Int -> Tree Payload -> Payload
+getPayload idx menu =
+    Maybe.withDefault
+        initPayload
+        <| Maybe.map
+            (Tree.Zipper.label)
+            (getZipper idx (fromTree menu))
+
+
 mutePayload : Int -> (Payload -> Payload) -> Tree Payload -> Tree Payload
 mutePayload idx mapping menu =
     case getZipper idx ( fromTree menu ) of
