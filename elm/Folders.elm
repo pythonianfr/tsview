@@ -25,6 +25,8 @@ import FoldersUtil exposing
     , decodeTree
     , buildTree
     , emptyTree
+    , fillPostion
+    , mutePayload
     , viewTree
     )
 import Util as U
@@ -39,7 +41,7 @@ type alias Model =
 
 type Msg
     = GotPaths ( Result Http.Error String )
-    | Open
+    | Open Int
 
 
 update: Msg -> Model -> ( Model, Cmd Msg )
@@ -49,7 +51,8 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree = buildTree paths
+                              , tree = fillPostion
+                                        <| buildTree paths
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -59,7 +62,14 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
-        Open -> U.nocmd model
+        Open idx ->
+            ( { model | tree = mutePayload
+                                idx
+                                (\ p -> {p | open = not p.open})
+                                model.tree
+              }
+            , Cmd.none
+            )
 
 
 getPaths: String -> Cmd Msg
@@ -77,7 +87,7 @@ getPaths baseUrl =
 view: Model -> Html Msg
 view model =
     div
-        [ class "folders" ]
+        [ class "menu-folders" ]
         [ viewTree model.tree Open ]
 
 

@@ -4,6 +4,8 @@ import Dict exposing (Dict)
 import Json.Decode as JD
 import Html exposing
     ( Html )
+import Html.Attributes exposing
+    ( class )
 import Html.Events exposing
     ( onClick )
 import Set exposing (Set)
@@ -19,6 +21,7 @@ import Tree.Zipper exposing
     ( Zipper
     , forward
     , fromTree
+    , toTree
     )
 
 
@@ -131,35 +134,35 @@ buildTree paths =
     convertTree
         <| buildMTree paths
 
-labelToHtml : Payload -> Html msg
-labelToHtml payload =
-    Html.text payload.name
+labelToHtml :  (Int -> msg) -> Payload -> Html msg
+labelToHtml openMsg payload =
+    Html.p
+        [ class "folder"
+        , class ( if payload.open then "open" else "not-open" )
+        , onClick ( openMsg payload.position )
+        ]
+        [ Html.text payload.name ]
 
-toListItems : msg -> Html msg -> List (Html msg) -> Html msg
-toListItems openMsg label children =
+toListItems : Html msg -> List (Html msg) -> Html msg
+toListItems  label children =
     case children of
         [] ->
             Html.li
                 []
-                [ Html.p
-                    [ onClick openMsg ]
-                    [ label ]
-                ]
+                [ label ]
         _ ->
             Html.li []
-                [ Html.p
-                    [ onClick openMsg ]
-                    [ label ]
+                [ label
                 , Html.ul [] children
                 ]
 
-viewTree: Tree Payload -> msg -> Html msg
+viewTree: Tree Payload -> (Int -> msg) -> Html msg
 viewTree tree openMsg =
     Html.ul
         []
         [ restructure
-            labelToHtml
-            ( toListItems openMsg )
+            ( labelToHtml openMsg )
+            toListItems
             tree
         ]
 
@@ -182,3 +185,14 @@ getZipper idx menu =
                     getZipper
                         idx
                         nextStep
+
+
+mutePayload : Int -> (Payload -> Payload) -> Tree Payload -> Tree Payload
+mutePayload idx mapping menu =
+    case getZipper idx ( fromTree menu ) of
+        Nothing -> menu
+        Just zipper
+            -> toTree
+                <| Tree.Zipper.mapLabel
+                        mapping
+                        zipper

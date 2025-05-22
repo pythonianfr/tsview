@@ -455,3 +455,9 @@ label.option {
     padding-right: 3px;
     text-align: right;
 }
+
+/* folders */
+
+.menu-folders .folder.open {
+    background-color: red;
+}

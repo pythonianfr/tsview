@@ -23,10 +23,10 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
-    , emptyTree
     , fillPostion
     , initPayload
     , mergeMBranch
+    , mutePayload
     , getZipper
     )
 
@@ -325,3 +325,37 @@ suiteIndexPosition =
                            }
             )
     ]
+
+
+suiteMutatePayload : T.Test
+suiteMutatePayload =
+     let paths = [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                , "a0.b0.c0"
+                , "a1.b0"
+                ]
+         rTree = fillPostion
+                    <| convertTree
+                        <| buildMTree
+                                paths
+         modifiedTree = mutePayload
+                            3
+                            (\ p ->
+                                { p | open = True}
+                            )
+                            rTree
+         newPayload = Maybe.map
+                        (Tree.Zipper.label)
+                        (getZipper 3 (fromTree modifiedTree))
+
+     in
+     T.test "Mute payload"
+        (\_ -> Expect.equal
+                newPayload
+                <| Just
+                    <| { initPayload | name = "c0"
+                                     , position = 3
+                                     , open = True
+                        }
+        )
