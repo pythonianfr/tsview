@@ -10,6 +10,7 @@ import Set exposing (Set)
 import Tree
 import Tree exposing
     ( Tree
+    , indexedMap
     , restructure
     , tree
     )
@@ -154,3 +155,10 @@ viewTree tree openMsg =
             ( toListItems openMsg )
             tree
         ]
+
+
+fillPostion: Tree Payload -> Tree Payload
+fillPostion menu =
+    indexedMap
+        ( \idx payload -> { payload | position = idx} )
+        menu

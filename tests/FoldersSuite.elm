@@ -18,6 +18,7 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , fillPostion
     , initPayload
     , mergeMBranch
     )
@@ -214,3 +215,52 @@ suiteConvertTree =
                 )
             )
     ]
+
+
+suiteFillPosition : T.Test
+suiteFillPosition =
+     let paths = [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                , "a0.b0.c0"
+                , "a1.b0"
+                ]
+         rTree = fillPostion
+                    <| convertTree
+                        <| buildMTree
+                                paths
+     in
+        T.test "Fill Position Tree"
+            (\ _ ->
+                Expect.equal
+                 rTree
+                 ( tree { initPayload | label = "root"
+                                      , position = 0
+                        }
+                    [tree { initPayload | label = "a0"
+                                        , position = 1
+                          }
+                        [tree { initPayload | label = "b0"
+                                            , position = 2
+                              }
+                            [tree { initPayload | label = "c0"
+                                                , position = 3
+                                  }
+                                []
+                            ]
+                        , tree { initPayload | label = "b1"
+                                             , position = 4
+                               }
+                            []
+                        ]
+                    , tree { initPayload | label = "a1"
+                                         , position = 5
+                           }
+                        [tree { initPayload | label = "b0"
+                                            , position = 6
+                              }
+                            []
+                        ]
+                    ]
+                )
+            )
