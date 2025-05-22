@@ -134,35 +134,41 @@ buildTree paths =
     convertTree
         <| buildMTree paths
 
-labelToHtml :  (Int -> msg) -> Payload -> Html msg
-labelToHtml openMsg payload =
-    Html.p
-        [ class "folder"
-        , class ( if payload.open then "open" else "not-open" )
-        , onClick ( openMsg payload.position )
-        ]
-        [ Html.text payload.name ]
 
-toListItems : Html msg -> List (Html msg) -> Html msg
-toListItems  label children =
+toListItems : (Int -> msg) -> Payload -> List (Html msg) -> Html msg
+toListItems  openMsg payload children =
+    let open = payload.open
+    in
     case children of
         [] ->
             Html.li
                 []
-                [ label ]
+                [ Html.p
+                    [ class "folder"
+                    , class ( if open then "open" else "not-open" )
+                    , onClick ( openMsg payload.position )
+                    ]
+                    [ Html.text payload.name ] ]
         _ ->
             Html.li []
-                [ label
-                , Html.ul [] children
-                ]
+                ([ Html.p
+                    [ class "folder"
+                    , class ( if open then "open" else "not-open" )
+                    , onClick ( openMsg payload.position )
+                    ]
+                    [ Html.text payload.name ]
+                 ] ++ if open
+                        then [Html.ul [] children]
+                        else  []
+                )
 
 viewTree: Tree Payload -> (Int -> msg) -> Html msg
 viewTree tree openMsg =
     Html.ul
         []
         [ restructure
-            ( labelToHtml openMsg )
-            toListItems
+            identity
+            ( toListItems openMsg )
             tree
         ]
 
