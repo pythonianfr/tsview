@@ -3102,7 +3102,10 @@ saveComponent baseUrl tzone series isString component =
                             then [( "tzone", JE.string tzone )]
                             else []
                           )
-                       ++  [("dtype", JE.string "object" )]
+                       ++ ( if isString
+                            then  [("dtype", JE.string "object" )]
+                            else []
+                          )
                      )
             , headers = [ ]
             , timeout = Nothing
