@@ -24,10 +24,11 @@ import FoldersUtil exposing
     , convertTree
     , decodeTree
     , fillPostion
+    , getZipper
     , initPayload
     , mergeMBranch
     , mutePayload
-    , getZipper
+    , root
     )
 
 
@@ -63,7 +64,7 @@ buildSinglePath =
     T.test "Build branch"
         ( \ _ -> Expect.equal
                     rTree
-                    ( tree { initPayload | name = "root"}
+                    ( tree { initPayload | name = root}
                         [tree { initPayload | name = "a0"}
                             [tree { initPayload | name = "b0"}
                                 [tree { initPayload | name = "c0"}
@@ -88,7 +89,7 @@ suiteMergeMBranch =
     [ T.test "Merge branch01"
         (\_ -> Expect.equal
                 merge01
-                ( tree { initPayload | name = "root"}
+                ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             [tree { initPayload | name = "c0"}
@@ -101,7 +102,7 @@ suiteMergeMBranch =
     , T.test "Merge branch12"
         (\_ -> Expect.equal
                 merge12
-                ( tree { initPayload | name = "root"}
+                ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             [tree { initPayload | name = "c0"}
@@ -118,7 +119,7 @@ suiteMergeMBranch =
     ,T.test "Merge branch10"
         (\_ -> Expect.equal
                 merge10
-                ( tree { initPayload | name = "root"}
+                ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             [tree { initPayload | name = "c0"}
@@ -163,7 +164,7 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree { initPayload | name = "root"}
+                 ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             [tree { initPayload | name = "c0"}
@@ -183,7 +184,7 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree0
-                 ( tree { initPayload | name = "root"}
+                 ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             []
@@ -195,7 +196,7 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree1
-                 ( tree { initPayload | name = "root"}
+                 ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             []
@@ -209,7 +210,7 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree2
-                 ( tree { initPayload | name = "root"}
+                 ( tree { initPayload | name = root}
                     [tree { initPayload | name = "a0"}
                         [tree { initPayload | name = "b0"}
                             [tree { initPayload | name = "c0"}
@@ -256,7 +257,7 @@ suiteIndexPosition =
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree { initPayload | name = "root"
+                 ( tree { initPayload | name = root
                                       , position = 0
                         }
                     [tree { initPayload | name = "a0"
@@ -302,7 +303,7 @@ suiteIndexPosition =
             (\ _ ->
                 Expect.equal
                    selected0
-                   <| Just { initPayload | name = "root"
+                   <| Just { initPayload | name = root
                                          , position = 0
                             }
             )

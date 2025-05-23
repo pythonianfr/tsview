@@ -27,6 +27,8 @@ import Tree.Zipper exposing
 
 type MyTree = MyTree ( Dict String  MyTree )
 
+root = "root"
+
 type alias Payload =
     { name: String
     , position: Int
@@ -85,7 +87,7 @@ convertTree myTree =
         ( tree initPayload [] )
         <| List.head
             <| convertTreeT
-                <| MyTree ( Dict.singleton "root" myTree )
+                <| MyTree ( Dict.singleton root myTree )
 
 
 convertTreeT : MyTree -> List ( Tree Payload )
@@ -211,3 +213,4 @@ mutePayload idx mapping menu =
                 <| Tree.Zipper.mapLabel
                         mapping
                         zipper
+
