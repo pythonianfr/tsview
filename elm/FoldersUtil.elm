@@ -145,30 +145,32 @@ toListItems : (Int -> Bool -> msg) -> Payload -> List (Html msg) -> Html msg
 toListItems  openMsg payload children =
     let open = payload.open
     in
-    case children of
-        [] ->
-            Html.li
-                []
-                [ Html.p
-                    [ class "folder"
-                    , class ( if open then "open" else "not-open" )
-                    ]
-                    [ buttonOpen openMsg payload
-                    , Html.text payload.name
-                    ]                ]
-        _ ->
-            Html.li []
-                ([ Html.p
-                    [ class "folder"
-                    , class ( if open then "open" else "not-open" )
-                    ]
-                    [ buttonOpen openMsg payload
-                    , Html.text payload.name
-                    ]
-                 ] ++ if open
-                        then [Html.ul [] children]
-                        else  []
-                )
+        Html.li []
+            ([ viewFolder openMsg payload open
+             ]++ if open
+                    then [ Html.ul [] children
+                         , viewSeries payload
+                         ]
+                    else  []
+            )
+
+
+viewFolder openMsg payload open =
+   Html.p
+    [ class "folder"
+    , class ( if open then "open" else "not-open" )
+    ]
+    [ buttonOpen openMsg payload
+    , Html.text payload.name
+    ]
+
+viewSeries payload =
+    Html.ul
+        []
+        <| List.map
+            (\sn -> Html.li [] [Html.text sn] )
+            <| Set.toList payload.series
+
 
 
 buttonOpen openMsg payload =

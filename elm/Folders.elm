@@ -14,6 +14,7 @@ import Html exposing
 import Html.Attributes exposing
     ( class )
 import Http
+import Set exposing (Set)
 import Tree exposing
     ( Tree
     , tree
@@ -43,6 +44,7 @@ type alias Model =
 
 type Msg
     = GotPaths ( Result Http.Error String )
+    | GotSeries Int String ( Result Http.Error String )
     | Open Int Bool
 
 
@@ -69,13 +71,43 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
+        GotSeries idx path (Ok raw) ->
+            -- integrity check (ie the tree is correctly indexed)
+            if ( getPayload idx model.tree ).path /= path
+            then U.nocmd model
+            else
+            case JD.decodeString ( JD.list JD.string ) raw of
+                (Ok seriesL ) ->
+                    U.nocmd
+                        { model | tree
+                            = mutePayload
+                                idx
+                                (\p -> { p | series = Set.fromList seriesL })
+                                model.tree
+                        }
+                (Err err ) ->
+                    U.nocmd { model | errors = model.errors
+                                               ++ [JD.errorToString err]
+                            }
+
+        GotSeries idx path  ( Err err ) ->
+            U.nocmd model
         Open idx open ->
             ( { model | tree = mutePayload
                                 idx
                                 (\ p -> {p | open = open})
                                 model.tree
               }
-            , Cmd.none
+            , if not open
+                then Cmd.none
+                else
+                    let path = (getPayload idx model.tree).path
+                    in
+                        getSeries
+                            model.baseUrl
+                            idx
+                            path
+
             )
 
 
@@ -88,6 +120,20 @@ getPaths baseUrl =
                 ["api", "series", "tree"]
                 []
         , expect = Http.expectString GotPaths
+        }
+
+
+getSeries: String -> Int -> String -> Cmd Msg
+getSeries baseUrl idx path =
+    Http.get
+        { url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "tree-path"]
+                [ UB.string "name" path
+                , UB.string "type" "pathname"
+                ]
+        , expect = Http.expectString (GotSeries idx path)
         }
 
 
