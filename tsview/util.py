@@ -223,11 +223,15 @@ def test_find_auto_top_level(cn, tsh, name):
 
 
 def get_infos(tsa, names):
-    conditions = []
-    for name in names:
-        conditions.append(f"""(by.name "{name}")""")
-    query = f"(by.or {' '.join(conditions)})"
-    found =  tsa.find(query, meta=True)
+    conditions = [
+        f'(by.name "{name}")'
+        for name in names
+    ]
+    if conditions:
+        query = f"(by.or {' '.join(conditions)})"
+        found =  tsa.find(query, meta=True)
+    else:
+        found = []
     meta = {
         str(info): info.imeta
         for info in found
