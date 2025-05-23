@@ -290,7 +290,6 @@ def test_query_spec_types(client):
         ['by.name', [['return', 'query'], ['query', 'str']]],
         ['by.not', [['return', 'query'], ['item', 'query']]],
         ['by.or', [['return', 'query'], ['items', 'Packed[query]']]],
-        ['by.source', [['return', 'query'], ['source', 'Source']]],
         ['by.tzaware', [['return', 'query']]]
     ]
 
