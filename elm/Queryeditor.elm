@@ -220,10 +220,7 @@ update msg model =
                                   , editorExpanded = False
                                   , editorWidget = wid
                               }
-                            , Cmd.batch
-                                [ tryfilter model basketormula
-                                , Cmd.map WidgetMsg cmd
-                                ]
+                            , Cmd.map WidgetMsg cmd
                             )
                         Err err -> doerr "parse basket" err
                 Err err ->
