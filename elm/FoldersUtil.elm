@@ -13,6 +13,7 @@ import Tree
 import Tree exposing
     ( Tree
     , indexedMap
+    , mapAccumulate
     , restructure
     , tree
     )
@@ -180,6 +181,21 @@ fillPostion menu =
     indexedMap
         ( \idx payload -> { payload | position = idx} )
         menu
+
+
+fillPath: String -> Tree Payload -> Tree Payload
+fillPath path menu  =
+    let currentPayload = Tree.label menu
+        newPath = String.replace
+                    ".root."
+                    ""
+                    (path ++ "." ++ currentPayload.name)
+    in
+    tree
+        { currentPayload | path = newPath }
+        <| List.map
+            ( fillPath newPath )
+            ( Tree.children menu )
 
 
 getZipper : Int -> Zipper Payload -> Maybe ( Zipper Payload )

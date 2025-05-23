@@ -23,6 +23,7 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , fillPath
     , fillPostion
     , getZipper
     , initPayload
@@ -360,3 +361,41 @@ suiteMutatePayload =
                                      , open = True
                         }
         )
+
+
+suiteCumulPath : T.Test
+suiteCumulPath =
+    let paths = [ "a0.b1"
+                , "a0.b0.c0"
+                ]
+        rTree = fillPath ""
+                    <| convertTree
+                        <| buildMTree
+                                paths
+    in
+        T.test "Fill Path"
+            (\ _ ->
+                Expect.equal
+                 rTree
+                 ( tree { initPayload | name = root
+                                      , path = ".root"
+                        }
+                    [tree { initPayload | name = "a0"
+                                        , path = "a0"
+                          }
+                        [tree { initPayload | name = "b0"
+                                            , path = "a0.b0"
+                              }
+                            [tree { initPayload | name = "c0"
+                                                , path = "a0.b0.c0"
+                                  }
+                                []
+                            ]
+                        , tree { initPayload | name = "b1"
+                                             , path = "a0.b1"
+                               }
+                            []
+                        ]
+                    ]
+                 )
+            )
