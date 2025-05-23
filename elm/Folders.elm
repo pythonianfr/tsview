@@ -25,6 +25,7 @@ import FoldersUtil exposing
     , decodeTree
     , buildTree
     , emptyTree
+    , fillPath
     , fillPostion
     , getPayload
     , mutePayload
@@ -42,7 +43,7 @@ type alias Model =
 
 type Msg
     = GotPaths ( Result Http.Error String )
-    | Open Int
+    | Open Int Bool
 
 
 update: Msg -> Model -> ( Model, Cmd Msg )
@@ -56,8 +57,9 @@ update msg model =
                                 mutePayload
                                     0
                                     (\ p -> {p | open = True})
-                                        <| fillPostion
-                                            <| buildTree paths
+                                        <| fillPath ""
+                                            <| fillPostion
+                                                <| buildTree paths
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -67,10 +69,10 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
-        Open idx ->
+        Open idx open ->
             ( { model | tree = mutePayload
                                 idx
-                                (\ p -> {p | open = not p.open})
+                                (\ p -> {p | open = open})
                                 model.tree
               }
             , Cmd.none

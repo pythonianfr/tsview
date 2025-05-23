@@ -458,10 +458,9 @@ label.option {
 
 /* folders */
 
-.menu-folders .folder.open {
-    background-color: red;
+.menu-folders .folder {
+
 }
 
-.menu-folders .folder.not.open {
-    background-color: red;
+.menu-folders .folder.open {
 }

@@ -5,9 +5,12 @@ import Json.Decode as JD
 import Html exposing
     ( Html )
 import Html.Attributes exposing
-    ( class )
+    ( checked
+    , class
+    , type_
+    )
 import Html.Events exposing
-    ( onClick )
+    ( onCheck)
 import Set exposing (Set)
 import Tree
 import Tree exposing
@@ -138,7 +141,7 @@ buildTree paths =
         <| buildMTree paths
 
 
-toListItems : (Int -> msg) -> Payload -> List (Html msg) -> Html msg
+toListItems : (Int -> Bool -> msg) -> Payload -> List (Html msg) -> Html msg
 toListItems  openMsg payload children =
     let open = payload.open
     in
@@ -149,23 +152,35 @@ toListItems  openMsg payload children =
                 [ Html.p
                     [ class "folder"
                     , class ( if open then "open" else "not-open" )
-                    , onClick ( openMsg payload.position )
                     ]
-                    [ Html.text payload.name ] ]
+                    [ buttonOpen openMsg payload
+                    , Html.text payload.name
+                    ]                ]
         _ ->
             Html.li []
                 ([ Html.p
                     [ class "folder"
                     , class ( if open then "open" else "not-open" )
-                    , onClick ( openMsg payload.position )
                     ]
-                    [ Html.text payload.name ]
+                    [ buttonOpen openMsg payload
+                    , Html.text payload.name
+                    ]
                  ] ++ if open
                         then [Html.ul [] children]
                         else  []
                 )
 
-viewTree: Tree Payload -> (Int -> msg) -> Html msg
+
+buttonOpen openMsg payload =
+    Html.input
+        [ onCheck (openMsg payload.position)
+        , type_ "checkbox"
+        , checked payload.open
+        ]
+        []
+
+
+viewTree: Tree Payload -> (Int -> Bool -> msg) -> Html msg
 viewTree tree openMsg =
     Html.ul
         []
