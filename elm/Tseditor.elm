@@ -3093,7 +3093,7 @@ saveComponent baseUrl tzone series isString component =
             { method = "PATCH"
             , body = Http.jsonBody <| JE.object
                      ([ ("name", JE.string name )
-                     , ("author" , JE.string "webui" )
+                     , ("author" , JE.string "no-user" )
                      , ("tzaware", JE.bool tzaware )
                      , ("series", patch )
                      , ("supervision", JE.bool True )
