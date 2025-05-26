@@ -35,13 +35,13 @@ import Tree.Zipper exposing
 
 
 type MyTree = MyTree ( Dict String  MyTree )
+type alias Path = String
 
 root = "root"
 
 type alias Payload =
     { name: String
-    , position: Int
-    , path: String
+    , path: Path
     , open: Bool
     , status: LoadingStatus
     , series: Set String
@@ -50,7 +50,6 @@ type alias Payload =
 initPayload: Payload
 initPayload =
     { name= ""
-    , position = -1
     , path = ""
     , open = False
     , status = Start
@@ -115,19 +114,31 @@ convertTree myTree =
     Maybe.withDefault
         ( tree initPayload [] )
         <| List.head
-            <| convertTreeT
+            <| convertTreeT ""
                 <| MyTree ( Dict.singleton root myTree )
 
 
-convertTreeT : MyTree -> List ( Tree Payload )
-convertTreeT myTree =
+convertTreeT : String -> MyTree -> List ( Tree Payload )
+convertTreeT path myTree =
     case myTree of
         MyTree dict ->
             List.map
-                (\ (k, lmT) -> tree
-                                {initPayload | name=k}
-                                ( convertTreeT lmT ))
+                ( recConvert path )
                 ( Dict.toList dict )
+
+
+recConvert: Path -> ( String,  MyTree ) -> Tree Payload
+recConvert path ( name,  subTree) =
+    let newPath = String.replace
+                    ".root."
+                    ""
+                    ( path ++ "." ++ name )
+    in
+    tree
+        { initPayload | name=name
+                      , path = newPath
+        }
+        ( convertTreeT newPath subTree )
 
 
 unpack: MyTree -> ( Dict String  MyTree )
@@ -166,15 +177,15 @@ buildTree paths =
         <| buildMTree paths
 
 
-toListItems : (Int -> Bool -> msg) ->  (String -> Int -> msg) -> ( Int-> msg)  -> msg -> (Int -> msg)
+toListItems : (Path -> Bool -> msg) ->  (String -> Path -> msg) -> ( Path-> msg)  -> msg -> (Path -> msg)
                -> Payload -> List (Html msg) -> Html msg
 toListItems openMsg dragStart dragOver dragEnd drop payload children =
     let open = payload.open
     in
         Html.li
             [ class "folder"
-            , onDragOver (dragOver payload.position)
-            , onDrop ( drop payload.position )
+            , onDragOver (dragOver payload.path)
+            , onDrop ( drop payload.path )
             ]
             ([ viewFolder openMsg payload open
              ]++ if open
@@ -185,7 +196,7 @@ toListItems openMsg dragStart dragOver dragEnd drop payload children =
             )
 
 
-viewFolder: (Int -> Bool -> msg) -> Payload -> Bool -> Html msg
+viewFolder: (Path -> Bool -> msg) -> Payload -> Bool -> Html msg
 viewFolder openMsg  payload open =
    Html.p
     [ class "folder-name"
@@ -197,7 +208,7 @@ viewFolder openMsg  payload open =
     ]
 
 
-viewSeries : Payload -> (String -> Int -> msg) ->  msg -> Html msg
+viewSeries : Payload -> (String -> Path -> msg) ->  msg -> Html msg
 viewSeries payload dragStart dragEnd =
     Html.ul
         []
@@ -207,7 +218,7 @@ viewSeries payload dragStart dragEnd =
                                 , onDragStart
                                     <| dragStart
                                         sn
-                                        payload.position
+                                        payload.path
                                 , onDragEnd dragEnd
                                 ]
                                 [ Html.text sn ]]
@@ -215,18 +226,18 @@ viewSeries payload dragStart dragEnd =
             <| Set.toList payload.series
 
 
-
+buttonOpen: (Path -> Bool -> msg) -> Payload -> Html msg
 buttonOpen openMsg payload =
     Html.input
-        [ onCheck (openMsg payload.position)
+        [ onCheck (openMsg payload.path)
         , type_ "checkbox"
         , checked payload.open
         ]
         []
 
 
-viewTree: Tree Payload -> (Int -> Bool -> msg) -> (String -> Int -> msg) -> (Int -> msg) ->  msg
-           -> (Int -> msg) -> Html msg
+viewTree: Tree Payload -> (Path -> Bool -> msg) -> (String -> Path -> msg) -> (Path -> msg) ->  msg
+           -> (Path -> msg) -> Html msg
 viewTree tree openMsg dragStart dragHover dragStop drop =
     Html.ul
         []
@@ -237,53 +248,31 @@ viewTree tree openMsg dragStart dragHover dragStop drop =
         ]
 
 
-fillPostion: Tree Payload -> Tree Payload
-fillPostion menu =
-    indexedMap
-        ( \idx payload -> { payload | position = idx} )
-        menu
-
-
-fillPath: String -> Tree Payload -> Tree Payload
-fillPath path menu  =
-    let currentPayload = Tree.label menu
-        newPath = String.replace
-                    ".root."
-                    ""
-                    (path ++ "." ++ currentPayload.name)
-    in
-    tree
-        { currentPayload | path = newPath }
-        <| List.map
-            ( fillPath newPath )
-            ( Tree.children menu )
-
-
-getZipper : Int -> Zipper Payload -> Maybe ( Zipper Payload )
-getZipper idx menu =
-    if (Tree.Zipper.label menu).position == idx
+getZipper : String -> Zipper Payload -> Maybe ( Zipper Payload )
+getZipper path menu =
+    if (Tree.Zipper.label menu).path == path
         then Just menu
         else
             case ( forward menu ) of
                 Nothing -> Nothing
                 Just nextStep ->
                     getZipper
-                        idx
+                        path
                         nextStep
 
 
-getPayload: Int -> Tree Payload -> Payload
-getPayload idx menu =
+getPayload: String -> Tree Payload -> Payload
+getPayload path menu =
     Maybe.withDefault
         initPayload
         <| Maybe.map
             (Tree.Zipper.label)
-            (getZipper idx (fromTree menu))
+            (getZipper path (fromTree menu))
 
 
-mutePayload : Int -> (Payload -> Payload) -> Tree Payload -> Tree Payload
-mutePayload idx mapping menu =
-    case getZipper idx ( fromTree menu ) of
+mutePayload : String -> (Payload -> Payload) -> Tree Payload -> Tree Payload
+mutePayload path mapping menu =
+    case getZipper path ( fromTree menu ) of
         Nothing -> menu
         Just zipper
             -> toTree

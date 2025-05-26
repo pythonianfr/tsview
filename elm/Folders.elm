@@ -26,10 +26,8 @@ import FoldersUtil exposing
     , decodeTree
     , buildTree
     , emptyTree
-    , fillPath
-    , fillPostion
-    , getPayload
     , mutePayload
+    , root
     , viewTree
     )
 import Util as U
@@ -38,21 +36,23 @@ type alias Model =
     { baseUrl: String
     , paths: List String
     , tree: Tree Payload
-    , currentDrag: Maybe ( String, Int )
-    , overDrag: Maybe Int
+    , currentDrag: Maybe ( String, Path )
+    , overDrag: Maybe Path
     , errors: List String
     }
 
 
 type Msg
     = GotPaths ( Result Http.Error String )
-    | GotSeries Int String ( Result Http.Error String )
-    | Open Int Bool
-    | Drag String Int
-    | DragHover Int
+    | GotSeries Path ( Result Http.Error String )
+    | Open Path Bool
+    | Drag String Path
+    | DragHover Path
     | DragStop
-    | Drop Int
+    | Drop Path
 
+-- for documentation purpose
+type alias Path = String
 
 update: Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -63,11 +63,9 @@ update msg model =
                     ( { model | paths = paths
                               , tree =
                                 mutePayload
-                                    0
+                                    ( "." ++ root )
                                     (\ p -> {p | open = True})
-                                        <| fillPath ""
-                                            <| fillPostion
-                                                <| buildTree paths
+                                        <| buildTree paths
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -77,17 +75,13 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
-        GotSeries idx path (Ok raw) ->
-            -- integrity check (ie the tree is correctly indexed)
-            if ( getPayload idx model.tree ).path /= path
-            then U.nocmd model
-            else
+        GotSeries path (Ok raw) ->
             case JD.decodeString ( JD.list JD.string ) raw of
                 (Ok seriesL ) ->
                     U.nocmd
                         { model | tree
                             = mutePayload
-                                idx
+                                path
                                 (\p -> { p | series = Set.fromList seriesL })
                                 model.tree
                         }
@@ -96,23 +90,20 @@ update msg model =
                                                ++ [JD.errorToString err]
                             }
 
-        GotSeries idx path  ( Err err ) ->
+        GotSeries path  ( Err err ) ->
             U.nocmd model
-        Open idx open ->
+        Open path open ->
             ( { model | tree = mutePayload
-                                idx
+                                path
                                 (\ p -> {p | open = open})
                                 model.tree
               }
             , if not open
                 then Cmd.none
                 else
-                    let path = (getPayload idx model.tree).path
-                    in
-                        getSeries
-                            model.baseUrl
-                            idx
-                            path
+                    getSeries
+                        model.baseUrl
+                        path
 
             )
         Drag name from ->
@@ -146,8 +137,8 @@ getPaths baseUrl =
         }
 
 
-getSeries: String -> Int -> String -> Cmd Msg
-getSeries baseUrl idx path =
+getSeries: String -> String -> Cmd Msg
+getSeries baseUrl path =
     Http.get
         { url =
             UB.crossOrigin
@@ -156,11 +147,11 @@ getSeries baseUrl idx path =
                 [ UB.string "name" path
                 , UB.string "type" "pathname"
                 ]
-        , expect = Http.expectString (GotSeries idx path)
+        , expect = Http.expectString (GotSeries path)
         }
 
 
-moveSeries: Model -> Int -> Model
+moveSeries: Model -> Path -> Model
 moveSeries model destination =
     case model.currentDrag of
         Nothing -> model
@@ -192,12 +183,12 @@ view model =
             []
             [text <| case model.currentDrag of
                         Nothing -> "no-drag"
-                        Just ( name, position) -> name ++ String.fromInt position
+                        Just ( name, path) -> name ++ path
             ]
         , div [] [text <|  "over : "
                     ++ (case model.overDrag of
                             Nothing -> "no-over"
-                            Just over -> String.fromInt over
+                            Just over -> over
                         )
                   ]
         ]
