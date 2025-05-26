@@ -168,11 +168,15 @@ buildTree paths =
 
 toListItems : (Int -> Bool -> msg) ->  (String -> Int -> msg) -> ( Int-> msg)  -> msg -> (Int -> msg)
                -> Payload -> List (Html msg) -> Html msg
-toListItems openMsg dragStart dragHover dragEnd drop payload children =
+toListItems openMsg dragStart dragOver dragEnd drop payload children =
     let open = payload.open
     in
-        Html.li []
-            ([ viewFolder openMsg dragHover drop payload open
+        Html.li
+            [ class "folder"
+            , onDragOver (dragOver payload.position)
+            , onDrop ( drop payload.position )
+            ]
+            ([ viewFolder openMsg payload open
              ]++ if open
                     then [ Html.ul [] children
                          , viewSeries payload dragStart dragEnd
@@ -181,13 +185,12 @@ toListItems openMsg dragStart dragHover dragEnd drop payload children =
             )
 
 
-viewFolder: (Int -> Bool -> msg) -> ( Int -> msg )-> (Int -> msg) -> Payload -> Bool -> Html msg
-viewFolder openMsg dragOver drop payload open =
+viewFolder: (Int -> Bool -> msg) -> Payload -> Bool -> Html msg
+viewFolder openMsg  payload open =
    Html.p
-    [ class "folder"
+    [ class "folder-name"
     , class ( if open then "open" else "not-open" )
-    , onDragOver (dragOver payload.position)
-    , onDrop ( drop payload.position )
+
     ]
     [ buttonOpen openMsg payload
     , Html.text payload.name
