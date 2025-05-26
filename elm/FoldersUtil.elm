@@ -7,10 +7,15 @@ import Html exposing
 import Html.Attributes exposing
     ( checked
     , class
+    , draggable
+    , dropzone
     , type_
     )
+import Html.Events as Events
 import Html.Events exposing
-    ( onCheck)
+    ( on
+    , onCheck
+    )
 import Set exposing (Set)
 import Tree
 import Tree exposing
@@ -57,6 +62,11 @@ type LoadingStatus =
     | Loading
     | Success
     | LoadingError
+
+
+onDragStart msg =
+    Events.on "dragstart"
+        <| JD.succeed msg
 
 
 decodeTree: JD.Decoder ( List String )
@@ -141,15 +151,15 @@ buildTree paths =
         <| buildMTree paths
 
 
-toListItems : (Int -> Bool -> msg) -> Payload -> List (Html msg) -> Html msg
-toListItems  openMsg payload children =
+toListItems : (Int -> Bool -> msg) ->  (String -> Int -> msg) -> Payload -> List (Html msg) -> Html msg
+toListItems  openMsg dragStart payload children =
     let open = payload.open
     in
         Html.li []
             ([ viewFolder openMsg payload open
              ]++ if open
                     then [ Html.ul [] children
-                         , viewSeries payload
+                         , viewSeries payload dragStart
                          ]
                     else  []
             )
@@ -159,16 +169,26 @@ viewFolder openMsg payload open =
    Html.p
     [ class "folder"
     , class ( if open then "open" else "not-open" )
+    , dropzone "moved"
     ]
     [ buttonOpen openMsg payload
     , Html.text payload.name
     ]
 
-viewSeries payload =
+viewSeries : Payload -> (String -> Int -> msg) -> Html msg
+viewSeries payload dragStart =
     Html.ul
         []
         <| List.map
-            (\sn -> Html.li [] [Html.text sn] )
+            (\sn -> Html.li [] [Html.p
+                                [ draggable "true"
+                                , onDragStart
+                                    <| dragStart
+                                        sn
+                                        payload.position
+                                ]
+                                [ Html.text sn ]]
+            )
             <| Set.toList payload.series
 
 
@@ -182,13 +202,13 @@ buttonOpen openMsg payload =
         []
 
 
-viewTree: Tree Payload -> (Int -> Bool -> msg) -> Html msg
-viewTree tree openMsg =
+viewTree: Tree Payload -> (Int -> Bool -> msg) -> (String -> Int -> msg) -> Html msg
+viewTree tree openMsg dragStart =
     Html.ul
         []
         [ restructure
             identity
-            ( toListItems openMsg )
+            ( toListItems openMsg dragStart)
             tree
         ]
 

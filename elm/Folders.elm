@@ -38,6 +38,7 @@ type alias Model =
     { baseUrl: String
     , paths: List String
     , tree: Tree Payload
+    , currentDrag: Maybe ( String, Int )
     , errors: List String
     }
 
@@ -46,6 +47,8 @@ type Msg
     = GotPaths ( Result Http.Error String )
     | GotSeries Int String ( Result Http.Error String )
     | Open Int Bool
+    | Drag String Int
+    | Drop
 
 
 update: Msg -> Model -> ( Model, Cmd Msg )
@@ -109,6 +112,12 @@ update msg model =
                             path
 
             )
+        Drag name from ->
+            ( { model | currentDrag = Just (name, from)}
+            , Cmd.none
+            )
+        Drop -> U.nocmd model
+
 
 
 getPaths: String -> Cmd Msg
@@ -141,7 +150,17 @@ view: Model -> Html Msg
 view model =
     div
         [ class "menu-folders" ]
-        [ viewTree model.tree Open ]
+        [ viewTree
+            model.tree
+            Open
+            Drag
+        , div
+            []
+            [text <| case model.currentDrag of
+                        Nothing -> "no-drag"
+                        Just ( name, position) -> name ++ String.fromInt position
+            ]
+        ]
 
 
 
@@ -150,6 +169,7 @@ initModel baseUrl =
     { baseUrl = baseUrl
     , paths = []
     , tree = emptyTree
+    , currentDrag = Nothing
     , errors = []
     }
 
