@@ -39,6 +39,7 @@ type alias Model =
     , paths: List String
     , tree: Tree Payload
     , currentDrag: Maybe ( String, Int )
+    , overDrag: Maybe Int
     , errors: List String
     }
 
@@ -48,7 +49,9 @@ type Msg
     | GotSeries Int String ( Result Http.Error String )
     | Open Int Bool
     | Drag String Int
-    | Drop
+    | DragHover Int
+    | DragStop
+    | Drop Int
 
 
 update: Msg -> Model -> ( Model, Cmd Msg )
@@ -116,7 +119,18 @@ update msg model =
             ( { model | currentDrag = Just (name, from)}
             , Cmd.none
             )
-        Drop -> U.nocmd model
+        DragHover over ->
+             ( { model | overDrag = Just over }
+            , Cmd.none
+            )
+        DragStop ->
+            ( { model | currentDrag = Nothing }
+            , Cmd.none
+            )
+        Drop position ->
+            ( moveSeries model position
+            , Cmd.none
+            )
 
 
 
@@ -146,6 +160,22 @@ getSeries baseUrl idx path =
         }
 
 
+moveSeries: Model -> Int -> Model
+moveSeries model destination =
+    case model.currentDrag of
+        Nothing -> model
+        Just (name, source) ->
+            let newTree =
+                    mutePayload
+                        source
+                        (\ p -> { p | series = Set.remove name p.series } )
+                        <| mutePayload
+                            destination
+                            (\ p -> { p | series = Set.insert name p.series } )
+                            model.tree
+            in { model | tree = newTree }
+
+
 view: Model -> Html Msg
 view model =
     div
@@ -154,12 +184,22 @@ view model =
             model.tree
             Open
             Drag
+            DragHover
+            DragStop
+            Drop
+
         , div
             []
             [text <| case model.currentDrag of
                         Nothing -> "no-drag"
                         Just ( name, position) -> name ++ String.fromInt position
             ]
+        , div [] [text <|  "over : "
+                    ++ (case model.overDrag of
+                            Nothing -> "no-over"
+                            Just over -> String.fromInt over
+                        )
+                  ]
         ]
 
 
@@ -170,6 +210,7 @@ initModel baseUrl =
     , paths = []
     , tree = emptyTree
     , currentDrag = Nothing
+    , overDrag = Nothing
     , errors = []
     }
 
