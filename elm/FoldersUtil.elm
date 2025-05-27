@@ -193,13 +193,15 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
     let open = payload.open
     in
         Html.li
-            [ class "folder"
+            [ class "folder-and-series"
             , attribute "path" payload.path
             , style "z-index" (zHeight payload.path)
             ]
             ([ viewFolder overDrag openMsg dragOver drop payload open
              ]++ if open
-                    then [ Html.ul [] children
+                    then [ Html.ul
+                            [ class "sub-folders-list" ]
+                            children
                          , viewSeries overDrag payload dragStart dragEnd dragOver drop
                          ]
                     else  []
@@ -223,19 +225,22 @@ viewFolder overDrag openMsg dragOver drop payload open =
 viewSeries : Maybe Path-> Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
 viewSeries overDrag payload dragStart dragEnd dragOver drop =
     Html.ul
-        []
+        [ class "series-list"]
         <| List.map
-            (\sn -> Html.li [] [Html.p
-                                [ draggable "true"
-                                , class ( classOver payload overDrag )
-                                , onDragStart
-                                    <| dragStart
-                                        sn
-                                        payload.path
-                                , onDragOver ( dragOver payload.path )
-                                , onDrop ( drop payload.path )
-                                ]
-                                [ Html.text sn ]]
+            (\sn -> Html.li
+                        [ class "series-item" ]
+                        [Html.p
+                            [ class "series-name"
+                            , draggable "true"
+                            , class ( classOver payload overDrag )
+                            , onDragStart
+                                <| dragStart
+                                    sn
+                                    payload.path
+                            , onDragOver ( dragOver payload.path )
+                            , onDrop ( drop payload.path )
+                            ]
+                            [ Html.text sn ]]
             )
             <| Set.toList payload.series
 
@@ -264,7 +269,7 @@ viewTree: Tree Payload -> Maybe Path -> (Path -> Bool -> msg) -> (String -> Path
            -> (Path -> msg) -> Html msg
 viewTree tree overDrag openMsg dragStart dragHover dragStop drop =
     Html.ul
-        []
+        [class "folders-list"]
         [ restructure
             identity
             ( toListItems overDrag openMsg dragStart dragHover dragStop drop )
