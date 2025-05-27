@@ -116,11 +116,15 @@ update msg model =
             , Cmd.none
             )
         DragStop ->
-            ( { model | currentDrag = Nothing }
+            ( { model | currentDrag = Nothing
+                      , overDrag = Nothing
+              }
             , Cmd.none
             )
         Drop position ->
-            ( moveSeries model position
+            ( moveSeries
+                {model | overDrag = Nothing}
+                position
             , Cmd.none
             )
 
@@ -177,6 +181,7 @@ view model =
         [ class "menu-folders" ]
         [ viewTree
             model.tree
+            model.overDrag
             Open
             Drag
             DragHover

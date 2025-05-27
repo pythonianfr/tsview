@@ -464,3 +464,7 @@ label.option {
 
 .menu-folders .folder.open {
 }
+
+.menu-folders .targeted {
+    background: red;
+}

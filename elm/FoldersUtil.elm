@@ -187,9 +187,9 @@ zHeight path =
         <| String.length
             path
 
-toListItems : (Path -> Bool -> msg) ->  (String -> Path -> msg) -> ( Path-> msg)  -> msg -> (Path -> msg)
+toListItems : Maybe Path ->(Path -> Bool -> msg) ->  (String -> Path -> msg) -> ( Path-> msg)  -> msg -> (Path -> msg)
                -> Payload -> List (Html msg) -> Html msg
-toListItems openMsg dragStart dragOver dragEnd drop payload children =
+toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
     let open = payload.open
     in
         Html.li
@@ -197,20 +197,21 @@ toListItems openMsg dragStart dragOver dragEnd drop payload children =
             , attribute "path" payload.path
             , style "z-index" (zHeight payload.path)
             ]
-            ([ viewFolder openMsg dragOver drop payload open
+            ([ viewFolder overDrag openMsg dragOver drop payload open
              ]++ if open
                     then [ Html.ul [] children
-                         , viewSeries payload dragStart dragEnd dragOver drop
+                         , viewSeries overDrag payload dragStart dragEnd dragOver drop
                          ]
                     else  []
             )
 
 
-viewFolder: (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
-viewFolder openMsg dragOver drop payload open =
+viewFolder: Maybe Path -> (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
+viewFolder overDrag openMsg dragOver drop payload open =
    Html.p
     [ class "folder-name"
     , class ( if open then "open" else "not-open" )
+    , class ( classOver payload overDrag )
     , onDragOver (dragOver payload.path)
     , onDrop ( drop payload.path )
     ]
@@ -219,13 +220,14 @@ viewFolder openMsg dragOver drop payload open =
     ]
 
 
-viewSeries : Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
-viewSeries payload dragStart dragEnd dragOver drop =
+viewSeries : Maybe Path-> Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
+viewSeries overDrag payload dragStart dragEnd dragOver drop =
     Html.ul
         []
         <| List.map
             (\sn -> Html.li [] [Html.p
                                 [ draggable "true"
+                                , class ( classOver payload overDrag )
                                 , onDragStart
                                     <| dragStart
                                         sn
@@ -248,14 +250,24 @@ buttonOpen openMsg payload =
         []
 
 
-viewTree: Tree Payload -> (Path -> Bool -> msg) -> (String -> Path -> msg) -> (Path -> msg) ->  msg
+classOver: Payload -> Maybe Path -> String
+classOver payload overDrag =
+    case overDrag of
+        Nothing -> ""
+        Just path ->
+            if payload.path == path
+            then "targeted"
+            else ""
+
+
+viewTree: Tree Payload -> Maybe Path -> (Path -> Bool -> msg) -> (String -> Path -> msg) -> (Path -> msg) ->  msg
            -> (Path -> msg) -> Html msg
-viewTree tree openMsg dragStart dragHover dragStop drop =
+viewTree tree overDrag openMsg dragStart dragHover dragStop drop =
     Html.ul
         []
         [ restructure
             identity
-            ( toListItems openMsg dragStart dragHover dragStop drop )
+            ( toListItems overDrag openMsg dragStart dragHover dragStop drop )
             tree
         ]
 
