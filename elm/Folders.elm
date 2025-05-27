@@ -111,7 +111,8 @@ update msg model =
             , Cmd.none
             )
         DragHover over ->
-             ( { model | overDrag = Just over }
+             ( { model | overDrag = Just over
+             }
             , Cmd.none
             )
         DragStop ->

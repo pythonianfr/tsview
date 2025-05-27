@@ -5,11 +5,13 @@ import Json.Decode as JD
 import Html exposing
     ( Html )
 import Html.Attributes exposing
-    ( checked
+    ( attribute
+    , checked
     , class
     , draggable
     , dropzone
     , type_
+    , style
     )
 import Html.Events as Events
 import Html.Events exposing
@@ -177,6 +179,14 @@ buildTree paths =
         <| buildMTree paths
 
 
+zHeight path =
+ if path == "." ++ "root"
+ then "0"
+ else
+     String.fromInt
+        <| String.length
+            path
+
 toListItems : (Path -> Bool -> msg) ->  (String -> Path -> msg) -> ( Path-> msg)  -> msg -> (Path -> msg)
                -> Payload -> List (Html msg) -> Html msg
 toListItems openMsg dragStart dragOver dragEnd drop payload children =
@@ -184,32 +194,33 @@ toListItems openMsg dragStart dragOver dragEnd drop payload children =
     in
         Html.li
             [ class "folder"
-            , onDragOver (dragOver payload.path)
-            , onDrop ( drop payload.path )
+            , attribute "path" payload.path
+            , style "z-index" (zHeight payload.path)
             ]
-            ([ viewFolder openMsg payload open
+            ([ viewFolder openMsg dragOver drop payload open
              ]++ if open
                     then [ Html.ul [] children
-                         , viewSeries payload dragStart dragEnd
+                         , viewSeries payload dragStart dragEnd dragOver drop
                          ]
                     else  []
             )
 
 
-viewFolder: (Path -> Bool -> msg) -> Payload -> Bool -> Html msg
-viewFolder openMsg  payload open =
+viewFolder: (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
+viewFolder openMsg dragOver drop payload open =
    Html.p
     [ class "folder-name"
     , class ( if open then "open" else "not-open" )
-
+    , onDragOver (dragOver payload.path)
+    , onDrop ( drop payload.path )
     ]
     [ buttonOpen openMsg payload
     , Html.text payload.name
     ]
 
 
-viewSeries : Payload -> (String -> Path -> msg) ->  msg -> Html msg
-viewSeries payload dragStart dragEnd =
+viewSeries : Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
+viewSeries payload dragStart dragEnd dragOver drop =
     Html.ul
         []
         <| List.map
@@ -219,7 +230,8 @@ viewSeries payload dragStart dragEnd =
                                     <| dragStart
                                         sn
                                         payload.path
-                                , onDragEnd dragEnd
+                                , onDragOver ( dragOver payload.path )
+                                , onDrop ( drop payload.path )
                                 ]
                                 [ Html.text sn ]]
             )
