@@ -17,6 +17,7 @@ import Html.Events as Events
 import Html.Events exposing
     ( on
     , onCheck
+    , onClick
     )
 import Set exposing (Set)
 import Tree
@@ -214,6 +215,7 @@ viewFolder overDrag openMsg dragOver drop payload open =
     [ class "folder-name"
     , class ( if open then "open" else "not-open" )
     , class ( classOver payload overDrag )
+    , onClick ( openMsg payload.path True )
     , onDragOver (dragOver payload.path)
     , onDrop ( drop payload.path )
     ]
@@ -249,6 +251,7 @@ buttonOpen: (Path -> Bool -> msg) -> Payload -> Html msg
 buttonOpen openMsg payload =
     Html.input
         [ onCheck (openMsg payload.path)
+        , class "folder-opener"
         , type_ "checkbox"
         , checked payload.open
         ]

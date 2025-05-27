@@ -481,15 +481,29 @@ label.option {
 
 }
 
+.menu-folders .folder-opener {
+    cursor: pointer;
+}
+
 .menu-folders .series-name {
     margin: 0px;
-    cursor: move;
+    cursor: grab;
 }
 
 .menu-folders .folder-name {
     user-select: none;
     margin: 0px;
 }
+
+.menu-folders .folder-name.not-open {
+    cursor: pointer;
+}
+
+
+.menu-folders .folder-name.not-open:hover {
+    box-shadow: 2px 2px 5px #A9A9A9	;
+}
+
 
 .menu-folders ul.sub-folders-list {
     list-style-type: none;
