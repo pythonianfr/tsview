@@ -468,3 +468,35 @@ label.option {
 .menu-folders .targeted {
     background: red;
 }
+
+
+.menu-folders .sub-folders-list {
+    padding-left: 10px;
+}
+
+.menu-folders .series-list {
+    border-left: solid;
+    padding-left: 3px;
+    margin-left: 5px;
+
+}
+
+.menu-folders .series-name {
+    margin: 0px;
+    cursor: move;
+}
+
+.menu-folders .folder-name {
+    user-select: none;
+    margin: 0px;
+}
+
+.menu-folders ul.sub-folders-list {
+    list-style-type: none;
+}
+
+
+.menu-folders ul.series-list {
+    list-style-type: none;
+}
+
