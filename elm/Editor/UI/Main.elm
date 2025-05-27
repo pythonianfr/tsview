@@ -421,12 +421,13 @@ view : Model -> Html Msg
 view model =
     let
         (endpoint, linkname) = case model.returnType of
-            Series -> ("tsformula-group", "go to Group")
-            Group -> ("tsformula", "go to Series")
+            Series -> ( "tsformula-group", "group editor" )
+            Group -> ( "tsformula", "series editor" )
 
         editor_link =
             H.a
-                [ HA.href (UB.crossOrigin model.urlPrefix [endpoint] []) ]
+                [ HA.href (UB.crossOrigin model.urlPrefix [endpoint] [])
+                , HA.style "margin-left" "0.7em"]
                 [ H.text linkname ]
 
         page_title = case model.returnType of
@@ -435,16 +436,16 @@ view model =
     in
         H.div
             [ HA.class "main-content formula_editor" ] <|
-            [ H.span
-              [ HA.style "float" "right"
-              , HA.style "margin-right" "0.5em"]
-              [ editor_link ]
-            , H.div
+            [ H.div
                 [ HA.class "d-flex" ]
                 [ H.h1
                     [ HA.class "mr-auto p-2 page-title" ]
                     [ H.text page_title ]
-                , H.div [ HA.class "p-2" ] [ viewInfo model ]
+                , H.div
+                    [ HA.class "p-2" ]
+                    [ viewInfo model
+                    , editor_link
+                    ]
                 ]
             , H.div
                 [ HA.class "d-flex" ]
