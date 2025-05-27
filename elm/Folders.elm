@@ -157,6 +157,9 @@ moveSeries model destination =
     case model.currentDrag of
         Nothing -> model
         Just (name, source) ->
+            if source == destination
+            then model
+            else
             let newTree =
                     mutePayload
                         source
