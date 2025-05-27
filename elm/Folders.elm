@@ -34,6 +34,7 @@ import Util as U
 
 type alias Model =
     { baseUrl: String
+    , treeAttribute: Maybe String
     , paths: List String
     , tree: Tree Payload
     , currentDrag: Maybe ( String, Path )
@@ -44,6 +45,7 @@ type alias Model =
 
 type Msg
     = GotPaths ( Result Http.Error String )
+    | GotTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
     | Open Path Bool
     | Drag String Path
@@ -73,6 +75,17 @@ update msg model =
                                                ++ [JD.errorToString err]
                             }
         GotPaths ( Err err ) ->
+            U.nocmd model
+
+        GotTreeAttribute (Ok raw) ->
+            case JD.decodeString JD.string raw of
+                ( Ok treeAttribute ) ->
+                    U.nocmd { model | treeAttribute = Just treeAttribute }
+                ( Err err ) ->
+                    U.nocmd { model | errors = model.errors
+                                               ++ [JD.errorToString err]
+                            }
+        GotTreeAttribute ( Err err ) ->
             U.nocmd model
 
         GotSeries path (Ok raw) ->
@@ -142,6 +155,17 @@ getPaths baseUrl =
         }
 
 
+getTreeAttribute: String -> Cmd Msg
+getTreeAttribute baseUrl =
+    Http.get
+        { url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "tree-attribute"]
+                [ ]
+        , expect =  Http.expectString GotTreeAttribute
+        }
+
 getSeries: String -> String -> Cmd Msg
 getSeries baseUrl path =
     Http.get
@@ -177,36 +201,40 @@ moveSeries model destination =
 
 view: Model -> Html Msg
 view model =
-    div
-        [ class "menu-folders" ]
-        [ viewTree
-            model.tree
-            model.overDrag
-            Open
-            Drag
-            DragHover
-            DragStop
-            Drop
+    case model.treeAttribute of
+        Nothing -> div [] [text "No tree attribute defined"]
+        Just _ ->
+            div
+                [ class "menu-folders" ]
+                [ viewTree
+                    model.tree
+                    model.overDrag
+                    Open
+                    Drag
+                    DragHover
+                    DragStop
+                    Drop
 
-        , div
-            []
-            [text <| case model.currentDrag of
-                        Nothing -> "no-drag"
-                        Just ( name, path) -> name ++ path
-            ]
-        , div [] [text <|  "over : "
-                    ++ (case model.overDrag of
-                            Nothing -> "no-over"
-                            Just over -> over
-                        )
-                  ]
-        ]
+                , div
+                    []
+                    [text <| case model.currentDrag of
+                                Nothing -> "no-drag"
+                                Just ( name, path) -> name ++ path
+                    ]
+                , div [] [text <|  "over : "
+                            ++ (case model.overDrag of
+                                    Nothing -> "no-over"
+                                    Just over -> over
+                                )
+                          ]
+                ]
 
 
 
 initModel: String -> Model
 initModel baseUrl =
     { baseUrl = baseUrl
+    , treeAttribute = Nothing
     , paths = []
     , tree = emptyTree
     , currentDrag = Nothing
@@ -224,7 +252,9 @@ type alias Input =
 init: Input -> ( Model, ( Cmd Msg ))
 init input =
     ( initModel input.baseurl
-    , getPaths input.baseurl
+    , Cmd.batch [ getPaths input.baseurl
+                , getTreeAttribute input.baseurl
+                ]
    )
 
 main = Browser.element
