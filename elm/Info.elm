@@ -326,6 +326,7 @@ tzawareseries model =
 
 type alias PartialModel a =
     { a | name: String
+        , canwrite: Bool 
         , horizon: HorizonModel
         , baseurl: String
         , meta: Dict String M.MetaVal
@@ -339,7 +340,7 @@ viewactionwidgets model datatype convertmsg permalink editor pagetitle bounds =
         editorlabel =
             case datatype of
                 SeriesType Primary ->
-                    if editor then "edit values" else "view values"
+                    if editor && model.canwrite then "edit values" else "view values"
                 SeriesType Formula ->
                     "show values"
                 _ ->

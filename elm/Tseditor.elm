@@ -139,8 +139,9 @@ naiveTag = "Naive"
 type alias Model =
     { baseurl : String
     , name : String
-    , basket: String
-    , mode: EditionMode
+    , canwrite : Bool
+    , basket : String
+    , mode : EditionMode
     , meta : M.Metadata
     , exist: Bool
     , source : String
@@ -4981,6 +4982,7 @@ init input =
      ({ baseurl = input.baseurl
                     , errors = [ ]
                     , name = input.name
+                    , canwrite = True
                     , basket = input.basket
                     , mode = if input.name /= ""
                                 then Existing I.Primary
