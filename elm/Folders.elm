@@ -2,6 +2,7 @@ module Folders exposing (main)
 
 import Browser
 import Json.Decode as JD
+import Json.Encode as JE
 import Html exposing
     ( Html
     , Attribute
@@ -47,6 +48,7 @@ type Msg
     = GotPaths ( Result Http.Error String )
     | GotTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
+    | GotUpdatePath Path Path ( Result Http.Error String )
     | Open Path Bool
     | Drag String Path
     | DragHover Path
@@ -105,6 +107,13 @@ update msg model =
 
         GotSeries path  ( Err err ) ->
             U.nocmd model
+
+        GotUpdatePath source destination (Ok _) ->
+            U.nocmd model
+
+        GotUpdatePath source destination (Err _ ) ->
+            U.nocmd model
+
         Open path open ->
             ( { model | tree = mutePayload
                                 path
@@ -138,7 +147,11 @@ update msg model =
             ( moveSeries
                 {model | overDrag = Nothing}
                 position
-            , Cmd.none
+            , updatePath
+                model.baseUrl
+                model.treeAttribute
+                model.currentDrag
+                position
             )
 
 
@@ -165,6 +178,42 @@ getTreeAttribute baseUrl =
                 [ ]
         , expect =  Http.expectString GotTreeAttribute
         }
+
+
+updatePath: String -> Maybe String -> Maybe (String, Path) -> Path -> Cmd Msg
+updatePath baseUrl treeAttribute currentDrag destination =
+    case currentDrag of
+        Nothing -> Cmd.none
+        Just (name, source) ->
+            case treeAttribute of
+                Nothing -> Cmd.none
+                Just treeA ->
+                    -- the metadata dict must be send as string
+                    let newMetadata
+                            = JE.string
+                                <| JE.encode 0 -- value to string
+                                    <| JE.object
+                                        [( treeA, JE.string destination )]
+                    in
+                    Http.request
+                        { method = "PATCH"
+                        , url =
+                            UB.crossOrigin
+                                baseUrl
+                                ["api", "series", "metadata"]
+                                []
+                        , body = Http.jsonBody
+                                    <| JE.object
+                                        [( "name", JE.string name )
+                                        ,( "metadata", newMetadata)
+                                        ]
+                        , expect = Http.expectString
+                                    ( GotUpdatePath source destination )
+                        , headers = [ ]
+                        , tracker = Nothing
+                        , timeout = Nothing
+                        }
+
 
 getSeries: String -> String -> Cmd Msg
 getSeries baseUrl path =
