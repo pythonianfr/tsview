@@ -102,7 +102,7 @@ type Position
 getwriteperms urlprefix event =
     Http.get
         { expect = Http.expectString event
-        , url = UB.crossOrigin urlprefix [ "tsinfo", "canwrite" ] [ ]
+        , url = UB.crossOrigin urlprefix [ "canwrite" ] [ ]
         }
 
 

@@ -637,7 +637,7 @@ def tsview(tsa):
             title=title,
         )
 
-    @bp.route('/tsinfo/canwrite')
+    @bp.route('/canwrite')
     def canwrite():
         return json.dumps(
             has_roles('admin', 'rw')
