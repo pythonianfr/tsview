@@ -12,6 +12,7 @@ import Html.Attributes exposing
     , dropzone
     , type_
     , style
+    , value
     )
 import Html.Events as Events
 import Html.Events exposing
@@ -211,17 +212,39 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
 
 viewFolder: Maybe Path -> (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
 viewFolder overDrag openMsg dragOver drop payload open =
-   Html.p
-    [ class "folder-name"
-    , class ( if open then "open" else "not-open" )
-    , class ( classOver payload overDrag )
-    , onClick ( openMsg payload.path True )
-    , onDragOver (dragOver payload.path)
-    , onDrop ( drop payload.path )
-    ]
-    [ buttonOpen openMsg payload
-    , Html.text payload.name
-    ]
+    Html.div
+        ([ class "folder-row"
+        , class ( if open then "open" else "not-open" )
+        , class ( classOver payload overDrag )
+        , onDragOver (dragOver payload.path)
+        , onDrop ( drop payload.path )
+        ] ++ ( if not open
+                then  [ onClick ( openMsg payload.path True ) ]
+                else []
+             )
+        )
+        [ buttonOpen openMsg payload
+        , Html.p
+            [ class "folder-name"
+            ]
+            [ Html.text payload.name
+            ]
+        ]
+
+
+buttonOpen: (Path -> Bool -> msg) -> Payload -> Html msg
+buttonOpen openMsg payload =
+    Html.button
+        [ onClick (openMsg payload.path (not payload.open))
+        , class "button-switch"
+        , class <| if payload.open
+                    then "closer"
+                    else "opener"
+        ]
+        [ Html.text <| if payload.open
+                        then "-"
+                        else "+"
+        ]
 
 
 viewSeries : Maybe Path-> Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
@@ -245,17 +268,6 @@ viewSeries overDrag payload dragStart dragEnd dragOver drop =
                             [ Html.text sn ]]
             )
             <| Set.toList payload.series
-
-
-buttonOpen: (Path -> Bool -> msg) -> Payload -> Html msg
-buttonOpen openMsg payload =
-    Html.input
-        [ onCheck (openMsg payload.path)
-        , class "folder-opener"
-        , type_ "checkbox"
-        , checked payload.open
-        ]
-        []
 
 
 classOver: Payload -> Maybe Path -> String

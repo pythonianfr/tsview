@@ -500,7 +500,7 @@ label.option {
 }
 
 
-.menu-folders .folder-name.not-open:hover {
+.menu-folders .folder-row.not-open:hover {
     box-shadow: 2px 2px 5px #A9A9A9	;
 }
 
@@ -512,5 +512,17 @@ label.option {
 
 .menu-folders ul.series-list {
     list-style-type: none;
+}
+
+.menu-folders .folder-name{
+    display: inline;
+}
+
+.menu-folders .button-switch {
+    background-color: white;
+    width: 3ch;
+    height: 3ch;
+    padding: 0;
+    border: 0;
 }
 
