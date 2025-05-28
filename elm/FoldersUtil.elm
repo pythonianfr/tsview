@@ -196,15 +196,15 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
     in
         Html.li
             [ class "folder-and-series"
-            , attribute "path" payload.path
+            , attribute "data-path" payload.path
             , style "z-index" (zHeight payload.path)
             ]
             ([ viewFolder overDrag openMsg dragOver drop payload open
              ]++ if open
-                    then [ Html.ul
+                    then [ viewSeries overDrag payload dragStart dragEnd dragOver drop
+                          , Html.ul
                             [ class "sub-folders-list" ]
                             children
-                         , viewSeries overDrag payload dragStart dragEnd dragOver drop
                          ]
                     else  []
             )
@@ -213,19 +213,16 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
 viewFolder: Maybe Path -> (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
 viewFolder overDrag openMsg dragOver drop payload open =
     Html.div
-        ([ class "folder-row"
+        [ class "folder-row"
         , class ( if open then "open" else "not-open" )
         , class ( classOver payload overDrag )
         , onDragOver (dragOver payload.path)
         , onDrop ( drop payload.path )
-        ] ++ ( if not open
-                then  [ onClick ( openMsg payload.path True ) ]
-                else []
-             )
-        )
+        ]
         [ buttonOpen openMsg payload
         , Html.p
             [ class "folder-name"
+            , onClick ( openMsg payload.path ( not open ) )
             ]
             [ Html.text payload.name
             ]

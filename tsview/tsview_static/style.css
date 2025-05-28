@@ -466,7 +466,7 @@ label.option {
 }
 
 .menu-folders .targeted {
-    background: red;
+    background: lightgrey;
 }
 
 
@@ -477,7 +477,7 @@ label.option {
 .menu-folders .series-list {
     border-left: solid;
     padding-left: 3px;
-    margin-left: 5px;
+    margin-left: 20px;
 
 }
 
@@ -500,7 +500,7 @@ label.option {
 }
 
 
-.menu-folders .folder-row.not-open:hover {
+.menu-folders .folder-name:hover {
     box-shadow: 2px 2px 5px #A9A9A9	;
 }
 
@@ -516,9 +516,11 @@ label.option {
 
 .menu-folders .folder-name{
     display: inline;
+    cursor:pointer;
 }
 
 .menu-folders .button-switch {
+    cursor:pointer;
     background-color: white;
     width: 3ch;
     height: 3ch;
