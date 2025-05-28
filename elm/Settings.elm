@@ -46,10 +46,13 @@ import Http exposing (
     Expect,
     Metadata,
     Response)
+import Info as I
+import Util as U
 import Url.Builder as UB
 
 type alias Model =
     { baseUrl: String
+    , canwrite: Bool
     , tab : Tab
     , isPro : Bool
     , horizonModel: HorizonModel
@@ -119,6 +122,7 @@ type Action =
 initModel: String -> Model
 initModel baseUrl =
    { baseUrl = baseUrl
+   , canwrite = False
    , tab = HorizonTab
    , isPro = False
    , horizonModel = emptyHorizonModel
@@ -240,8 +244,9 @@ usersDecoder =
                     ( JD.list JD.string )
 
 
-type Msg =
-    GotPro ( Result Http.Error String )
+type Msg
+    = GotPro ( Result Http.Error String )
+    | GotPermissions ( Result Http.Error String )
     | ChangeTab Tab
     | Horizons HorizonMsg
     | Users UserMsg
@@ -380,6 +385,16 @@ update msg model =
                          )
         GotPro (Err _) -> ( { model | isPro = False }, Cmd.none )
 
+
+        GotPermissions (Ok rawcanwrite) ->
+            case JD.decodeString JD.bool rawcanwrite of
+                Ok canwrite ->
+                    U.nocmd { model | canwrite = canwrite }
+                Err err -> U.nocmd model
+
+        GotPermissions (Err err) ->
+            U.nocmd model
+            
         ChangeTab tab ->( { model | tab = tab }, Cmd.none )
 
         Horizons hMsg -> let ( hModel, cmd ) = updateHorizons
@@ -981,15 +996,15 @@ getPro baseUrl =
         }
 
 init: String -> ( Model, ( Cmd Msg ))
-init baseUrl =
-    let newModel = initModel baseUrl
+init baseurl =
+    let newModel = initModel baseurl
     in
     ( newModel
-    , Cmd.batch [ getHorirzons
-                    baseUrl
-                    newModel.horizonModel
-                , getPro baseUrl
-                ]
+    , Cmd.batch
+        [ getHorirzons baseurl newModel.horizonModel
+        , getPro baseurl
+        , I.getwriteperms baseurl GotPermissions
+        ]
     )
 
 
