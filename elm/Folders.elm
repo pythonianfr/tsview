@@ -16,6 +16,7 @@ import Html.Attributes exposing
     ( class )
 import Http
 import Set exposing (Set)
+import Task
 import Tree exposing
     ( Tree
     , tree
@@ -109,7 +110,12 @@ update msg model =
             U.nocmd model
 
         GotUpdatePath source destination (Ok _) ->
-            U.nocmd model
+            ( model
+            , Cmd.batch [ Task.perform identity ( Task.succeed ( Open source True ))
+                        , Task.perform identity ( Task.succeed ( Open destination True ))
+                        ]
+            )
+
 
         GotUpdatePath source destination (Err _ ) ->
             U.nocmd model
@@ -145,7 +151,7 @@ update msg model =
             )
         Drop position ->
             ( moveSeries
-                {model | overDrag = Nothing}
+                { model | overDrag = Nothing }
                 position
             , updatePath
                 model.baseUrl
