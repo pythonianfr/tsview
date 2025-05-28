@@ -48,6 +48,7 @@ import Http exposing
     , Response
     )
 import Info as I
+import Url.Builder as UB
 import Util as U
 import Url.Builder as UB
 
@@ -270,7 +271,7 @@ type UserMsg
 getHorirzons: String -> HorizonModel -> Cmd Msg
 getHorirzons baseUrl model =
     Http.get
-        { url = baseUrl ++ "list-horizons"
+        { url = UB.crossOrigin baseUrl [ "list-horizons" ] [ ]
         , expect = Http.expectJson
                    (\r -> (Horizons ( GotHorizons r )))
                    catalogDecoder
@@ -280,7 +281,7 @@ getHorirzons baseUrl model =
 getUsers: String -> Cmd Msg
 getUsers baseUrl =
     Http.get
-        { url = baseUrl ++ "api/permissions/user_roles"
+        { url = UB.crossOrigin baseUrl [ "api", "permissions", "user_roles" ] [ ]
         , expect = Http.expectJson ( \ m -> Users ( GotUsers m )) usersDecoder
         }
 
@@ -960,9 +961,10 @@ view model =
 getPro: String -> Cmd Msg
 getPro baseUrl =
     Http.get
-        { url = baseUrl ++ "ispro"
+        { url = UB.crossOrigin baseUrl [ "ispro" ] [ ]
         , expect = Http.expectString GotPro
         }
+
 
 init: String -> ( Model, ( Cmd Msg ))
 init baseurl =
