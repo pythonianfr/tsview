@@ -642,15 +642,14 @@ mutateRecord name record value =
                     else record
 
 
-viewHorizonRows: HorizonModel -> List ( Html Msg )
-viewHorizonRows model =
+viewHorizonRows: HorizonModel -> Bool -> List ( Html Msg )
+viewHorizonRows model canwrite =
     List.indexedMap
-        viewRow
-        ( Array.toList model.horizons )
+        ( viewRow canwrite ) ( Array.toList model.horizons )
 
 
-viewRow: Int -> Record -> Html Msg
-viewRow index record =
+viewRow: Bool -> Int -> Record -> Html Msg
+viewRow canwrite index record =
     tr
         [ ]
         [ td
@@ -680,17 +679,21 @@ viewRow index record =
                 ]
                 []
             ]
-        , td
-            []
-            [ button
-                [onClick ( Horizons (Up index))]
-                [text "↑"]
-            , button
-                [onClick ( Horizons (Down index))]
-                [text "↓"]
-            , button
-                [onClick ( Horizons (Remove index))]
-                [text "❌"]]
+        , case canwrite of
+              True ->
+                  td [ ]
+                      [ button
+                            [ onClick ( Horizons ( Up index ) ) ]
+                            [ text "↑"]
+                      , button
+                            [ onClick ( Horizons ( Down index ) ) ]
+                            [ text "↓"]
+                      , button
+                            [ onClick ( Horizons ( Remove index ) ) ]
+                            [ text "❌"]
+                      ]
+              _ ->
+                  span [ ] [ ]
         ]
 
 viewHeader: Html Msg
@@ -849,8 +852,8 @@ renderRole selectedRole role =
         [ text role ]
 
 
-viewHorizons: HorizonModel -> Html Msg
-viewHorizons model =
+viewHorizons: HorizonModel -> Bool -> Html Msg
+viewHorizons model canwrite =
     div
         [ class "horizons"
         , class "sub-settings"
@@ -858,18 +861,25 @@ viewHorizons model =
         [ table
             [ class "table" ]
             ( [ viewHeader ]
-            ++ ( viewHorizonRows model )
-            ++ [ tableFooter ] )
+                  ++ ( viewHorizonRows model canwrite )
+                  ++ [ if canwrite then tableFooter else span [ ] [ ] ]
+            )
         , br [] []
         , div
             []
-            [ button
-                [ class "btn btn-success update"
-                , onClick ( Horizons Save ) ]
-                [ text "Update definitions" ]
+            [ case canwrite of
+                  True ->
+                      button
+                      [ class "btn btn-success update"
+                      , onClick ( Horizons Save )
+                      ]
+                      [ text "Update definitions" ]
+                  _ ->
+                      span [ ] [ ]
+                  
             ]
         , div
-            []
+            [ ]
             [ text model.message ]
         ]
 
@@ -959,7 +969,7 @@ view model =
         [ text "Settings" ]
     , tabSelector model
     , case model.tab of
-        HorizonTab -> viewHorizons model.horizonModel
+        HorizonTab -> viewHorizons model.horizonModel model.canwrite
         UserTab -> viewUsers model.userModel model.isPro model.canwrite
     ]
 
