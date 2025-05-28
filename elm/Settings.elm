@@ -6,8 +6,8 @@ import Dict exposing (Dict)
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Html exposing (
-    Html
+import Html exposing
+    ( Html
     , div
     , br
     , h1
@@ -23,12 +23,14 @@ import Html exposing (
     , li
     , input
     , p
+    , span
     , select
     , button
     , br
-    , text)
-import Html.Attributes exposing (
-    attribute
+    , text
+    )
+import Html.Attributes exposing
+    ( attribute
     , class
     , href
     , selected
@@ -720,17 +722,18 @@ tableFooter =
             ]
         ]
 
-rowUser: List String -> ( String,  User ) -> Html Msg
-rowUser choices ( name, user) =
+userrow: Bool -> List String -> ( String,  User ) -> Html Msg
+userrow canwrite choices ( name, user) =
     let
         visible =
-            if isEdited name user
-            then ""
-            else "invisible"
+            case isEdited name user of
+                True -> ""
+                _ -> "invisible"
+
         newClass =
-            if user.new
-            then ""
-            else "invisible"
+            case user.new of
+            True -> ""
+            _ -> "invisible"
     in
     tr
         []
@@ -747,7 +750,7 @@ rowUser choices ( name, user) =
             ]
         , td
             []
-             [ dropDownRole choices user.new name
+             [ dropDownRole canwrite choices user.new name
                    <| Maybe.withDefault user.role user.editedRole
              ]
          , td
@@ -816,8 +819,8 @@ isEdited name user =
             Nothing -> False
 
 
-dropDownRole: List String -> Bool -> String ->  String -> Html Msg
-dropDownRole choices new name role  =
+dropDownRole: Bool -> List String -> Bool -> String ->  String -> Html Msg
+dropDownRole canwrite choices new name role  =
     let
         decodeRole: String -> JD.Decoder Msg
         decodeRole r =
@@ -827,9 +830,14 @@ dropDownRole choices new name role  =
             then "" :: choices
             else choices
     in
-    select
-        [ on "change" (JD.andThen decodeRole targetValue )]
-        ( List.map (renderRole role) moreChoices )
+    case canwrite of
+        True ->
+            select
+            [ on "change" (JD.andThen decodeRole targetValue )]
+            ( List.map (renderRole role) moreChoices )
+        _ ->
+            text role
+            
 
 
 renderRole : String -> String -> Html msg
@@ -867,21 +875,8 @@ viewHorizons model =
 
 
 
-headerUsers : Html Msg
-headerUsers =
-    thead
-        []
-        [ tr
-            []
-            [ th [] [ text "Email" ]
-            , th [] [ text "Role" ]
-            , th [] []
-            ]
-        ]
-
-
-viewUsers: UserModel -> Bool -> Html Msg
-viewUsers model isPro =
+viewUsers: UserModel -> Bool -> Bool -> Html Msg
+viewUsers model isPro canwrite =
     if not isPro
     then div [] [ text "Only available on the pro version"
                 , br [] []
@@ -891,34 +886,45 @@ viewUsers model isPro =
                     [ text "our site"]
                 ]
     else
-    div
-        [ class "users"
-        , class "sub-settings"
-        ]
-        [ table
-            [ class "table" ]
-            ([ headerUsers
-             ] ++ ( List.map
-                    ( rowUser model.roleChoices )
-                    <| Dict.toList
-                        <|Dict.filter
-                            (\ _ u -> not u.new )
-                            model.users
-                  )
-             ++ ( List.map
-                    ( rowUser model.roleChoices )
-                    <| Dict.toList
-                        <|Dict.filter
-                            (\ _ u -> u.new )
-                            model.users
-                 )
-               ++ ( lastRow model )
-             )
-        ,  button
-            [ class "btn btn-success update"
-            , onClick ( Users CreateUser ) ]
-            [ text "Create New User" ]
-        ]
+        let
+            headerUsers =
+                thead [ ]
+                    [ tr
+                      [ ]
+                      [ th [] [ text "Email" ]
+                      , th [] [ text "Role" ]
+                      , th [] []
+                      ]
+                    ]
+
+        in
+        div [ class "users"
+            , class "sub-settings"
+            ]
+            [ table
+              [ class "table" ]
+            ([ headerUsers ] ++
+                 ( List.map
+                       ( userrow canwrite model.roleChoices )
+                       <| Dict.toList
+                       <| Dict.filter (\ _ u -> not u.new ) model.users
+                 ) ++
+                 ( List.map
+                       ( userrow canwrite model.roleChoices )
+                       <| Dict.toList
+                       <| Dict.filter (\ _ u -> u.new ) model.users
+                 ) ++
+                 ( lastRow model )
+            )
+            , if canwrite then
+                  button
+                  [ class "btn btn-success update"
+                  , onClick ( Users CreateUser )
+                  ]
+                  [ text "Create New User" ]
+              else
+                  span [ ] [ ]
+            ]
 
 
 tabSelector: Model -> Html Msg
@@ -947,14 +953,14 @@ tabSelector model =
 view: Model -> Html Msg
 view model =
    div
-    [ class "settings"]
+    [ class "settings" ]
     [ h1
         [ class "page-title" ]
         [ text "Settings" ]
     , tabSelector model
     , case model.tab of
         HorizonTab -> viewHorizons model.horizonModel
-        UserTab -> viewUsers model.userModel model.isPro
+        UserTab -> viewUsers model.userModel model.isPro model.canwrite
     ]
 
 
