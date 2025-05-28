@@ -249,16 +249,23 @@ type ScalarType f s
     = MFloat f
     | MString s
 
-type alias SeriesNaked = Dict String ( ScalarType (Maybe Float) (Maybe String) )
+type alias SeriesNaked = Dict String ( ScalarType ( Maybe Float ) ( Maybe String ) )
 type alias SeriesToEdit = Dict String Entry
 
-type Series =
-    Naked { initialTs: SeriesNaked, zoomTs: Maybe SeriesNaked }
-    | ToEdit { initialTs: SeriesToEdit, zoomTs: Maybe SeriesToEdit }
+type Series
+    = Naked { initialTs: SeriesNaked
+            , zoomTs: Maybe SeriesNaked
+            }
+    | ToEdit { initialTs: SeriesToEdit
+             , zoomTs: Maybe SeriesToEdit
+             }
 
 
 emptySeries: Series
-emptySeries = Naked { initialTs = Dict.empty, zoomTs = Nothing }
+emptySeries =
+    Naked { initialTs = Dict.empty
+          , zoomTs = Nothing
+          }
 
 
 type alias Box =
@@ -292,8 +299,8 @@ type CreationOptions
     | Preview PreviewType
 
 
-type Visibility =
-    Nope
+type Visibility
+    = Nope
     | Single Int
     | All
 
@@ -482,7 +489,7 @@ filterEntry coordData =
 
 type alias Entry =
     { raw : Maybe String
-    , value : ( ScalarType (Maybe Float) (Maybe String) )
+    , value : ( ScalarType ( Maybe Float ) ( Maybe String ) )
     , edition : Edited
     , editable: Bool
     , override : Bool
@@ -507,14 +514,14 @@ baseToEntry base =
 baseToEntryString: BaseSupervisionString -> Entry
 baseToEntryString base =
      { raw = base.value
-    , value = MString base.value
-    , edition = NoEdition
-    , editable = True
-    , override = base.override
-    , indexRow = ""
-    , indexCol = ""
-    , fromBatch = False
-    }
+     , value = MString base.value
+     , edition = NoEdition
+     , editable = True
+     , override = base.override
+     , indexRow = ""
+     , indexCol = ""
+     , fromBatch = False
+     }
 
 mapToFloat : SeriesNaked -> Dict String ( Maybe Float )
 mapToFloat =
@@ -583,9 +590,7 @@ dressSeries series name =
                    , edition = asEdited v
                    , editable = True
                    , raw = case v of
-                            MFloat mf -> Maybe.map
-                                           String.fromFloat
-                                           mf
+                            MFloat mf -> Maybe.map String.fromFloat mf
                             MString ms -> ms
                    , indexCol = name
                    , indexRow = k
@@ -622,14 +627,13 @@ likeComp model =
         BasketMode ->
             []
         _ ->
-             [ Component
-                model.name
-                ( asCType model.seriestype )
-                model.series
-                ( isTzaware model.meta )
-                CompLoaded
+            [ Component
+                  model.name
+                  ( asCType model.seriestype )
+                  model.series
+                  ( isTzaware model.meta )
+                  CompLoaded
             ]
-
 
 
 type Edited
@@ -653,6 +657,7 @@ type CompStatus
     = CompEmpty
     | CompLoaded
     | CompError
+
 
 type alias BasketItem =
     { name : String
@@ -748,11 +753,12 @@ separatorReturn raw =
 parsePasted : String -> Bool -> List ( List String )
 parsePasted raw isString =
     let
-        removedSpace = if isString
-                        then
-                            raw
-                        else
-                            String.replace " " "" raw
+        removedSpace =
+            if isString
+            then
+                raw
+            else
+                String.replace " " "" raw
         sepR =
             separatorReturn raw
     in
@@ -772,12 +778,9 @@ getPos s =
         [] -> ( 0, 0 )
         [ e ] -> ( 0, 0 )
         [ e, i ] -> ( 0, 0 )
-        [ e, i, j ] -> ( Maybe.withDefault
-                            0
-                            ( String.toInt i ),
-                         Maybe.withDefault
-                            0
-                            ( String.toInt j ))
+        [ e, i, j ] -> ( Maybe.withDefault 0 ( String.toInt i )
+                       , Maybe.withDefault 0 ( String.toInt j )
+                       )
         _ -> ( 0, 0 )
 
 
@@ -843,19 +846,19 @@ decodeValues raw =
 
 componentsDecoder: JD.Decoder (List Component)
 componentsDecoder =
-    JD.list (JD.map5 Component
-                 ( JD.field "name" JD.string )
-                 ( JD.map applyType ( JD.field "type" JD.string ))
-                 ( JD.succeed emptySeries )
-                 ( JD.field "tzaware" JD.bool )
-                 ( JD.succeed CompEmpty )
-            )
+    JD.list <|
+        JD.map5 Component
+            ( JD.field "name" JD.string )
+            ( JD.map applyType ( JD.field "type" JD.string ))
+            ( JD.succeed emptySeries )
+            ( JD.field "tzaware" JD.bool )
+            ( JD.succeed CompEmpty )
 
 
 localDecoder : JD.Decoder LocalStorage
 localDecoder =
-    JD.map LocalStorage
-        (JD.field "round" (JD.nullable JD.string))
+    JD.map LocalStorage <|
+        JD.field "round" ( JD.nullable JD.string )
 
 
 onlyNames: Dict String ( List ( List String )) -> List String
@@ -864,7 +867,7 @@ onlyNames catalog =
         (\ l -> Maybe.withDefault "" ( List.head l ))
         <| Maybe.withDefault
             []
-            ( List.head ( Dict.values catalog ))
+            ( List.head ( Dict.values catalog ) )
 
 
 catalogDecoder : JD.Decoder ( List String )
@@ -886,14 +889,16 @@ getPoints: Model -> Cmd Msg
 getPoints model =
     case model.mode of
         Existing I.Primary -> getSeries model GotEditData "supervision" GET model.name
-        Existing I.Formula ->  getSeries model GotValueData "state" GET model.name
+        Existing I.Formula -> getSeries model GotValueData "state" GET model.name
         Creation _ -> Cmd.none
         BasketMode -> Cmd.none
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
 getSeries model callback apipoint method name =
-    let ( start, end ) = getFetchBounds model.horizon
+    let
+        ( start, end ) =
+            getFetchBounds model.horizon
     in
     getOrPostData
         method
@@ -981,7 +986,8 @@ getRelevantComponent model expand component  =
 
 printFreq: FreqType -> String
 printFreq freq =
-    let offset = freq.offset
+    let
+        offset = freq.offset
     in
     case freq.multiplier of
         Nothing -> offset
@@ -1016,28 +1022,26 @@ getGeneratedTs model previewType=
                     [ UB.string "value" value]
     in
     Http.get
-        { url = (UB.crossOrigin model.baseurl
-                [ "generate-ts" ]
-                (( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
+        { url = UB.crossOrigin model.baseurl
+                [ "generate-ts" ] <|
+                ( [ UB.string "from" ( Maybe.withDefault "" model.creation.from )
                   , UB.string "to" ( Maybe.withDefault "" model.creation.to )
                   , UB.string "freq" ( printFreq model.creation.freq )
                   , UB.int "is_string"  <| if ( isStr model.meta )
-                                                then 1
-                                                else 0
+                                           then 1
+                                           else 0
                   ] ++ case model.creation.tz of
-                       Naive -> []
-                       Selected tz -> [ UB.string "tz" tz ]
-                       Unchanged -> if model.tzaware
-                                    then [ UB.string "tz" model.horizon.timeZone ]
-                                    else [ ]
-                )
-                   ++ case model.creation.value of
-                       Nothing -> []
-                       Just value ->
-                        [ UB.string "value" value]
-                )
-                )
-        , expect = Http.expectString ( GotGenerated previewType)
+                           Naive -> []
+                           Selected tz -> [ UB.string "tz" tz ]
+                           Unchanged -> if model.tzaware
+                                        then [ UB.string "tz" model.horizon.timeZone ]
+                                        else [ ]
+                ) ++
+              case model.creation.value of
+                  Nothing -> []
+                  Just value ->
+                      [ UB.string "value" value]
+        , expect = Http.expectString ( GotGenerated previewType )
         }
 
 
@@ -1074,10 +1078,10 @@ getOffsets model =
 encodeBodyEvalFormula: String -> String -> String -> JE.Value
 encodeBodyEvalFormula formula from to =
     if from == "" || to == ""
-        then JE.object [ ("text", JE.string formula) ]
-        else JE.object [ ("text", JE.string formula)
-                       , ("from_value_date", JE.string from)
-                       , ("to_value_date", JE.string to)
+        then JE.object [ ( "text", JE.string formula ) ]
+        else JE.object [ ( "text", JE.string formula )
+                       , ( "from_value_date", JE.string from )
+                       , ( "to_value_date", JE.string to )
                        ]
 
 
@@ -1116,10 +1120,11 @@ update msg model =
                     let
                         zoomTs = applyZoom model indexedval
                         series = ToEdit { initialTs = indexedval, zoomTs = zoomTs }
-                        statistics = getStatistics
-                                        model.statistics
-                                        model.allowInferFreq
-                                        ( onlyActiveValues series )
+                        statistics =
+                            getStatistics
+                                model.statistics
+                                model.allowInferFreq
+                                ( onlyActiveValues series )
                     in
                         applyFocus
                             ( buildCoord
@@ -1129,47 +1134,54 @@ update msg model =
                                     , horizon = updateHorizonFromData
                                                     model.horizon
                                                     (Dict.keys indexedval)
-                                })
+                                }
+                            )
                         ( Just ( 0, 0 ) )
 
                 Err (errFloat, errString) ->
                   U.nocmd ( addError
                                 model
-                                "got edit data decode"
-                                (( JD.errorToString errFloat )
-                                ++  ( JD.errorToString errString ))
-                                )
+                                "got edit data decode" <|
+                                ( JD.errorToString errFloat ) ++
+                                ( JD.errorToString errString )
+                          )
 
         GotEditData (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotValueData (Ok rawdata) ->
             case decodeValues rawdata of
-                Ok val -> let zoomTs = applyZoom model val
-                          in
-                          ( ( buildCoord
-                            { model | series = Naked { initialTs = val
-                                                     , zoomTs = zoomTs }
-                                    , horizon = updateHorizonFromData
-                                                model.horizon
-                                                (Dict.keys val)
-                                    , statistics = getStatistics
-                                                model.statistics
-                                                model.allowInferFreq
-                                                ( mapToFloat val )
+                Ok val ->
+                    let zoomTs =
+                            applyZoom model val
+                    in
+                    ( ( buildCoord
+                            { model
+                                | series = Naked { initialTs = val
+                                                 , zoomTs = zoomTs
+                                                 }
+                                , horizon = updateHorizonFromData
+                                            model.horizon
+                                            (Dict.keys val)
+                                , statistics = getStatistics
+                                               model.statistics
+                                               model.allowInferFreq
+                                               ( mapToFloat val )
                             }
+                      )
+                    , Cmd.batch [ getComponents model False
+                                , getComponents model True
+                                ]
+                    )
+                Err (errFloat, errString) ->
+                    U.nocmd ( addError
+                                  { model | horizon = setStatusPlot
+                                                      model.horizon
+                                                      Failure
+                                  }
+                                  "got value data decode" <|
+                                  ( JD.errorToString errFloat ) ++ ( JD.errorToString errString )
                             )
-                           , Cmd.batch [ getComponents model False
-                                       , getComponents model True ]
-                           )
-                Err  (errFloat, errString) -> U.nocmd ( addError
-                                        { model | horizon = setStatusPlot
-                                                                model.horizon
-                                                                Failure
-                                        }
-                                        "got value data decode"
-                                        (( JD.errorToString errFloat ) ++ ( JD.errorToString errString ))
-                                        )
 
         GotValueData (Err _) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
@@ -1190,20 +1202,21 @@ update msg model =
                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
         GotComponents _ (Err _) ->
-            ( model, Cmd.none )
+            U.nocmd model
 
         GotBasket (Ok rawdata) ->
-            case JD.decodeString
-                    ( JD.list ( JD.map toComp basketItemDecode ))
-                    rawdata of
-                Ok names -> let newmodel = { model | directComponents = names}
-                            in ( newmodel
-                               , getDataComponents newmodel False
-                                )
-                Err err -> U.nocmd
-                               { model | errors = model.errors ++ [JD.errorToString err]}
+            case JD.decodeString ( JD.list ( JD.map toComp basketItemDecode ) ) rawdata of
+                Ok names ->
+                    let
+                        newmodel = { model | directComponents = names}
+                    in ( newmodel
+                       , getDataComponents newmodel False
+                       )
+                Err err ->
+                    U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotBasket (Err _) -> ( model, Cmd.none )
+        GotBasket (Err _) ->
+            U.nocmd model
 
         GotComponentData cType name expand (Ok rawdata) ->
             case cType of
@@ -1211,77 +1224,86 @@ update msg model =
                     case decodeSupervised rawdata of
                         Ok indexedval ->
                             let zoomTs = applyZoom model indexedval
-                                newCD = insertComponentData
-                                            ( if expand
-                                                then model.terminalComponents
-                                                else model.directComponents
-                                            )
-                                            name
-                                            CompLoaded
-                                            ( Just ( ToEdit { initialTs = indexedval, zoomTs = zoomTs }))
-                                newModel = if expand
-                                            then { model | terminalComponents = newCD}
-                                            else { model | directComponents = newCD}
-                                status = if expand
-                                            then multiStatus newModel.terminalComponents
-                                            else multiStatus newModel.directComponents
-                                newHorizon = extendHorizonFromData model.horizon indexedval
+                                newCD =
+                                    insertComponentData
+                                    ( if expand
+                                      then model.terminalComponents
+                                      else model.directComponents
+                                    )
+                                    name
+                                    CompLoaded
+                                    ( Just ( ToEdit { initialTs = indexedval, zoomTs = zoomTs }))
+                                newModel =
+                                    if expand
+                                    then { model | terminalComponents = newCD}
+                                    else { model | directComponents = newCD}
+                                status =
+                                    if expand
+                                    then multiStatus newModel.terminalComponents
+                                    else multiStatus newModel.directComponents
+                                newHorizon =
+                                    extendHorizonFromData model.horizon indexedval
                             in
-                                U.nocmd
-                                    <| buildCoord { newModel |
-                                                        horizon = setStatusPlot
-                                                                    newHorizon
-                                                                    status
-                                                  }
-                        Err (eS, eF) -> U.nocmd
-                                    { model | errors = model.errors
-                                                        ++ [JD.errorToString eS]
-                                                        ++ [JD.errorToString eF]
+                            U.nocmd
+                                <| buildCoord { newModel |
+                                                    horizon = setStatusPlot
+                                                              newHorizon
+                                                              status
+                                              }
+                        Err (eS, eF) ->
+                            U.nocmd { model | errors = model.errors
+                                                       ++ [JD.errorToString eS]
+                                                       ++ [JD.errorToString eF]
                                     }
                 _ ->
-                    case JD.decodeString
-                        decodeNaked
-                        rawdata of
-                    Ok val ->  let zoomTs = applyZoom model val
-                                   newCD = insertComponentData
-                                            ( if expand
-                                                then model.terminalComponents
-                                                else model.directComponents
-                                            )
-                                            name
-                                            CompLoaded
-                                            ( Just ( Naked { initialTs = val, zoomTs = zoomTs }))
-                                   newModel = if expand
-                                            then { model | terminalComponents = newCD}
-                                            else { model | directComponents = newCD}
-                                   status = if expand
-                                            then multiStatus model.terminalComponents
-                                            else multiStatus model.directComponents
+                    case JD.decodeString decodeNaked rawdata of
+                        Ok val ->
+                            let
+                                zoomTs =
+                                    applyZoom model val
+                                newCD =
+                                    insertComponentData
+                                    ( if expand
+                                      then model.terminalComponents
+                                      else model.directComponents
+                                    )
+                                    name
+                                    CompLoaded
+                                    ( Just ( Naked { initialTs = val, zoomTs = zoomTs }))
+                                newModel =
+                                    if expand
+                                    then { model | terminalComponents = newCD}
+                                    else { model | directComponents = newCD}
+                                status =
+                                    if expand
+                                    then multiStatus model.terminalComponents
+                                    else multiStatus model.directComponents
                                in
-                                   U.nocmd
-                                    <| buildCoord { newModel |
-                                                        horizon = setStatusPlot
-                                                                    model.horizon
-                                                                    status
-                                                  }
-                    Err err -> U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+                               U.nocmd
+                                   <| buildCoord { newModel |
+                                                       horizon = setStatusPlot
+                                                                 model.horizon
+                                                                 status
+                                                 }
+                        Err err ->
+                            U.nocmd { model | errors = model.errors ++ [ JD.errorToString err ] }
 
         GotComponentData cType name expand (Err _) ->
             let
                 newCD = insertComponentData
-                            ( if expand
-                                then model.terminalComponents
-                                else model.directComponents
-                            )
-                            name
-                            CompError
-                            Nothing
-                newModel = if expand
-                                then { model | terminalComponents = newCD}
-                                else { model | directComponents = newCD}
+                        ( if expand
+                          then model.terminalComponents
+                          else model.directComponents
+                        )
+                        name
+                        CompError
+                        Nothing
+                newModel =
+                    if expand
+                    then { model | terminalComponents = newCD}
+                    else { model | directComponents = newCD}
             in
             U.nocmd { newModel | horizon = setStatusPlot model.horizon Failure }
-
 
         GotGenerated previewType ( Ok rawdata ) ->
              case decodeValues rawdata of
@@ -1289,44 +1311,44 @@ update msg model =
                     case previewType of
                         FromScratch ->
                             U.nocmd
-                            <| applyDiff
-                                <| buildCoord
-                                    { model | series =
-                                        ToEdit { initialTs = dressSeries
-                                                                val
-                                                                model.name
-                                               , zoomTs = Nothing
-                                               }
-                                    , mode = Creation Edit
-                                    }
+                                <| applyDiff
+                                    <| buildCoord
+                                        { model | series =
+                                              ToEdit { initialTs = dressSeries val model.name
+                                                     , zoomTs = Nothing
+                                                     }
+                                        , mode = Creation Edit
+                                        }
                         Patch ->
                              U.nocmd
-                            <| applyDiff
-                                <| buildCoord
-                                    { model | series =
-                                         ToEdit { initialTs = patchCurrent
-                                                                ( getEditionTs model.series )
-                                                                val
-                                                                model.name
-                                                           , zoomTs = Nothing
-                                                           }
-                                    }
+                                 <| applyDiff
+                                     <| buildCoord
+                                         { model | series =
+                                               ToEdit { initialTs = patchCurrent
+                                                                    ( getEditionTs model.series )
+                                                                    val
+                                                                    model.name
+                                                      , zoomTs = Nothing
+                                                      }
+                                         }
 
-                Err (errFloat, errString) ->
-                    U.nocmd ( addError
-                        { model | horizon = setStatusPlot
-                                                model.horizon
-                                                Failure
-                        }
-                        "got value data decode"
-                        (( JD.errorToString errFloat ) ++ ( JD.errorToString errString ))
+                Err ( errFloat, errString ) ->
+                    U.nocmd
+                        ( addError
+                          { model | horizon = setStatusPlot
+                                              model.horizon
+                                              Failure
+                          }
+                          "got value data decode" <|
+                          ( JD.errorToString errFloat ) ++ ( JD.errorToString errString )
                         )
 
         GotGenerated previewType (Err err) ->
             U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         DateNow date ->
-            let creation =
+            let
+                creation =
                     model.creation
                 newCreation =
                     { creation
@@ -1337,24 +1359,33 @@ update msg model =
             U.nocmd { model | creation = newCreation }
 
         Horizon hMsg ->
-            let ( newModelHorizon, commands ) =  updateHorizon
-                                                    hMsg
-                                                    convertMsg
-                                                    model.horizon
-                moreCommands = Cmd.batch [ deselect True , commands]
-                ( focusM, focusCmd ) = applyFocus { model | horizon = newModelHorizon} Nothing
-                default = ( focusM, Cmd.batch [focusCmd, moreCommands ] )
-                resetModel = buildCoord
-                            <| cleanDiff
-                            <| { model | horizon = newModelHorizon
-                                       , series = case  model.series of
-                                                    Naked series -> Naked { initialTs = series.initialTs
-                                                                          , zoomTs = Nothing}
-                                                    ToEdit series -> ToEdit { initialTs = series.initialTs
-                                                                            , zoomTs = Nothing}
-                                       , directComponents = cleanComponents model.directComponents
-                                       , terminalComponents = cleanComponents model.terminalComponents
-                              }
+            let
+                ( newModelHorizon, commands ) =
+                    updateHorizon
+                    hMsg
+                    convertMsg
+                    model.horizon
+                moreCommands =
+                    Cmd.batch [ deselect True , commands]
+                ( focusM, focusCmd ) =
+                    applyFocus { model | horizon = newModelHorizon} Nothing
+                default =
+                    ( focusM, Cmd.batch [focusCmd, moreCommands ] )
+                resetModel =
+                    buildCoord
+                    <| cleanDiff
+                        <| { model
+                               | horizon = newModelHorizon
+                               , series = case model.series of
+                                              Naked series -> Naked { initialTs = series.initialTs
+                                                                    , zoomTs = Nothing
+                                                                    }
+                                              ToEdit series -> ToEdit { initialTs = series.initialTs
+                                                                      , zoomTs = Nothing
+                                                                      }
+                               , directComponents = cleanComponents model.directComponents
+                               , terminalComponents = cleanComponents model.terminalComponents
+                           }
             in
             case hMsg of
                 ModuleHorizon.Internal _ ->
@@ -1368,99 +1399,114 @@ update msg model =
                     )
                 ModuleHorizon.FromLocalStorage _ ->
                     case model.mode of
-                        BasketMode -> ( resetModel
-                                       , Cmd.batch [ moreCommands
-                                                   , commandStart resetModel
-                                                   ]
-                                       )
+                        BasketMode ->
+                            ( resetModel
+                            , Cmd.batch [ moreCommands
+                                        , commandStart resetModel
+                                        ]
+                            )
                         -- we want to fire the commands AFTER getting the metadata:
                         -- we store these commands in the model -.-
-                        _ ->  ( { resetModel | initialCommands = moreCommands }
-                              , Cmd.batch [ commandStart resetModel
-                                          , T.perform DateNow Date.today
-                                          ]
-                              )
+                        _ ->
+                            ( { resetModel | initialCommands = moreCommands }
+                            , Cmd.batch [ commandStart resetModel
+                                        , T.perform DateNow Date.today
+                                        ]
+                            )
 
-                ModuleHorizon.Fetch _ -> ( { resetModel | expand = False }
-                                         , Cmd.batch ([ moreCommands ]
-                                         ++ getRelevantData resetModel ))
+                ModuleHorizon.Fetch _ ->
+                    ( { resetModel | expand = False }
+                    , Cmd.batch ( [ moreCommands ] ++
+                                  getRelevantData resetModel )
+                    )
 
 
         Create option ->
-            let creation = model.creation
+            let
+                creation = model.creation
                 freq = model.creation.freq
-                newCreation = case option of
-                    From val -> { creation | from = Just val }
-                    To val -> { creation | to = Just val }
-                    FreqMultiply val ->
-                        { creation |
-                            freq = { freq |
-                                        multiplier =
-                                            if val == ""
-                                                then Nothing
-                                                else String.toInt val
-                                    }
-                        }
-                    FreqOffset val ->
-                        { creation |
-                            freq = { freq | offset = val }
-                        }
-                    Tz val -> { creation | tz = if val == naiveTag
-                                                    then Naive
-                                                    else Selected val
-                              }
-                    SwitchDType ->  { creation | isString = not model.creation.isString }
-                    Value val -> { creation | value = Just val }
-                    Name val -> { creation | name = Just val
-                                           , nameStatus = case model.creation.catalog of
-                                                            Nothing -> Invalid
-                                                            Just cat ->
-                                                                if List.member val cat
-                                                                    then Invalid
-                                                                    else
-                                                                        if val == ""
-                                                                            then Missing
-                                                                            else Valid
-                                }
-                    _ -> creation
-                validatedCreation = { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
-                                                                      newCreation.to /= Nothing
-                                    }
+                newCreation =
+                    case option of
+                        From val -> { creation | from = Just val }
+                        To val -> { creation | to = Just val }
+                        FreqMultiply val ->
+                            { creation |
+                                  freq = { freq |
+                                               multiplier =
+                                               if val == ""
+                                               then Nothing
+                                               else String.toInt val
+                                         }
+                            }
+                        FreqOffset val ->
+                            { creation |
+                                  freq = { freq | offset = val }
+                            }
+                        Tz val ->
+                            { creation | tz = if val == naiveTag
+                                              then Naive
+                                              else Selected val
+                            }
+                        SwitchDType ->
+                            { creation | isString = not model.creation.isString }
+                        Value val ->
+                            { creation | value = Just val }
+                        Name val ->
+                            { creation
+                                | name = Just val
+                                , nameStatus = case model.creation.catalog of
+                                                   Nothing -> Invalid
+                                                   Just cat ->
+                                                       if List.member val cat
+                                                       then Invalid
+                                                       else
+                                                           if val == ""
+                                                           then Missing
+                                                           else Valid
+                            }
+                        _ ->
+                            creation
+                validatedCreation =
+                    { newCreation | mandatoryValid =  newCreation.from /= Nothing &&
+                                                      newCreation.to /= Nothing
+                    }
 
-                command = case option of
-                    Preview FromScratch -> getGeneratedTs model FromScratch
-                    Preview Patch -> getGeneratedTs model Patch
-                    _ -> Cmd.none
-                meta = model.meta
-                tzawarness = case validatedCreation.tz of
-                                Naive -> False
-                                Unchanged -> model.tzaware
-                                _ -> True
-                strMeta =   Dict.insert
-                                "value_type"
-                                ( M.MString
-                                    <| if newCreation.isString
-                                        then "object"
-                                        else "float64"
-                                )
-                                <| Dict.insert
-                                    "tzaware"
-                                    ( M.MBool tzawarness )
-                                    meta
+                command =
+                    case option of
+                        Preview FromScratch -> getGeneratedTs model FromScratch
+                        Preview Patch -> getGeneratedTs model Patch
+                        _ -> Cmd.none
+                meta =
+                    model.meta
+                tzawarness =
+                    case validatedCreation.tz of
+                        Naive -> False
+                        Unchanged -> model.tzaware
+                        _ -> True
+                strMeta =
+                    Dict.insert "value_type" ( M.MString
+                                                   <| if newCreation.isString
+                                                      then "object"
+                                                      else "float64"
+                                             )
+                        <| Dict.insert "tzaware" ( M.MBool tzawarness ) meta
             in
-                ( { model | creation = validatedCreation
-                          , name = Maybe.withDefault model.name validatedCreation.name
-                          , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
-                          , meta = strMeta
-                  }
-                , command )
+            ( { model
+                  | creation = validatedCreation
+                  , name = Maybe.withDefault model.name validatedCreation.name
+                  , diff = nameSeries model.diff ( Maybe.withDefault "" newCreation.name )
+                  , meta = strMeta
+              }
+            , command
+            )
 
-        Back -> U.nocmd { model | mode = Creation Form }
+        Back ->
+            U.nocmd { model | mode = Creation Form }
 
         SwitchForceDraw ->
             applyFocus
-                ( applyDiff ( buildCoord ( flipForce model )))
-                ( Just (0 , 0 ))
+                ( applyDiff ( buildCoord ( flipForce model ) ) )
+                ( Just (0 , 0 ) )
 
         SwitchBatch ->
             ( { model | newBatch = not model.newBatch }
@@ -1487,11 +1533,11 @@ update msg model =
             U.nocmd { model | showDiff = not model.showDiff}
 
         Expand expand ->
-            let newModel = { model | expand = expand } in
+            let
+                newModel = { model | expand = expand }
+            in
             ( buildCoord ( cleanDiff  newModel )
-            , if ( expand
-                       && loadedComponents model.terminalComponents == 0
-                 )
+            , if ( expand && loadedComponents model.terminalComponents == 0 )
               then getDataComponents newModel True
               else Cmd.none
             )
@@ -1507,8 +1553,8 @@ update msg model =
         InputChanged row col rawvalue ->
             let
                 ( raw, edition ) = parseStuff
-                                    rawvalue
-                                    (isStr model.meta)
+                                   rawvalue
+                                   (isStr model.meta)
             in
             U.nocmd ( applyDiff
                           <| updateCoordData
@@ -1628,31 +1674,32 @@ update msg model =
         GotMetadata (Ok result) ->
             case JD.decodeString M.decodemeta result of
                 Ok allmeta ->
-                   let seriestype = if Dict.member "formula" allmeta
-                                                            then I.Formula
-                                                            else  I.Primary
+                   let seriestype =
+                           if Dict.member "formula" allmeta
+                           then I.Formula
+                           else  I.Primary
                        horizon = model.horizon
                        creation = model.creation
-                       newmodel = { model | meta = allmeta
-                                          , tzaware = isTzaware allmeta
-                                          , statVisibility = not (isStr allmeta)
-                                          , statistics = updateFirstLast
-                                                            model.statistics
-                                                            allmeta
-                                          , exist = True
-                                          , seriestype = seriestype
-                                          , mode = case seriestype of
-                                              I.Primary -> Existing I.Primary
-                                              I.Formula -> Existing I.Formula
-                                          , horizon = { horizon | hasCache =
-                                                            case seriestype of
-                                                              I.Primary -> False
-                                                              I.Formula -> True
-                                                      }
-                                          , creation = { creation |
-                                                            isString = isStr allmeta
-                                                       }
-                                  }
+                       newmodel =
+                           { model
+                               | meta = allmeta
+                               , tzaware = isTzaware allmeta
+                               , statVisibility = not (isStr allmeta)
+                               , statistics = updateFirstLast
+                                              model.statistics
+                                              allmeta
+                               , exist = True
+                               , seriestype = seriestype
+                               , mode = case seriestype of
+                                            I.Primary -> Existing I.Primary
+                                            I.Formula -> Existing I.Formula
+                               , horizon = { horizon | hasCache =
+                                                 case seriestype of
+                                                     I.Primary -> False
+                                                     I.Formula -> True
+                                           }
+                               , creation = { creation | isString = isStr allmeta }
+                           }
                    in
                    ( newmodel
                    , Cmd.batch [ model.initialCommands
@@ -1683,7 +1730,8 @@ update msg model =
         GotCatalog (Ok raw) ->
             case JD.decodeString catalogDecoder raw of
                 Ok catalog ->
-                    let creation = model.creation
+                    let
+                        creation = model.creation
                     in
                     U.nocmd { model | creation = { creation | catalog = Just catalog}}
                 Err err ->
@@ -1695,7 +1743,8 @@ update msg model =
         GotOffsets (Ok raw) ->
             case JD.decodeString (JD.list JD.string) raw of
                 Ok offsets ->
-                    let creation = model.creation
+                    let
+                        creation = model.creation
                     in
                     U.nocmd { model | creation = { creation | offsets = offsets}}
                 Err err ->
@@ -1704,48 +1753,54 @@ update msg model =
         GotOffsets (Err err) ->
             doerr "gotoffsets http" <| U.unwraperror err
 
-
         Paste payload ->
             let parsed = parsePasted payload.text (isStr model.meta)
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
                 merged = pasteRectangle model.coordData coordPatch corner
             in
-            U.nocmd <| applyDiff { model | rawPasted = payload.text
-                                         , coordData = merged
-                                  }
+            U.nocmd <| applyDiff { model
+                                     | rawPasted = payload.text
+                                     , coordData = merged
+                                 }
 
-        UnFocus -> U.nocmd { model | focus = Nothing
-                                   , selection = Nothing
-                            }
+        UnFocus -> U.nocmd { model
+                               | focus = Nothing
+                               , selection = Nothing
+                           }
 
         ClickCell iRow iCol ->
             case model.holding.shift of
-                False -> let ( newmodel, cmd  ) = applyFocus model ( Just ( iRow, iCol ) )
-                             clear =  clearSelection newmodel
-                         in
-                            case model.currentInput of
-                                Nothing -> ({ clear | selection = Just ( pointToBox( iRow, iCol ))}
-                                           , cmd )
-                                Just current ->
-                                    if current == ( iRow, iCol )
-                                    then
-                                        ( newmodel , cmd )
-                                    else
-                                        ( clear , cmd )
+                False ->
+                    let ( newmodel, cmd  ) =
+                            applyFocus model ( Just ( iRow, iCol ) )
+                        clear =
+                            clearSelection newmodel
+                    in
+                    case model.currentInput of
+                        Nothing ->
+                            ( { clear | selection = Just ( pointToBox( iRow, iCol ) ) }
+                            , cmd
+                            )
+                        Just current ->
+                            if current == ( iRow, iCol )
+                            then
+                                ( newmodel , cmd )
+                            else
+                                ( clear , cmd )
                 True ->
                     case model.focus of
-                        Nothing -> applyFocus model ( Just ( iRow, iCol ) )
+                        Nothing ->
+                            applyFocus model ( Just ( iRow, iCol ) )
                         Just ( i, j ) ->
                             let newmodel = { model |
                                                 selection =
                                                     Just <| extendSelection
                                                             ( Just ( i, j ))
                                                             ( iRow, iCol )
-                                            }
+                                           }
                             in
-                                U.nocmd newmodel
-
+                            U.nocmd newmodel
 
         ActivateCell iRow iCol ->
             case Dict.get (iRow, iCol ) model.coordData of
@@ -1759,25 +1814,22 @@ update msg model =
                                 then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
                                 else U.nocmd { model | currentInput = Nothing }
 
-
         MousePosition position ->
             let hold = model.holding.mouse
                 modelPos = { model | mousePosition = Just position}
                 newmodel = if hold
-                                then { modelPos |
-                                        selection = Just <|
-                                            extendSelection
-                                                model.firstShift
-                                                position
-                                        , currentInput = Nothing
-                                     }
-                                else modelPos
+                           then { modelPos
+                                    | selection =
+                                        Just <| extendSelection model.firstShift position
+                                    , currentInput = Nothing
+                                }
+                           else modelPos
             in
-                if hold
-                then
-                    applyFocus ( setupFirstSelected newmodel ) ( Just position )
-                else
-                    U.nocmd ( setupFirstSelected newmodel )
+            if hold
+            then
+                applyFocus ( setupFirstSelected newmodel ) ( Just position )
+            else
+                U.nocmd ( setupFirstSelected newmodel )
 
         DeselectAll keepFocus ->
              let
@@ -1787,15 +1839,13 @@ update msg model =
                                          , firstShift = Nothing
                               }
               in
-                if keepFocus
-                    then applyFocus shiftModel shiftModel.focus
-                    else applyFocus shiftModel Nothing
-
+              if keepFocus
+              then applyFocus shiftModel shiftModel.focus
+              else applyFocus shiftModel Nothing
 
         CopySelection ->
-            let concatened = cellsToString
-                                model.coordData
-                                model.selection
+            let concatened =
+                    cellsToString model.coordData model.selection
             in
             ( model
             , Cmd.batch [ deselect True
@@ -1808,34 +1858,25 @@ update msg model =
 
         FillNas position ->
             let
-                lastValue = getValueFromIndex
-                                model.coordData
-                                position
+                lastValue = getValueFromIndex model.coordData position
             in
                 applyFocus
                     ( applyDiff
-                        { model | coordData = fillNas
-                                                model.coordData
-                                                lastValue
-                                                position
-                        }
+                        { model | coordData = fillNas model.coordData lastValue position }
                     )
                     Nothing
 
         FillAll ->
-            ( applyDiff
-                { model | coordData = fillAllNas
-                                        model.coordData
-                                        model.lastValids
-                }
-            , Cmd.none
-            )
+            U.nocmd <| applyDiff
+                { model | coordData = fillAllNas model.coordData model.lastValids }
 
-        Focus ( Ok _ ) -> U.nocmd model
-        Focus ( Err err ) -> case err of
-                                NotFound stuff ->
-                                    U.nocmd model --<| addError model "focus" stuff
+        Focus ( Ok _ ) ->
+            U.nocmd model
 
+        Focus ( Err err ) ->
+            case err of
+                NotFound stuff ->
+                    U.nocmd model --<| addError model "focus" stuff
 
         ActionControl ( key ) ->
             let holding = model.holding
@@ -1849,12 +1890,12 @@ update msg model =
                                 , deselect True
                                 )
                 Delete Up -> U.nocmd model
-                Shift Down ->  U.nocmd { model | holding = { holding | shift = True }}
-                Shift Up ->  U.nocmd { model | holding = { holding | shift = False }}
-                Control Down -> U.nocmd { model | holding = { holding | control = True }}
-                Control Up -> U.nocmd { model | holding = { holding | control = False }}
-                Meta Down -> U.nocmd { model | holding = { holding | meta = True }}
-                Meta Up -> U.nocmd { model | holding = { holding | meta = False }}
+                Shift Down ->  U.nocmd { model | holding = { holding | shift = True } }
+                Shift Up ->  U.nocmd { model | holding = { holding | shift = False } }
+                Control Down -> U.nocmd { model | holding = { holding | control = True } }
+                Control Up -> U.nocmd { model | holding = { holding | control = False } }
+                Meta Down -> U.nocmd { model | holding = { holding | meta = True } }
+                Meta Up -> U.nocmd { model | holding = { holding | meta = False } }
                 ArrowDown Down -> cond <| arrowAction model ( 1, 0)
                 ArrowUp Down -> cond <| arrowAction model ( -1, 0)
                 ArrowLeft Down -> cond <| arrowAction model ( 0, -1)
@@ -1912,47 +1953,49 @@ update msg model =
                                             if not current.editable
                                                 then U.nocmd model
                                                 else
-                                                 ({ model | currentInput = Just ( i, j ) }
-                                                 , T.perform
-                                                    identity
-                                                    ( T.succeed ( InputChanged i j ( String.fromChar char )))
+                                                 ( { model | currentInput = Just ( i, j ) }
+                                                 , T.perform identity
+                                                     ( T.succeed ( InputChanged i j
+                                                                       ( String.fromChar char ) ) )
                                                  )
 
 
         Drag mode ->
-            let holding = model.holding
+            let
+                holding = model.holding
             in
             case mode of
-                On index -> U.nocmd
-                                { model | holding = { holding | mouse = True }
-                                        , firstShift = Just index
-                                }
+                On index ->
+                    U.nocmd { model
+                                | holding = { holding | mouse = True }
+                                , firstShift = Just index
+                            }
 
-                Off -> U.nocmd
-                        { model | holding = {holding | mouse = False }}
+                Off ->
+                    U.nocmd { model | holding = { holding | mouse = False } }
 
 
         NewRound action ->
-            let save = (\ newRound ->
-                            ( { model | roundValues = newRound}
-                            , saveLocal { round =
-                                            case newRound of
-                                                Nothing -> Nothing
-                                                Just round -> Just ( String.fromInt
-                                                                        round )
-                                        }
-                            )
-                       )
+            let save =
+                    (\ newRound ->
+                         ( { model | roundValues = newRound }
+                         , saveLocal { round =
+                                           case newRound of
+                                               Nothing -> Nothing
+                                               Just round -> Just ( String.fromInt round )
+                                     }
+                         )
+                    )
             in
             case action of
                 Remove -> save Nothing
                 Replace stuff ->
                     if stuff == ""
-                        then save Nothing
-                        else
-                            case String.toInt stuff of
-                                Nothing -> U.nocmd model
-                                Just val -> save ( Just val )
+                    then save Nothing
+                    else
+                        case String.toInt stuff of
+                            Nothing -> U.nocmd model
+                            Just val -> save ( Just val )
                 More ->
                     case model.roundValues of
                         Nothing -> save ( Just 0 )
@@ -1962,22 +2005,19 @@ update msg model =
                         Nothing -> U.nocmd model
                         Just round -> save ( Just ( round - 1 ) )
 
-
         FromLocal payload ->
              case JD.decodeString localDecoder payload of
-                 Err _ -> U.nocmd model
+                 Err _ ->
+                     U.nocmd model
                  Ok local ->
                      case local.round of
                          Nothing -> U.nocmd { model | roundValues = Nothing }
                          Just round -> U.nocmd { model | roundValues = ( String.toInt  round)}
 
-
         InsertionDates (Ok rawdates) ->
             case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
-                    U.nocmd { model
-                                | insertion_dates = Array.fromList dates
-                            }
+                    U.nocmd { model | insertion_dates = Array.fromList dates }
                 Err err ->
                     doerr "idates decode" <| JD.errorToString err
 
@@ -2039,7 +2079,9 @@ update msg model =
                                     { model | series = newSeries
                                             , directComponents = newDirectComponents
                                             , terminalComponents = newTerminalComponents
-                                            , horizon = { horizonmodel | zoomBounds = Just (minDate, maxDate) }
+                                            , horizon = { horizonmodel
+                                                            | zoomBounds = Just (minDate, maxDate)
+                                                        }
                                             , statistics = getStatistics
                                                                 model.statistics
                                                                 model.allowInferFreq
@@ -2047,7 +2089,7 @@ update msg model =
                                     }
 
                  in
-                    applyFocus ( buildCoord newmodel) ( Just ( 0, 0 ) )
+                 applyFocus ( buildCoord newmodel) ( Just ( 0, 0 ) )
 
         NewDragMode panIsActive ->
             U.nocmd { model | panActive = panIsActive }
@@ -2057,11 +2099,14 @@ update msg model =
                 ( newStatus, toCopy ) =
                     case copyType of
                         CopyName -> ( { status | name = False }
-                                  , model.name)
+                                    , model.name
+                                    )
                         CopyDates -> ( { status | dates = False }
-                                   , packDates model.series )
+                                     , packDates model.series
+                                     )
                         CopyValues -> ( { status | values = False }
-                                    , packValues model.series )
+                                      , packValues model.series
+                                      )
             in
             ( { model | statusCopy = newStatus }
             , Cmd.batch
@@ -2072,19 +2117,19 @@ update msg model =
 
         ResetClass copyType ->
             let status = model.statusCopy
-                newStatus = case copyType of
-                                CopyName -> { status | name = True }
-                                CopyDates -> { status | dates = True }
-                                CopyValues -> { status | values = True }
+                newStatus =
+                    case copyType of
+                        CopyName -> { status | name = True }
+                        CopyDates -> { status | dates = True }
+                        CopyValues -> { status | values = True }
             in
             U.nocmd { model | statusCopy = newStatus }
 
 
 multiStatus: List Component -> PlotStatus
 multiStatus components =
-    let status = List.map
-                    .status
-                    components
+    let status =
+            List.map .status components
     in
     if List.any (\ elt -> elt == CompError ) status then Failure
     else
@@ -2098,9 +2143,8 @@ applyFocus model maybeIndex =
     let
         newModel = { model | focus = maybeIndex
                            , nameVisbility = case maybeIndex of
-                                            Nothing -> Nope
-                                            Just ( _, fCol )
-                                                -> Single fCol
+                                                 Nothing -> Nope
+                                                 Just ( _, fCol ) -> Single fCol
                    }
     in
     case maybeIndex of
@@ -2119,11 +2163,12 @@ applyFocus model maybeIndex =
 
 clearSelection: Model -> Model
 clearSelection model =
-    {  model | firstSelected = Nothing
-             , firstShift = Nothing
-             , selection = Nothing
-             , currentInput = Nothing
-        }
+    { model
+        | firstSelected = Nothing
+        , firstShift = Nothing
+        , selection = Nothing
+        , currentInput = Nothing
+    }
 
 
 deselect: Bool -> Cmd Msg
@@ -2165,15 +2210,14 @@ newZoom minDate maxDate pan series =
 newZoomT: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
 newZoomT minDate maxDate initial zoom pan =
     case zoom of
-        Nothing -> ( Dict.filter
-                        ((\key _ -> ((key >= minDate) && (key <= maxDate))))
-                        initial )
+        Nothing -> ( Dict.filter (\key _ -> (key >= minDate) && (key <= maxDate)) initial )
         Just zoomTs ->
-            ( Dict.filter
-                ((\key _ -> ((key >= minDate) && (key <= maxDate))))
+            ( Dict.filter (\key _ -> (key >= minDate) && (key <= maxDate))
                 ( if pan
-                    then initial
-                    else zoomTs) )
+                  then initial
+                  else zoomTs
+                )
+            )
 
 
 applyZoom: Model -> Dict String a -> Maybe (Dict String a)
@@ -2182,9 +2226,7 @@ applyZoom model series =
         Nothing -> Nothing
         Just ( min, max ) ->
             Just
-                <| Dict.filter
-                        (( \k _ -> (( k >= min ) && ( k <= max ))))
-                        series
+                <| Dict.filter ( \k _ -> ( k >= min ) && ( k <= max )) series
 
 
 onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
@@ -2209,9 +2251,11 @@ resetZoom: Series -> Series
 resetZoom series =
     case series of
         Naked ts -> Naked { initialTs = ts.initialTs
-                          , zoomTs = Nothing}
+                          , zoomTs = Nothing
+                          }
         ToEdit ts -> ToEdit { initialTs = ts.initialTs
-                            , zoomTs = Nothing}
+                            , zoomTs = Nothing
+                            }
 
 onlyActiveValues : Series -> Dict String ( Maybe Float )
 onlyActiveValues series =
@@ -2289,37 +2333,42 @@ cleanBatch model =
 cleanDiff: Model -> Model
 cleanDiff model =
     setupFill
-      { model | diff = Dict.empty
-              , coordData = Dict.map
-                                (\ _ s -> case s of
-                                    Cell e -> Cell { e | edition = NoEdition
-                                                       , raw = Nothing }
-                                    DateRow d -> DateRow d
-                                    Header h -> Header h
-                                )
-                                model.coordData
-              , slope = Nothing
-              , intercept = Nothing
+      { model
+          | diff = Dict.empty
+          , coordData = Dict.map
+                        (\ _ s -> case s of
+                                      Cell e -> Cell { e | edition = NoEdition
+                                                     , raw = Nothing
+                                                     }
+                                      DateRow d -> DateRow d
+                                      Header h -> Header h
+                        )
+                        model.coordData
+          , slope = Nothing
+          , intercept = Nothing
       }
+
 
 insertComponentData: List Component -> String -> CompStatus -> Maybe Series -> List Component
 insertComponentData components name status data =
     List.map
         (\ comp -> if comp.name == name
-                    then case data of
-                        Nothing -> { comp | status = status }
-                        Just series -> { comp | status = status
-                                              , data = series
-                                       }
-                    else comp
+                   then case data of
+                            Nothing -> { comp | status = status }
+                            Just series -> { comp
+                                               | status = status
+                                               , data = series
+                                           }
+                   else comp
         )
         components
 
 cleanComponents: List Component -> List Component
 cleanComponents components =
     List.map
-        (\ comp -> { comp | status = CompEmpty
-                          , data = emptySeries
+        (\ comp -> { comp
+                       | status = CompEmpty
+                       , data = emptySeries
                    }
         )
         components
@@ -2339,31 +2388,23 @@ getLastNaive dates =
     case List.maximum dates of
         Nothing -> "No Last"
         Just lastDate
-            -> let mNaive = List.head
-                            <| String.split
-                                "+"
-                                lastDate
-               in case mNaive of
+            -> let mNaive =
+                       List.head <| String.split "+" lastDate
+               in
+               case mNaive of
                    Nothing -> "No Last"
                    Just naive -> String.replace "T" " " naive
 
-
-removeLast: Dict String e -> Dict String e
-removeLast series =
-    case List.reverse ( Dict.toList series ) of
-        [] -> series
-        x :: xs -> Dict.fromList ( List.reverse xs )
-
-
+ 
 packDates: Series -> String
 packDates series =
     String.join("\n")
         ( onlyActiveKeys series )
 
 myFloat mf =
- case mf of
-    Nothing -> ""
-    Just f -> String.fromFloat f
+    case mf of
+        Nothing -> ""
+        Just f -> String.fromFloat f
 
 
 packValues: Series -> String
@@ -2379,29 +2420,27 @@ getCurrentValue entry =
     case entry.edition of
         Edition edition -> Just edition
         Deletion -> Nothing
-        NoEdition -> case entry.value of
-                        MFloat mf ->
-                            case mf of
-                                Nothing -> Nothing
-                                Just f -> Just (MFloat f)
-                        MString ms ->
-                            case ms of
-                                Nothing -> Nothing
-                                Just s -> Just (MString s)
+        NoEdition ->
+            case entry.value of
+                MFloat mf ->
+                    case mf of
+                        Nothing -> Nothing
+                        Just f -> Just (MFloat f)
+                MString ms ->
+                    case ms of
+                        Nothing -> Nothing
+                        Just s -> Just (MString s)
         Error _ -> Nothing
 
 
 applyOnFilter: Dict comparable b -> ( comparable -> Bool ) -> ( b -> b ) -> Dict comparable b
 applyOnFilter dict filter action =
-    let contractFilter = (\ k _ -> filter k)
+    let contractFilter = (\ k _ -> filter k )
         contractAction = (\ _ v -> action v )
-        transformed = Dict.map
-                        contractAction
-                        ( Dict.filter contractFilter dict )
+        transformed =
+            Dict.map contractAction ( Dict.filter contractFilter dict )
     in
-        Dict.union
-            transformed
-            dict
+        Dict.union transformed dict
 
 
 keyInSelection :  Box -> ( Int, Int ) -> Bool
@@ -2413,9 +2452,7 @@ getSelected: Dict ( Int, Int ) b -> Maybe Box ->  Dict ( Int, Int ) b
 getSelected coordData selection =
     case selection of
         Nothing -> Dict.empty
-        Just box -> Dict.filter
-                        (\ k _ -> ( keyInSelection box) k)
-                        coordData
+        Just box -> Dict.filter (\ k _ -> ( keyInSelection box ) k ) coordData
 
 
 applyOnSelection: Dict ( Int, Int ) b -> ( b -> b ) -> Maybe Box -> Dict ( Int, Int ) b
@@ -2431,46 +2468,44 @@ applyOnSelection coordData action selection =
 
 deleteSelectedValues: Model -> Model
 deleteSelectedValues model =
-    let delete = (\ s ->
-                    case s of
-                        DateRow d -> DateRow d
-                        Header d -> Header d
-                        Cell e ->  if e.editable
-                                        then Cell { e | edition = Deletion
-                                                       , raw = Nothing
-                                                  }
-                                        else Cell e
+    let delete =
+            (\ s ->
+                 case s of
+                     DateRow d -> DateRow d
+                     Header d -> Header d
+                     Cell e ->  if e.editable
+                                then Cell { e | edition = Deletion, raw = Nothing }
+                                else Cell e
                  )
         newCoord = applyOnSelection
                     model.coordData
                     delete
                     model.selection
     in
-        { model | coordData = newCoord }
+    { model | coordData = newCoord }
 
 
 deleteFocus: Model -> Model
 deleteFocus model =
     case model.focus of
         Nothing -> model
-        Just focus -> {
-            model | coordData =
-                        applyOnFilter
-                            model.coordData
-                            ( \ k  -> k == focus)
-                            ( \ s ->
-                                case s of
-                                    DateRow d -> DateRow d
-                                    Header h -> Header h
-                                    Cell e ->
-                                        if e.editable
-                                             then
-                                                Cell { e | edition = Deletion
-                                                         , raw = Nothing
-                                                         }
-                                             else Cell e
-                            )
-                        }
+        Just focus ->
+            { model
+                | coordData =
+                    applyOnFilter
+                    model.coordData
+                    ( \ k  -> k == focus)
+                    ( \ s ->
+                          case s of
+                              DateRow d -> DateRow d
+                              Header h -> Header h
+                              Cell e ->
+                                  if e.editable
+                                  then
+                                      Cell { e | edition = Deletion, raw = Nothing }
+                                  else Cell e
+                    )
+            }
 
 
 pointToBox: ( Int, Int ) -> Box
@@ -2488,12 +2523,19 @@ extendSelection firstShift ( pRow, pCol ) =
                 minRow = min sRow pRow
                 maxRow = max sRow pRow
             in
-                { t = minRow, b = maxRow,  l = minCol,  r = maxCol }
+            { t = minRow
+            , b = maxRow
+            ,  l = minCol
+            ,  r = maxCol
+            }
 
 
 setupFill model =
-    let coordData = model.coordData
-        ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordData
+    let
+        coordData =
+            model.coordData
+        ( ( minRow, maxRow ), ( minCol, maxCol )) =
+            getBounds coordData
     in
     { model | lastValids = List.concat
                             <| List.map
@@ -2504,20 +2546,20 @@ setupFill model =
 
 findLastValidByCol: Dict (Int, Int) Entry -> Int -> List (Int, Int)
 findLastValidByCol coordData iCol =
-    let column = Dict.filter
-                        (\ ( _, j ) v -> j == iCol )
-                        coordData
-        editable = case List.head ( Dict.values column ) of
-                    Nothing -> False
-                    Just e -> e.editable
+    let column =
+            Dict.filter (\ ( _, j ) v -> j == iCol ) coordData
+        editable =
+            case List.head ( Dict.values column ) of
+                Nothing -> False
+                Just e -> e.editable
     in
-        if not editable
-        then []
-        else
+    if not editable
+    then []
+    else
         findLastValidRec
-            ( Dict.toList column )
-            False
-            []
+        ( Dict.toList column )
+        False
+        []
 
 
 setupFirstSelected model = model
@@ -2528,28 +2570,27 @@ findLastValidRec entries previousIsValue found =
         [] -> found
         ((iRow, iCol ), val ) :: xs ->
             if previousIsValue
-                then
+            then
                 if getCurrentValue val == Nothing
-                    then  List.concat [ [ ( iRow - 1
-                                          , iCol
-                                          )
-                                      ]
-                                       , ( findLastValidRec xs False found )
-                                       ]
-                    else ( findLastValidRec xs True found )
-                else
-                    if getCurrentValue val == Nothing
-                        then ( findLastValidRec xs False found )
-                        else ( findLastValidRec xs True found )
+                then  List.concat [ [ ( iRow - 1
+                                      , iCol
+                                      )
+                                    ]
+                                  , ( findLastValidRec xs False found )
+                                  ]
+                else ( findLastValidRec xs True found )
+            else
+                if getCurrentValue val == Nothing
+                then ( findLastValidRec xs False found )
+                else ( findLastValidRec xs True found )
 
 
 fillNas: Dict ( Int, Int ) Stuff -> ( ScalarType Float String ) -> ( Int, Int ) ->  Dict ( Int, Int ) Stuff
 fillNas coordData lastValue positionLastValue =
-    let nbNas = getNbNas ( filterEntry coordData ) positionLastValue
+    let
+        nbNas = getNbNas ( filterEntry coordData ) positionLastValue
     in
-        Dict.map
-            ( applyValue positionLastValue lastValue nbNas )
-            coordData
+        Dict.map ( applyValue positionLastValue lastValue nbNas ) coordData
 
 
 fillSelection: Model -> Model
@@ -2570,11 +2611,8 @@ fillSelected model select value =
         edited = Dict.map
                     (\ pos e -> if keyInSelection select pos
                                 then
-                                    updateCell
-                                        e
-                                        value
-                                else
-                                    e
+                                    updateCell e value
+                                else e
                     )
                     model.coordData
     in
@@ -2589,8 +2627,10 @@ applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
         Header h -> Header h
         Cell entry ->
             if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
-                then Cell { entry | edition = Edition lastValue
-                                  , raw = Just ( toString lastValue )}
+                then Cell { entry
+                              | edition = Edition lastValue
+                              , raw = Just ( toString lastValue )
+                          }
                 else Cell entry
 
 
@@ -2604,7 +2644,7 @@ getNbNas coordData position =
                             (\ (i, j) _ -> j == iCol && i > iRow )
                             coordData
     in
-        findNbNas values 0
+    findNbNas values 0
 
 
 isVoid: Entry -> Bool
@@ -2627,7 +2667,8 @@ fillAllNas coordData idxNas =
     case idxNas of
         [] -> coordData
         x :: xs ->
-            let lastValue = getValueFromIndex coordData x
+            let
+                lastValue = getValueFromIndex coordData x
             in
                 ( fillAllNas
                     ( fillNas
@@ -2675,25 +2716,26 @@ getValueFromIndex coordData position =
     let
         stuff = Dict.get position coordData
     in
-        case stuff of
-            Nothing -> MFloat 0
-            Just ( DateRow _ )  -> MFloat 0
-            Just ( Header _ )  -> MFloat 0
-            Just ( Cell entry ) -> Maybe.withDefault
-                                    ( MFloat 0 )
-                                    ( getCurrentValue entry )
+    case stuff of
+        Nothing -> MFloat 0
+        Just ( DateRow _ )  -> MFloat 0
+        Just ( Header _ )  -> MFloat 0
+        Just ( Cell entry ) ->
+            Maybe.withDefault ( MFloat 0 ) ( getCurrentValue entry )
 
 
-bounded: ( ( Int, Int ), ( Int, Int )) -> ( Int, Int ) -> ( Int, Int )
+bounded: ( ( Int, Int ), ( Int, Int ) ) -> ( Int, Int ) -> ( Int, Int )
 bounded ( ( minRow, maxRow ), ( minCol, maxCol )) ( pRow, pCol) =
-    (( simpleBound minRow maxRow pRow )
-    ,( simpleBound ( minCol ) maxCol pCol ) )
+    ( ( simpleBound minRow maxRow pRow )
+    , ( simpleBound ( minCol ) maxCol pCol )
+    )
 
 
 simpleBound minValue maxValue value =
     if value < minValue
     then minValue
-    else if value > maxValue
+    else
+        if value > maxValue
         then maxValue
         else value
 
@@ -2701,13 +2743,14 @@ simpleBound minValue maxValue value =
 conditionnalAction: Model -> Bool -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 conditionnalAction model condition action =
     if condition
-        then action
-        else U.nocmd model
+    then action
+    else U.nocmd model
 
 
 arrowAction: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
 arrowAction model increment =
-    let ( newmodel, cmd ) = arrowActionT model increment
+    let
+        ( newmodel, cmd ) = arrowActionT model increment
     in
         ( setupFirstSelected newmodel , cmd )
 
@@ -2716,82 +2759,88 @@ addP: ( Int, Int ) -> ( Int, Int ) -> ( Int, Int )
 addP position increment =
     let ( pR, pC ) = position
         ( iR, iC ) = increment
-    in ( pR + iR, pC + iC)
+    in
+    ( pR + iR, pC + iC)
 
 
 extremum: ( Int, Int ) -> ( Int, Int ) -> (( Int, Int ), ( Int, Int )) -> ( Int, Int )
 extremum ( fRow, fCol ) ( iRow, iCol ) ( ( minRow, maxRow ), ( minCol, maxCol )) =
-    let col = if iCol == 0
-                then fCol
-                else if iCol > 0
-                    then maxCol
-                    else minCol
-        row = if iRow == 0
-                then fRow
-                else if iRow > 0
-                    then maxRow
-                    else minRow
+    let col =
+            if iCol == 0
+            then fCol
+            else if iCol > 0
+                 then maxCol
+                 else minCol
+        row =
+            if iRow == 0
+            then fRow
+            else if iRow > 0
+                 then maxRow
+                 else minRow
     in
-        ( row, col )
+    ( row, col )
 
 
 arrowActionT: Model -> ( Int, Int ) -> ( Model, Cmd Msg )
 arrowActionT model increment =
-    let coordDict = model.coordData
-        ( ( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordDict
-        bound = bounded ( ( minRow, maxRow ), ( minCol, maxCol ))
+    let coordDict =
+            model.coordData
+        ( ( minRow, maxRow ), ( minCol, maxCol )) =
+            getBounds coordDict
+        bound =
+            bounded ( ( minRow, maxRow ), ( minCol, maxCol ))
     in
     case model.focus of
         Nothing -> U.nocmd model
         Just focus ->
-            let extrem = extremum focus increment (( minRow, maxRow ), ( minCol, maxCol ))
+            let
+                extrem = extremum focus increment (( minRow, maxRow ), ( minCol, maxCol ))
             in
             case model.holding.shift of
-                False -> case model.holding.control of
-                            False -> applyFocus
-                                        model
-                                        ( Just  ( bound ( addP focus increment )))
-                            True ->
-                                applyFocus
-                                    model
-                                    ( Just extrem)
+                False ->
+                    case model.holding.control of
+                        False -> applyFocus model ( Just  ( bound ( addP focus increment )))
+                        True -> applyFocus model ( Just extrem)
                 True ->
                     case model.holding.control of
                         False ->
                             case model.firstShift of
                                 Nothing ->
                                     applyFocus
-                                         { model | firstShift = Just focus
-                                                 , selection = Just <| extendSelection
-                                                                        ( Just focus )
-                                                                        ( bound ( addP focus increment ))
+                                         { model
+                                             | firstShift = Just focus
+                                             , selection = Just <| extendSelection
+                                                           ( Just focus )
+                                                           ( bound ( addP focus increment ))
                                          }
-                                         ( Just ( bound ( addP focus increment )))
+                                    ( Just ( bound ( addP focus increment )))
                                 Just firstShift ->
                                      applyFocus
-                                         { model | firstShift =  Just firstShift
-                                                 , selection = Just <| extendSelection
-                                                                         ( Just ( bound (addP focus increment )))
-                                                                         ( firstShift )
+                                         { model
+                                             | firstShift = Just firstShift
+                                             , selection = Just <| extendSelection
+                                                           ( Just ( bound (addP focus increment )))
+                                                           ( firstShift )
                                          }
                                          ( Just ( bound (addP focus increment ) ))
                         True ->
                             case model.firstShift of
                                 Nothing ->
                                     applyFocus
-                                         { model | firstShift = Just focus
-                                                 , selection = Just <| extendSelection
-                                                                         ( Just extrem )
-                                                                         focus
+                                         { model
+                                             | firstShift = Just focus
+                                             , selection = Just <| extendSelection
+                                                           ( Just extrem )
+                                                           focus
                                          }
                                          ( Just extrem)
                                 Just ( rowShift, colShift ) ->
-                                     applyFocus
-                                        { model | selection = Just <| extendSelection
-                                                                         (Just extrem)
-                                                                         ( rowShift, colShift )
-                                         }
-                                         ( Just extrem)
+                                    applyFocus
+                                    { model | selection = Just <| extendSelection
+                                          (Just extrem)
+                                          ( rowShift, colShift )
+                                    }
+                                    ( Just extrem)
 
 
 getRelevantData : Model -> List (Cmd Msg)
@@ -2812,12 +2861,7 @@ parseInput value =
     if value == ""
         then Deletion
         else
-            case String.toFloat
-                    <| String.replace
-                            ","
-                            "."
-                            value
-            of
+            case String.toFloat <| String.replace "," "." value of
                 Just val ->
                     Edition ( MFloat val )
                 Nothing ->
@@ -2827,8 +2871,7 @@ parseString : String -> Edited
 parseString value =
     if value == ""
         then Deletion
-        else
-            Edition ( MString value )
+        else Edition ( MString value )
 
 
 parseStuff: String -> Bool -> (Maybe String, Edited)
@@ -2837,13 +2880,15 @@ parseStuff raw isString =
     then
         let rawstring = String.replace " " "" raw
             edition = parseInput rawstring
-            cleanedRaw = if rawstring == ""
-                            then Nothing
-                            else Just rawstring
+            cleanedRaw =
+                if rawstring == ""
+                then Nothing
+                else Just rawstring
         in ( cleanedRaw, edition )
     else
         let edition = parseString raw
-            cleanedRaw = if raw == ""
+            cleanedRaw =
+                if raw == ""
                 then Nothing
                 else Just raw
         in ( cleanedRaw, edition )
@@ -2851,39 +2896,39 @@ parseStuff raw isString =
 
 cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
 cartesianDataRec mergedData currentRow minCol i j myDict =
-        if j == minCol
-        then
-            case mergedData of
-                [] -> myDict
-                row :: rows ->
-                    case row of
-                        [] -> myDict
-                        cell :: cells ->
-                            cartesianDataRec
-                                rows
-                                cells
-                                minCol
-                                i
-                                ( j + 1 )
-                                (Dict.insert (i, j) cell myDict)
-
-        else
-          case currentRow of
-                [] -> cartesianDataRec
-                        mergedData
-                        []
-                        minCol
-                        ( i + 1 )
-                        minCol
-                        myDict
-                cell :: cells ->
-                    cartesianDataRec
-                        mergedData
+    if j == minCol
+    then
+        case mergedData of
+            [] -> myDict
+            row :: rows ->
+                case row of
+                    [] -> myDict
+                    cell :: cells ->
+                        cartesianDataRec
+                        rows
                         cells
                         minCol
                         i
                         ( j + 1 )
-                        (Dict.insert (i, j) cell myDict)
+                        ( Dict.insert ( i, j ) cell myDict )
+
+    else
+        case currentRow of
+            [] -> cartesianDataRec
+                  mergedData
+                  []
+                  minCol
+                  ( i + 1 )
+                  minCol
+                  myDict
+            cell :: cells ->
+                cartesianDataRec
+                mergedData
+                cells
+                minCol
+                i
+                ( j + 1 )
+                ( Dict.insert ( i, j ) cell myDict )
 
 
 cartesianData: List ( List a )-> Dict ( Int, Int ) a
@@ -2893,107 +2938,99 @@ cartesianData mergedData =
 
 mergeData: List Component -> List ( List Stuff )
 mergeData components =
-    let dates = List.sort
+    let dates =
+            List.sort
                 <| Set.toList
                     <| List.foldl
                             Set.union
                             Set.empty
                             <| List.map
-                                (\ c ->  Set.fromList ( onlyActiveKeys c.data )
-                                )
+                                (\ c ->  Set.fromList ( onlyActiveKeys c.data ) )
                                 components
-        columns = List.map
-                    ( \ c -> ( c.name, c.cType ) )
-                    components
+        columns =
+            List.map
+                ( \ c -> ( c.name, c.cType ) )
+                components
     in
-        [[ Header ( "Dates", Primary ) ] ++ List.map ( \ s -> Header s ) columns ]
-         ++ ( List.map
-                ( builRowBasic components )
-                dates
-            )
+    [[ Header ( "Dates", Primary ) ] ++ List.map ( \ s -> Header s ) columns ]
+    ++ ( List.map
+             ( builRowBasic components )
+             dates
+       )
 
 
 builRowBasic: List Component -> String -> List Stuff
 builRowBasic components date =
     [ DateRow date ]
-         ++ ( List.map
-                ( getStuff date )
-                <| List.map
-                    (\ c -> ( c.name , c.data )
-                    )
-                    components
-            )
+    ++ ( List.map
+             ( getStuff date )
+             <| List.map
+             (\ c -> ( c.name , c.data ) )
+             components
+       )
 
 
 applyDiff: Model -> Model
 applyDiff model =
-    setupFill { model | diff = currentDiff model ( filterEntry model.coordData )}
+    setupFill { model | diff = currentDiff model ( filterEntry model.coordData ) }
 
 
 currentDiff: Model -> Dict ( Int, Int ) Entry -> Dict ( Int, Int ) Entry
 currentDiff model coordData =
     Dict.map
-    (\ _ e -> { e | edition = ( linearCorrection model e.edition )})
-        <| Dict.filter
-            (\ _ e -> case e.edition of
-                        Edition _ -> True
-                        Deletion -> True
-                        _ -> False
-            )
-            coordData
+    (\ _ e -> { e | edition = ( linearCorrection model e.edition ) } )
+    <| Dict.filter
+        (\ _ e -> case e.edition of
+                      Edition _ -> True
+                      Deletion -> True
+                      _ -> False
+        )
+        coordData
 
 
---
 patchCurrent : SeriesToEdit -> SeriesNaked -> String -> SeriesToEdit
 patchCurrent base patch name  =
-    let baseEntryF = { raw = Nothing
-                    , value = MFloat Nothing
-                    , edition = Deletion
-                    , editable = True
-                    , override = False
-                    , indexRow = ""
-                    , indexCol = name
-                    , fromBatch = True
-                    }
-        baseEntryS = {baseEntryF | value = MString Nothing }
+    let baseEntryF =
+            { raw = Nothing
+            , value = MFloat Nothing
+            , edition = Deletion
+            , editable = True
+            , override = False
+            , indexRow = ""
+            , indexCol = name
+            , fromBatch = True
+            }
+        baseEntryS =
+            { baseEntryF | value = MString Nothing }
     in
     Dict.merge
         ( \_ _ r -> r )
-        ( \ d b p r -> case p of
-                        MFloat mf ->
-                            case mf of
-                                Nothing -> Dict.insert d b r
-                                Just v ->  Dict.insert
-                                            d
-                                            { b
-                                                | raw = Just ( String.fromFloat v )
+        ( \ d b p r ->
+              case p of
+                  MFloat mf ->
+                      case mf of
+                          Nothing -> Dict.insert d b r
+                          Just v ->
+                              Dict.insert d { b | raw = Just ( String.fromFloat v )
                                                 , edition = Edition ( MFloat v)
-                                            }
-                                            r
-                        MString ms ->
-                            case ms of
-                                Nothing -> Dict.insert d b r
-                                Just v ->  Dict.insert
-                                            d
-                                            { b
-                                                | raw = Just v
-                                                , edition = Edition ( MString v )
-                                            }
-                                            r
+                                            } r
+                  MString ms ->
+                      case ms of
+                          Nothing -> Dict.insert d b r
+                          Just v ->  Dict.insert d { b | raw = Just v
+                                                       , edition = Edition ( MString v )
+                                                   } r
         )
         ( \ d p r -> case p of
                         MFloat mf ->
                             case mf of
                                 Nothing -> Dict.insert
                                                 d
-                                                { baseEntryF
-                                                | indexCol = d
-                                                }
+                                                { baseEntryF | indexCol = d }
                                                 r
                                 Just v -> Dict.insert
                                             d
-                                            { baseEntryF
-                                            | indexCol = d
+                                            { baseEntryF | indexCol = d
                                             , raw = Just ( String.fromFloat v )
                                             , edition = Edition ( MFloat v)
                                             }
@@ -3071,7 +3108,7 @@ patchEditedData : Model -> Cmd Msg
 patchEditedData model =
     let allSeries = likeComp model ++ relevantComponents model
     in
-    Cmd.batch <|  List.map
+    Cmd.batch <| List.map
                         ( saveComponent
                             model.baseurl
                             model.horizon.timeZone
@@ -3087,27 +3124,26 @@ saveComponent baseUrl tzone series isString component =
         tzaware = component.tzaware
         patch = encodeSeries series name
     in
-        if Dict.isEmpty series
-            then Cmd.none
-        else
+    if Dict.isEmpty series
+    then Cmd.none
+    else
         Http.request
             { method = "PATCH"
-            , body = Http.jsonBody <| JE.object
-                     ([ ("name", JE.string name )
-                     , ("author" , JE.string "no-user" )
-                     , ("tzaware", JE.bool tzaware )
-                     , ("series", patch )
-                     , ("supervision", JE.bool True )
-                     , ("keepnans", JE.bool True)
+            , body = Http.jsonBody <| JE.object <|
+                     [ ( "name", JE.string name )
+                     , ( "author" , JE.string "no-user" )
+                     , ( "tzaware", JE.bool tzaware )
+                     , ( "series", patch )
+                     , ( "supervision", JE.bool True )
+                     , ( "keepnans", JE.bool True )
                      ] ++ ( if tzaware
                             then [( "tzone", JE.string tzone )]
                             else []
                           )
                        ++ ( if isString
-                            then  [("dtype", JE.string "object" )]
+                            then [ ( "dtype", JE.string "object" ) ]
                             else []
                           )
-                     )
             , headers = [ ]
             , timeout = Nothing
             , tracker = Nothing
@@ -3140,45 +3176,44 @@ linearCorrection model value =
                                         Nothing -> Nothing
                                         Just i -> Just i
                     in
-                        case a of
-                            Nothing ->
-                                case b of
-                                    Nothing -> Edition v
-                                    Just inter -> Edition (MFloat ( f + inter ))
-                            Just slope ->
-                                case b of
-                                    Nothing -> Edition (MFloat ( f * slope ))
-                                    Just inter ->
-                                        Edition (MFloat ( f * slope + inter ))
+                    case a of
+                        Nothing ->
+                            case b of
+                                Nothing -> Edition v
+                                Just inter -> Edition (MFloat ( f + inter ))
+                        Just slope ->
+                            case b of
+                                Nothing -> Edition (MFloat ( f * slope ))
+                                Just inter ->
+                                    Edition (MFloat ( f * slope + inter ))
 
 
 encodeSeries: Dict ( Int, Int ) Entry -> String -> JE.Value
 encodeSeries editedData name =
-    let flatten = Dict.fromList
-                    <| List.concat
-                    <| Dict.values
-                        <| Dict.map
-                            (\ _ e -> case e.edition of
-                                        NoEdition -> []
-                                        Error _ -> []
-                                        Deletion -> [(e.indexRow, Nothing)]
-                                        Edition val -> [(e.indexRow, Just val )]
-                            )
-                            <| Dict.filter
-                                ( \ _ e  -> e.indexCol == name )
-                                editedData
+    let flatten =
+            Dict.fromList
+                <| List.concat
+                <| Dict.values
+                <| Dict.map
+                    (\ _ e -> case e.edition of
+                                  NoEdition -> []
+                                  Error _ -> []
+                                  Deletion -> [(e.indexRow, Nothing)]
+                                  Edition val -> [(e.indexRow, Just val )]
+                    )
+                    <| Dict.filter ( \ _ e  -> e.indexCol == name ) editedData
     in
-        JE.dict
-            identity
-            ( \value ->
-                case value of
-                    Nothing -> JE.null --deletion
-                    Just val ->
-                        case val of
-                            MString s  -> JE.string s
-                            MFloat f -> JE.float f
-            )
-            flatten
+    JE.dict
+        identity
+        ( \value ->
+              case value of
+                  Nothing -> JE.null --deletion
+                  Just val ->
+                      case val of
+                          MString s  -> JE.string s
+                          MFloat f -> JE.float f
+        )
+        flatten
 
 
 encodeEditedData : Dict String (Maybe Float) -> JE.Value
@@ -3345,18 +3380,22 @@ buttonExpandFormula model =
 
 infoExpand: Model -> String
 infoExpand model =
-    let nbD = if model.expand
-                then loadedComponents model.terminalComponents
-                else List.length model.directComponents
-        nbT = List.length model.terminalComponents
-        left = if nbD==0
-                    then "..."
-                    else String.fromInt nbD
-        right =  if nbT== 0
-                    then "..."
-                    else String.fromInt nbT
+    let nbD =
+            if model.expand
+            then loadedComponents model.terminalComponents
+            else List.length model.directComponents
+        nbT =
+            List.length model.terminalComponents
+        left =
+            if nbD==0
+            then "..."
+            else String.fromInt nbD
+        right =
+            if nbT== 0
+            then "..."
+            else String.fromInt nbT
     in
-        "(" ++ left ++ "/" ++ right ++ ")"
+    "(" ++ left ++ "/" ++ right ++ ")"
 
 
 loadedComponents: List Component -> Int
@@ -3408,24 +3447,27 @@ viewRelevantTable model =
         Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
         BasketMode ->  viewValueTable model
-        Creation Form -> H.table
-                            [ HA.class "creation-form"
-                            ,  HE.onClick UnFocus
-                            ]
-                            <| [ nameForm model ] ++ ( creationForm
-                                                        model
-                                                        True
-                                                        FromScratch
-                                                      )
+        Creation Form ->
+            H.table
+                [ HA.class "creation-form"
+                ,  HE.onClick UnFocus
+                ]
+                <| [ nameForm model ] ++ ( creationForm
+                                               model
+                                               True
+                                               FromScratch
+                                         )
 
-        Creation Edit -> H.div
-                            [ ]
-                            [ H.table
-                                [ HA.class "creation-form"
-                                , HE.onClick UnFocus
-                                ]
-                                [ nameForm model ]
-                            , viewValueTable model ]
+        Creation Edit ->
+            H.div
+                [ ]
+                [ H.table
+                      [ HA.class "creation-form"
+                      , HE.onClick UnFocus
+                      ]
+                      [ nameForm model ]
+                , viewValueTable model
+                ]
 
 
 checkMandatory: Maybe String -> String
@@ -3860,14 +3902,18 @@ updateCell stuff value =
 getIndexes: Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> ( Dict Int String, Dict Int String )
 getIndexes coordData bounds =
     let (( minRow, maxRow ), ( minCol, maxCol )) = bounds
-        dates = List.map
+        dates =
+            List.map
                 (\ iRow -> ( iRow , ( findEntry (iRow, minCol) ( 0, 1 ) coordData bounds ).indexRow ) )
                 ( List.range minRow maxRow )
-        columns = List.map
+        columns =
+            List.map
                 (\ iCol -> ( iCol, ( findEntry (minRow, iCol) ( 1, 0 ) coordData bounds).indexCol ) )
                 ( List.range minCol maxCol )
     in
-        ( Dict.fromList dates, Dict.fromList columns )
+    ( Dict.fromList dates
+    , Dict.fromList columns
+    )
 
 
 relevantIndexes: Dict ( Int, Int ) a -> ( List Int, List Int )
@@ -3876,28 +3922,31 @@ relevantIndexes coordData =
         rows = Set.fromList ( List.map Tuple.first keys )
         cols = Set.fromList ( List.map Tuple.second keys )
     in
-        ( Set.toList rows,
-          Set.toList cols
-        )
+    ( Set.toList rows
+    , Set.toList cols
+    )
 
 
 findEntry: ( Int, Int ) ->  ( Int, Int ) -> Dict ( Int, Int ) Entry -> ( ( Int, Int ),  ( Int, Int ) ) -> Entry
 findEntry ( iRow,  iCol ) increment coordData bounds =
-    let (( _, maxRow ), ( _, maxCol )) = bounds
+    let
+        (( _, maxRow ), ( _, maxCol )) = bounds
     in
     if iRow > maxRow || iCol > maxCol
-        then emptyEntry
-        else
-    case Dict.get (iRow, iCol) coordData of
-        Just e -> e
-        Nothing -> findEntry ( addP (iRow, iCol) increment ) increment coordData bounds
+    then emptyEntry
+    else
+        case Dict.get (iRow, iCol) coordData of
+            Just e -> e
+            Nothing ->
+                findEntry ( addP (iRow, iCol) increment ) increment coordData bounds
 
 
 buttonShowDiff: Model -> H.Html Msg
 buttonShowDiff model =
-    let msg = if model.showDiff
-                then "Hide Diff"
-                else "Show Diff"
+    let msg =
+            if model.showDiff
+            then "Hide Diff"
+            else "Show Diff"
     in
     if isSingle model
     then
@@ -3961,11 +4010,12 @@ buildDiffRow model diff relevantCols dates iRow  =
 
 
 buildDiffCell model diff iRow iCol =
-    let entry = case Dict.get ( iRow, iCol ) diff of
-                    Nothing -> emptyEntry
-                    Just content -> content
+    let entry =
+            case Dict.get ( iRow, iCol ) diff of
+                Nothing -> emptyEntry
+                Just content -> content
     in
-        H.td [] [ H.text <| getValue entry "-"]
+    H.td [] [ H.text <| getValue entry "-"]
 
 
 buildTable: Model ->  H.Html Msg
@@ -4010,25 +4060,26 @@ buildHeader model ( name, cType ) iCol =
     in
     H.th
         [ HA.tabindex 0 --allow to be focusable
-        ,  HA.id ( idEntry ( -1, iCol ) )
+        , HA.id ( idEntry ( -1, iCol ) )
         , HA.class "column-header"
         , if focused
-                then HA.class "focused"
-                else HA.class ""
-             , if selected
-                then HA.class "selected"
-                else HA.class ""
-         , HE.onClick ( ClickCell -1 iCol )
-         , HE.onMouseOver ( Visible iCol )
-         , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
-         , HE.onMouseEnter ( MousePosition ( -1, iCol ) )
-         ]
+          then HA.class "focused"
+          else HA.class ""
+        , if selected
+          then HA.class "selected"
+          else HA.class ""
+        , HE.onClick ( ClickCell -1 iCol )
+        , HE.onMouseOver ( Visible iCol )
+        , HE.onMouseDown ( Drag ( On ( -1, iCol ) ))
+        , HE.onMouseEnter ( MousePosition ( -1, iCol ) )
+        ]
         ( insideHeader model name cType iCol )
 
 
 insideHeader: Model -> String -> CType -> Int -> List ( H.Html Msg )
 insideHeader model name cType iCol =
-    let indexPositive = iCol + 1
+    let
+        indexPositive = iCol + 1
     in
     case indexPositive of
         0 -> [ H.p
@@ -4040,7 +4091,7 @@ insideHeader model name cType iCol =
                 , HA.title "Copy dates"
                 ]
                 []
-                , H.p [] [ H.text "Dates" ]
+             , H.p [] [ H.text "Dates" ]
              ]
         1 ->
             case model.mode of
@@ -4048,16 +4099,13 @@ insideHeader model name cType iCol =
                     buildLink model iCol name cType
                 _ ->
                     [ H.p
-                    [ HA.class <| getCopyClass
-                                    model.statusCopy
-                                    CopyValues
-                    , HE.onClick ( CopyToClipboard CopyValues )
-                    , HA.class "copy-all"
-                    , HA.title "Copy values"
-                    ]
-                    []
+                          [ HA.class <| getCopyClass model.statusCopy CopyValues
+                          , HE.onClick ( CopyToClipboard CopyValues )
+                          , HA.class "copy-all"
+                          , HA.title "Copy values"
+                          ] []
                     , H.p [] [ H.text "Values" ]
-                 ]
+                    ]
         _ -> buildLink model iCol name cType
 
 
@@ -4072,15 +4120,15 @@ buildDateCell model date iRow =
     in
         H.th
             [ HA.class "show-table-dates"
-             , if focused
-                then HA.class "focused"
-                else HA.class ""
-             , if selected
-                then HA.class "selected"
-                else HA.class ""
-             , HE.onClick ( ClickCell iRow -1 )
-             , HE.onMouseDown ( Drag ( On ( iRow, -1 ) ))
-             , HE.onMouseEnter ( MousePosition ( iRow, -1 ))]
+            , if focused
+              then HA.class "focused"
+              else HA.class ""
+            , if selected
+              then HA.class "selected"
+              else HA.class ""
+            , HE.onClick ( ClickCell iRow -1 )
+            , HE.onMouseDown ( Drag ( On ( iRow, -1 ) ))
+            , HE.onMouseEnter ( MousePosition ( iRow, -1 ))]
             [ H.node
                 "batch-copy"
                 [ HA.attribute "index" ( idEntry (iRow, -1) )
@@ -4112,25 +4160,25 @@ buildCell model entry iRow iCol  =
    in
     H.td
         ([ if entry.editable
-            then HA.class "editable"
-            else HA.class "non-editable"
-        , if focused
-            then HA.class "focused"
+           then HA.class "editable"
+           else HA.class "non-editable"
+         , if focused
+           then HA.class "focused"
             else HA.class ""
-        , if selected
-            then HA.class "selected"
-            else HA.class ""
-        , if fillUnder
-            then HA.class "fill-under"
-            else HA.class "plain"
-        , if active
-            then HA.class "active"
-            else HA.class ""
-        , HE.onClick ( ClickCell iRow iCol )
-        , HE.onDoubleClick (ActivateCell iRow iCol )
-        , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
-        , HE.onMouseEnter ( MousePosition ( iRow, iCol ))
-        ]
+         , if selected
+           then HA.class "selected"
+           else HA.class ""
+         , if fillUnder
+           then HA.class "fill-under"
+           else HA.class "plain"
+         , if active
+           then HA.class "active"
+           else HA.class ""
+         , HE.onClick ( ClickCell iRow iCol )
+         , HE.onDoubleClick (ActivateCell iRow iCol )
+         , HE.onMouseDown ( Drag ( On ( iRow, iCol ) ))
+         , HE.onMouseEnter ( MousePosition ( iRow, iCol ))
+         ]
           ++ debugAttributes debug entry
         )
         [ H.node
@@ -4160,7 +4208,7 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
                     , HA.value value
                     , HA.autocomplete False
                     , HE.onInput ( InputChanged iRow iCol )
-                     ]
+                    ]
                     [ ]
             ]
         else
@@ -4183,51 +4231,62 @@ getStuff date ( name, series ) =
 
 getEntry: String ->  ( String , Series ) -> Entry
 getEntry date ( name, series ) =
-    let defaultEntry = { raw = Nothing
-                       , value = MFloat Nothing
-                       , edition = NoEdition
-                       , editable = False
-                       , override = False
-                       , indexRow = date
-                       , indexCol = name
-                       , fromBatch = False
-                       }
+    let defaultEntry =
+            { raw = Nothing
+            , value = MFloat Nothing
+            , edition = NoEdition
+            , editable = False
+            , override = False
+            , indexRow = date
+            , indexCol = name
+            , fromBatch = False
+            }
     in
     case series of
         Naked ts ->
             case ts.zoomTs of
                 Just zoomTs ->
                     case Dict.get date zoomTs of
-                        Just value ->  { defaultEntry | value = value
-                                                      , raw = Just ( toRaw value )
-                                           }
-                        Nothing -> defaultEntry
+                        Just value ->
+                            { defaultEntry
+                                | value = value
+                                , raw = Just ( toRaw value )
+                            }
+                        Nothing ->
+                            defaultEntry
                 Nothing ->
                     case Dict.get date ts.initialTs of
-                        Just value ->  { defaultEntry | value = value
-                                                      , raw = Just ( toRaw value )
-                                            }
-                        Nothing -> defaultEntry
+                        Just value ->
+                            { defaultEntry
+                                | value = value
+                                , raw = Just ( toRaw value )
+                            }
+                        Nothing ->
+                            defaultEntry
         ToEdit ts ->
             case ts.zoomTs of
                 Just zoomTs ->
-                        let entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
+                        let
+                            entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
                         in
-                            { defaultEntry | value = entry.value
-                                            , edition = entry.edition
-                                            , raw = Just ( toRaw entry.value )
-                                            , override = entry.override
-                                            , editable = True
-                              }
+                            { defaultEntry
+                                | value = entry.value
+                                , edition = entry.edition
+                                , raw = Just ( toRaw entry.value )
+                                , override = entry.override
+                                , editable = True
+                            }
                 Nothing ->
-                        let entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
+                        let
+                            entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
                         in
-                            { defaultEntry | value = entry.value
-                                           , edition = entry.edition
-                                           , override = entry.override
-                                           , raw = Just ( toRaw entry.value )
-                                           , editable = True
-                               }
+                            { defaultEntry
+                                | value = entry.value
+                                , edition = entry.edition
+                                , override = entry.override
+                                , raw = Just ( toRaw entry.value )
+                                , editable = True
+                            }
 
 
 datesValue: Model -> List String
@@ -4236,7 +4295,7 @@ datesValue model =
     ( Set.toList
         ( Set.union
              ( datesFormula model )
-             ( datesComponents model )))
+             ( datesComponents model ) ) )
 
 
 datesFormula: Model -> Set String
@@ -4252,14 +4311,15 @@ datesComponents model =
         Set.union
         Set.empty
         ( List.map
-            (datesComponent model)
+            ( datesComponent model )
             ( relevantComponents model )
         )
 
 
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
-    let allDates = onlyActiveKeys comp.data
+    let
+        allDates = onlyActiveKeys comp.data
     in
         Set.fromList allDates
 
@@ -4271,10 +4331,11 @@ basketLink model =
     in
     case bounds of
         Nothing -> [ base ]
-        Just ( min, max )-> [ base
-                            , UB.string "startdate" min
-                            , UB.string "enddate" max
-                            ]
+        Just ( min, max ) ->
+            [ base
+            , UB.string "startdate" min
+            , UB.string "enddate" max
+            ]
 
 queryNav: Model -> String -> List UB.QueryParameter
 queryNav model name =
@@ -4283,10 +4344,11 @@ queryNav model name =
     in
     case bounds of
         Nothing -> [ base ]
-        Just ( min, max )-> [ base
-                            , UB.string "startdate" min
-                            , UB.string "enddate" max
-                            ]
+        Just ( min, max ) ->
+            [ base
+            , UB.string "startdate" min
+            , UB.string "enddate" max
+            ]
 
 
 buildLink: Model -> Int -> String -> CType -> List ( H.Html Msg )
@@ -4296,8 +4358,8 @@ buildLink model iCol name cType =
             Nope -> "hidden"
             Single eCol ->
                 case iCol == eCol of
-                            True -> "expanded"
-                            False -> "hidden"
+                    True -> "expanded"
+                    False -> "hidden"
     in
     ( case cType of
         Auto ->
@@ -4328,10 +4390,8 @@ printValue: Maybe Int -> String -> String
 printValue round value =
     case String.toFloat value of
         Nothing -> value
-        Just val -> formatNumber
-                        <| roundNumber
-                            round
-                            val
+        Just val ->
+            formatNumber <| roundNumber round val
 
 
 roundNumber: Maybe Int -> Float -> String
@@ -4399,8 +4459,8 @@ saveAnyway model =
         _ -> H.div [ HA.class "placeholder-save-anyway" ] []
 
 
-type StatePoints =
-    NoPoint
+type StatePoints
+    = NoPoint
     | TooMuchPoints Int
     | Drawable
 
@@ -4408,11 +4468,11 @@ type StatePoints =
 statePoints : Int -> Bool -> StatePoints
 statePoints nbPoints forceDraw=
     if nbPoints == 0
-        then NoPoint
-        else
-            if ( nbPoints < maxPoints ) || forceDraw
-                then Drawable
-                else TooMuchPoints nbPoints
+    then NoPoint
+    else
+        if ( nbPoints < maxPoints ) || forceDraw
+        then Drawable
+        else TooMuchPoints nbPoints
 
 
 divLinearCorrection: Model -> Dict ( Int, Int ) a -> List (H.Html Msg)
@@ -4427,12 +4487,12 @@ divLinearCorrection model filtredDict =
                 , H.input
                     [ HA.class "correction"
                     , case  model.slope of
-                        Nothing ->
-                            HA.placeholder "1"
-                        Just slope ->
-                           HA.value slope
-                   , HE.onInput (\ s ->  Correction (Slope s) )
-                   ]
+                          Nothing ->
+                              HA.placeholder "1"
+                          Just slope ->
+                              HA.value slope
+                    , HE.onInput (\ s ->  Correction (Slope s) )
+                    ]
                    []
                 , H.text ".X + "
                 , H.input
@@ -4442,8 +4502,8 @@ divLinearCorrection model filtredDict =
                             HA.placeholder "0"
                         Just intercept ->
                            HA.value intercept
-                   , HE.onInput (\ s ->  Correction (Intercept s) )
-                   ]
+                    , HE.onInput (\ s ->  Correction (Intercept s) )
+                    ]
                    []
                 ]
             ]
@@ -4454,17 +4514,13 @@ divLinearCorrection model filtredDict =
 getValue : Entry -> String -> String
 getValue entry blankStr =
      case entry.edition of
-                Edition v -> toString v
-                Error s -> s
-                Deletion -> blankStr
-                NoEdition ->
-                    case entry.value of
-                        MString s -> Maybe.withDefault "" s
-                        MFloat f ->  Maybe.withDefault ""
-                                        <| Maybe.map
-                                            String.fromFloat
-                                            f
-
+         Edition v -> toString v
+         Error s -> s
+         Deletion -> blankStr
+         NoEdition ->
+             case entry.value of
+                 MString s -> Maybe.withDefault "" s
+                 MFloat f ->  Maybe.withDefault "" <| Maybe.map String.fromFloat f
 
 
 showValue: Entry -> String -> String
@@ -4476,22 +4532,23 @@ showValue entry blankStr =
 
 cellStyle: Entry -> String
 cellStyle entry =
-        case entry.edition of
-            Edition _ -> "editing"
-            Deletion -> "nan"
-            Error _ -> "invalid"
-            NoEdition ->
-                if entry.override
-                 then "overridden"
-                 else case entry.value of
-                        MFloat f ->
-                            case f of
-                                Nothing -> "nan"
-                                _ -> ""
-                        MString s ->
-                            case s of
-                                Nothing -> "nan"
-                                _ -> ""
+    case entry.edition of
+        Edition _ -> "editing"
+        Deletion -> "nan"
+        Error _ -> "invalid"
+        NoEdition ->
+            if entry.override
+            then "overridden"
+            else
+                case entry.value of
+                    MFloat f ->
+                        case f of
+                            Nothing -> "nan"
+                            _ -> ""
+                    MString s ->
+                        case s of
+                            Nothing -> "nan"
+                            _ -> ""
 
 
 fillButton: ( Int, Int ) -> Bool -> List ( H.Html Msg )
@@ -4723,12 +4780,11 @@ plotNode model =
                             then "lines+markers"
                             else "lines" )
         yaxis = defaultLayoutOptions.yaxis
-        newYaxis =  { yaxis | hoverFormat = hoverFormat
-                    }
+        newYaxis =  { yaxis | hoverFormat = hoverFormat }
         xaxis = defaultLayoutOptions.xaxis
         newXaxis = { xaxis
-                    | range = extractDates
-                                <| getFromToDates model.horizon
+                       | range = extractDates
+                         <| getFromToDates model.horizon
                    }
     in
     case model.mode
@@ -4740,52 +4796,52 @@ plotNode model =
                     plotSingle model dragMode lineMarker newXaxis newYaxis
 
 
-
 plotSingle: Model -> String -> String -> Axis -> Axis -> H.Html Msg
 plotSingle model dragMode lineMarker xAxis yAxis =
     let dates = onlyActiveKeys model.series
         values = Dict.values ( onlyActiveValues model.series )
         diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
         previous = previouslyEdited  model.series
-        editionTrace = case model.mode of
-                        Existing I.Formula -> []
-                        _ -> [ showEdition diff
-                             ]
-        previouslyEditedTrace = case model.mode of
-            Existing I.Primary ->
-                [ scatterplot
-                    "manual"
-                    ( Dict.keys previous )
-                    ( Dict.values previous )
-                    "markers"
-                    defaultTraceOptions
-                ]
-            _ -> []
+        editionTrace =
+            case model.mode of
+                Existing I.Formula -> []
+                _ -> [ showEdition diff ]
+        previouslyEditedTrace =
+            case model.mode of
+                Existing I.Primary ->
+                    [ scatterplot
+                      "manual"
+                      ( Dict.keys previous )
+                      ( Dict.values previous )
+                      "markers"
+                      defaultTraceOptions
+                    ]
+                _ -> []
 
     in
     H.node "plot-figure"
-            [ HA.attribute
-                "args"
-                ( serializedPlotArgs
-                     "plot"
-                    ( [ scatterplot
-                        model.name
-                        dates
-                        values
-                       lineMarker
-                        defaultTraceOptions
-                      ] ++ editionTrace
-                        ++ previouslyEditedTrace
-                    )
-                    { defaultLayoutOptions | dragMode = Just dragMode
-                                           , yaxis = yAxis
-                                           , xaxis = xAxis
-                                           , height = Just 350
-                    }
-                    defaultConfigOptions
+        [ HA.attribute
+              "args"
+              ( serializedPlotArgs
+                "plot"
+                ( [ scatterplot
+                    model.name
+                    dates
+                    values
+                    lineMarker
+                    defaultTraceOptions
+                  ] ++ editionTrace ++ previouslyEditedTrace
                 )
-            ]
-            [ ]
+                { defaultLayoutOptions
+                    | dragMode = Just dragMode
+                    , yaxis = yAxis
+                    , xaxis = xAxis
+                    , height = Just 350
+                }
+                defaultConfigOptions
+              )
+        ]
+        [ ]
 
 
 plotString: Model -> H.Html Msg
@@ -4852,10 +4908,11 @@ plotBasket model dragMode lineMarker xAxis yAxis =
                         model.directComponents
                      ++ [ showEdition diff ]
                     )
-                    { defaultLayoutOptions | dragMode = Just dragMode
-                                           , yaxis = yAxis
-                                           , xaxis = xAxis
-                                           , height = Just 350
+                    { defaultLayoutOptions
+                        | dragMode = Just dragMode
+                        , yaxis = yAxis
+                        , xaxis = xAxis
+                        , height = Just 350
                     }
                     defaultConfigOptions
                 )
