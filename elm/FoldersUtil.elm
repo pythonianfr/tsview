@@ -67,6 +67,13 @@ type LoadingStatus =
     | LoadingError
 
 
+type MsgTree
+    = Open Path Bool
+    | DragStart String Path
+    | DragOver Path
+    | DragEnd
+    | Drop Path
+
 -- ref for drag/drop: https://benpaulhanna.com/basic-html5-drag-and-drop-with-elm.html
 
 onDragStart msg =
@@ -189,9 +196,8 @@ zHeight path =
         <| String.length
             path
 
-toListItems : Maybe Path ->(Path -> Bool -> msg) ->  (String -> Path -> msg) -> ( Path-> msg)  -> msg -> (Path -> msg)
-               -> Payload -> List (Html msg) -> Html msg
-toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
+toListItems : Maybe Path -> ( MsgTree -> msg ) -> Payload -> List (Html msg) -> Html msg
+toListItems overDrag convertMsg payload children =
     let open = payload.open
     in
         Html.li
@@ -199,9 +205,9 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
             , attribute "data-path" payload.path
             , style "z-index" (zHeight payload.path)
             ]
-            ([ viewFolder overDrag openMsg dragOver drop payload open
+            ([ viewFolder overDrag payload open convertMsg
              ]++ if open
-                    then [ viewSeries overDrag payload dragStart dragEnd dragOver drop
+                    then [ viewSeries overDrag payload convertMsg
                           , Html.ul
                             [ class "sub-folders-list" ]
                             children
@@ -210,29 +216,30 @@ toListItems overDrag openMsg dragStart dragOver dragEnd drop payload children =
             )
 
 
-viewFolder: Maybe Path -> (Path -> Bool -> msg) -> ( Path-> msg) -> ( Path-> msg) -> Payload -> Bool -> Html msg
-viewFolder overDrag openMsg dragOver drop payload open =
+viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
+viewFolder overDrag payload open convertMsg =
     Html.div
         [ class "folder-row"
         , class ( if open then "open" else "not-open" )
         , class ( classOver payload overDrag )
-        , onDragOver (dragOver payload.path)
-        , onDrop ( drop payload.path )
+        , onDragOver <| convertMsg (DragOver payload.path)
+        , onDrop <| convertMsg ( Drop payload.path )
         ]
-        [ buttonOpen openMsg payload
+        [ buttonOpen Open payload convertMsg
         , Html.p
             [ class "folder-name"
-            , onClick ( openMsg payload.path ( not open ) )
+            , onClick <| convertMsg ( Open payload.path ( not open ) )
             ]
             [ Html.text payload.name
             ]
         ]
 
 
-buttonOpen: (Path -> Bool -> msg) -> Payload -> Html msg
-buttonOpen openMsg payload =
+buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg
+buttonOpen openMsg payload convertMsg =
     Html.button
-        [ onClick (openMsg payload.path (not payload.open))
+        [ onClick <| convertMsg
+                        (openMsg payload.path (not payload.open))
         , class "button-switch"
         , class <| if payload.open
                     then "closer"
@@ -244,8 +251,8 @@ buttonOpen openMsg payload =
         ]
 
 
-viewSeries : Maybe Path-> Payload -> (String -> Path -> msg) ->  msg -> ( Path-> msg) -> ( Path-> msg)  ->Html msg
-viewSeries overDrag payload dragStart dragEnd dragOver drop =
+viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
+viewSeries overDrag payload convertMsg =
     Html.ul
         [ class "series-list"]
         <| List.map
@@ -256,11 +263,16 @@ viewSeries overDrag payload dragStart dragEnd dragOver drop =
                             , draggable "true"
                             , class ( classOver payload overDrag )
                             , onDragStart
-                                <| dragStart
-                                    sn
-                                    payload.path
-                            , onDragOver ( dragOver payload.path )
-                            , onDrop ( drop payload.path )
+                                <| convertMsg
+                                    <| DragStart
+                                        sn
+                                        payload.path
+                            , onDragOver
+                                <| convertMsg
+                                    <| DragOver payload.path
+                            , onDrop
+                                <| convertMsg
+                                    <| Drop payload.path
                             ]
                             [ Html.text sn ]]
             )
@@ -277,14 +289,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: Tree Payload -> Maybe Path -> (Path -> Bool -> msg) -> (String -> Path -> msg) -> (Path -> msg) ->  msg
-           -> (Path -> msg) -> Html msg
-viewTree tree overDrag openMsg dragStart dragHover dragStop drop =
+viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Html msg
+viewTree tree overDrag convertMsg =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems overDrag openMsg dragStart dragHover dragStop drop )
+            ( toListItems overDrag convertMsg )
             tree
         ]
 

@@ -32,6 +32,9 @@ import FoldersUtil exposing
     , root
     , viewTree
     )
+
+import FoldersUtil exposing (MsgTree(..))
+
 import Util as U
 
 type alias Model =
@@ -50,11 +53,7 @@ type Msg
     | GotTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path ( Result Http.Error String )
-    | Open Path Bool
-    | Drag String Path
-    | DragHover Path
-    | DragStop
-    | Drop Path
+    | FromTree MsgTree
 
 -- for documentation purpose
 type alias Path = String
@@ -111,8 +110,12 @@ update msg model =
 
         GotUpdatePath source destination (Ok _) ->
             ( model
-            , Cmd.batch [ Task.perform identity ( Task.succeed ( Open source True ))
-                        , Task.perform identity ( Task.succeed ( Open destination True ))
+            , Cmd.batch [ Task.perform
+                            identity
+                            ( Task.succeed ( FromTree ( Open source True )))
+                        , Task.perform
+                            identity
+                            ( Task.succeed ( FromTree ( Open destination True )))
                         ]
             )
 
@@ -120,45 +123,47 @@ update msg model =
         GotUpdatePath source destination (Err _ ) ->
             U.nocmd model
 
-        Open path open ->
-            ( { model | tree = mutePayload
+        FromTree msgTree ->
+            case msgTree of
+                Open path open ->
+                    ( { model | tree = mutePayload
+                                        path
+                                        (\ p -> {p | open = open})
+                                        model.tree
+                      }
+                    , if not open
+                        then Cmd.none
+                        else
+                            getSeries
+                                model.baseUrl
                                 path
-                                (\ p -> {p | open = open})
-                                model.tree
-              }
-            , if not open
-                then Cmd.none
-                else
-                    getSeries
-                        model.baseUrl
-                        path
 
-            )
-        Drag name from ->
-            ( { model | currentDrag = Just (name, from)}
-            , Cmd.none
-            )
-        DragHover over ->
-             ( { model | overDrag = Just over
-             }
-            , Cmd.none
-            )
-        DragStop ->
-            ( { model | currentDrag = Nothing
-                      , overDrag = Nothing
-              }
-            , Cmd.none
-            )
-        Drop position ->
-            ( moveSeries
-                { model | overDrag = Nothing }
-                position
-            , updatePath
-                model.baseUrl
-                model.treeAttribute
-                model.currentDrag
-                position
-            )
+                    )
+                DragStart name from ->
+                    ( { model | currentDrag = Just (name, from)}
+                    , Cmd.none
+                    )
+                DragOver over ->
+                     ( { model | overDrag = Just over
+                     }
+                    , Cmd.none
+                    )
+                DragEnd ->
+                    ( { model | currentDrag = Nothing
+                              , overDrag = Nothing
+                      }
+                    , Cmd.none
+                    )
+                Drop position ->
+                    ( moveSeries
+                        { model | overDrag = Nothing }
+                        position
+                    , updatePath
+                        model.baseUrl
+                        model.treeAttribute
+                        model.currentDrag
+                        position
+                    )
 
 
 
@@ -264,12 +269,7 @@ view model =
                 [ viewTree
                     model.tree
                     model.overDrag
-                    Open
-                    Drag
-                    DragHover
-                    DragStop
-                    Drop
-
+                    FromTree
                 , div
                     []
                     [text <| case model.currentDrag of
