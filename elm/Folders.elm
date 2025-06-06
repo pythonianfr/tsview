@@ -166,7 +166,6 @@ update msg model =
                     )
 
 
-
 getPaths: String -> Cmd Msg
 getPaths baseUrl =
     Http.get

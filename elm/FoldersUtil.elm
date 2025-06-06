@@ -9,6 +9,7 @@ import Html.Attributes exposing
     , checked
     , class
     , draggable
+    , id
     , dropzone
     , type_
     , style
@@ -232,7 +233,28 @@ viewFolder overDrag payload open convertMsg =
             ]
             [ Html.text payload.name
             ]
+        , Html.button
+            [ class "folder-action"
+            , attribute "popovertarget" ( "action-" ++ payload.path )
+            , style "anchor-name" ( "action-button-" ++ payload.path )
+            ]
+            [ Html.text "..."
+            , Html.ul
+                [ class "action-box"
+                , attribute "popover" ""
+                , style "position-anchor" ( "action-button-" ++ payload.path )
+                , id ( "action-" ++ payload.path )
+                ]
+                [ Html.li
+                    []
+                    [ Html.text "Rename"]
+                , Html.li
+                    []
+                    [ Html.text "Delete"]
+                ]
+            ]
         ]
+
 
 
 buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg

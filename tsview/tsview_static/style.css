@@ -528,3 +528,44 @@ label.option {
     border: 0;
 }
 
+.menu-folder .folder-row {
+}
+
+.menu-folders .folder-action {
+    display: inline;
+    width: fit-content;
+    background-color:lightgrey;
+    cursor: pointer;
+    position: relative;
+    border: 0;
+}
+
+.menu-folders .action-box li {
+    list-style-type: none;
+    cursor: pointer;
+    padding-left: 10px;
+    padding-right: 10px;
+    text-align: left;
+    }
+
+.menu-folders .action-box li:hover {
+    list-style-type: none;
+    background: #A9A9A9;
+}
+
+.menu-folders .action-box {
+    background-color:lightgrey;
+    border: none;
+    padding: 0px;
+    margin:0;
+    inset: auto;
+    position: absolute;
+    top: anchor(top);
+    left: anchor(right);
+}
+
+.menu-folders .action-box:popover-open {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+.
