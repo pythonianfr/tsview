@@ -252,17 +252,17 @@ def tsview(tsa):
 
     @bp.route('/tsdelete')
     def tsdelete():
-        if has_roles('admin', 'rw'):
-            flags_menu = json.dumps([homeurl(), 'timeseries-delete'])
-            return render_template(
-                'tsedit.html',
-                edit_kind="Delete",
-                homeurl=homeurl(),
-                flags_menu=flags_menu,
-                title='Delete'
-            )
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
 
-        return 'You do not have the delete capability.'
+        flags_menu = json.dumps([homeurl(), 'timeseries-delete'])
+        return render_template(
+            'tsedit.html',
+            edit_kind="Delete",
+            homeurl=homeurl(),
+            flags_menu=flags_menu,
+            title='Delete'
+        )
 
     @bp.route('/formulacache')
     def formulacache():
