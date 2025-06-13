@@ -472,6 +472,8 @@ label.option {
 
 .menu-folders .sub-folders-list {
     padding-left: 10px;
+    user-select: none;
+
 }
 
 .menu-folders .series-list {
@@ -488,10 +490,10 @@ label.option {
 .menu-folders .series-name {
     margin: 0px;
     cursor: grab;
+    display: inline;
 }
 
 .menu-folders .folder-name {
-    user-select: none;
     margin: 0px;
 }
 
@@ -512,6 +514,10 @@ label.option {
 
 .menu-folders ul.series-list {
     list-style-type: none;
+}
+
+.menu-folders .series-list.selected {
+    background-color: lightblue;
 }
 
 .menu-folders .folder-name{

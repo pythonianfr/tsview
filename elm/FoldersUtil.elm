@@ -50,6 +50,7 @@ type alias Payload =
     , open: Bool
     , status: LoadingStatus
     , series: Set String
+    , selected : Set String
     }
 
 initPayload: Payload
@@ -59,6 +60,7 @@ initPayload =
     , open = False
     , status = Start
     , series = Set.empty
+    , selected = Set.empty
     }
 
 type LoadingStatus =
@@ -74,6 +76,8 @@ type MsgTree
     | DragOver Path
     | DragEnd
     | Drop Path
+    | Select Path String
+    | Deselect Path String
 
 -- ref for drag/drop: https://benpaulhanna.com/basic-html5-drag-and-drop-with-elm.html
 
@@ -208,7 +212,8 @@ toListItems overDrag convertMsg payload children =
             ]
             ([ viewFolder overDrag payload open convertMsg
              ]++ if open
-                    then [ viewSeries overDrag payload convertMsg
+                    then [ viewSelected payload convertMsg
+                          , viewSeries overDrag payload convertMsg
                           , Html.ul
                             [ class "sub-folders-list" ]
                             children
@@ -273,14 +278,50 @@ buttonOpen openMsg payload convertMsg =
         ]
 
 
-viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
-viewSeries overDrag payload convertMsg =
-    Html.ul
-        [ class "series-list"]
+viewSelected: Payload ->  ( MsgTree -> msg ) -> Html msg
+viewSelected payload convertMsg  =
+     Html.ul
+        [ class "series-list"
+        , class "selected"
+        ]
         <| List.map
             (\sn -> Html.li
                         [ class "series-item" ]
-                        [Html.p
+                        [ Html.button
+                            [ onClick
+                                <| convertMsg
+                                    <| Deselect payload.path sn ]
+                            [Html.text "▼"]
+                        , Html.p
+                            [ class "series-name"
+                            ]
+                            [ Html.text sn ]]
+
+            )
+            <| Set.toList
+                payload.selected
+
+
+viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
+viewSeries overDrag payload convertMsg =
+    Html.ul
+        [ class "series-list"
+        ,onDragOver
+            <| convertMsg
+                <| DragOver payload.path
+        , onDrop
+            <| convertMsg
+                <| Drop payload.path
+        ]
+        <| List.map
+            (\sn -> Html.li
+                        [ class "series-item" ]
+                        [ Html.button
+                            [ onClick
+                                <| convertMsg
+                                    <| Select payload.path sn ]
+                            [Html.text "▲"]
+                        , Html.p
                             [ class "series-name"
                             , draggable "true"
                             , class ( classOver payload overDrag )
@@ -289,16 +330,14 @@ viewSeries overDrag payload convertMsg =
                                     <| DragStart
                                         sn
                                         payload.path
-                            , onDragOver
-                                <| convertMsg
-                                    <| DragOver payload.path
-                            , onDrop
-                                <| convertMsg
-                                    <| Drop payload.path
+
                             ]
                             [ Html.text sn ]]
             )
-            <| Set.toList payload.series
+            <| Set.toList
+                <| Set.diff
+                    payload.series
+                    payload.selected
 
 
 classOver: Payload -> Maybe Path -> String

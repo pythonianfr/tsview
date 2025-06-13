@@ -97,7 +97,9 @@ update msg model =
                         { model | tree
                             = mutePayload
                                 path
-                                (\p -> { p | series = Set.fromList seriesL })
+                                (\p -> { p | series = Set.fromList seriesL
+                                       }
+                               )
                                 model.tree
                         }
                 (Err err ) ->
@@ -164,6 +166,34 @@ update msg model =
                         model.currentDrag
                         position
                     )
+                Select path name ->
+                    U.nocmd
+                        { model |
+                            tree =
+                             mutePayload
+                                path
+                                (\p -> { p | selected =
+                                                Set.insert
+                                                    name
+                                                    p.selected
+                                       }
+                               )
+                                model.tree
+                        }
+                Deselect path name ->
+                    U.nocmd
+                        { model |
+                            tree =
+                             mutePayload
+                                path
+                                (\p -> { p | selected =
+                                                Set.remove
+                                                    name
+                                                    p.selected
+                                       }
+                               )
+                                model.tree
+                        }
 
 
 getPaths: String -> Cmd Msg
@@ -250,10 +280,18 @@ moveSeries model destination =
             let newTree =
                     mutePayload
                         source
-                        (\ p -> { p | series = Set.remove name p.series } )
+                        (\ p -> { p | series = Set.remove
+                                                name
+                                                p.series
+                                }
+                        )
                         <| mutePayload
                             destination
-                            (\ p -> { p | series = Set.insert name p.series } )
+                            (\ p -> { p | series = Set.insert
+                                                    name
+                                                    p.series
+                                    }
+                            )
                             model.tree
             in { model | tree = newTree }
 
