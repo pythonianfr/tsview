@@ -827,6 +827,8 @@ def tsview(tsa):
 
     @bp.route('/settings')
     def route_settings():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
         flags_menu = json.dumps([homeurl(), 'monitor-settings'])
         return render_template(
             'settings.html',
