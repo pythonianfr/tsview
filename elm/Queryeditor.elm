@@ -543,6 +543,7 @@ viewedition model =
                         [ H.text "Confirm" ]
                     ]
             else
+                if model.canwrite then
                 H.button
                     [ HA.type_ "button"
                     , HA.class "btn btn-danger ml-2"
@@ -550,6 +551,7 @@ viewedition model =
                     , HA.disabled model.creating
                     ]
                     [ H.text "Delete" ]
+                else H.span [] []
 
         saveButton =
             let
@@ -567,12 +569,14 @@ viewedition model =
                 (disabled, txt) =
                     if sameName then (False, "Save") else (testDis, "Save As")
             in
+            if model.canwrite then
             H.button
                 [ HA.class "btn btn-primary ml-2"
                 , HA.disabled disabled
                 , HE.onClick SaveBasket
                 ]
                 [ H.text txt ]
+            else H.span [] []
 
         saveEntry =
             H.input
@@ -585,7 +589,9 @@ viewedition model =
                 [ ]
 
         saveLine =
-            H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
+            if model.canwrite then
+                H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
+            else H.span [] []
         triangleCode =
             if model.editorExpanded then 9660 else 9654
             -- BLACK DOWN-POINTING TRIANGLE else BLACK RIGHT-POINTING TRIANGLE
