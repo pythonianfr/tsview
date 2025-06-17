@@ -20,6 +20,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import HtmlExtra as HEX
 import Http
+import Info as I
 import Json.Decode as JD
 import Json.Encode as JE
 import Lisp
@@ -38,6 +39,7 @@ type alias BasketFormula =
 
 type alias Model =
     { baseurl : String
+    , canwrite : Bool
     -- all errors
     , errors : List String
     -- baskets
@@ -59,7 +61,8 @@ type alias Model =
 
 
 type Msg
-    = GotBasketNames (Result Http.Error String)
+    = GetPermissions (Result Http.Error String)
+    | GotBasketNames (Result Http.Error String)
     | SelectedBasket (Maybe String)
     | GotBasketDefinition String (Result Http.Error String)
     | SaveBasket
@@ -139,6 +142,16 @@ update msg model =
             U.nocmd <| U.adderror model (tag ++ " -> " ++ error)
     in
     case msg of
+        GetPermissions (Ok rawperm) ->
+            case JD.decodeString JD.bool rawperm of
+                Ok perms ->
+                   U.nocmd { model | canwrite = perms }
+                Err err ->
+                    doerr "getpermissions decode" <| JD.errorToString err
+
+        GetPermissions (Err err) ->
+            doerr "getpermissions http" <| U.unwraperror err
+
         GotBasketNames (Ok rawbaskets) ->
             case JD.decodeString (JD.list JD.string) rawbaskets of
                 Ok baskets ->
@@ -637,6 +650,7 @@ init { baseurl, jsonSpec, basketName } =
             }
    in
    { baseurl = baseurl
+   , canwrite = False
    , errors = []
    , baskets = []
    , name = JD.decodeValue (JD.maybe JD.string) basketName
@@ -654,8 +668,12 @@ init { baseurl, jsonSpec, basketName } =
    }
    |> \model ->
        ( model
-       , Cmd.batch [ Cmd.map WidgetMsg widgetCmd, getbaskets model ]
+       , Cmd.batch [ I.getwriteperms baseurl GetPermissions
+                   , Cmd.map WidgetMsg widgetCmd
+                   , getbaskets model
+                   ]
        )
+
 
 main : Program Input Model Msg
 main =
