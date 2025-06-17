@@ -5036,64 +5036,68 @@ type alias Input =
 
 init : Input -> ( Model, Cmd Msg )
 init input =
-     ({ baseurl = input.baseurl
-                    , errors = [ ]
-                    , name = input.name
-                    , canwrite = True
-                    , basket = input.basket
-                    , mode = if input.name /= ""
-                                then Existing I.Primary
-                                else
-                                if input.basket /= ""
-                                    then BasketMode
-                                    else Creation Form
-                    , meta = Dict.empty
-                    , exist = False
-                    , tzaware = True
-                    , source = ""
-                    , seriestype = I.Primary
-                    , horizon = initHorizon
-                                    input.baseurl
-                                    input.min
-                                    input.max
-                                    input.debug
-                                    None
-                    , creation = initCreationModel
-                    , newBatch = False
-                    , initialCommands = Cmd.none
-                    , forceDraw = False
-                    , allowInferFreq = False
-                    , showDiff = False
-                    , intercept = Nothing
-                    , slope = Nothing
-                    , insertion_dates = Array.empty
-                    , processedPasted = [ ]
-                    , rawPasted = ""
-                    , selection = Nothing
-                    , mousePosition = Nothing
-                    , focus = Nothing
-                    , firstShift = Nothing
-                    , firstSelected = Nothing
-                    , currentInput = Nothing
-                    , nameVisbility = Nope
-                    , holding = emptyHolding
-                    , keyName = ""
-                    , lastValids = []
-                    , series = emptySeries
-                    , statistics = emptyStat
-                    , roundStat = 2
-                    , statVisibility = True
-                    , roundValues = Nothing
-                    , statusCopy = initialStatusCopy
-                    , panActive = False
-                    , expand = False
-                    , directComponents = []
-                    , terminalComponents = []
-                    , coordData = Dict.empty
-                    , diff = Dict.empty
-                    }
-    , Cmd.none
-    )
+    let
+        model =
+            { baseurl = input.baseurl
+            , errors = [ ]
+            , name = input.name
+            , canwrite = True
+            , basket = input.basket
+            , mode = if input.name /= ""
+                     then Existing I.Primary
+                     else
+                         if input.basket /= ""
+                         then BasketMode
+                         else Creation Form
+            , meta = Dict.empty
+            , exist = False
+            , tzaware = True
+            , source = ""
+            , seriestype = I.Primary
+            , horizon = initHorizon
+                        input.baseurl
+                        input.min
+                        input.max
+                        input.debug
+                        None
+            , creation = initCreationModel
+            , newBatch = False
+            , initialCommands = Cmd.none
+            , forceDraw = False
+            , allowInferFreq = False
+            , showDiff = False
+            , intercept = Nothing
+            , slope = Nothing
+            , insertion_dates = Array.empty
+            , processedPasted = [ ]
+            , rawPasted = ""
+            , selection = Nothing
+            , mousePosition = Nothing
+            , focus = Nothing
+            , firstShift = Nothing
+            , firstSelected = Nothing
+            , currentInput = Nothing
+            , nameVisbility = Nope
+            , holding = emptyHolding
+            , keyName = ""
+            , lastValids = []
+            , series = emptySeries
+            , statistics = emptyStat
+            , roundStat = 2
+            , statVisibility = True
+            , roundValues = Nothing
+            , statusCopy = initialStatusCopy
+            , panActive = False
+            , expand = False
+            , directComponents = []
+            , terminalComponents = []
+            , coordData = Dict.empty
+            , diff = Dict.empty
+            }
+    in
+     ( model
+     , Cmd.none 
+     )
 
 
 main : Program Input Model Msg
