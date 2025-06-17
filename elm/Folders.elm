@@ -1,4 +1,4 @@
-module Folders exposing (main)
+port module Folders exposing (main)
 
 import Browser
 import Json.Decode as JD
@@ -37,6 +37,8 @@ import FoldersUtil exposing (MsgTree(..))
 
 import Util as U
 
+port copySignal: (Bool -> msg) -> Sub msg
+
 type alias Model =
     { baseUrl: String
     , treeAttribute: Maybe String
@@ -45,6 +47,7 @@ type alias Model =
     , currentDrag: Maybe ( String, Path )
     , overDrag: Maybe Path
     , errors: List String
+    , currentCut: Set String
     }
 
 
@@ -54,6 +57,8 @@ type Msg
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path ( Result Http.Error String )
     | FromTree MsgTree
+    | CopyFromBrowser Bool
+
 
 -- for documentation purpose
 type alias Path = String
@@ -123,6 +128,9 @@ update msg model =
 
 
         GotUpdatePath source destination (Err _ ) ->
+            U.nocmd model
+
+        CopyFromBrowser _ ->
             U.nocmd model
 
         FromTree msgTree ->
@@ -332,11 +340,12 @@ initModel baseUrl =
     , currentDrag = Nothing
     , overDrag = Nothing
     , errors = []
+    , currentCut = Set.empty
     }
 
 
 sub: Model -> Sub Msg
-sub model = Sub.none
+sub model = copySignal CopyFromBrowser
 
 type alias Input =
     { baseurl : String }

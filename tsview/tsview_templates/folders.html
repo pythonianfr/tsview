@@ -17,5 +17,19 @@
              }
          });
    </script>
+  <script>
+      // listen the copy event
+      document.getElementsByClassName('main-content')[0].addEventListener(
+          "copy",(event) => {
+              app.ports.copySignal.send(true);
+          }
+      );
+      // listen the cut event
+      document.getElementsByClassName('main-content')[0].addEventListener(
+          "cut",(event) => {
+              app.ports.copySignal.send(true);
+          }
+      );
+  </script>
 </body>
 </html>
