@@ -579,11 +579,13 @@ update msg model =
 
 viewdeletepolicyaction model policy =
     let askdelete =
-            [ H.button [ HA.class "btn btn-outline-danger"
-                       , HA.type_ "button"
-                       , HE.onClick (AskDeletePolicy policy.name)
-                       ]
+            [ if model.canwrite then H.button
+                  [ HA.class "btn btn-outline-danger"
+                  , HA.type_ "button"
+                  , HE.onClick (AskDeletePolicy policy.name)
+                  ]
                   [ H.text "delete" ]
+              else H.span [] []
             ]
     in case model.deleting of
            Nothing -> askdelete
@@ -604,11 +606,13 @@ viewdeletepolicyaction model policy =
 
 
 viewactivatepolicyaction model policy =
-    [ H.button [ HA.class <| if policy.active then "btn btn-warning" else "btn btn-success"
-               , HA.type_ "button"
-               , HE.onClick (ToggleActivation policy)
-               ]
+    [ if model.canwrite then H.button
+          [ HA.class <| if policy.active then "btn btn-warning" else "btn btn-success"
+          , HA.type_ "button"
+          , HE.onClick (ToggleActivation policy)
+          ]
           [ H.text <| if policy.active then "deactivate" else "activate" ]
+      else H.span [] []
     ]
 
 
@@ -626,11 +630,13 @@ viewforcerefreshaction model policy =
 
 vieweditpolicyaction model policy =
     if policy.active then [] else
-    [ H.button [ HA.class "btn btn-primary"
-               , HA.type_ "button"
-               , HE.onClick (EditPolicy policy)
-               ]
+    [ if model.canwrite then H.button
+          [ HA.class "btn btn-primary"
+          , HA.type_ "button"
+          , HE.onClick (EditPolicy policy)
+          ]
           [ H.text "edit" ]
+      else H.span [] []
     ]
 
 
@@ -815,11 +821,13 @@ filterbywords filterme query =
 
 viewseriesinlist model text event name  =
     H.li []
-        [ H.button [ HA.class "btn btn-success"
-                    , HA.type_ "button"
-                    , HE.onClick <| event name
-                    ]
-            [ H.text text ]
+        [ if model.canwrite then H.button
+              [ HA.class "btn btn-success"
+              , HA.type_ "button"
+              , HE.onClick <| event name
+              ]
+              [ H.text text ]
+          else H.span [] []
         , H.a
             [ HA.href <| UB.crossOrigin model.baseurl
                   [ "tsinfo" ]
@@ -921,11 +929,13 @@ viewpolicies model =
                     case model.linking of
                         Nothing ->
                             H.div []
-                                [ H.button [ HA.class "btn btn-primary"
-                                           , HA.type_ "button"
-                                           , HE.onClick NewPolicy
-                                           ]
-                                      [ H.text "create a cache policy" ]
+                                [ if model.canwrite then
+                                      H.button [ HA.class "btn btn-primary"
+                                               , HA.type_ "button"
+                                               , HE.onClick NewPolicy
+                                               ]
+                                          [ H.text "create a cache policy" ]
+                                  else H.span [] []
                                 , H.table [ HA.class "policy_list" ]
                                     <| (++)
                                         [ H.thead [] [ viewpoliciesheader ] ]
