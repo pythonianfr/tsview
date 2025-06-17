@@ -192,7 +192,8 @@ type alias Model =
 
 
 type Msg
-    = GotEditData (Result Http.Error String)
+    = GetPermissions (Result Http.Error String)
+    | GotEditData (Result Http.Error String)
     | GotValueData (Result Http.Error String)
     | GotComponents Bool (Result Http.Error String)
     | GotComponentData CType String Bool (Result Http.Error String)
@@ -1114,6 +1115,16 @@ update msg model =
 
     in
     case msg of
+        GetPermissions (Ok rawperm) ->
+            case JD.decodeString JD.bool rawperm of
+                Ok perms ->
+                   U.nocmd { model | canwrite = perms }
+                Err err ->
+                    doerr "getpermissions decode" <| JD.errorToString err
+
+        GetPermissions (Err err) ->
+            doerr "getpermissions http" <| U.unwraperror err
+
         GotEditData (Ok rawdata) ->
             case decodeSupervised rawdata of
                 Ok indexedval ->
@@ -5034,7 +5045,6 @@ type alias Input =
     }
 
 
-init : Input -> ( Model, Cmd Msg )
 init input =
     let
         model =
@@ -5096,7 +5106,7 @@ init input =
             }
     in
      ( model
-     , Cmd.none 
+     , I.getwriteperms model.baseurl GetPermissions
      )
 
 
