@@ -6,6 +6,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Http
+import Info as I
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as LE
@@ -46,6 +47,7 @@ type alias PolicyError =
 
 type alias Model =
     { baseurl : String
+    , canwrite : Bool
     , policies : List Policy
     , formulas : Dict String String
     , deleting : Maybe String
@@ -277,7 +279,8 @@ refreshnow model policy =
 
 
 type Msg
-    = GotPolicies (Result Http.Error (List Policy))
+    = GetPermissions (Result Http.Error String)
+    | GotPolicies (Result Http.Error (List Policy))
     | GotAllFormula (Result Http.Error String)
     | AskDeletePolicy String
     | CancelDeletePolicy
@@ -335,6 +338,16 @@ mode model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GetPermissions (Ok rawperm) ->
+            case D.decodeString D.bool rawperm of
+                Ok perms ->
+                   U.nocmd { model | canwrite = perms }
+                Err err ->
+                    U.nocmd model
+
+        GetPermissions (Err err) ->
+            U.nocmd model
+
         GotPolicies (Ok policies) ->
             U.nocmd { model | policies = policies }
 
@@ -1042,27 +1055,31 @@ main : Program Input Model Msg
 main =
     let
         init input =
-            let model = Model
-                        input.baseurl
-                        []
-                        Dict.empty
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        ""
-                        Nothing
-                        []
-                        ""
-                        ""
-                        []
-                        ""
-                        ""
-                        Set.empty
-                        Set.empty
+            let
+                model =
+                    { baseurl = input.baseurl
+                    , canwrite = False
+                    , policies = []
+                    , formulas =Dict.empty
+                    , deleting = Nothing
+                    , adding = Nothing
+                    , editing = Nothing
+                    , editerror = Nothing
+                    , editerrormsg = ""
+                    , linking = Nothing
+                    , cachedseries = []
+                    , cachedseriesquery = ""
+                    , cachedseriesformulaquery = ""
+                    , freeseries = []
+                    , freeseriesquery = ""
+                    , freeseriesformulaquery = ""
+                    , addtocache = Set.empty
+                    , removefromcache = Set.empty
+                    }
             in
             ( model
-            , Cmd.batch [ getpolicies model
+            , Cmd.batch [ I.getwriteperms model.baseurl GetPermissions
+                        , getpolicies model
                         , U.getformulas input.baseurl "series" GotAllFormula
                         ]
             )
