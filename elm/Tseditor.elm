@@ -1768,7 +1768,7 @@ update msg model =
             let parsed = parsePasted payload.text (isStr model.meta)
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
-                merged = pasteRectangle model.coordData coordPatch corner
+                merged = pasteRectangle model model.coordData coordPatch corner
             in
             U.nocmd <| applyDiff { model
                                      | rawPasted = payload.text
@@ -1821,9 +1821,9 @@ update msg model =
                         DateRow _ -> U.nocmd model
                         Header _ -> U.nocmd model
                         Cell entry ->
-                            if entry.editable
-                                then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
-                                else U.nocmd { model | currentInput = Nothing }
+                            if model.canwrite && entry.editable
+                            then U.nocmd { model | currentInput = Just ( iRow, iCol ) }
+                            else U.nocmd { model | currentInput = Nothing }
 
         MousePosition position ->
             let hold = model.holding.mouse
@@ -2622,7 +2622,7 @@ fillSelected model select value =
         edited = Dict.map
                     (\ pos e -> if keyInSelection select pos
                                 then
-                                    updateCell e value
+                                    updateCell model e value
                                 else e
                     )
                     model.coordData
@@ -3068,8 +3068,8 @@ patchCurrent base patch name  =
         base
 
 
-pasteRectangle: Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
-pasteRectangle base patch ( cornerRow, cornerCol ) =
+pasteRectangle: Model -> Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
+pasteRectangle model base patch ( cornerRow, cornerCol ) =
     let translatedPatch = Dict.fromList
                             <| List.map
                                 (\ (( i, j ), v ) ->
@@ -3083,7 +3083,7 @@ pasteRectangle base patch ( cornerRow, cornerCol ) =
                     DateRow _ -> dict
                     Header _ -> dict
                     Cell e ->
-                        if e.editable
+                        if model.canwrite && e.editable
                             then
                                 Dict.insert
                                     position
@@ -3809,6 +3809,7 @@ strap =
 
 addPatch: Model -> H.Html Msg
 addPatch model =
+    if not model.canwrite then H.span [] [] else
     if not model.newBatch
     then H.button
             [ HA.class "bluebutton"
@@ -3840,7 +3841,7 @@ forCurrentDiff model =
                   ( divLinearCorrection model model.diff
                   ++ saveButtons model model.diff
                   )
-                , buildDiffTable model
+            , buildDiffTable model
             ]
 
 
@@ -3854,7 +3855,7 @@ getBounds cartDict =
         minCol = Maybe.withDefault -1 <| List.minimum cols
         maxCol = Maybe.withDefault -1 <| List.maximum cols
     in
-        ( ( minRow, maxRow ), ( minCol, maxCol ))
+    ( ( minRow, maxRow ), ( minCol, maxCol ))
 
 
 buildCoord: Model -> Model
@@ -3865,44 +3866,49 @@ buildCoord model =
          NoPoint -> { model | coordData = Dict.empty }
          TooMuchPoints _ -> { model | coordData = Dict.empty }
          Drawable ->
-            let allSeries = likeComp model ++ relevantComponents model
-                dataAsRows = mergeData allSeries
+            let
+                allSeries =
+                    likeComp model ++ relevantComponents model
+                dataAsRows =
+                    mergeData allSeries
             in
             setupFill
-                { model | coordData = ( cartesianData dataAsRows)
-                }
+                { model | coordData = ( cartesianData dataAsRows) }
 
 
 updateCoordData: Model -> (Int, Int) -> Maybe String -> Edited -> Model
 updateCoordData model position raw edition =
-    let previous = Dict.get position model.coordData
+    let
+        previous = Dict.get position model.coordData
     in
         case previous of
             Nothing -> model
             Just  ( DateRow _ ) -> model
             Just  ( Header _ ) -> model
             Just ( Cell entry) ->
-               if not entry.editable
-                        then model
-                        else
-                            let
-                                newCoord = Dict.insert
-                                            position
-                                            ( Cell { entry | raw = raw
-                                                       , edition = edition
-                                                    }
-                                            )
-                                            model.coordData
-                            in
-                                { model | coordData = newCoord }
+               if not (model.canwrite && entry.editable)
+               then model
+               else
+                   let
+                       newCoord =
+                           Dict.insert
+                               position
+                               ( Cell { entry | raw = raw
+                                      , edition = edition
+                                      }
+                               )
+                               model.coordData
+                   in
+                   { model | coordData = newCoord }
 
-updateCell : Stuff -> ScalarType Float String -> Stuff
-updateCell stuff value =
+
+updateCell : Model -> Stuff -> ScalarType Float String -> Stuff
+updateCell model stuff value =
     case stuff of
         DateRow _  -> stuff
         Header _  -> stuff
         Cell entry ->
-           if not entry.editable
+           if not (model.canwrite && entry.editable)
                 then stuff
                 else
                     Cell { entry | raw = Just ( toString value )
@@ -4170,7 +4176,7 @@ buildCell model entry iRow iCol  =
         valueCropped = printValue model.roundValues value
    in
     H.td
-        ([ if entry.editable
+        ([ if model.canwrite && entry.editable
            then HA.class "editable"
            else HA.class "non-editable"
          , if focused
@@ -4202,7 +4208,7 @@ buildCell model entry iRow iCol  =
                 statusClass
                 value
                 valueCropped
-                ( entry.editable && active )
+                ( model.canwrite && entry.editable && active )
             )
               ++ ( fillButton ( iRow, iCol ) fillUnder )
             )
