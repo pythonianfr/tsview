@@ -445,10 +445,11 @@ def tsview(tsa):
 
     @bp.route('/addformulas')
     def addformulas():
-        if not has_roles('admin', 'rw', 'ro'):
+        if not has_roles('admin', 'rw'):
             return 'Nothing to see there.'
+
         baseurl = homeurl()
-        flags_menu = json.dumps([homeurl(), 'formula-batch'])
+        flags_menu = json.dumps([baseurl, 'formula-batch'])
         title = 'Form: batch'
         return render_template(
             'addformulas.html',
