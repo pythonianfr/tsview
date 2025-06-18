@@ -53,15 +53,6 @@ type Msg
     | GotIcons (Result Http.Error (Dict String Icon))
 
 
-getinfo model =
-    Http.get
-        { expect = Http.expectString GotInfo
-        , url = UB.crossOrigin model.baseurl
-                [ "api", "global", "properties" ]
-              [ UB.string "property" "info" ]
-        }
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -346,7 +337,7 @@ init ( baseurl, instance, version ) =
     in
     ( model
     , Cmd.batch
-        [ getinfo model
+        [ U.getinfo model GotInfo
         , getIcons baseurl <| \returnHttp ->  GotIcons returnHttp
         ]
     )

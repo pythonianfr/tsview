@@ -7,6 +7,7 @@ module Util exposing
     , first
     , fragmentsmatcher
     , getformulas
+    , getinfo
     , nocmd
     , sendCmd
     , fromCharCode
@@ -120,6 +121,18 @@ pygmentyze model formula callback =
               []
         , body = Http.stringBody "text/plain" formula
         , expect = Http.expectString callback
+        }
+
+
+-- info
+
+
+getinfo model callback =
+    Http.get
+        { expect = Http.expectString callback
+        , url = UB.crossOrigin model.baseurl
+                [ "api", "global", "properties" ]
+              [ UB.string "property" "info" ]
         }
 
 
