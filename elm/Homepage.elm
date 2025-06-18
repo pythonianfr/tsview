@@ -76,7 +76,6 @@ update msg model =
 buildDetailsDiv : Model -> H.Html Msg
 buildDetailsDiv model =
     let
-        x=Debug.log "S" model.stats
         primaries =
             sourcessum model.stats "primary_series"
 

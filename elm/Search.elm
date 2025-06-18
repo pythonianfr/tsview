@@ -34,6 +34,7 @@ type Mode =
 type alias Model =
     { baseurl : String
     , mode : Mode
+    , stats : Dict String M.Metadata
     -- base catalog elements
     , sources : List String
     , catalog : F.Model
@@ -58,6 +59,7 @@ type alias Model =
 
 type Msg
     = GotSources (Result Http.Error String)
+    | GotInfo (Result Http.Error String)
     | GotItemsDesc F.Msg
     | NameFilter String
     | FormulaFilter String
@@ -225,6 +227,16 @@ update msg model =
                     U.nocmd model
 
         GotSources (Err err) ->
+            U.nocmd model
+
+        GotInfo (Ok rawinfo) ->
+            case D.decodeString (D.dict M.decodemeta) rawinfo of
+                Ok info ->
+                    U.nocmd { model | stats = info }
+                Err _ ->
+                    U.nocmd model
+
+        GotInfo (Err _) ->
             U.nocmd model
 
         GotItemsDesc rawdesc ->
@@ -703,6 +715,31 @@ view model =
                 Series -> "Series"
                 Groups -> "Groups"
 
+        -- build a few stats about series and groups
+        metatoint meta =
+            case meta of
+                M.MInt anint -> anint
+                _ -> 0
+
+        getint dict item =
+            metatoint <| Maybe.withDefault (M.MInt 0) <| Dict.get item dict
+
+        itemsum items dict =
+            List.foldl (+) 0 <| List.map (getint dict) items
+
+        seriesbysource source =
+            itemsum [ "formula_series", "primary_series" ]
+                <| Maybe.withDefault Dict.empty
+                <| Dict.get source model.stats
+
+        groupsbysource source =
+            itemsum [ "formula_groups", "primary_groups", "bound_groups" ]
+                <| Maybe.withDefault Dict.empty
+                <| Dict.get source model.stats
+
+        allthings thingsbysource =
+            List.foldl (+) 0 <| List.map thingsbysource <| Dict.keys model.stats
+
     in
     H.div [ A.class "main-content" ]
         [ H.span
@@ -738,6 +775,15 @@ view model =
                       ]
                       [ H.text "groups" ]
                   ]
+              , H.div []
+                  [ H.text <| "Total " ++
+                        (String.fromInt
+                             <| allthings
+                             <| case model.mode of
+                                    Series -> seriesbysource
+                                    Groups -> groupsbysource
+                        )
+                  ]
               ]
         , H.h1 [ A.class "page-title" ] [ H.text <| mode ++ " Catalog" ]
         , H.div
@@ -771,6 +817,7 @@ main =
            makemodel input =
                { baseurl = input.baseurl
                , mode = Series
+               , stats = Dict.empty
                , sources = []
                , catalog = F.empty
                , limit = 1000
@@ -794,6 +841,7 @@ main =
                ( model
                , Cmd.batch
                    [ getsources model.baseurl
+                   , U.getinfo model GotInfo
                    , Cmd.map GotItemsDesc <|
                        F.find input.baseurl "series" F.ReceivedSeries
                            (query model) model.selectedsources model.limit
