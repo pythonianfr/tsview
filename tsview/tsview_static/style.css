@@ -574,4 +574,7 @@ label.option {
     display: grid;
     grid-template-columns: 1fr;
 }
-.
+
+.menu-folders .focused {
+    background-color: lightyellow;
+}

@@ -48,6 +48,7 @@ type alias Model =
     , overDrag: Maybe Path
     , errors: List String
     , currentCut: Set String
+    , focus : Maybe Path
     }
 
 
@@ -202,6 +203,8 @@ update msg model =
                                )
                                 model.tree
                         }
+                Focus path ->
+                    U.nocmd { model | focus = Just path }
 
 
 getPaths: String -> Cmd Msg
@@ -315,6 +318,7 @@ view model =
                     model.tree
                     model.overDrag
                     FromTree
+                    model.focus
                 , div
                     []
                     [text <| case model.currentDrag of
@@ -341,6 +345,7 @@ initModel baseUrl =
     , overDrag = Nothing
     , errors = []
     , currentCut = Set.empty
+    , focus = Nothing
     }
 
 
