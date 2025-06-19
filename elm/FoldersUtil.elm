@@ -51,6 +51,7 @@ type alias Payload =
     , status: LoadingStatus
     , series: Set String
     , selected : Set String
+    , cut: Set String
     }
 
 initPayload: Payload
@@ -61,6 +62,7 @@ initPayload =
     , status = Start
     , series = Set.empty
     , selected = Set.empty
+    , cut = Set.empty
     }
 
 type LoadingStatus =
@@ -393,3 +395,31 @@ mutePayload path mapping menu =
                         mapping
                         zipper
 
+
+cutSeries: Path -> Tree Payload -> ( Tree Payload, Set String )
+cutSeries path menu =
+    let cut = (getPayload path menu).selected
+    in
+        ( mutePayload
+            path
+            (\ p -> { p | selected = Set.empty
+                        , series = Set.diff p.series cut
+                    }
+            )
+            menu
+        , cut
+        )
+
+
+pasteSeries: Path -> Path -> Set String -> Tree Payload -> Tree Payload
+pasteSeries from to cut menu =
+    mutePayload
+        to
+        (\ p -> { p | series = Set.union p.series cut })
+        <| mutePayload
+            from
+            (\ p -> { p | selected = Set.empty
+                        , series = Set.diff p.series cut
+                    }
+            )
+            menu

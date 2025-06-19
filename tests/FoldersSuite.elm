@@ -23,10 +23,12 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , getPayload
     , getZipper
     , initPayload
     , mergeMBranch
     , mutePayload
+    , pasteSeries
     , root
     )
 
@@ -461,4 +463,64 @@ suiteCumulPath =
                         ]
                     ]
                  )
+            )
+
+suiteCopyPast : T.Test
+suiteCopyPast =
+    let paths = [ "b0"
+                , "b1"
+                ]
+        aTree =  convertTree
+                    <| buildMTree
+                            paths
+        bTree = mutePayload
+                    "b0"
+                    (\ p -> { p | series =
+                                    Set.fromList
+                                        ["s0", "s1", "s2"]
+                                , selected =
+                                    Set.fromList
+                                        ["s0", "s2"]
+                            }
+                    )
+                    aTree
+        cTree = mutePayload
+                    "b1"
+                    (\ p -> { p | series =
+                                    Set.fromList
+                                        ["s4"]
+                            }
+                    )
+                    bTree
+        cut = (getPayload "b0" cTree).selected
+
+        eTree = pasteSeries
+                    "b0"
+                    "b1"
+                    cut
+                    cTree
+    in
+         T.test "Cut and Paste"
+            (\ _ ->
+                Expect.equal
+                 eTree
+                 ( tree { initPayload | name = root
+                                      , path = ".root"
+                        }
+                    [ tree { initPayload | name = "b0"
+                                         , path = "b0"
+                                         , series =
+                                            Set.fromList
+                                                [ "s1" ]
+                          }
+                          []
+                    , tree { initPayload | name = "b1"
+                                         , path = "b1"
+                                         , series =
+                                            Set.fromList
+                                                [ "s4", "s0", "s2" ]
+                          }
+                          []
+                    ]
+                )
             )
