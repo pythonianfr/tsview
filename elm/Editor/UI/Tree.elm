@@ -110,7 +110,7 @@ type Msg
     | TreeEdited T.FormulaCode
     | Edit T.FormulaCode
     | GotProposals T.ProposalType (Result Http.Error (List String))
-    | DebounceName String (Debouncer.Msg ())
+    | DebounceName Node String (Debouncer.Msg ())
     | CleanSeriesName ()
     | CleanGroupName ()
     | UndoRedoMsg UndoRedo.Msg
@@ -389,7 +389,7 @@ update msg model = case msg of
                 (updateNode editAction >> RE.run model.editor)
             |> O.getSome treeRoot_ |> Maybe.withDefault root)
         |> O.over editor_ updateFormula
-        |> (\m -> ( m, probeTreeEdited editAction m))
+        |> (\m -> ( m, probeTreeEdited treePath editAction m))
 
     Edit code ->
         let
@@ -402,21 +402,21 @@ update msg model = case msg of
     TreeEdited _ ->
         model |> withNoCmd
 
-    DebounceName keywords debMsg ->
+    DebounceName node keywords debMsg ->
 
         let
             (debModel, debCmd, emitted) =
                 Debouncer.update debMsg model.debouncer
 
             cmd = case emitted of
-                Just _ -> getNameProposals model.editor.returnTypeStr keywords
+                Just _ -> getNameProposals_ node keywords
 
                 Nothing -> Cmd.none
         in
         { model | debouncer = debModel }
             |> withCmd (Cmd.batch
                 [ cmd
-                , Cmd.map (DebounceName keywords) debCmd
+                , Cmd.map (DebounceName node keywords) debCmd
                 ]
             )
 
@@ -1026,11 +1026,11 @@ getProposals urlPrefix = Cmd.batch
     , getBasketName urlPrefix
     ]
 
-askNameProposals : String -> Cmd Msg
-askNameProposals keywords =
-    Util.sendCmd (DebounceName keywords) <|  Debouncer.provideInput ()
+askNameProposals : Node -> String -> Cmd Msg
+askNameProposals node keywords =
+    Util.sendCmd (DebounceName node keywords) <|  Debouncer.provideInput ()
 
-getNameProposals : T.ReturnTypeStr -> String -> Cmd Msg
+getNameProposals : String -> String -> Cmd Msg
 getNameProposals returnTypeStr keywords =
     if probeNameKeywords keywords then
         let names = List.map
@@ -1056,6 +1056,17 @@ getNameProposals returnTypeStr keywords =
     else
         Cmd.none
 
+
+getNameProposals_ : Node -> String -> Cmd Msg
+getNameProposals_ node keywords =
+                    case node of
+                        Primitive (PInput ({literalType} as x)) -> case literalType of
+                            T.Proposal T.SeriesName -> getNameProposals "Series" keywords
+                            T.Proposal T.GroupName -> getNameProposals "DataFrame" keywords
+                            _ -> Cmd.none
+                        _ -> Cmd.none
+
+
 cleanNameProposals : T.ReturnTypeStr -> Cmd Msg
 cleanNameProposals returnTypeStr =
     case returnTypeStr of
@@ -1064,6 +1075,16 @@ cleanNameProposals returnTypeStr =
         "Series" ->
             Util.sendCmd CleanSeriesName ()
         _ -> Cmd.none
+
+
+cleanNameProposals_ : Node -> Cmd Msg
+cleanNameProposals_ node  =
+                    case node of
+                        Primitive (PInput ({literalType} as x)) -> case literalType of
+                            T.Proposal T.SeriesName -> cleanNameProposals "Series"
+                            T.Proposal T.GroupName -> cleanNameProposals "DataFrame"
+                            _ -> Cmd.none
+                        _ -> Cmd.none
 
 
 init : Flags -> (Model, Cmd Msg)
@@ -1075,26 +1096,47 @@ init {urlPrefix, jsonSpec, formulaCode, returnTypeStr} =
 sendTreeEdited : Model -> Cmd Msg
 sendTreeEdited m = sendCmd TreeEdited <| T.getCode m.editor.currentFormula
 
-probeTreeEdited : EditAction -> Model -> Cmd Msg
-probeTreeEdited editAction model = case editAction of
-    ToggleExpand -> Cmd.none
+probeTreeEdited : TreePath -> EditAction -> Model -> Cmd Msg
+probeTreeEdited treePath editAction model =
+    case editAction of
+        ToggleExpand -> Cmd.none
 
-    EditEntry (SelectorAction (OpenSelector s True)) ->
-        getNameProposals model.editor.returnTypeStr s
+        EditEntry (SelectorAction (OpenSelector s True)) ->
+            O.getSome
+                (o
+                    (o (OE.treeIx_ (Array.toList treePath)) OE.node_)
+                    (o rowType_ rowEntryType_))
+                (O.review treeRoot_ model.editor.root)
+                |> Maybe.unwrap
+                    Cmd.none
+                    (\node -> getNameProposals_ node s)
 
-    EditEntry (SelectorAction (OpenSelector _ False)) ->
-        cleanNameProposals model.editor.returnTypeStr
+        EditEntry (SelectorAction (OpenSelector _ False)) ->
+            O.getSome
+                (o
+                    (o (OE.treeIx_ (Array.toList treePath)) OE.node_)
+                    (o rowType_ rowEntryType_))
+                (O.review treeRoot_ model.editor.root)
+                |> Maybe.unwrap
+                    Cmd.none
+                    (\node -> cleanNameProposals_ node)
 
-    EditEntry (SelectorAction (SetKeywords s)) ->
-        askNameProposals s
+        EditEntry (SelectorAction (SetKeywords s)) ->
+            O.getSome
+                (o
+                    (o (OE.treeIx_ (Array.toList treePath)) OE.node_)
+                    (o rowType_ rowEntryType_))
+                (O.review treeRoot_ model.editor.root)
+                |> Maybe.unwrap
+                    Cmd.none
+                    (\node -> askNameProposals node s)
 
-    EditEntry (SelectorAction (SelectItem _)) -> Cmd.batch
-        [ cleanNameProposals  model.editor.returnTypeStr
-        , sendTreeEdited model
-        ]
+        EditEntry (SelectorAction (SelectItem _)) -> Cmd.batch
+            [ cleanNameProposals  model.editor.returnTypeStr
+            , sendTreeEdited model
+            ]
 
-
-    _ -> sendTreeEdited model
+        _ -> sendTreeEdited model
 
 setFormula : Maybe T.FormulaCode -> Model -> Model
 setFormula mFormulaCode ({editor} as model) = mFormulaCode
