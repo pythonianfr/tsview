@@ -154,15 +154,21 @@ update msg model =
                     case model.currentCut of
                         NoCut -> U.nocmd model
                         Cut from series ->
-                            U.nocmd
-                                { model | tree =
-                                            pasteSeries
-                                                from
-                                                focus
-                                                series
-                                                model.tree
-                                        , currentCut = NoCut
-                                }
+                            ({ model | tree =
+                                        pasteSeries
+                                            from
+                                            focus
+                                            series
+                                            model.tree
+                                    , currentCut = NoCut
+                             }
+                            , updatePath
+                                model.baseUrl
+                                model.treeAttribute
+                                series
+                                from
+                                focus
+                            )
 
 
         FromTree msgTree ->
@@ -196,16 +202,20 @@ update msg model =
                       }
                     , Cmd.none
                     )
-                Drop position ->
-                    ( moveSeries
-                        { model | overDrag = Nothing }
-                        position
-                    , updatePath
-                        model.baseUrl
-                        model.treeAttribute
-                        model.currentDrag
-                        position
-                    )
+                Drop destination ->
+                    case model.currentDrag of
+                        Nothing -> U.nocmd model
+                        Just (series, source) ->
+                            ( moveSeries
+                                { model | overDrag = Nothing }
+                                destination
+                            , updatePath
+                                model.baseUrl
+                                model.treeAttribute
+                                ( Set.singleton series)
+                                source
+                                destination
+                            )
                 Select path name ->
                     U.nocmd
                         { model |
@@ -262,39 +272,41 @@ getTreeAttribute baseUrl =
         }
 
 
-updatePath: String -> Maybe String -> Maybe (String, Path) -> Path -> Cmd Msg
-updatePath baseUrl treeAttribute currentDrag destination =
-    case currentDrag of
+updatePath: String -> Maybe String -> Set String -> Path -> Path -> Cmd Msg
+updatePath baseUrl treeAttribute series source destination =
+    case treeAttribute of
         Nothing -> Cmd.none
-        Just (name, source) ->
-            case treeAttribute of
-                Nothing -> Cmd.none
-                Just treeA ->
-                    -- the metadata dict must be send as string
-                    let newMetadata
-                            = JE.string
-                                <| JE.encode 0 -- value to string
-                                    <| JE.object
-                                        [( treeA, JE.string destination )]
-                    in
+        Just treeA ->
+            -- the metadata dict must be send as string
+            let newMetadata
+                    = JE.string
+                        <| JE.encode 0 -- value to string
+                            <| JE.object
+                                [( treeA, JE.string destination )]
+            in
+            Cmd.batch
+            <| List.map
+                (\ name ->
                     Http.request
-                        { method = "PATCH"
-                        , url =
-                            UB.crossOrigin
-                                baseUrl
-                                ["api", "series", "metadata"]
-                                []
-                        , body = Http.jsonBody
-                                    <| JE.object
-                                        [( "name", JE.string name )
-                                        ,( "metadata", newMetadata)
-                                        ]
-                        , expect = Http.expectString
-                                    ( GotUpdatePath source destination )
-                        , headers = [ ]
-                        , tracker = Nothing
-                        , timeout = Nothing
-                        }
+                    { method = "PATCH"
+                    , url =
+                        UB.crossOrigin
+                            baseUrl
+                            ["api", "series", "metadata"]
+                            []
+                    , body = Http.jsonBody
+                                <| JE.object
+                                    [( "name", JE.string name )
+                                    ,( "metadata", newMetadata)
+                                    ]
+                    , expect = Http.expectString
+                                ( GotUpdatePath source destination )
+                    , headers = [ ]
+                    , tracker = Nothing
+                    , timeout = Nothing
+                    }
+                )
+                ( Set.toList series )
 
 
 getSeries: String -> String -> Cmd Msg
