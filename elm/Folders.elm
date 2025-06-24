@@ -41,6 +41,8 @@ import FoldersUtil exposing (MsgTree(..))
 import Util as U
 
 port copySignal: (Bool -> msg) -> Sub msg
+port pasteSignal: (Bool -> msg) -> Sub msg
+
 
 type alias Model =
     { baseUrl: String
@@ -62,6 +64,7 @@ type Msg
     | GotUpdatePath Path Path ( Result Http.Error String )
     | FromTree MsgTree
     | CopyFromBrowser Bool
+    | PasteFromBrowser Bool
 
 
 -- for documentation purpose
@@ -142,6 +145,24 @@ update msg model =
                     let cut = (getPayload focus model.tree).selected
                     in
                     U.nocmd { model | currentCut = Cut focus cut }
+
+
+        PasteFromBrowser _ ->
+            case model.focus of
+                Nothing -> U.nocmd model
+                Just focus ->
+                    case model.currentCut of
+                        NoCut -> U.nocmd model
+                        Cut from series ->
+                            U.nocmd
+                                { model | tree =
+                                            pasteSeries
+                                                from
+                                                focus
+                                                series
+                                                model.tree
+                                        , currentCut = NoCut
+                                }
 
 
         FromTree msgTree ->
@@ -361,7 +382,10 @@ initModel baseUrl =
 
 
 sub: Model -> Sub Msg
-sub model = copySignal CopyFromBrowser
+sub model = Sub.batch
+            [ copySignal CopyFromBrowser
+            , pasteSignal PasteFromBrowser
+            ]
 
 type alias Input =
     { baseurl : String }

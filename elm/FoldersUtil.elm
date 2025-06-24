@@ -13,6 +13,7 @@ import Html.Attributes exposing
     , dropzone
     , type_
     , style
+    , tabindex
     , value
     )
 import Html.Events as Events
@@ -220,6 +221,7 @@ toListItems overDrag convertMsg focus cut payload children =
             ]
             ([ Html.div
                 [ class "node"
+                , tabindex 0
                 , onClick <| convertMsg ( Focus payload.path )
                 , class <| case focus of
                         Nothing -> ""
