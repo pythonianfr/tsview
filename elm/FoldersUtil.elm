@@ -6,28 +6,21 @@ import Html exposing
     ( Html )
 import Html.Attributes exposing
     ( attribute
-    , checked
     , class
     , draggable
     , id
-    , dropzone
-    , type_
+    , placeholder
     , style
     , tabindex
-    , value
     )
 import Html.Events as Events
 import Html.Events exposing
-    ( on
-    , onCheck
-    , onClick
+    ( onClick
     )
 import Set exposing (Set)
 import Tree
 import Tree exposing
     ( Tree
-    , indexedMap
-    , mapAccumulate
     , restructure
     , tree
     )
@@ -243,7 +236,8 @@ toListItems overDrag convertMsg focus cut payload children =
                 ]
                 ([ viewFolder overDrag payload open convertMsg
                  ]++ if open
-                    then [ viewSelected payload cut convertMsg
+                    then [ viewSelector payload convertMsg
+                         , viewSelected payload cut convertMsg
                          , viewSeries overDrag payload convertMsg
                          ]
                     else  []
@@ -257,6 +251,15 @@ toListItems overDrag convertMsg focus cut payload children =
                     else []
             )
 
+
+viewSelector: Payload -> ( MsgTree -> msg ) -> Html msg
+viewSelector payload convertMsg =
+    Html.div
+        [class "filter-name"]
+        [ Html.input
+            [ placeholder "filter series" ]
+            []
+        ]
 
 viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
 viewFolder overDrag payload open convertMsg =
