@@ -30,6 +30,7 @@ import FoldersUtil exposing
     , mutePayload
     , pasteSeries
     , root
+    , selectFromUser
     )
 
 
@@ -470,29 +471,32 @@ suiteCopyPast =
     let paths = [ "b0"
                 , "b1"
                 ]
+        selected = {selected = True, cut = False}
+        unselected = {selected = False, cut = False}
         aTree =  convertTree
                     <| buildMTree
                             paths
         bTree = mutePayload
                     "b0"
                     (\ p -> { p | series =
-                                    Set.fromList
-                                        ["s0", "s1", "s2"]
-                                , selected =
-                                    Set.fromList
-                                        ["s0", "s2"]
+                                    Dict.fromList
+                                        [ ( "s0", selected )
+                                        , ("s1", unselected )
+                                        , ("s2", selected )
+                                        ]
                             }
                     )
                     aTree
         cTree = mutePayload
                     "b1"
                     (\ p -> { p | series =
-                                    Set.fromList
-                                        ["s4"]
+                                    Dict.singleton
+                                        "s4"
+                                        unselected
                             }
                     )
                     bTree
-        cut = (getPayload "b0" cTree).selected
+        cut = selectFromUser (getPayload "b0" cTree)
 
         eTree = pasteSeries
                     "b0"
@@ -510,15 +514,19 @@ suiteCopyPast =
                     [ tree { initPayload | name = "b0"
                                          , path = "b0"
                                          , series =
-                                            Set.fromList
-                                                [ "s1" ]
+                                            Dict.singleton
+                                                "s1"
+                                                unselected
                           }
                           []
                     , tree { initPayload | name = "b1"
                                          , path = "b1"
                                          , series =
-                                            Set.fromList
-                                                [ "s4", "s0", "s2" ]
+                                          Dict.fromList
+                                            [ ("s4", unselected )
+                                            , ("s0", unselected )
+                                            , ("s2", unselected )
+                                            ]
                           }
                           []
                     ]

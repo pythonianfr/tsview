@@ -1,6 +1,7 @@
 port module Folders exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import Json.Decode as JD
 import Json.Encode as JE
 import Html exposing
@@ -27,6 +28,7 @@ import FoldersUtil exposing
     ( Cut(..)
     , Drag(..)
     , Payload
+    , SeriesAttribute
     , decodeTree
     , buildTree
     , emptyTree
@@ -110,7 +112,7 @@ update msg model =
                         { model | tree
                             = mutePayload
                                 path
-                                (\p -> { p | series = Set.fromList seriesL
+                                (\p -> { p | series = dressSeries seriesL
                                        }
                                )
                                 model.tree
@@ -143,9 +145,27 @@ update msg model =
             case model.focus of
                 Nothing -> U.nocmd model
                 Just focus ->
-                    let cut = (getPayload focus model.tree).selected
+                    let cut = Dict.keys
+                                <| Dict.filter
+                                    (\ k v -> v.selected)
+                                    (getPayload focus model.tree).series
                     in
-                    U.nocmd { model | currentCut = Cut focus cut }
+                    U.nocmd
+                        <| { model | currentCut = Cut focus ( Set.fromList cut )
+                                   , tree =
+                                mutePayload
+                                    focus
+                                    (\ p -> { p | series =
+                                                    Dict.map
+                                                        (\ k v -> if v.selected
+                                                                    then { v | cut = True }
+                                                                    else v
+                                                        )
+                                                        p.series
+                                            }
+                                    )
+                                    model.tree
+                            }
 
 
         PasteFromBrowser _ ->
@@ -225,10 +245,15 @@ update msg model =
                             tree =
                              mutePayload
                                 path
-                                (\p -> { p | selected =
-                                                Set.insert
-                                                    name
-                                                    p.selected
+                                (\p -> { p | series =
+                                                Dict.map
+                                                    (\ k v ->
+                                                        if k == name
+                                                        then
+                                                        { v | selected = True }
+                                                        else v
+                                                    )
+                                                    p.series
                                        }
                                )
                                 model.tree
@@ -239,10 +264,17 @@ update msg model =
                             tree =
                              mutePayload
                                 path
-                                (\p -> { p | selected =
-                                                Set.remove
-                                                    name
-                                                    p.selected
+                                (\p -> { p | series =
+                                                Dict.map
+                                                    (\ k v ->
+                                                        if k == name
+                                                        then
+                                                        { v | selected = False
+                                                            , cut = False
+                                                        }
+                                                        else v
+                                                    )
+                                                    p.series
                                        }
                                )
                                 model.tree
@@ -355,15 +387,16 @@ moveSerie: String -> Path -> Path -> Tree Payload -> Tree Payload
 moveSerie name source destination tree =
     mutePayload
         source
-        (\ p -> { p | series = Set.remove
+        (\ p -> { p | series = Dict.remove
                                 name
                                 p.series
                 }
         )
         <| mutePayload
             destination
-            (\ p -> { p | series = Set.insert
+            (\ p -> { p | series = Dict.insert
                                     name
+                                    ( SeriesAttribute False False )
                                     p.series
                     }
             )
@@ -399,6 +432,16 @@ initModel baseUrl =
     , currentCut = NoCut
     , focus = Nothing
     }
+
+
+dressSeries : List String -> Dict String SeriesAttribute
+dressSeries names =
+    Dict.fromList
+        <| List.map
+            (\ name ->
+                (name, { selected = False, cut = False })
+            )
+            names
 
 
 sub: Model -> Sub Msg

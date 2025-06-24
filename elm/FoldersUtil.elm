@@ -50,10 +50,11 @@ type alias Payload =
     , path: Path
     , open: Bool
     , status: LoadingStatus
-    , series: Set String
-    , selected : Set String
-    , cut: Set String
+    , series: Dict String SeriesAttribute
     }
+
+type alias SeriesAttribute
+     = { selected: Bool, cut: Bool }
 
 initPayload: Payload
 initPayload =
@@ -61,9 +62,7 @@ initPayload =
     , path = ""
     , open = False
     , status = Start
-    , series = Set.empty
-    , selected = Set.empty
-    , cut = Set.empty
+    , series = Dict.empty
     }
 
 type LoadingStatus =
@@ -213,6 +212,14 @@ zHeight path =
         <| String.length
             path
 
+selectFromUser: Payload -> Set String
+selectFromUser payload =
+    Set.fromList
+        <| Dict.keys
+           <| Dict.filter
+                (\ k v -> v.selected)
+                payload.series
+
 toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
 toListItems overDrag convertMsg focus cut payload children =
     let open = payload.open
@@ -314,7 +321,7 @@ viewSelected payload cut convertMsg  =
             <| convertMsg
                 <| DragStart
                     payload.path
-                    payload.selected
+                    ( selectFromUser payload )
         , class <| case cut of
                     NoCut -> "selected"
                     Cut path _ ->
@@ -338,7 +345,7 @@ viewSelected payload cut convertMsg  =
 
             )
             <| Set.toList
-                payload.selected
+                ( selectFromUser payload )
 
 
 viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
@@ -366,10 +373,10 @@ viewSeries overDrag payload convertMsg =
                             ]
                             [ Html.text sn ]]
             )
-            <| Set.toList
-                <| Set.diff
+            <| Dict.keys
+                <| Dict.filter
+                    (\ k v -> not v.selected)
                     payload.series
-                    payload.selected
 
 
 classOver: Payload -> Maybe Path -> String
@@ -426,30 +433,23 @@ mutePayload path mapping menu =
                         zipper
 
 
-cutSeries: Path -> Tree Payload -> ( Tree Payload, Set String )
-cutSeries path menu =
-    let cut = (getPayload path menu).selected
-    in
-        ( mutePayload
-            path
-            (\ p -> { p | selected = Set.empty
-                        , series = Set.diff p.series cut
-                    }
-            )
-            menu
-        , cut
-        )
-
-
 pasteSeries: Path -> Path -> Set String -> Tree Payload -> Tree Payload
 pasteSeries from to cut menu =
+    let fromCut = Dict.fromList
+                    <| List.map
+                        (\ name -> ( name
+
+                                   , { selected = False, cut = False }
+                                   )
+                        )
+                        ( Set.toList cut )
+    in
     mutePayload
         to
-        (\ p -> { p | series = Set.union p.series cut })
+        (\ p -> { p | series = Dict.union p.series fromCut })
         <| mutePayload
             from
-            (\ p -> { p | selected = Set.empty
-                        , series = Set.diff p.series cut
+            (\ p -> { p | series = Dict.diff p.series fromCut
                     }
             )
             menu
