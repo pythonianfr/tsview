@@ -520,6 +520,9 @@ label.option {
     background-color: lightblue;
 }
 
+.menu-folders .series-list.cut {
+    background-color: lightpink;
+}
 .menu-folders .folder-name{
     display: inline;
     cursor:pointer;

@@ -24,11 +24,14 @@ import Tree exposing
 import Url.Builder as UB
 
 import FoldersUtil exposing
-    ( Payload
+    ( Cut(..)
+    , Payload
     , decodeTree
     , buildTree
     , emptyTree
+    , getPayload
     , mutePayload
+    , pasteSeries
     , root
     , viewTree
     )
@@ -47,7 +50,7 @@ type alias Model =
     , currentDrag: Maybe ( String, Path )
     , overDrag: Maybe Path
     , errors: List String
-    , currentCut: Set String
+    , currentCut: Cut
     , focus : Maybe Path
     }
 
@@ -131,8 +134,15 @@ update msg model =
         GotUpdatePath source destination (Err _ ) ->
             U.nocmd model
 
+
         CopyFromBrowser _ ->
-            U.nocmd model
+            case model.focus of
+                Nothing -> U.nocmd model
+                Just focus ->
+                    let cut = (getPayload focus model.tree).selected
+                    in
+                    U.nocmd { model | currentCut = Cut focus cut }
+
 
         FromTree msgTree ->
             case msgTree of
@@ -319,6 +329,7 @@ view model =
                     model.overDrag
                     FromTree
                     model.focus
+                    model.currentCut
                 , div
                     []
                     [text <| case model.currentDrag of
@@ -344,7 +355,7 @@ initModel baseUrl =
     , currentDrag = Nothing
     , overDrag = Nothing
     , errors = []
-    , currentCut = Set.empty
+    , currentCut = NoCut
     , focus = Nothing
     }
 

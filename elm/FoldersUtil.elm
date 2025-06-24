@@ -82,6 +82,12 @@ type MsgTree
     | Deselect Path String
     | Focus Path
 
+
+type Cut
+    = NoCut
+    | Cut Path ( Set String )
+
+
 -- ref for drag/drop: https://benpaulhanna.com/basic-html5-drag-and-drop-with-elm.html
 
 onDragStart msg =
@@ -204,8 +210,8 @@ zHeight path =
         <| String.length
             path
 
-toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Payload -> List (Html msg) -> Html msg
-toListItems overDrag convertMsg focus payload children =
+toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
+toListItems overDrag convertMsg focus cut payload children =
     let open = payload.open
     in
         Html.li
@@ -224,9 +230,9 @@ toListItems overDrag convertMsg focus payload children =
                 ]
                 ([ viewFolder overDrag payload open convertMsg
                  ]++ if open
-                    then [ viewSelected payload convertMsg
-                          , viewSeries overDrag payload convertMsg
-                          ]
+                    then [ viewSelected payload cut convertMsg
+                         , viewSeries overDrag payload convertMsg
+                         ]
                     else  []
                 )
              ] ++ if open
@@ -295,11 +301,16 @@ buttonOpen openMsg payload convertMsg =
         ]
 
 
-viewSelected: Payload ->  ( MsgTree -> msg ) -> Html msg
-viewSelected payload convertMsg  =
+viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
+viewSelected payload cut convertMsg  =
      Html.ul
         [ class "series-list"
-        , class "selected"
+        , class <| case cut of
+                    NoCut -> "selected"
+                    Cut path _ ->
+                        if path == payload.path
+                            then "cut"
+                            else "selected"
         , onClick <| convertMsg ( Focus payload.path )
         ]
         <| List.map
@@ -371,13 +382,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path ->Html msg
-viewTree tree overDrag convertMsg focus =
+viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Html msg
+viewTree tree overDrag convertMsg focus cut =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems overDrag convertMsg focus )
+            ( toListItems overDrag convertMsg focus cut )
             tree
         ]
 

@@ -8,10 +8,13 @@
   <script src="{{ url_for('tsview.static', filename='folders_elm.js')}}"></script>
 </head>
 <body translate="no">
-  <div id="app"></div>
+  <div id="wrap-folder" tabindex="0">
+    <div id="app-folder"></div>
+  </div>
+
    <script>
          app = Elm.Folders.init({
-             node: document.getElementById('app'),
+             node: document.getElementById('app-folder'),
              flags: {
                  baseurl : "{{ homeurl }}",
              }
@@ -19,13 +22,13 @@
    </script>
   <script>
       // listen the copy event
-      document.getElementsByClassName('main-content')[0].addEventListener(
+      document.getElementById('wrap-folder').addEventListener(
           "copy",(event) => {
               app.ports.copySignal.send(true);
           }
       );
       // listen the cut event
-      document.getElementsByClassName('main-content')[0].addEventListener(
+      document.getElementById('wrap-folder').addEventListener(
           "cut",(event) => {
               app.ports.copySignal.send(true);
           }
