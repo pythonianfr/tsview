@@ -27,6 +27,7 @@ import Lisp
 import Maybe.Extra as Maybe
 import Metadata as M
 import Series as S
+import Task
 import Url.Builder as UB
 import Util as U
 
@@ -37,9 +38,13 @@ type alias BasketFormula =
     }
 
 
+type Mode = BasketList | BasketEdition
+
+
 type alias Model =
     { baseurl : String
     , canwrite : Bool
+    , mode: Mode
     -- all errors
     , errors : List String
     -- baskets
@@ -64,6 +69,8 @@ type Msg
     = GetPermissions (Result Http.Error String)
     | GotBasketNames (Result Http.Error String)
     | SelectedBasket (Maybe String)
+    | ExitEdition
+    | Create
     | GotBasketDefinition String (Result Http.Error String)
     | SaveBasket
     | SavedBasket (Result Http.Error ())
@@ -175,6 +182,11 @@ update msg model =
         GotBasketNames (Err err) ->
             doerr "getbasketnames http" <| U.unwraperror err
 
+        Create ->
+            ( { model | mode = BasketEdition }
+            , Task.perform identity <| Task.succeed (SelectedBasket Nothing)
+            )
+
         SelectedBasket Nothing ->
             let
                 (wid, cmd) = Widget.setFormula Nothing model.editorWidget
@@ -207,11 +219,15 @@ update msg model =
 
         SelectedBasket (Just name) ->
             ( { model
-                | name = Just name
-                , creating = False
+                  | name = Just name
+                  , creating = False
+                  , mode = BasketEdition
               }
             , getbasket model name
             )
+
+        ExitEdition ->
+            U.nocmd { model | mode = BasketList }
 
         GotBasketDefinition name (Ok rawbasket) ->
             case JD.decodeString JD.string rawbasket of
@@ -241,7 +257,6 @@ update msg model =
 
         GotBasketDefinition _ (Err err) ->
             doerr "getbasketdefinition http" <| U.unwraperror err
-
 
         SaveBasket ->
             ( model
@@ -409,28 +424,11 @@ viewedition model =
             else
                 Just basketname
 
-        basketoption basketname =
-            let
-                txt =
-                    if basketname == "" then
-                        U.fromCharCode 127381 -- SQUARED NEW
-                    else
-                        basketname
-            in H.option
-                [ HA.value basketname
-                , HEX.attributeMaybe
-                    (\name -> HA.selected (name == basketname))
-                    model.name
-                ]
-                [ H.text txt ]
-
-        basketslist =
-            H.select
-                  [ HA.name "basket"
-                  , HE.on "change" (JD.andThen unpacksbasket HE.targetValue)
-                  , HA.class "w-75"
-                  ]
-                  <| List.map basketoption ("" :: model.baskets)
+        exitbutton =
+            H.button [ HA.type_ "button"
+                     , HA.class "btn btn-primary"
+                     , HE.onClick ExitEdition
+                     ] [ H.text "exit" ]
 
         removeButton =
             if model.removing then
@@ -457,7 +455,7 @@ viewedition model =
                     , HE.onClick Remove
                     , HA.disabled model.creating
                     ]
-                    [ H.text "Delete" ]
+                    [ H.text "delete" ]
                 else H.span [] []
 
         saveButton =
@@ -499,14 +497,15 @@ viewedition model =
             if model.canwrite then
                 H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
             else H.span [] []
+
         triangleCode =
             if model.editorExpanded then 9660 else 9654
             -- BLACK DOWN-POINTING TRIANGLE else BLACK RIGHT-POINTING TRIANGLE
     in
     [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
     , H.div
-        [ HA.class "container-fluid" ]
-        [ H.div [ HA.class "container-fluid" ] [ basketslist, removeButton ]
+        [ ]
+        [ H.div [ ] [ exitbutton, removeButton ]
         , HEX.viewIf (hasEditedFormula model) saveLine
         ]
     , H.div
@@ -532,6 +531,39 @@ viewedition model =
     ]
 
 
+viewbasketlist model =
+    let
+        viewbasketitem item =
+            H.li [ HA.class "list-group-item p-1" ]
+                [ H.span
+                      [ HE.onClick <| SelectedBasket (Just item) ]
+                      [ H.text item ]
+                ]
+
+        numbaskets =
+            List.length model.baskets
+
+        basketsmsg =
+            case numbaskets of
+                0 -> "No basket. You should start one ! "
+                1 -> "One basket."
+                _ -> "There are " ++ (String.fromInt numbaskets) ++ " baskets."
+    in
+    [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
+    , H.p [ ]
+        [ H.text basketsmsg
+        , H.text " "
+        , H.button [ HA.type_ "button"
+                   , HA.class "btn btn-primary"
+                   , HE.onClick Create
+                   ] [ H.text "Create a basket" ]
+        ]
+    , H.ul
+          [ HA.class "list-group list-group-flush" ]
+          <| List.map viewbasketitem model.baskets
+    ]
+
+
 
 view : Model -> Html Msg
 view model =
@@ -540,7 +572,9 @@ view model =
         [ H.div
             [ HA.class "main-content formula_editor" ]
             [ H.div [ HA.class "baskets", HA.style "margin" ".5em" ] <|
-                viewedition model
+                case model.mode of
+                    BasketList -> viewbasketlist model
+                    BasketEdition -> viewedition model
             ]]
 
 
@@ -563,6 +597,7 @@ init { baseurl, jsonSpec, basketName } =
    in
    { baseurl = baseurl
    , canwrite = False
+   , mode = BasketList
    , errors = []
    , baskets = []
    , name = JD.decodeValue (JD.maybe JD.string) basketName
