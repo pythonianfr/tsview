@@ -336,99 +336,6 @@ hasEditedFormula {basket, savedBasket, creating} =
         |> Maybe.withDefault (False || creating)
 
 
-strvalue: Value -> String
-strvalue val =
-    case val of
-        Str v -> v
-        Number n -> String.fromFloat n
-
-
-viewsingleton: String -> H.Html Msg
-viewsingleton name =
-    H.ul [ HA.class "tree" ] [ H.li [] [ H.text name ] ]
-
-
-viewstrparam: String -> String -> H.Html Msg
-viewstrparam name param =
-    H.ul [ HA.class "tree" ] [ H.li [] [ H.text <| name ++ " " ++ param ] ]
-
-
-viewtwoparams: String -> String -> Value -> H.Html Msg
-viewtwoparams name param1 param2 =
-    H.ul [ HA.class "tree" ]
-        [ H.li
-              []
-              [ H.text <| name ++ " " ++ param1 ++ " " ++ (strvalue param2) ]
-        ]
-
-
-viewterm: FilterNode -> H.Html Msg
-viewterm term  =
-    case term of
-        TzAware ->
-            viewsingleton "tzaware"
-
-        Everything ->
-            viewsingleton "everything"
-
-        Formula ->
-            viewsingleton "formula"
-
-        ByCache ->
-            viewsingleton "cache"
-
-        FormulaContents contents ->
-            viewstrparam "formulacontents " contents
-
-        ByName name ->
-            viewstrparam "byname " name
-
-        ByCachePolicy name ->
-            viewstrparam "cachepolicy " name
-
-        ByMetakey key ->
-            viewstrparam "metakey" key
-
-        ByMetaITem key val ->
-            viewtwoparams "bymetaitem " key val
-
-        ByInternalMetaitem key val ->
-            viewtwoparams "bymetaitem " key val
-
-        Eq key val ->
-            viewtwoparams "=" key val
-
-        Lt key val ->
-            viewtwoparams "<" key val
-
-        Lte key val ->
-            viewtwoparams "<=" key val
-
-        Gt key val ->
-            viewtwoparams ">" key val
-
-        Gte key val ->
-            viewtwoparams ">=" key val
-
-        Not thing ->
-            H.ul [ HA.class "tree" ]
-                [ H.li [] [ H.summary [] [ H.text "not", viewterm thing ] ] ]
-
-        And things ->
-            H.ul [ HA.class "tree" ]
-                [ H.li []
-                      ([ H.summary [] [ H.text "and" ] ]
-                           ++ (List.map viewterm things))
-                ]
-
-        Or things ->
-            H.ul [ HA.class "tree" ]
-                [ H.li []
-                      ([ H.summary [] [ H.text "or" ] ]
-                           ++ (List.map viewterm things))
-                ]
-
-
 viewseries : Model -> Html Msg
 viewseries model =
     let
@@ -619,7 +526,6 @@ viewedition model =
             , H.text (" " ++ model.newname)
             , HEX.viewIf (hasEditedFormula model) (H.text " *")
             ]
-        , HEX.viewMaybe (.node >> viewterm) model.basket
         , viewseries model
         ]
     , viewerrors model
