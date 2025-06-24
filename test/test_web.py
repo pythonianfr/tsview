@@ -530,3 +530,30 @@ def test_expand(tsa):
             'tzaware': True
         }
     ]
+
+
+def test_generate_ts(client, tsa):
+    res = client.get('/generate-ts', params={
+        'from': '2025-1-1',
+        'to': '2025-1-2',
+        'tz': 'CET',
+        'is_string': 0,
+        'value': 42,
+        'freq': 'D'
+    })
+    # this is not even json earmarked :/
+    assert res.body == (
+        b'{"2025-01-01T00:00:00+01:00": 42.0, "2025-01-02T00:00:00+01:00": 42.0}'
+    )
+
+    res = client.get('/generate-ts', params={
+        'from': '2025-1-1',
+        'to': '2025-1-2',
+        'tz': 'UTC',
+        'is_string': 1,
+        'value': 'hello',
+        'freq': 'D'
+    })
+    assert res.body == (
+        b'{"2025-01-01T00:00:00+00:00": "hello", "2025-01-02T00:00:00+00:00": "hello"}'
+    )
