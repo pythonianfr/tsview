@@ -25,6 +25,7 @@ import Url.Builder as UB
 
 import FoldersUtil exposing
     ( Cut(..)
+    , Drag(..)
     , Payload
     , decodeTree
     , buildTree
@@ -49,7 +50,7 @@ type alias Model =
     , treeAttribute: Maybe String
     , paths: List String
     , tree: Tree Payload
-    , currentDrag: Maybe ( String, Path )
+    , currentDrag: Drag
     , overDrag: Maybe Path
     , errors: List String
     , currentCut: Cut
@@ -187,8 +188,8 @@ update msg model =
                                 path
 
                     )
-                DragStart name from ->
-                    ( { model | currentDrag = Just (name, from)}
+                DragStart from name ->
+                    ( { model | currentDrag = Drag from name}
                     , Cmd.none
                     )
                 DragOver over ->
@@ -197,22 +198,22 @@ update msg model =
                     , Cmd.none
                     )
                 DragEnd ->
-                    ( { model | currentDrag = Nothing
+                    ( { model | currentDrag = NoDrag
                               , overDrag = Nothing
                       }
                     , Cmd.none
                     )
                 Drop destination ->
                     case model.currentDrag of
-                        Nothing -> U.nocmd model
-                        Just (series, source) ->
+                        NoDrag -> U.nocmd model
+                        Drag source series ->
                             ( moveSeries
                                 { model | overDrag = Nothing }
                                 destination
                             , updatePath
                                 model.baseUrl
                                 model.treeAttribute
-                                ( Set.singleton series)
+                                series
                                 source
                                 destination
                             )
@@ -326,28 +327,48 @@ getSeries baseUrl path =
 moveSeries: Model -> Path -> Model
 moveSeries model destination =
     case model.currentDrag of
-        Nothing -> model
-        Just (name, source) ->
+        NoDrag -> model
+        Drag source names ->
             if source == destination
             then model
             else
-            let newTree =
-                    mutePayload
-                        source
-                        (\ p -> { p | series = Set.remove
-                                                name
-                                                p.series
-                                }
-                        )
-                        <| mutePayload
-                            destination
-                            (\ p -> { p | series = Set.insert
-                                                    name
-                                                    p.series
-                                    }
-                            )
-                            model.tree
-            in { model | tree = newTree }
+                { model | tree = moveSerieRec
+                                    ( Set.toList names )
+                                    source
+                                    destination
+                                    model.tree
+                }
+
+
+moveSerieRec : List String -> Path -> Path -> Tree Payload -> Tree Payload
+moveSerieRec names source destination tree =
+    case names of
+        [] -> tree
+        x :: xs ->
+            moveSerieRec
+                xs
+                source
+                destination
+                ( moveSerie x source destination tree )
+
+
+moveSerie: String -> Path -> Path -> Tree Payload -> Tree Payload
+moveSerie name source destination tree =
+    mutePayload
+        source
+        (\ p -> { p | series = Set.remove
+                                name
+                                p.series
+                }
+        )
+        <| mutePayload
+            destination
+            (\ p -> { p | series = Set.insert
+                                    name
+                                    p.series
+                    }
+            )
+            tree
 
 
 view: Model -> Html Msg
@@ -363,18 +384,6 @@ view model =
                     FromTree
                     model.focus
                     model.currentCut
-                , div
-                    []
-                    [text <| case model.currentDrag of
-                                Nothing -> "no-drag"
-                                Just ( name, path) -> name ++ path
-                    ]
-                , div [] [text <|  "over : "
-                            ++ (case model.overDrag of
-                                    Nothing -> "no-over"
-                                    Just over -> over
-                                )
-                          ]
                 ]
 
 
@@ -385,7 +394,7 @@ initModel baseUrl =
     , treeAttribute = Nothing
     , paths = []
     , tree = emptyTree
-    , currentDrag = Nothing
+    , currentDrag = NoDrag
     , overDrag = Nothing
     , errors = []
     , currentCut = NoCut

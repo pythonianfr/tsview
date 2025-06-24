@@ -75,7 +75,7 @@ type LoadingStatus =
 
 type MsgTree
     = Open Path Bool
-    | DragStart String Path
+    | DragStart Path ( Set String )
     | DragOver Path
     | DragEnd
     | Drop Path
@@ -83,6 +83,9 @@ type MsgTree
     | Deselect Path String
     | Focus Path
 
+type Drag
+    = NoDrag
+    | Drag Path ( Set String )
 
 type Cut
     = NoCut
@@ -307,6 +310,7 @@ viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
 viewSelected payload cut convertMsg  =
      Html.ul
         [ class "series-list"
+        , draggable "true"
         , class <| case cut of
                     NoCut -> "selected"
                     Cut path _ ->
@@ -362,9 +366,8 @@ viewSeries overDrag payload convertMsg =
                             , onDragStart
                                 <| convertMsg
                                     <| DragStart
-                                        sn
                                         payload.path
-
+                                        ( Set.singleton sn )
                             ]
                             [ Html.text sn ]]
             )
