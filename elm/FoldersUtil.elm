@@ -102,7 +102,6 @@ onDragEnd msg =
     Events.on "dragend"
         <| JD.succeed msg
 
-
 onDragOver msg =
     Events.preventDefaultOn "dragover"
         <| JD.succeed (msg, True)
@@ -225,6 +224,8 @@ toListItems overDrag convertMsg focus cut payload children =
             ([ Html.div
                 [ class "node"
                 , tabindex 0
+                , onDragOver <| convertMsg (DragOver payload.path)
+                , onDrop <| convertMsg ( Drop payload.path )
                 , onClick <| convertMsg ( Focus payload.path )
                 , class <| case focus of
                         Nothing -> ""
@@ -256,8 +257,6 @@ viewFolder overDrag payload open convertMsg =
         [ class "folder-row"
         , class ( if open then "open" else "not-open" )
         , class ( classOver payload overDrag )
-        , onDragOver <| convertMsg (DragOver payload.path)
-        , onDrop <| convertMsg ( Drop payload.path )
         ]
         [ buttonOpen Open payload convertMsg
         , Html.p
@@ -311,6 +310,11 @@ viewSelected payload cut convertMsg  =
      Html.ul
         [ class "series-list"
         , draggable "true"
+        , onDragStart
+            <| convertMsg
+                <| DragStart
+                    payload.path
+                    payload.selected
         , class <| case cut of
                     NoCut -> "selected"
                     Cut path _ ->
@@ -341,15 +345,6 @@ viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
 viewSeries overDrag payload convertMsg =
     Html.ul
         [ class "series-list"
-        ,onDragOver
-            <| convertMsg
-                <| DragOver payload.path
-        , onDrop
-            <| convertMsg
-                <| Drop payload.path
-        , onClick
-            <| convertMsg
-                <| Focus payload.path
         ]
         <| List.map
             (\sn -> Html.li

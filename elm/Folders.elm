@@ -209,7 +209,9 @@ update msg model =
                         Drag source series ->
                             ( moveSeries
                                 { model | overDrag = Nothing }
+                                source
                                 destination
+                                series
                             , updatePath
                                 model.baseUrl
                                 model.treeAttribute
@@ -324,20 +326,17 @@ getSeries baseUrl path =
         }
 
 
-moveSeries: Model -> Path -> Model
-moveSeries model destination =
-    case model.currentDrag of
-        NoDrag -> model
-        Drag source names ->
-            if source == destination
-            then model
-            else
-                { model | tree = moveSerieRec
-                                    ( Set.toList names )
-                                    source
-                                    destination
-                                    model.tree
-                }
+moveSeries: Model -> Path -> Path -> Set String ->Model
+moveSeries model source destination names =
+        if source == destination
+        then model
+        else
+            { model | tree = moveSerieRec
+                                ( Set.toList names )
+                                source
+                                destination
+                                model.tree
+            }
 
 
 moveSerieRec : List String -> Path -> Path -> Tree Payload -> Tree Payload
