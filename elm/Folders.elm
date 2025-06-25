@@ -36,6 +36,7 @@ import FoldersUtil exposing
     , mutePayload
     , pasteSeries
     , root
+    , selectFromQuery
     , viewTree
     )
 
@@ -281,6 +282,13 @@ update msg model =
                         }
                 Focus path ->
                     U.nocmd { model | focus = Just path }
+                Query path query ->
+                    U.nocmd { model | tree =
+                                mutePayload
+                                    path
+                                    (\ p -> selectFromQuery { p | query = query} )
+                                    model.tree
+                            }
 
 
 getPaths: String -> Cmd Msg

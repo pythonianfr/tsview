@@ -12,10 +12,13 @@ import Html.Attributes exposing
     , placeholder
     , style
     , tabindex
+    , title
+    , value
     )
 import Html.Events as Events
 import Html.Events exposing
     ( onClick
+    , onInput
     )
 import Set exposing (Set)
 import Tree
@@ -44,6 +47,7 @@ type alias Payload =
     , open: Bool
     , status: LoadingStatus
     , series: Dict String SeriesAttribute
+    , query: String
     }
 
 type alias SeriesAttribute
@@ -56,6 +60,7 @@ initPayload =
     , open = False
     , status = Start
     , series = Dict.empty
+    , query = ""
     }
 
 type LoadingStatus =
@@ -74,6 +79,7 @@ type MsgTree
     | Select Path String
     | Deselect Path String
     | Focus Path
+    | Query Path String
 
 type Drag
     = NoDrag
@@ -257,7 +263,11 @@ viewSelector payload convertMsg =
     Html.div
         [class "filter-name"]
         [ Html.input
-            [ placeholder "filter series" ]
+            [ placeholder "filter series (>2 chars)"
+            , title "at least 3 characters"
+            , onInput (\ s ->  convertMsg ( Query payload.path s ))
+            , value payload.query
+            ]
             []
         ]
 
@@ -456,3 +466,39 @@ pasteSeries from to cut menu =
                     }
             )
             menu
+
+
+filterByWords: List String -> String -> List String
+filterByWords filterme query =
+    let
+        querywords =
+            String.words query
+        filterstep word wordlist =
+            List.filter
+                (\item -> String.contains word item)
+                wordlist
+        filterall words wordlist =
+            case words of
+                [] -> wordlist
+                head::tail -> filterall tail <| filterstep head wordlist
+    in filterall querywords filterme
+
+
+selectFromQuery: Payload -> Payload
+selectFromQuery payload =
+    let selected
+            = if String.length payload.query < 3
+                then []
+                else filterByWords
+                        ( Dict.keys payload.series )
+                        payload.query
+    in { payload | series =
+                    Dict.map
+                        ( \k v -> if List.member k selected
+                                    then { v | selected = True }
+                                    else { v | selected = False }
+                        )
+                        payload.series
+
+       }
+
