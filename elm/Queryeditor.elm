@@ -272,9 +272,10 @@ update msg model =
 
         SavedBasket (Ok _) ->
             ( { model
-                | name = Just model.newname
-                , savedBasket = model.basket
-                , creating = False
+                  | name = Just model.newname
+                  , savedBasket = model.basket
+                  , creating = False
+                  , renaming = False
               }
             , getbaskets model
             )
@@ -304,12 +305,17 @@ update msg model =
             doerr "removebasket http" <| U.unwraperror err
 
         Rename ->
-            U.nocmd { model
-                        | renaming = True
-                        , newname = case model.name of
-                                        Nothing -> ""
-                                        Just name -> name
-                    }
+            case model.renaming of
+                True ->
+                    U.nocmd { model | renaming = False }
+                _ ->
+                    U.nocmd { model
+                                | renaming = True
+                                , newname = case model.name of
+                                                Nothing -> ""
+                                                Just name -> name
+                            }
+
         RenameBasket ->
             ( model
             , Cmd.batch
