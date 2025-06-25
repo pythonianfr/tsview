@@ -471,8 +471,8 @@ suiteCopyPast =
     let paths = [ "b0"
                 , "b1"
                 ]
-        selected = {selected = True, cut = False}
-        unselected = {selected = False, cut = False}
+        selected = { selected = True }
+        unselected = { selected = False }
         aTree =  convertTree
                     <| buildMTree
                             paths

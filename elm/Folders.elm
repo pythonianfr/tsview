@@ -30,6 +30,7 @@ import FoldersUtil exposing
     , Payload
     , SeriesAttribute
     , decodeTree
+    , dressSeries
     , buildTree
     , emptyTree
     , getPayload
@@ -242,9 +243,7 @@ update msg model =
                                                     (\ k v ->
                                                         if k == name
                                                         then
-                                                        { v | selected = False
-                                                            , cut = False
-                                                        }
+                                                        { v | selected = False}
                                                         else v
                                                     )
                                                     p.series
@@ -271,21 +270,7 @@ update msg model =
                                     (getPayload path model.tree).series
                     in
                     U.nocmd
-                        <| { model | currentCut = Cut path ( Set.fromList cut )
-                                   , tree =
-                                mutePayload
-                                    path
-                                    (\ p -> { p | series =
-                                                    Dict.map
-                                                        (\ k v -> if v.selected
-                                                                    then { v | cut = True }
-                                                                    else v
-                                                        )
-                                                        p.series
-                                            }
-                                    )
-                                    model.tree
-                            }
+                        <| { model | currentCut = Cut path ( Set.fromList cut )                            }
 
                 ButtonPaste path ->
                     case model.currentCut of
@@ -313,15 +298,14 @@ update msg model =
                             | tree =
                                 mutePayload
                                     path
-                                    (\ p -> { p | series =
-                                                    Dict.map
-                                                        (\ k v ->
-                                                            { v | selected = False
-                                                                , cut = False
-                                                            }
-                                                        )
-                                                        p.series
-                                                , query = ""
+                                    (\ p ->
+                                        { p | series =
+                                                Dict.map
+                                                    (\ k v ->
+                                                        { v | selected = False }
+                                                    )
+                                                    p.series
+                                            , query = ""
                                             }
                                     )
                                     model.tree
@@ -443,7 +427,7 @@ moveSerie name source destination tree =
             destination
             (\ p -> { p | series = Dict.insert
                                     name
-                                    ( SeriesAttribute False False )
+                                    ( SeriesAttribute False )
                                     p.series
                     }
             )
@@ -480,15 +464,6 @@ initModel baseUrl =
     , focus = Nothing
     }
 
-
-dressSeries : List String -> Dict String SeriesAttribute
-dressSeries names =
-    Dict.fromList
-        <| List.map
-            (\ name ->
-                (name, { selected = False, cut = False })
-            )
-            names
 
 
 sub: Model -> Sub Msg

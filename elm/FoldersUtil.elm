@@ -51,7 +51,7 @@ type alias Payload =
     }
 
 type alias SeriesAttribute
-     = { selected: Bool, cut: Bool }
+     = { selected: Bool }
 
 initPayload: Payload
 initPayload =
@@ -360,10 +360,11 @@ viewSelected payload cut convertMsg  =
             (\sn -> Html.li
                         [ class "series-item" ]
                         [ Html.button
-                            [ onClick
+                            [ title "deselect series"
+                            , onClick
                                 <| convertMsg
                                     <| Deselect payload.path sn ]
-                            [Html.text "▼"]
+                            [ Html.text "▼" ]
                         , Html.p
                             [ class "series-name"
                             ]
@@ -383,7 +384,8 @@ viewSeries overDrag payload convertMsg =
             (\sn -> Html.li
                         [ class "series-item" ]
                         [ Html.button
-                            [ onClick
+                            [ title "select series"
+                            , onClick
                                 <| convertMsg
                                     <| Select payload.path sn ]
                             [Html.text "▲"]
@@ -459,22 +461,25 @@ mutePayload path mapping menu =
                         zipper
 
 
-pasteSeries: Path -> Path -> Set String -> Tree Payload -> Tree Payload
-pasteSeries from to cut menu =
-    let fromCut = Dict.fromList
-                    <| List.map
-                        (\ name -> ( name
+dressSeries : List String -> Dict String SeriesAttribute
+dressSeries names =
+    Dict.fromList
+        <| List.map
+            (\ name ->
+                (name, { selected = False })
+            )
+            names
 
-                                   , { selected = False, cut = False }
-                                   )
-                        )
-                        ( Set.toList cut )
+
+pasteSeries: Path -> Path -> Set String -> Tree Payload -> Tree Payload
+pasteSeries source destination cut menu =
+    let fromCut = dressSeries ( Set.toList cut )
     in
     mutePayload
-        to
+        destination
         (\ p -> { p | series = Dict.union p.series fromCut })
         <| mutePayload
-            from
+            source
             (\ p -> { p | series = Dict.diff p.series fromCut
                     }
             )
