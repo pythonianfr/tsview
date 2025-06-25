@@ -1,6 +1,9 @@
 port module Folders exposing (main)
 
 import Browser
+import Browser.Events exposing
+    ( onKeyDown
+    )
 import Dict exposing (Dict)
 import Json.Decode as JD
 import Json.Encode as JE
@@ -48,6 +51,28 @@ import Util as U
 port copySignal: (Bool -> msg) -> Sub msg
 port pasteSignal: (Bool -> msg) -> Sub msg
 
+keyDecoder: JD.Decoder Msg
+keyDecoder =
+    JD.map toKey ( JD.field "key" JD.string )
+
+toKey : String -> Msg
+toKey keyValue =
+    case String.uncons keyValue of
+        Just ( char, "" ) ->
+            Typing char
+        _ ->
+            ActionControl ( keyToType keyValue )
+
+
+keyToType:  String -> ControlKey
+keyToType keyValue =
+    case keyValue of
+        "Escape" -> Escape
+        _ -> Other keyValue
+
+type ControlKey
+    = Escape
+    | Other String
 
 type alias Model =
     { baseUrl: String
@@ -70,7 +95,8 @@ type Msg
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
-
+    | ActionControl ControlKey
+    | Typing Char
 
 -- for documentation purpose
 type alias Path = String
@@ -162,6 +188,21 @@ update msg model =
                         identity
                         ( Task.succeed ( FromTree ( ButtonPaste focus )))
                     )
+
+        ActionControl ( key ) ->
+            case key of
+                Other _ -> U.nocmd model
+                Escape ->
+                    case model.focus of
+                        Nothing -> U.nocmd model
+                        Just focus ->
+                            ( model,
+                            Task.perform
+                                identity
+                                ( Task.succeed ( FromTree ( ButtonReset focus ))))
+
+        Typing _ -> U.nocmd model
+
         FromTree msgTree ->
             case msgTree of
                 Open path open ->
@@ -470,6 +511,7 @@ sub: Model -> Sub Msg
 sub model = Sub.batch
             [ copySignal CopyFromBrowser
             , pasteSignal PasteFromBrowser
+            , onKeyDown ( keyDecoder )
             ]
 
 type alias Input =
