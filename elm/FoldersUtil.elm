@@ -80,6 +80,10 @@ type MsgTree
     | Deselect Path String
     | Focus Path
     | Query Path String
+    | ButtonCut Path
+    | ButtonPaste Path
+    | ButtonReset Path
+
 
 type Drag
     = NoDrag
@@ -269,6 +273,15 @@ viewSelector payload convertMsg =
             , value payload.query
             ]
             []
+        , Html.button
+            [ onClick ( convertMsg ( ButtonCut payload.path )) ]
+            [ Html.text "Cut" ]
+        , Html.button
+            [ onClick ( convertMsg ( ButtonPaste payload.path )) ]
+            [ Html.text "Paste" ]
+                , Html.button
+            [ onClick ( convertMsg ( ButtonReset payload.path )) ]
+            [ Html.text "Deselect" ]
         ]
 
 viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg

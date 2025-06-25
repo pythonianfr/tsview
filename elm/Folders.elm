@@ -143,56 +143,24 @@ update msg model =
 
 
         CopyFromBrowser _ ->
-            case model.focus of
+             case model.focus of
                 Nothing -> U.nocmd model
                 Just focus ->
-                    let cut = Dict.keys
-                                <| Dict.filter
-                                    (\ k v -> v.selected)
-                                    (getPayload focus model.tree).series
-                    in
-                    U.nocmd
-                        <| { model | currentCut = Cut focus ( Set.fromList cut )
-                                   , tree =
-                                mutePayload
-                                    focus
-                                    (\ p -> { p | series =
-                                                    Dict.map
-                                                        (\ k v -> if v.selected
-                                                                    then { v | cut = True }
-                                                                    else v
-                                                        )
-                                                        p.series
-                                            }
-                                    )
-                                    model.tree
-                            }
-
+                    ( model
+                    , Task.perform
+                        identity
+                        ( Task.succeed ( FromTree ( ButtonCut focus )))
+                    )
 
         PasteFromBrowser _ ->
             case model.focus of
                 Nothing -> U.nocmd model
                 Just focus ->
-                    case model.currentCut of
-                        NoCut -> U.nocmd model
-                        Cut from series ->
-                            ({ model | tree =
-                                        pasteSeries
-                                            from
-                                            focus
-                                            series
-                                            model.tree
-                                    , currentCut = NoCut
-                             }
-                            , updatePath
-                                model.baseUrl
-                                model.treeAttribute
-                                series
-                                from
-                                focus
-                            )
-
-
+                    ( model
+                    , Task.perform
+                        identity
+                        ( Task.succeed ( FromTree ( ButtonPaste focus )))
+                    )
         FromTree msgTree ->
             case msgTree of
                 Open path open ->
@@ -209,6 +177,7 @@ update msg model =
                                 path
 
                     )
+
                 DragStart from name ->
                     ( { model | currentDrag = Drag from name}
                     , Cmd.none
@@ -224,6 +193,7 @@ update msg model =
                       }
                     , Cmd.none
                     )
+
                 Drop destination ->
                     case model.currentDrag of
                         NoDrag -> U.nocmd model
@@ -240,6 +210,7 @@ update msg model =
                                 source
                                 destination
                             )
+
                 Select path name ->
                     U.nocmd
                         { model |
@@ -259,6 +230,7 @@ update msg model =
                                )
                                 model.tree
                         }
+
                 Deselect path name ->
                     U.nocmd
                         { model |
@@ -280,8 +252,10 @@ update msg model =
                                )
                                 model.tree
                         }
+
                 Focus path ->
                     U.nocmd { model | focus = Just path }
+
                 Query path query ->
                     U.nocmd { model | tree =
                                 mutePayload
@@ -289,6 +263,71 @@ update msg model =
                                     (\ p -> selectFromQuery { p | query = query} )
                                     model.tree
                             }
+
+                ButtonCut path ->
+                    let cut = Dict.keys
+                                <| Dict.filter
+                                    (\ k v -> v.selected)
+                                    (getPayload path model.tree).series
+                    in
+                    U.nocmd
+                        <| { model | currentCut = Cut path ( Set.fromList cut )
+                                   , tree =
+                                mutePayload
+                                    path
+                                    (\ p -> { p | series =
+                                                    Dict.map
+                                                        (\ k v -> if v.selected
+                                                                    then { v | cut = True }
+                                                                    else v
+                                                        )
+                                                        p.series
+                                            }
+                                    )
+                                    model.tree
+                            }
+
+                ButtonPaste path ->
+                    case model.currentCut of
+                        NoCut -> U.nocmd model
+                        Cut from series ->
+                            ({ model | tree =
+                                        pasteSeries
+                                            from
+                                            path
+                                            series
+                                            model.tree
+                                    , currentCut = NoCut
+                             }
+                            , updatePath
+                                model.baseUrl
+                                model.treeAttribute
+                                series
+                                from
+                                path
+                            )
+
+                ButtonReset path ->
+                    U.nocmd
+                        { model
+                            | tree =
+                                mutePayload
+                                    path
+                                    (\ p -> { p | series =
+                                                    Dict.map
+                                                        (\ k v ->
+                                                            { v | selected = False
+                                                                , cut = False
+                                                            }
+                                                        )
+                                                        p.series
+                                                , query = ""
+                                            }
+                                    )
+                                    model.tree
+                            , currentCut = NoCut
+                        }
+
 
 
 getPaths: String -> Cmd Msg
