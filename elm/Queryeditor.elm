@@ -437,12 +437,6 @@ viewerrors model =
 viewedition : Model -> List (Html Msg)
 viewedition model =
     let
-        unpacksbasket basketname =
-            JD.succeed <| SelectedBasket <| if basketname == "" then
-                Nothing
-            else
-                Just basketname
-
         exitbutton =
             H.button [ HA.type_ "button"
                      , HA.class "btn btn-primary"
@@ -530,7 +524,11 @@ viewedition model =
             if model.editorExpanded then 9660 else 9654
             -- BLACK DOWN-POINTING TRIANGLE else BLACK RIGHT-POINTING TRIANGLE
     in
-    [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
+    [ H.h1 [ HA.class "page-title" ] [ H.text <| "Basket " ++ (case model.name of
+                                                                   Nothing -> ""
+                                                                   Just name -> name
+                                                              )
+                                     ]
     , H.div
         [ ]
         [ H.div [ ] [ exitbutton, renamebutton, removeButton ]
@@ -548,14 +546,7 @@ viewedition model =
         ]
     , H.div
         [ HA.class "mt-4" ]
-        [ H.h5
-            []
-            [ H.text "Basket"
-            , H.text (" " ++ model.newname)
-            , HEX.viewIf (hasEditedFormula model) (H.text " *")
-            ]
-        , viewseries model
-        ]
+        [ viewseries model ]
     , viewerrors model
     ]
 
