@@ -7,6 +7,7 @@ import Html exposing
 import Html.Attributes exposing
     ( attribute
     , class
+    , disabled
     , draggable
     , id
     , placeholder
@@ -246,7 +247,7 @@ toListItems overDrag convertMsg focus cut payload children =
                 ]
                 ([ viewFolder overDrag payload open convertMsg
                  ]++ if open
-                    then [ viewSelector payload convertMsg
+                    then [ viewSelector payload cut convertMsg
                          , viewSelected payload cut convertMsg
                          , viewSeries overDrag payload convertMsg
                          ]
@@ -262,8 +263,8 @@ toListItems overDrag convertMsg focus cut payload children =
             )
 
 
-viewSelector: Payload -> ( MsgTree -> msg ) -> Html msg
-viewSelector payload convertMsg =
+viewSelector: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
+viewSelector payload cut convertMsg =
     Html.div
         [class "filter-name"]
         [ Html.input
@@ -274,13 +275,21 @@ viewSelector payload convertMsg =
             ]
             []
         , Html.button
-            [ onClick ( convertMsg ( ButtonCut payload.path )) ]
+            [ onClick ( convertMsg ( ButtonCut payload.path ))
+            , disabled (not ( anySelected payload ))
+            ]
             [ Html.text "Cut" ]
         , Html.button
-            [ onClick ( convertMsg ( ButtonPaste payload.path )) ]
+            [ onClick ( convertMsg ( ButtonPaste payload.path ))
+            , disabled <| case cut of
+                            NoCut -> True
+                            Cut path _ -> path == payload.path
+            ]
             [ Html.text "Paste" ]
                 , Html.button
-            [ onClick ( convertMsg ( ButtonReset payload.path )) ]
+            [ onClick ( convertMsg ( ButtonReset payload.path ))
+            , disabled ( not ( anyAction payload ))
+            ]
             [ Html.text "Deselect" ]
         ]
 
@@ -519,4 +528,16 @@ selectFromQuery payload =
                         payload.series
 
        }
+
+
+anySelected: Payload -> Bool
+anySelected payload =
+    List.any
+        ( \ a -> a.selected)
+        <| Dict.values payload.series
+
+anyAction: Payload -> Bool
+anyAction payload =
+    anySelected payload
+    || payload.query /= ""
 
