@@ -62,6 +62,8 @@ type alias Model =
     , editorExpanded : Bool
     , editorWidget : Widget.Model
     , removing : Bool
+    -- renaming
+    , renaming : Bool
     }
 
 
@@ -74,6 +76,8 @@ type Msg
     | GotBasketDefinition String (Result Http.Error String)
     | SaveBasket
     | SavedBasket (Result Http.Error ())
+    | Rename
+    | RenameBasket
     | Remove
     | CancelRemove
     | ConfirmRemove
@@ -299,6 +303,21 @@ update msg model =
         RemovedBasket (Err err) ->
             doerr "removebasket http" <| U.unwraperror err
 
+        Rename ->
+            U.nocmd { model
+                        | renaming = True
+                        , newname = case model.name of
+                                        Nothing -> ""
+                                        Just name -> name
+                    }
+        RenameBasket ->
+            ( model
+            , Cmd.batch
+                   [ Maybe.unwrap Cmd.none (savebasket model model.newname) model.basket
+                   , Maybe.unwrap Cmd.none (removebasket model) model.name
+                   ]
+            )
+
         NewName name ->
             U.nocmd { model | newname = name }
 
@@ -430,6 +449,12 @@ viewedition model =
                      , HE.onClick ExitEdition
                      ] [ H.text "exit" ]
 
+        renamebutton =
+            H.button [ HA.type_ "button"
+                     , HA.class "btn btn-warning"
+                     , HE.onClick Rename
+                     ] [ H.text "rename" ]
+
         removeButton =
             if model.removing then
                 H.span [ ]
@@ -458,7 +483,7 @@ viewedition model =
                     [ H.text "delete" ]
                 else H.span [] []
 
-        saveButton =
+        saveButton event =
             let
                 sameName = Maybe.unwrap
                     False
@@ -472,13 +497,16 @@ viewedition model =
                 testDis = not goodname || Maybe.isNothing model.basket
 
                 (disabled, txt) =
-                    if sameName then (False, "Save") else (testDis, "Save As")
+                    if model.renaming then
+                        if sameName then (True, "Save") else (False, "Save")
+                    else
+                        if sameName then (False, "Save") else (testDis, "Save As")
             in
             if model.canwrite then
             H.button
                 [ HA.class "btn btn-primary ml-2"
                 , HA.disabled disabled
-                , HE.onClick SaveBasket
+                , HE.onClick event
                 ]
                 [ H.text txt ]
             else H.span [] []
@@ -493,9 +521,9 @@ viewedition model =
                 ]
                 [ ]
 
-        saveLine =
+        saveLine event =
             if model.canwrite then
-                H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton ]
+                H.div [ HA.class "container-fluid mt-2" ] [ saveEntry, saveButton event ]
             else H.span [] []
 
         triangleCode =
@@ -505,8 +533,9 @@ viewedition model =
     [ H.h1 [ HA.class "page-title" ] [ H.text "Baskets" ]
     , H.div
         [ ]
-        [ H.div [ ] [ exitbutton, removeButton ]
-        , HEX.viewIf (hasEditedFormula model) saveLine
+        [ H.div [ ] [ exitbutton, renamebutton, removeButton ]
+        , HEX.viewIf (hasEditedFormula model) (saveLine SaveBasket)
+        , HEX.viewIf model.renaming (saveLine RenameBasket)
         ]
     , H.div
         [ HA.class "mt-4" ]
@@ -612,6 +641,7 @@ init { baseurl, jsonSpec, basketName } =
    , editorExpanded = False
    , editorWidget = widget
    , removing = False
+   , renaming = False
    }
    |> \model ->
        ( model
