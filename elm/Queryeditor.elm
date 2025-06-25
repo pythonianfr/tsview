@@ -441,7 +441,7 @@ viewedition model =
             H.button [ HA.type_ "button"
                      , HA.class "btn btn-primary"
                      , HE.onClick ExitEdition
-                     ] [ H.text "exit" ]
+                     ] [ H.text "back to list" ]
 
         renamebutton =
             H.button [ HA.type_ "button"
@@ -457,7 +457,7 @@ viewedition model =
                         , HA.class "btn btn-warning"
                         , HE.onClick CancelRemove
                         ]
-                        [ H.text "Cancel" ]
+                        [ H.text "cancel" ]
                     , H.span [] [ H.text " " ]
                     , H.button
                         [ HA.type_ "button"
@@ -470,7 +470,7 @@ viewedition model =
                 if model.canwrite then
                 H.button
                     [ HA.type_ "button"
-                    , HA.class "btn btn-danger ml-2"
+                    , HA.class "btn btn-danger"
                     , HE.onClick Remove
                     , HA.disabled model.creating
                     ]
@@ -524,15 +524,22 @@ viewedition model =
             if model.editorExpanded then 9660 else 9654
             -- BLACK DOWN-POINTING TRIANGLE else BLACK RIGHT-POINTING TRIANGLE
     in
-    [ H.h1 [ HA.class "page-title" ] [ H.text <| "Basket " ++ (case model.name of
-                                                                   Nothing -> ""
-                                                                   Just name -> name
-                                                              )
-                                     ]
-    , H.div
-        [ ]
-        [ H.div [ ] [ exitbutton, renamebutton, removeButton ]
-        , HEX.viewIf (hasEditedFormula model) (saveLine SaveBasket)
+    [ H.span [ HA.class "action-container" ]
+          [ H.h1 [ HA.class "action-left page-title" ]
+                [ H.text <| "Basket " ++ (case model.name of
+                                              Nothing -> ""
+                                              Just name -> name
+                                         )
+                ]
+          , H.span [ HA.class "action-center" ] [ H.text " " ]
+          , H.span [ HA.class "action-right" ]
+              [ exitbutton
+              , renamebutton
+              , removeButton
+              ]
+          ]
+    , H.div [ ]
+        [ HEX.viewIf (hasEditedFormula model) (saveLine SaveBasket)
         , HEX.viewIf model.renaming (saveLine RenameBasket)
         ]
     , H.div
