@@ -45,6 +45,7 @@ type alias Model =
     { baseurl : String
     , canwrite : Bool
     , mode: Mode
+    , filter : String
     -- all errors
     , errors : List String
     -- baskets
@@ -83,6 +84,7 @@ type Msg
     | ConfirmRemove
     | RemovedBasket (Result Http.Error ())
     | NewName String
+    | Filter String
     | GotSeries (Result Http.Error String)
     | DoExpand
     | WidgetMsg Widget.Msg
@@ -327,6 +329,9 @@ update msg model =
         NewName name ->
             U.nocmd { model | newname = name }
 
+        Filter filter ->
+            U.nocmd { model | filter = filter }
+
         GotSeries (Ok things) ->
             case JD.decodeString serieslistdecoder things of
                 Ok series ->
@@ -566,6 +571,13 @@ viewedition model =
 
 viewbasketlist model =
     let
+        filteredbaskets =
+            case model.filter of
+                "" ->
+                    model.baskets
+                _ ->
+                    List.filter (\it -> String.contains model.filter it) model.baskets
+
         viewbasketitem item =
             H.li [ HA.class "list-group-item p-1 clickable" ]
                 [ H.span
@@ -591,9 +603,20 @@ viewbasketlist model =
                    , HE.onClick Create
                    ] [ H.text "Create a basket" ]
         ]
+    , H.div [ ]
+        [ H.input
+              [ HA.attribute "type" "text"
+              , HA.class "w-75"
+              , HA.placeholder "filter on basket name"
+              , HA.value model.filter
+              , HE.onInput Filter
+              ]
+              [ ]
+        ]
+    , H.br [] []
     , H.ul
           [ HA.class "list-group list-group-flush" ]
-          <| List.map viewbasketitem model.baskets
+          <| List.map viewbasketitem <| filteredbaskets
     ]
 
 
@@ -631,6 +654,7 @@ init { baseurl, jsonSpec, basketName } =
    { baseurl = baseurl
    , canwrite = False
    , mode = BasketList
+   , filter = ""
    , errors = []
    , baskets = []
    , name = JD.decodeValue (JD.maybe JD.string) basketName
