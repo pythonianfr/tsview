@@ -408,9 +408,8 @@ update msg model =
 viewnamefilter =
     let input =
             H.input
-                [ A.class "form-control-sm"
+                [ A.class "input-group mb-1"
                 , A.placeholder "filter by name"
-                , A.size 80
                 , A.title "You can type name fragments separated by spaces"
                 , HE.onInput NameFilter
                 ] []
@@ -421,10 +420,9 @@ viewnamefilter =
 viewformulafilter =
     let input =
             H.input
-                [ A.class "form-control-sm"
+                [ A.class "input-group mb-1"
                 , A.placeholder "filter on formula content"
-                , A.size 80
-                , A.title "You can type series name fragments and formula operator names"
+               , A.title "You can type series name fragments and formula operator names"
                 , HE.onInput FormulaFilter
                 ] []
     in
@@ -495,7 +493,7 @@ metaactions action metadata =
         inputkey =
             H.input
                 [ A.attribute "type" "text"
-                , A.class "form-control-sm"
+                , A.class "mb-1"
                 , A.placeholder "filter by metadata key"
                 , A.value key
                 , HE.onInput (NewKey inputid)
@@ -503,7 +501,7 @@ metaactions action metadata =
         inputvalue =
             H.input
                 [ A.attribute "type" "text"
-                , A.class "form-control-sm"
+                , A.class "mb-1"
                 , A.placeholder "filter by metadata value"
                 , A.value value
                 , HE.onInput (NewValue inputid)
