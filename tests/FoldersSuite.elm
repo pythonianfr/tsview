@@ -23,6 +23,7 @@ import FoldersUtil exposing
     , buildMTree
     , buildSingle
     , convertTree
+    , decodeFind
     , decodeTree
     , getPayload
     , getZipper
@@ -55,6 +56,20 @@ decodeTreeFolders =
                     ]
         )
 
+decodeFindResult : T.Test
+decodeFindResult =
+    let jsonStuff = """[{"name": "Belgium", "imeta": null, "meta": null, "source": "local", "kind": "primary"}]"""
+        parsed =
+            case JD.decodeString decodeFind jsonStuff of
+                Err _ -> []
+                Ok val -> val
+    in
+    T.test
+        "Decode find"
+        ( \ _ -> Expect.equal
+                    parsed
+                    [ "Belgium" ]
+        )
 
 buildSinglePath : T.Test
 buildSinglePath =

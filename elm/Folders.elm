@@ -27,12 +27,16 @@ import Tree exposing
     )
 import Url.Builder as UB
 
+import Metadata
+import Util as U
+
 import FoldersUtil exposing
     ( Cut(..)
     , Drag(..)
     , Path(..)
     , Payload
     , SeriesAttribute
+    , decodeFind
     , decodeTree
     , dressSeries
     , buildTree
@@ -47,7 +51,6 @@ import FoldersUtil exposing
 
 import FoldersUtil exposing (MsgTree(..))
 
-import Util as U
 
 port copySignal: (Bool -> msg) -> Sub msg
 port pasteSignal: (Bool -> msg) -> Sub msg
@@ -93,6 +96,7 @@ type Msg
     | GotTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path ( Result Http.Error String )
+    | TowardDeletion Path Path String ( Result Http.Error String )
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -132,7 +136,13 @@ update msg model =
             U.nocmd model
 
         GotSeries path (Ok raw) ->
-            case JD.decodeString ( JD.list JD.string ) raw of
+            let
+             decoded
+                = case path of
+                    Root -> JD.decodeString decodeFind raw
+                    Branch _ -> JD.decodeString ( JD.list JD.string ) raw
+            in
+            case decoded of
                 (Ok seriesL ) ->
                     U.nocmd
                         { model | tree
@@ -162,6 +172,28 @@ update msg model =
                         ]
             )
 
+        TowardDeletion source destinaton name ( Ok raw ) ->
+            let treeAttribute = Maybe.withDefault "" model.treeAttribute
+            in
+            case JD.decodeString Metadata.decodemeta raw of
+                Ok meta ->
+                    let newMeta =
+                            Dict.remove treeAttribute meta
+                    in
+                        ( model
+                        , replaceMetadata
+                            model.baseUrl
+                            name
+                            newMeta
+                            source
+                            destinaton
+                        )
+                ( Err err ) ->
+                    U.nocmd { model | errors = model.errors
+                                               ++ [JD.errorToString err]
+                            }
+
+        TowardDeletion name _ _ ( Err raw ) -> U.nocmd model
 
         GotUpdatePath source destination (Err _ ) ->
             U.nocmd model
@@ -377,6 +409,29 @@ getTreeAttribute baseUrl =
         }
 
 
+replaceMetadata: String -> String -> Metadata.Metadata -> Path -> Path -> Cmd Msg
+replaceMetadata baseUrl name meta source destination =
+    Http.request
+        { method = "PUT"
+        , url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "metadata"]
+                []
+        , body = Http.jsonBody
+                    <| JE.object
+                        [( "name", JE.string name )
+                        ,( "metadata", JE.string
+                                        <| Metadata.encodemeta meta )
+                        ]
+        , expect = Http.expectString
+                    ( GotUpdatePath source destination )
+        , headers = [ ]
+        , tracker = Nothing
+        , timeout = Nothing
+        }
+
+
 updatePath: String -> Maybe String -> Set String -> Path -> Path -> Cmd Msg
 updatePath baseUrl treeAttribute series source destination =
     case treeAttribute of
@@ -414,7 +469,27 @@ updatePath baseUrl treeAttribute series source destination =
                             }
                         )
                         ( Set.toList series )
-                Root -> Cmd.none
+                Root ->
+                    -- deletion of path attribute in the metadata
+                    Cmd.batch
+                    <| List.map
+                        (\ name ->
+                            Http.request
+                            { method = "GET"
+                            , url =
+                                UB.crossOrigin
+                                    baseUrl
+                                    ["api", "series", "metadata"]
+                                    [ UB.string "name" name ]
+                            , body = Http.emptyBody
+                            , expect = Http.expectString
+                                        ( TowardDeletion source Root name )
+                            , headers = [ ]
+                            , tracker = Nothing
+                            , timeout = Nothing
+                            }
+                        )
+                        ( Set.toList series )
 
 
 getSeries: String -> Path -> Cmd Msg
@@ -431,7 +506,18 @@ getSeries baseUrl path =
                         ]
                 , expect = Http.expectString (GotSeries path)
                 }
-        Root -> Cmd.none
+        Root ->
+            let query = "(by.without-path)"
+            in
+            Http.get
+                { url =
+                    UB.crossOrigin
+                        baseUrl
+                        ["api", "series", "find"]
+                        [ UB.string "query" query
+                        ]
+                , expect = Http.expectString (GotSeries path)
+                }
 
 
 moveSeries: Model -> Path -> Path -> Set String ->Model

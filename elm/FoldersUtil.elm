@@ -124,6 +124,10 @@ onDrop msg =
         <| JD.succeed (msg, True)
 
 
+decodeFind: JD.Decoder ( List String )
+decodeFind =
+    JD.list ( JD.at ["name"] JD.string )
+
 decodeTree: JD.Decoder ( List String )
 decodeTree =
     JD.list JD.string
