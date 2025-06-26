@@ -25,6 +25,10 @@ div.main-content {
     cursor: pointer;
 }
 
+.clickable:hover {
+    cursor: grab
+}
+
 .action-container {
     display:flex;
 }

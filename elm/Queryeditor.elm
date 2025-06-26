@@ -567,7 +567,7 @@ viewedition model =
 viewbasketlist model =
     let
         viewbasketitem item =
-            H.li [ HA.class "list-group-item p-1" ]
+            H.li [ HA.class "list-group-item p-1 clickable" ]
                 [ H.span
                       [ HE.onClick <| SelectedBasket (Just item) ]
                       [ H.text item ]
