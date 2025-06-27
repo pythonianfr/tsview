@@ -898,11 +898,11 @@ viewlinkpolicy model policy =
             [ H.text "apply" ]
           else
               H.span [] []
-        , H.button [ HA.class "btn btn-warning"
+        , H.button [ HA.class "btn btn-primary"
                    , HA.type_ "button"
                    , HE.onClick CancelLink
                    ]
-            [ H.text "exit" ]
+            [ H.text "back to list" ]
         , H.div [ HA.class "link_policy" ]
             [ viewcachedserieslist model
             , viewfreeserieslist model
@@ -1046,7 +1046,7 @@ viewdoc =
 
 view : Model -> H.Html Msg
 view model =
-    H.div []
+    H.div [ HA.class "main-content" ]
         [ H.h1 [ HA.class "page-title" ] [ H.text "Policies" ]
         , viewpolicies model
         , case model.linking of
