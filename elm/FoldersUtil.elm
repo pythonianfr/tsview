@@ -320,6 +320,10 @@ viewSelector payload cut convertMsg =
 
 viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
 viewFolder overDrag payload open convertMsg =
+    let isRoot = case payload.path of
+                    Root -> True
+                    Branch _ -> False
+    in
     Html.div
         [ class "folder-row"
         , class ( if open then "open" else "not-open" )
@@ -344,13 +348,22 @@ viewFolder overDrag payload open convertMsg =
                 , style "position-anchor" ( "action-button-" ++ ( reprPath payload.path ) )
                 , id ( "action-" ++ ( reprPath payload.path ) )
                 ]
-                [ Html.li
+                ([ Html.li
                     []
-                    [ Html.text "Rename"]
-                , Html.li
-                    []
-                    [ Html.text "Delete"]
-                ]
+                    [ Html.text "Create"]
+                 ] ++
+                 ( if isRoot
+                    then []
+                    else
+                        [ Html.li
+                            []
+                            [ Html.text "Rename"]
+                        , Html.li
+                            []
+                            [ Html.text "Delete"]
+                        ]
+                    )
+                 )
             ]
         ]
 
