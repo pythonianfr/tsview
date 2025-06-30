@@ -377,11 +377,11 @@ buttonShowRoot convertMsg showRoot =
     [ Html.button
         [ class "button-show-root"
         , onClick <| convertMsg
-                        (ShowRoot showRoot)
+                        (ShowRoot ( not showRoot ))
         ]
         [ Html.text <| if showRoot
-                        then "Show unclassified"
-                        else "Hide"
+                        then "Hide"
+                        else "Show unclassified"
         ]
     ]
 

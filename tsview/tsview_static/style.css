@@ -586,6 +586,6 @@ label.option {
     margin-left: 1em;
 }
 
-.menu-folder .button-show-root {
-
+.menu-folders .button-show-root {
+    margin-left: 1em;
 }

@@ -383,9 +383,15 @@ update msg model =
                                     model.tree
                             , currentCut = NoCut
                         }
-                ShowRoot shown ->
-                    U.nocmd
-                        { model | showUnclassified = not model.showUnclassified }
+                ShowRoot show ->
+                    ( { model | showUnclassified
+                                = not model.showUnclassified }
+                    , if show
+                        then getSeries
+                                model.baseUrl
+                                Root
+                        else Cmd.none
+                    )
 
 
 getPaths: String -> Cmd Msg
