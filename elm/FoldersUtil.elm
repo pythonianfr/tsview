@@ -95,6 +95,7 @@ type MsgTree
     | ButtonPaste Path
     | ButtonReset Path
     | ShowRoot Bool
+    | Delete Path
 
 
 type Drag
@@ -359,8 +360,10 @@ viewFolder overDrag payload open convertMsg =
                             []
                             [ Html.text "Rename"]
                         , Html.li
-                            []
-                            [ Html.text "Delete"]
+                            [ onClick <| convertMsg
+                                            ( Delete payload.path )
+                            ]
+                            [ Html.text "Delete" ]
                         ]
                     )
                  )

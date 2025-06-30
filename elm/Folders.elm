@@ -98,6 +98,7 @@ type Msg
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path ( Result Http.Error String )
     | TowardDeletion Path Path String ( Result Http.Error String )
+    | GotDelete Path ( Result Http.Error String )
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -199,6 +200,12 @@ update msg model =
         GotUpdatePath source destination (Err _ ) ->
             U.nocmd model
 
+        GotDelete path (Ok _) ->
+            ( model
+            , getPaths model.baseUrl
+            )
+
+        GotDelete path (Err _) -> U.nocmd model
 
         CopyFromBrowser _ ->
              case model.focus of
@@ -392,6 +399,12 @@ update msg model =
                                 Root
                         else Cmd.none
                     )
+                Delete path ->
+                    ( model
+                    , deletePath
+                        model.baseUrl
+                        path
+                    )
 
 
 getPaths: String -> Cmd Msg
@@ -526,6 +539,27 @@ getSeries baseUrl path =
                         [ UB.string "query" query
                         ]
                 , expect = Http.expectString (GotSeries path)
+                }
+
+
+deletePath: String -> Path -> Cmd Msg
+deletePath baseUrl path =
+    case path of
+        Root -> Cmd.none
+        Branch pat ->
+            Http.request
+                { method = "DELETE"
+                , url =
+                    UB.crossOrigin
+                        baseUrl
+                        ["api", "series", "tree-path"]
+                        [ UB.string "path" pat
+                        ]
+                , expect = Http.expectString (GotDelete path)
+                , body = Http.emptyBody
+                , headers = [ ]
+                , tracker = Nothing
+                , timeout = Nothing
                 }
 
 
