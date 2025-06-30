@@ -88,6 +88,7 @@ type alias Model =
     , errors: List String
     , currentCut: Cut
     , focus : Maybe Path
+    , showUnclassified: Bool
     }
 
 
@@ -382,7 +383,9 @@ update msg model =
                                     model.tree
                             , currentCut = NoCut
                         }
-
+                ShowRoot shown ->
+                    U.nocmd
+                        { model | showUnclassified = not model.showUnclassified }
 
 
 getPaths: String -> Cmd Msg
@@ -578,6 +581,7 @@ view model =
                     FromTree
                     model.focus
                     model.currentCut
+                    model.showUnclassified
                 ]
 
 
@@ -593,6 +597,7 @@ initModel baseUrl =
     , errors = []
     , currentCut = NoCut
     , focus = Nothing
+    , showUnclassified = False
     }
 
 

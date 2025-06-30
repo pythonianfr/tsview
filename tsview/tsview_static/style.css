@@ -552,8 +552,8 @@ label.option {
 .menu-folders .action-box li {
     list-style-type: none;
     cursor: pointer;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
     text-align: left;
     }
 
@@ -583,5 +583,9 @@ label.option {
 }
 
 .menu-folders .filter-name {
-    margin-left: 20px;
+    margin-left: 1em;
+}
+
+.menu-folder .button-show-root {
+
 }

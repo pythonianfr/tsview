@@ -94,6 +94,7 @@ type MsgTree
     | ButtonCut Path
     | ButtonPaste Path
     | ButtonReset Path
+    | ShowRoot Bool
 
 
 type Drag
@@ -236,9 +237,12 @@ selectFromUser payload =
                 (\ k v -> v.selected)
                 payload.series
 
-toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
-toListItems overDrag convertMsg focus cut payload children =
+toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Bool -> Payload -> List (Html msg) -> Html msg
+toListItems overDrag convertMsg focus cut showRoot payload children =
     let open = payload.open
+        isRoot = case payload.path of
+                    Root -> True
+                    Branch _ -> False
     in
         Html.li
             [ class "folder-and-series"
@@ -259,11 +263,20 @@ toListItems overDrag convertMsg focus cut payload children =
                 ]
                 ([ viewFolder overDrag payload open convertMsg
                  ]++ if open
-                    then [ viewSelector payload cut convertMsg
-                         , viewSelected payload cut convertMsg
-                         , viewSeries overDrag payload convertMsg
-                         ]
-                    else  []
+                      then
+                        ( if isRoot
+                          then buttonShowRoot convertMsg showRoot
+                          else []
+                        ) ++
+                        if ( not isRoot ) || showRoot
+                        then
+                          [ viewSelector payload cut convertMsg
+                          , viewSelected payload cut convertMsg
+                          , viewSeries overDrag payload convertMsg
+                          ]
+                        else
+                          []
+                      else []
                 )
              ] ++ if open
                     then
@@ -359,6 +372,19 @@ buttonOpen openMsg payload convertMsg =
         ]
 
 
+buttonShowRoot :  ( MsgTree -> msg ) -> Bool -> List ( Html msg )
+buttonShowRoot convertMsg showRoot =
+    [ Html.button
+        [ class "button-show-root"
+        , onClick <| convertMsg
+                        (ShowRoot showRoot)
+        ]
+        [ Html.text <| if showRoot
+                        then "Show unclassified"
+                        else "Hide"
+        ]
+    ]
+
 viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
 viewSelected payload cut convertMsg  =
      Html.ul
@@ -438,13 +464,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Html msg
-viewTree tree overDrag convertMsg focus cut =
+viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Bool -> Html msg
+viewTree tree overDrag convertMsg focus cut showRoot =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems overDrag convertMsg focus cut )
+            ( toListItems overDrag convertMsg focus cut showRoot )
             tree
         ]
 
