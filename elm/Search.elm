@@ -31,9 +31,14 @@ type Mode =
     Series | Groups
 
 
+type SearchMode =
+    Basic | Expert
+
+
 type alias Model =
     { baseurl : String
     , mode : Mode
+    , searchmode : SearchMode
     , stats : Dict String M.Metadata
     -- base catalog elements
     , sources : List String
@@ -79,6 +84,8 @@ type Msg
     -- mode
     | ToggleMode
     | Tzaware String
+    -- search mode
+    | SetSearchMode SearchMode
 
 
 getsources baseurl =
@@ -403,6 +410,11 @@ update msg model =
                                Series -> Groups
                                Groups -> Series
                      }
+
+        -- search mode
+
+        SetSearchMode newsearchmode ->
+            U.nocmd { model | searchmode = newsearchmode }
 
 
 viewnamefilter =
@@ -815,6 +827,7 @@ main =
            makemodel input =
                { baseurl = input.baseurl
                , mode = Series
+               , searchmode = Basic
                , stats = Dict.empty
                , sources = []
                , catalog = F.empty
