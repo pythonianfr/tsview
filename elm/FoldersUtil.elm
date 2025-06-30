@@ -282,7 +282,14 @@ toListItems overDrag convertMsg focus cut showRoot payload children =
              ] ++ if open
                     then
                         [ Html.ul
-                            [ class "children sub-folders-list" ]
+                            [ class "children sub-folders-list"
+                            , class <| case focus of
+                                Nothing -> ""
+                                Just f
+                                    -> if f == payload.path
+                                        then "highlight"
+                                        else ""
+                            ]
                             children
                         ]
                     else []

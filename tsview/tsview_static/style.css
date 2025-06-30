@@ -582,6 +582,10 @@ label.option {
     background-color: lightyellow;
 }
 
+.menu-folders .highlight {
+    background-color: #DAB1DA;
+}
+
 .menu-folders .filter-name {
     margin-left: 1em;
 }
