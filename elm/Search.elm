@@ -714,6 +714,64 @@ viewerrors model =
     else H.span [] []
 
 
+viewsearchmodetabs model =
+    let
+        tab searchmode label =
+            H.li
+                [ A.class "nav-item" ]
+                [ H.a
+                    [ A.class <| "nav-link" ++
+                          if model.searchmode == searchmode then " active" else ""
+                    , A.attribute "data-toggle" "tab"
+                    , A.attribute "role" "tab"
+                    , A.attribute "aria-selected"
+                        <| if model.searchmode == searchmode then "true" else "false"
+                    , A.id <| String.toLower label
+                    , HE.onClick <| SetSearchMode searchmode
+                    ]
+                    [ H.text label ]
+                ]
+    in
+    H.ul [ A.class "nav nav-tabs mb-3"
+         , A.attribute "role" "tablist"
+         ]
+        [ tab Basic "Basic"
+        , tab Expert "Expert"
+        ]
+
+
+viewsearchform model =
+    H.div [ A.class "tab-content" ]
+        [ H.div
+            [ A.class <| "tab-pane"
+                  ++ if model.searchmode == Basic then " active" else ""
+            , A.id "basic"
+            , A.attribute "role" "tabpanel"
+            ]
+            [ H.div
+                [ A.class "tsview-form-input" ]
+                [ H.div [] [ viewnamefilter ]
+                , H.div [] [ viewformulafilter ]
+                , viewmetafilter model
+                , tzawarefilter model
+                , viewkindfilter model
+                , viewsourcefilter model
+                , viewfilteredqty model
+                , viewlimitwidget model
+                ]
+            ]
+        , H.div
+            [ A.class <| "tab-pane"
+                  ++ if model.searchmode == Expert then " active" else ""
+            , A.id "expert"
+            , A.attribute "role" "tabpanel"
+            ]
+            [ H.div [ A.class "alert alert-info" ]
+                [ H.text "Expert mode - under construction" ]
+            ]
+        ]
+
+
 view : Model -> H.Html Msg
 view model =
     let
@@ -796,17 +854,8 @@ view model =
                   ]
               ]
         , H.h1 [ A.class "page-title" ] [ H.text <| mode ++ " Catalog" ]
-        , H.div
-              [ A.class "tsview-form-input" ]
-              [ H.div [] [ viewnamefilter ]
-              , H.div [] [ viewformulafilter ]
-              , viewmetafilter model
-              , tzawarefilter model
-              , viewkindfilter model
-              , viewsourcefilter model
-              , viewfilteredqty model
-              , viewlimitwidget model
-              ]
+        , viewsearchmodetabs model
+        , viewsearchform model
         , L.lazy4 viewfiltered model.baseurl model.mode model.catalog (nbsources > 1)
         , viewerrors model
         ]
