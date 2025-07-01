@@ -144,7 +144,7 @@ query model =
             case model.selectedkinds of
                 [ "primary" ] ->  [ "(by.not (by.formula))" ]
                 [ "formula" ] -> [ "(by.formula)" ]
-                [] -> [ "(by.formula)",  "(by.not (by.formula))" ] -- yeah :p
+                [] -> [ "(by.formula)",  "(by.not (by.formula))" ] -- yeah :p Hum and groups ?
                 _ -> []
 
         byname =
@@ -240,15 +240,9 @@ updatedformulafilterbouncer =
 
 -- expert
 
-tryfilter model { node } =
+tryfilter model q =
     Cmd.map GotItemsDesc <|
-        F.find
-            model.baseurl
-            "series"
-            F.ReceivedSeries
-            ( Lisp.serialize <| serialize node )
-            []
-            1000
+        F.find model.baseurl "series" F.ReceivedSeries q model.selectedsources model.limit
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -450,32 +444,49 @@ update msg model =
         -- search mode
 
         SetSearchMode newsearchmode ->
-            let
-                (wid, cmd) =
-                    Widget.setFormula Nothing model.editorWidget
+            -- each mode keep its own state, let's just reissue
+            -- commands to have coherent results
+            case model.basket of
+                Nothing ->
+                    -- first time, so we can setup by copying the existing basic filter
+                    let
+                        basicquery =
+                            query model
 
-                editor =
-                    model.editorWidget.savedModel.editionTree.editor
+                        expertquery =
+                            if String.startsWith "(by.and" basicquery
+                            then basicquery
+                            else "(by.and" ++ basicquery ++ ")"
 
-                byAndCmd =
-                    Assoc.get
-                        (ET.returnTypeFromString editor.returnTypeStr)
-                        editor.spec
-                    |> Maybe.andThen (Assoc.get "by.and")
-                    |> Maybe.withDefault ET.voidOperator
-                    |> UITree.SelectOperator
-                    |> UITree.EditEntry
-                    |> UITree.EditNode Array.empty
-                    |> U.sendCmd Widget.EditionTreeMsg
-            in
-            ( { model
-                  | basket = Nothing
-                  , editorWidget = wid
-                  , catalog = F.empty
-                  , searchmode = newsearchmode
-              }
-            , Cmd.map WidgetMsg <| Cmd.batch [ cmd, byAndCmd ]
-            )
+                        ( wid, cmd ) =
+                            Widget.setFormula (Just expertquery) model.editorWidget
+
+                        newbasket =
+                            { code = expertquery
+                            , node = case fromlisp expertquery of
+                                         Err _ -> Everything
+                                         Ok n -> n
+                            }
+                    in
+                    ( { model
+                          | basket = Just newbasket
+                          , editorWidget = wid
+                          , searchmode = newsearchmode
+                      }
+                    , Cmd.batch [ tryfilter model basicquery
+                                , Cmd.map WidgetMsg cmd
+                                ]
+                    )
+                Just bask ->
+                    case newsearchmode of
+                        Basic ->
+                            ( { model | searchmode = newsearchmode }
+                            , tryfilter model (query model)
+                            )
+                        Expert ->
+                            ( { model | searchmode = newsearchmode }
+                            , tryfilter model ( Lisp.serialize <| serialize bask.node )
+                            )
 
         -- Expert mode
 
@@ -490,7 +501,7 @@ update msg model =
                             { code = code, node = parsed }
                     in
                     ( { model | basket = Just basketormula }
-                    , tryfilter model basketormula
+                    , tryfilter model ( Lisp.serialize <| serialize basketormula.node )
                     )
                 Err err ->
                     U.nocmd model
@@ -1008,9 +1019,7 @@ init { baseurl, queryspec } =
         [ Cmd.map WidgetMsg widgetCmd
         , getsources model.baseurl
         , U.getinfo model GotInfo
-        , Cmd.map GotItemsDesc <|
-            F.find baseurl "series" F.ReceivedSeries
-                (query model) model.selectedsources model.limit
+        , tryfilter model (query model)
         ]
     )
 

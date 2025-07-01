@@ -12,7 +12,6 @@ import Filter exposing
     ( FilterNode(..)
     , Value(..)
     , fromlisp
-    , parse
     , serialize
     )
 import Finder as F
