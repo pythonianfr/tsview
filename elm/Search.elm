@@ -1,5 +1,7 @@
 module Search exposing (main)
 
+import Array
+import AssocList as Assoc
 import Browser
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
@@ -9,6 +11,8 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
+import Editor.Type as ET
+import Editor.UI.Tree as UITree
 import Editor.UI.Widget as Widget
 import Filter exposing
     ( FilterNode(..)
@@ -446,7 +450,32 @@ update msg model =
         -- search mode
 
         SetSearchMode newsearchmode ->
-            U.nocmd { model | searchmode = newsearchmode }
+            let
+                (wid, cmd) =
+                    Widget.setFormula Nothing model.editorWidget
+
+                editor =
+                    model.editorWidget.savedModel.editionTree.editor
+
+                byAndCmd =
+                    Assoc.get
+                        (ET.returnTypeFromString editor.returnTypeStr)
+                        editor.spec
+                    |> Maybe.andThen (Assoc.get "by.and")
+                    |> Maybe.withDefault ET.voidOperator
+                    |> UITree.SelectOperator
+                    |> UITree.EditEntry
+                    |> UITree.EditNode Array.empty
+                    |> U.sendCmd Widget.EditionTreeMsg
+            in
+            ( { model
+                  | basket = Nothing
+                  , editorWidget = wid
+                  , catalog = F.empty
+                  , searchmode = newsearchmode
+              }
+            , Cmd.map WidgetMsg <| Cmd.batch [ cmd, byAndCmd ]
+            )
 
         -- Expert mode
 
