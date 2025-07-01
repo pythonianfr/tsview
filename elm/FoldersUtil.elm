@@ -42,7 +42,7 @@ type Path
     = Root
     | Branch String
 
-root = "root"
+root = "unclassified"
 
 
 reprPath: Path -> String
@@ -96,6 +96,8 @@ type MsgTree
     | ButtonReset Path
     | ShowRoot Bool
     | Delete Path
+    | CreationName String
+    | Create Path
 
 
 type Drag
@@ -357,8 +359,27 @@ viewFolder overDrag payload open convertMsg =
                 , id ( "action-" ++ ( reprPath payload.path ) )
                 ]
                 ([ Html.li
-                    []
-                    [ Html.text "Create"]
+                    [ title "Creation take effect when a series is moved into. Dots are removed"
+                    , onClick <| convertMsg
+                                    ( Create payload.path )
+                    ]
+                    [ Html.text "Create"
+                    , Html.div
+                        []
+                        [ Html.input
+                            [ class "input-new-name"
+                            , placeholder "name"
+                            , onInput
+                                (\ s ->  convertMsg
+                                            ( CreationName s )
+                                )
+                            ]
+                            []
+                        , Html.button
+                            [ class "validate-new-name" ]
+                            [ Html.text "Ok" ]
+                        ]
+                    ]
                  ] ++
                  ( if isRoot
                     then []

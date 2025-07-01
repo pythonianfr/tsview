@@ -89,6 +89,7 @@ type alias Model =
     , currentCut: Cut
     , focus : Maybe Path
     , showUnclassified: Bool
+    , creationName: String
     }
 
 
@@ -106,6 +107,14 @@ type Msg
     | Typing Char
 
 
+initTree: List String -> Tree Payload
+initTree paths =
+    mutePayload
+        Root
+        (\ p -> { p | open = True})
+        ( buildTree paths )
+
+
 update: Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -113,10 +122,7 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree = mutePayload
-                                        Root
-                                        (\ p -> { p | open = True})
-                                        ( buildTree paths )
+                              , tree = initTree paths
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -390,6 +396,7 @@ update msg model =
                                     model.tree
                             , currentCut = NoCut
                         }
+
                 ShowRoot show ->
                     ( { model | showUnclassified
                                 = not model.showUnclassified }
@@ -399,12 +406,46 @@ update msg model =
                                 Root
                         else Cmd.none
                     )
+
                 Delete path ->
                     ( model
                     , deletePath
                         model.baseUrl
                         path
                     )
+
+                CreationName creationName ->
+                    U.nocmd
+                        { model | creationName =
+                                    String.replace
+                                        "."
+                                        ""
+                                        creationName
+                        }
+
+                Create path ->
+                    if model.creationName == ""
+                    then U.nocmd model
+                    else
+                    let prefix = case path of
+                                    Root -> ""
+                                    Branch p -> p ++ "."
+                        newPath =  prefix ++  model.creationName
+                        newPaths = model.paths
+                                   ++
+                                   [ newPath ]
+                    in
+                    ({ model | tree = initTree newPaths
+                             , paths = newPaths
+                             , creationName = ""
+                      },
+                      Task.perform
+                            identity
+                            ( Task.succeed ( FromTree ( Open path True )))
+                    )
+
+
+
 
 
 getPaths: String -> Cmd Msg
@@ -638,6 +679,7 @@ initModel baseUrl =
     , currentCut = NoCut
     , focus = Nothing
     , showUnclassified = False
+    , creationName = ""
     }
 
 
