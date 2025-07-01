@@ -15,6 +15,9 @@ import Filter exposing
     , parse
     , serialize
     )
+import Finder as F
+import Finder exposing
+    ( Msg(..) )
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -58,7 +61,7 @@ type alias Model =
     , creating : Bool
     , newname : String
     -- results
-    , series : List S.Series
+    , catalog : F.Model
     -- editor
     , editorExpanded : Bool
     , editorWidget : Widget.Model
@@ -85,7 +88,7 @@ type Msg
     | RemovedBasket (Result Http.Error ())
     | NewName String
     | Filter String
-    | GotSeries (Result Http.Error String)
+    | GotItemsDesc F.Msg
     | DoExpand
     | WidgetMsg Widget.Msg
 
@@ -132,15 +135,6 @@ savebasket model name {node} = Http.request
     , tracker = Nothing
     , url = UB.crossOrigin model.baseurl [ "api",  "series", "basket" ] [ ]
     , expect = Http.expectWhatever SavedBasket
-    }
-
-tryfilter : Model -> BasketFormula -> Cmd Msg
-tryfilter model {node} = Http.get
-    { expect = Http.expectString GotSeries
-    , url = UB.crossOrigin
-        model.baseurl
-        [ "api",  "series", "find" ]
-        [ UB.string "query" <| Lisp.serialize <| serialize node ]
     }
 
 
@@ -218,7 +212,7 @@ update msg model =
                 , newname = ""
                 , editorExpanded = True
                 , editorWidget = wid
-                , series = []
+                , catalog = F.empty
               }
             , Cmd.map WidgetMsg <| Cmd.batch [ cmd, byAndCmd ]
             )
@@ -332,16 +326,12 @@ update msg model =
         Filter filter ->
             U.nocmd { model | filter = filter }
 
-        GotSeries (Ok things) ->
-            case JD.decodeString serieslistdecoder things of
-                Ok series ->
-                    U.nocmd { model | series = series }
-
-                Err err ->
-                    doerr "getseries decode" <| JD.errorToString err
-
-        GotSeries (Err err) ->
-            doerr "getseries http" <| U.unwraperror err
+        GotItemsDesc rawdesc ->
+            let
+                cat = F.update rawdesc model.catalog
+                newmodel = { model | catalog = cat }
+            in
+            U.nocmd newmodel
 
         DoExpand ->
             U.nocmd { model | editorExpanded = not model.editorExpanded }
@@ -349,7 +339,7 @@ update msg model =
         WidgetMsg (Widget.NewFormula Nothing) ->
             ( { model
                 | basket = Nothing
-                , series = []
+                , catalog = F.empty
               }
             , Cmd.none
             )
@@ -362,7 +352,14 @@ update msg model =
                             { code = code, node = parsed }
                     in
                     ( { model | basket = Just basketormula }
-                    , tryfilter model basketormula
+                    , Cmd.map GotItemsDesc <|
+                        F.find
+                            model.baseurl
+                            "series"
+                            F.ReceivedSeries
+                            ( Lisp.serialize <| serialize basketormula.node )
+                            []
+                            1000
                     )
                 Err err -> doerr "parse basked" err
 
@@ -417,13 +414,13 @@ viewseries model =
                 ]
 
         filteredslice =
-            List.take 1000 model.series
+            List.take 1000 model.catalog.items
 
         items =
             List.map item filteredslice
 
         nbseries =
-            List.length model.series
+            List.length model.catalog.items
 
         shown =
             List.length items
@@ -665,7 +662,7 @@ init { baseurl, jsonSpec, basketName } =
    , savedBasket = Nothing
    , creating = False
    , newname = ""
-   , series = []
+   , catalog = F.empty
    , editorExpanded = False
    , editorWidget = widget
    , removing = False
