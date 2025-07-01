@@ -9,6 +9,10 @@
         <link href="{{ url_for('tsview.static', filename='menu_stand_alone.css')}}"
               rel="stylesheet"/>
         <script src="{{ url_for('tsview.static', filename='menu_stand_alone_elm.js')}}"></script>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='formula_elm.css') }}"/>
+        <link rel="stylesheet" href="{{ url_for('tsview.static', filename='tree.css') }}"/>
+        <script src="./tsview_static/ace.js" type="text/javascript" charset="utf-8"></script>
+        <script src="./tsview_static/ace_editor.js"></script>
         <title>{{title}}</title>
     </head>
     <body translate="no">
@@ -23,7 +27,8 @@
          var app = Elm.Search.init({
              node: document.getElementById('tshistory-search'),
              flags: {
-                 baseurl : "{{ homeurl }}"
+                 baseurl : "{{ homeurl }}",
+                 queryspec : {{ spec | safe }}
              }
          });
         </script>

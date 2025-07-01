@@ -9,6 +9,14 @@ import Debouncer.Messages as Debouncer exposing
     , toDebouncer
     )
 import Dict exposing (Dict)
+import Editor.UI.Widget as Widget
+import Filter exposing
+    ( FilterNode(..)
+    , Value(..)
+    , fromlisp
+    , parse
+    , serialize
+    )
 import Finder as F
 import Finder exposing
     ( Msg(..) )
@@ -19,8 +27,9 @@ import Html.Keyed as K
 import Html.Lazy as L
 import Http
 import Json.Decode as D
-import Lisp as L
+import Lisp
 import List.Extra as LE
+import Maybe.Extra as Maybe
 import Metadata as M
 import Set exposing (Set)
 import Url.Builder as UB
@@ -33,6 +42,12 @@ type Mode =
 
 type SearchMode =
     Basic | Expert
+
+
+type alias BasketFormula =
+    { code : String
+    , node : FilterNode
+    }
 
 
 type alias Model =
@@ -59,6 +74,9 @@ type alias Model =
     -- debouncing
     , namefilterdeb : Debouncer Msg
     , formulafilterdeb : Debouncer Msg
+    -- expert
+    , editorWidget : Widget.Model
+    , basket: Maybe BasketFormula
     }
 
 
@@ -86,6 +104,8 @@ type Msg
     | Tzaware String
     -- search mode
     | SetSearchMode SearchMode
+    -- expert mode
+    | WidgetMsg Widget.Msg
 
 
 getsources baseurl =
@@ -213,6 +233,18 @@ updatedformulafilterbouncer =
     , getDebouncer = .formulafilterdeb
     , setDebouncer = \deb model -> { model | formulafilterdeb = deb }
     }
+
+-- expert
+
+tryfilter model { node } =
+    Cmd.map GotItemsDesc <|
+        F.find
+            model.baseurl
+            "series"
+            F.ReceivedSeries
+            ( Lisp.serialize <| serialize node )
+            []
+            1000
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -415,6 +447,29 @@ update msg model =
 
         SetSearchMode newsearchmode ->
             U.nocmd { model | searchmode = newsearchmode }
+
+        -- Expert mode
+
+        WidgetMsg (Widget.NewFormula Nothing) ->
+            U.nocmd model
+
+        WidgetMsg (Widget.NewFormula (Just code)) ->
+            case fromlisp code of
+                Ok parsed ->
+                    let
+                        basketormula =
+                            { code = code, node = parsed }
+                    in
+                    ( { model | basket = Just basketormula }
+                    , tryfilter model basketormula
+                    )
+                Err err ->
+                    U.nocmd model
+
+        WidgetMsg x -> Tuple.mapBoth
+            (\m -> { model | editorWidget = m })
+            (Cmd.map WidgetMsg)
+            (Widget.update x model.editorWidget)
 
 
 viewnamefilter =
@@ -714,6 +769,15 @@ viewerrors model =
     else H.span [] []
 
 
+viewedition model =
+    [ H.div
+        [ A.class "mt-4" ]
+        [ Widget.view model.editorWidget |> H.map WidgetMsg ]
+    , viewerrors model
+    ]
+
+
+
 viewsearchmodetabs model =
     let
         tab searchmode label =
@@ -767,7 +831,7 @@ viewsearchform model =
             , A.attribute "role" "tabpanel"
             ]
             [ H.div [ A.class "alert alert-info" ]
-                [ H.text "Expert mode - under construction" ]
+                <| viewedition model
             ]
         ]
 
@@ -862,57 +926,71 @@ view model =
 
 
 type alias Input =
-    { baseurl : String }
+    { baseurl : String
+    , queryspec : D.Value
+    }
+
+
+makemodel baseurl widget =
+    let
+        debouncerconfig =
+            Debouncer.manual |>
+            settleWhenQuietFor (Just <| fromSeconds 0.3) |>
+            toDebouncer
+    in
+    { baseurl = baseurl
+    , mode = Series
+    , searchmode = Basic
+    , stats = Dict.empty
+    , sources = []
+    , catalog = F.empty
+    , limit = 1000
+    , editlimit = False
+    , selectedkinds = [ "primary", "formula" ]
+    , selectedsources = []
+    , filterbyname = Nothing
+    , filterbyformula = Nothing
+    , tzaware = Nothing
+    , filterbymeta = Dict.empty
+    , errors = []
+    , namefilterdeb = debouncerconfig
+    , formulafilterdeb = debouncerconfig
+    , editorWidget = widget
+    , basket = Nothing
+    }
+
+
+init : Input -> ( Model, Cmd Msg )
+init { baseurl, queryspec } =
+    let
+        ( widget, widgetCmd ) =
+            Widget.init
+            { urlPrefix = baseurl
+            , jsonSpec = queryspec
+            , formulaCode = Nothing
+            , returnTypeStr = "query"
+            }
+
+        model =
+            makemodel baseurl widget
+    in
+    ( model
+    , Cmd.batch
+        [ Cmd.map WidgetMsg widgetCmd
+        , getsources model.baseurl
+        , U.getinfo model GotInfo
+        , Cmd.map GotItemsDesc <|
+            F.find baseurl "series" F.ReceivedSeries
+                (query model) model.selectedsources model.limit
+        ]
+    )
 
 
 main : Program Input Model Msg
 main =
-       let
-           debouncerconfig =
-               Debouncer.manual |>
-               settleWhenQuietFor (Just <| fromSeconds 0.3) |>
-               toDebouncer
-
-           makemodel input =
-               { baseurl = input.baseurl
-               , mode = Series
-               , searchmode = Basic
-               , stats = Dict.empty
-               , sources = []
-               , catalog = F.empty
-               , limit = 1000
-               , editlimit = False
-               , selectedkinds = [ "primary", "formula" ]
-               , selectedsources = []
-               , filterbyname = Nothing
-               , filterbyformula = Nothing
-               , tzaware = Nothing
-               , filterbymeta = Dict.empty
-               , errors = []
-               , namefilterdeb = debouncerconfig
-               , formulafilterdeb = debouncerconfig
-               }
-
-           init input =
-               let
-                   model =
-                       makemodel input
-               in
-               ( model
-               , Cmd.batch
-                   [ getsources model.baseurl
-                   , U.getinfo model GotInfo
-                   , Cmd.map GotItemsDesc <|
-                       F.find input.baseurl "series" F.ReceivedSeries
-                           (query model) model.selectedsources model.limit
-                   ]
-               )
-
-           sub _ = Sub.none
-       in
-           Browser.element
-               { init = init
-               , view = view
-               , update = update
-               , subscriptions = sub
-               }
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = \_ -> Sub.none
+        }

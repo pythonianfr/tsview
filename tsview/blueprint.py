@@ -561,26 +561,6 @@ def tsview(tsa):
 
     # query editor
 
-    @bp.route('/queryspec')
-    def queryspec():
-        if not has_roles('admin', 'rw', 'ro'):
-            return 'Nothing to see there.'
-
-        return jsonify(_queryspec())
-
-    def _queryspec():
-        util.ensure_plugin_registration()
-        types = {}
-        for lispname, kname in search._OPMAP.items():
-            cls = search.query.klassbyname(kname)
-            types[lispname] = cls.__sig__()
-
-        return_first = lambda x: x[0] != 'return'  # noqa
-        return [
-            (op_name, sorted(op_spec.items(), key=return_first))
-            for op_name, op_spec in types.items()
-        ]
-
     @bp.route('/queryeditor')
     def queryeditor():
         if not has_roles('admin', 'rw', 'ro'):
@@ -649,6 +629,26 @@ def tsview(tsa):
 
     # catalog
 
+    @bp.route('/queryspec')
+    def queryspec():
+        if not has_roles('admin', 'rw', 'ro'):
+            return 'Nothing to see there.'
+
+        return jsonify(_queryspec())
+
+    def _queryspec():
+        util.ensure_plugin_registration()
+        types = {}
+        for lispname, kname in search._OPMAP.items():
+            cls = search.query.klassbyname(kname)
+            types[lispname] = cls.__sig__()
+
+        return_first = lambda x: x[0] != 'return'  # noqa
+        return [
+            (op_name, sorted(op_spec.items(), key=return_first))
+            for op_name, op_spec in types.items()
+        ]
+
     @bp.route('/tssearch')
     def tssearch():
         if not has_roles('admin', 'rw', 'ro'):
@@ -659,6 +659,7 @@ def tsview(tsa):
         return render_template(
             'tssearch.html',
             homeurl=homeurl(),
+            spec=json.dumps(_queryspec()),
             flags_menu=flags_menu,
             title=title,
         )
