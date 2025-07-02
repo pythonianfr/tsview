@@ -810,12 +810,9 @@ viewerrors model =
 
 
 viewedition model =
-    [ H.div
+    H.div
         [ A.class "mt-4" ]
         [ Widget.view model.editorWidget |> H.map WidgetMsg ]
-    , viewerrors model
-    ]
-
 
 
 viewsearchmodetabs model =
@@ -871,7 +868,11 @@ viewsearchform model =
             , A.attribute "role" "tabpanel"
             ]
             [ H.div [ A.class "alert alert-info" ]
-                <| viewedition model
+                [ viewedition model
+                , viewsourcefilter model
+                , viewfilteredqty model
+                , viewlimitwidget model
+                ]
             ]
         ]
 
