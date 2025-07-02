@@ -157,10 +157,7 @@ query model =
                         clause frag =
                             "(by.name " ++ quote ++ frag ++ quote ++ ")"
                     in
-                    List.concat [ [ "(by.and " ]
-                                , List.map clause frags
-                                , [ ")" ]
-                                ]
+                    List.map clause frags
 
         byformula =
             case model.filterbyformula of
