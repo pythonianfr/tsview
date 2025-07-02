@@ -25,6 +25,7 @@ import FoldersUtil exposing
     , convertTree
     , decodeFind
     , decodeTree
+    , getOpenState
     , getPayload
     , getZipper
     , initPayload
@@ -33,6 +34,7 @@ import FoldersUtil exposing
     , pasteSeries
     , root
     , selectFromUser
+    , setOpenState
     )
 
 
@@ -548,3 +550,51 @@ suiteCopyPast =
                     ]
                 )
             )
+
+suiteKeepOpenState : T.Test
+suiteKeepOpenState =
+    let paths = ["a0.b0.c0"]
+        rTree = convertTree
+                    <| buildMTree
+                            paths
+        openTree =
+            mutePayload
+                ( Branch "a0.b0" )
+                (\ p -> { p | open = True
+                        }
+                    )
+                <| mutePayload
+                    ( Branch "a0.b0.c0" )
+                    (\ p -> { p | open = True
+                        }
+                    )
+                    rTree
+        newTree = convertTree
+                    <| buildMTree
+                            paths
+        openState = getOpenState
+                        openTree
+        openedTree = setOpenState
+                        newTree
+                        openState
+    in
+        T.concat
+        [ T.test "Open state"
+            (\ _ ->
+                Expect.equal
+                    openState
+                    ( Set.fromList ["a0.b0", "a0.b0.c0"] )
+            )
+        , T.test "Store open state"
+             (\ _ ->
+                Expect.equal
+                    openTree
+                    openedTree
+             )
+        , T.test "Validation open state"
+             (\ _ ->
+                Expect.notEqual
+                    newTree
+                    openedTree
+             )
+        ]

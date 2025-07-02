@@ -623,3 +623,55 @@ anyAction payload =
     anySelected payload
     || payload.query /= ""
 
+
+getOpenState: Tree Payload -> Set String
+getOpenState menu =
+    findOpen ( fromTree menu ) Set.empty
+
+
+findOpen : Zipper Payload -> Set String -> Set String
+findOpen menu opened =
+    let payload = (Tree.Zipper.label menu)
+        path = case payload.path of
+                Root -> ""
+                Branch p -> p
+        newOpen = if payload.open
+                    then Set.insert path opened
+                    else opened
+    in
+        case ( forward menu ) of
+            Nothing -> newOpen
+            Just nextStep ->
+                    findOpen
+                        nextStep
+                        newOpen
+
+
+setOpenState: Tree Payload -> Set String -> Tree Payload
+setOpenState menu openState =
+    toTree
+        <| muteOpen
+            ( fromTree menu )
+            openState
+
+
+muteOpen:  Zipper Payload -> Set String -> Zipper Payload
+muteOpen menu openState =
+    let payload = ( Tree.Zipper.label menu )
+        path = case payload.path of
+                Root -> ""
+                Branch p -> p
+        newMenu = if Set.member path openState
+                    then Tree.Zipper.mapLabel
+                            (\ p -> { p | open = True})
+                            menu
+                    else menu
+    in
+    case ( forward newMenu ) of
+        Nothing -> newMenu
+        Just nextStep ->
+            muteOpen
+                nextStep
+                openState
+
+

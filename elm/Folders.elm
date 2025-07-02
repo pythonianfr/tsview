@@ -41,11 +41,12 @@ import FoldersUtil exposing
     , dressSeries
     , buildTree
     , emptyTree
+    , getOpenState
     , getPayload
     , mutePayload
     , pasteSeries
-    , root
     , selectFromQuery
+    , setOpenState
     , viewTree
     )
 
@@ -90,6 +91,7 @@ type alias Model =
     , focus : Maybe Path
     , showUnclassified: Bool
     , creationName: String
+    , openState: Set String
     }
 
 
@@ -122,7 +124,9 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree = initTree paths
+                              , tree = setOpenState
+                                           ( initTree paths )
+                                           model.openState
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -408,7 +412,10 @@ update msg model =
                     )
 
                 Delete path ->
-                    ( model
+                    ( { model | openState =
+                                    getOpenState
+                                        model.tree
+                      }
                     , deletePath
                         model.baseUrl
                         path
@@ -435,7 +442,9 @@ update msg model =
                                    ++
                                    [ newPath ]
                     in
-                    ({ model | tree = initTree newPaths
+                    ({ model | tree = setOpenState
+                                        ( initTree newPaths )
+                                        ( getOpenState model.tree)
                              , paths = newPaths
                              , creationName = ""
                       },
@@ -680,6 +689,7 @@ initModel baseUrl =
     , focus = Nothing
     , showUnclassified = False
     , creationName = ""
+    , openState = Set.empty
     }
 
 
