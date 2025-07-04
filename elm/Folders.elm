@@ -244,7 +244,7 @@ update msg model =
                     case model.focus of
                         Nothing -> U.nocmd model
                         Just focus ->
-                            ( model,
+                            ( { model | focus = Nothing },
                             Task.perform
                                 identity
                                 ( Task.succeed ( FromTree ( ButtonReset focus ))))
@@ -666,6 +666,7 @@ view model =
             div
                 [ class "menu-folders" ]
                 [ viewTree
+                    model.baseUrl
                     model.tree
                     model.overDrag
                     FromTree

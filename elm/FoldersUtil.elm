@@ -9,6 +9,7 @@ import Html.Attributes exposing
     , class
     , disabled
     , draggable
+    , href
     , id
     , placeholder
     , style
@@ -19,6 +20,7 @@ import Html.Attributes exposing
 import Html.Events as Events
 import Html.Events exposing
     ( onClick
+    , onFocus
     , onInput
     )
 import Set exposing (Set)
@@ -35,7 +37,7 @@ import Tree.Zipper exposing
     , fromTree
     , toTree
     )
-
+import Url.Builder as UB
 
 type MyTree = MyTree ( Dict String  MyTree )
 type Path
@@ -240,8 +242,8 @@ selectFromUser payload =
                 (\ k v -> v.selected)
                 payload.series
 
-toListItems : Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Bool -> Payload -> List (Html msg) -> Html msg
-toListItems overDrag convertMsg focus cut showRoot payload children =
+toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Bool -> Payload -> List (Html msg) -> Html msg
+toListItems baseUrl overDrag convertMsg focus cut showRoot payload children =
     let open = payload.open
         isRoot = case payload.path of
                     Root -> True
@@ -275,7 +277,7 @@ toListItems overDrag convertMsg focus cut showRoot payload children =
                         then
                           [ viewSelector payload cut convertMsg
                           , viewSelected payload cut convertMsg
-                          , viewSeries overDrag payload convertMsg
+                          , viewSeries baseUrl overDrag payload convertMsg
                           ]
                         else
                           []
@@ -306,6 +308,7 @@ viewSelector payload cut convertMsg =
             [ placeholder "filter series (>2 chars)"
             , title "at least 3 characters"
             , onInput (\ s ->  convertMsg ( Query payload.path s ))
+            , onFocus ( convertMsg ( Query payload.path payload.query ))
             , value payload.query
             ]
             []
@@ -466,8 +469,8 @@ viewSelected payload cut convertMsg  =
                 ( selectFromUser payload )
 
 
-viewSeries : Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
-viewSeries overDrag payload convertMsg =
+viewSeries : String -> Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
+viewSeries baseUrl overDrag payload convertMsg =
     Html.ul
         [ class "series-list"
         ]
@@ -490,7 +493,16 @@ viewSeries overDrag payload convertMsg =
                                         payload.path
                                         ( Set.singleton sn )
                             ]
-                            [ Html.text sn ]]
+                            [ Html.text sn ]
+                        , Html.a
+                                [ href
+                                    <| UB.crossOrigin
+                                        baseUrl
+                                        ["tsinfo"]
+                                        [ UB.string "name" sn ]
+                                ]
+                                [ Html.text "info" ]
+                        ]
             )
             <| Dict.keys
                 <| Dict.filter
@@ -508,13 +520,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Bool -> Html msg
-viewTree tree overDrag convertMsg focus cut showRoot =
+viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Bool -> Html msg
+viewTree baseUrl tree overDrag convertMsg focus cut showRoot =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems overDrag convertMsg focus cut showRoot )
+            ( toListItems baseUrl overDrag convertMsg focus cut showRoot )
             tree
         ]
 
