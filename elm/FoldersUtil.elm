@@ -349,6 +349,11 @@ viewSelector payload cut convertMsg =
             , disabled ( not ( anyAction payload ))
             ]
             [ Html.text "Deselect" ]
+        , Html.p
+            [ style "display" "inline"
+            , title "selected / total"
+            ]
+            [ Html.text ( buildCounter payload )]
         ]
 
 viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
@@ -642,6 +647,24 @@ anySelected payload =
     List.any
         ( \ a -> a.selected)
         <| Dict.values payload.series
+
+
+nbSelected : Payload -> Int
+nbSelected payload =
+    Dict.size
+        <| Dict.filter
+            (\ k v  -> v.selected)
+            payload.series
+
+
+buildCounter: Payload -> String
+buildCounter payload =
+    "("
+    ++ String.fromInt ( nbSelected payload )
+    ++ "/"
+    ++ String.fromInt ( Dict.size payload.series )
+    ++ ")"
+
 
 anyAction: Payload -> Bool
 anyAction payload =
