@@ -80,6 +80,13 @@ initPayload =
     , query = ""
     }
 
+unclassifiedPayload: Payload
+unclassifiedPayload =
+    { initPayload
+    | name = unclassified
+    , path = Unclassified
+    }
+
 type LoadingStatus =
     Start
     | Loading
@@ -165,10 +172,19 @@ buildSingle path =
 
 convertTree : MyTree -> Tree Payload
 convertTree myTree =
-    tree initPayload
-            <| convertTreeT
-                Nothing
-                myTree
+    tree
+        initPayload
+        (( convertTreeT
+            Nothing
+            myTree
+         ) ++ [ tree
+                { initPayload
+                    | name = unclassified
+                    , path = Unclassified
+                }
+                []
+              ]
+        )
 
 
 convertTreeT : Maybe String -> MyTree -> List ( Tree Payload )
@@ -347,14 +363,18 @@ viewFolder overDrag payload open convertMsg =
         , class ( if open then "open" else "not-open" )
         , class ( classOver payload overDrag )
         ]
-        [ buttonOpen Open payload convertMsg
+        ([ buttonOpen Open payload convertMsg
         , Html.p
             [ class "folder-name"
             , onClick <| convertMsg ( Open payload.path ( not open ) )
             ]
             [ Html.text payload.name
             ]
-        , Html.button
+         ] ++
+         if payload.path == Unclassified
+         then []
+         else
+         [ Html.button
             [ class "folder-action"
             , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
             , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
@@ -404,7 +424,8 @@ viewFolder overDrag payload open convertMsg =
                     )
                  )
             ]
-        ]
+         ]
+        )
 
 
 

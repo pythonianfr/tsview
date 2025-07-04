@@ -35,8 +35,12 @@ import FoldersUtil exposing
     , root
     , selectFromUser
     , setOpenState
+    , unclassifiedPayload
     )
 
+unclassTree = tree
+                unclassifiedPayload
+                []
 
 decodeTreeFolders : T.Test
 decodeTreeFolders =
@@ -99,6 +103,7 @@ buildSinglePath =
                                     []
                                 ]
                             ]
+                        , unclassTree
                         ]
                     )
         )
@@ -132,6 +137,7 @@ suiteMergeMBranch =
                                 []
                             ]
                         ]
+                    , unclassTree
                     ]
                 )
         )
@@ -161,6 +167,7 @@ suiteMergeMBranch =
                                 []
                             ]
                         ]
+                    , unclassTree
                     ]
                 )
         )
@@ -176,6 +183,7 @@ suiteMergeMBranch =
                                 []
                             ]
                         ]
+                    , unclassTree
                     ]
                 )
         )
@@ -241,6 +249,7 @@ suiteConvertTree =
                               }
                             []
                         ]
+                    , unclassTree
                     ]
                 )
             )
@@ -259,6 +268,7 @@ suiteConvertTree =
                               }
                             []
                         ]
+                    , unclassTree
                     ]
                 )
             )
@@ -281,6 +291,7 @@ suiteConvertTree =
                                }
                             []
                         ]
+                    , unclassTree
                     ]
                 )
             )
@@ -307,6 +318,7 @@ suiteConvertTree =
                                }
                             []
                         ]
+                    , unclassTree
                     ]
                 )
             )
@@ -371,6 +383,7 @@ suiteIndexPosition =
                               }
                             []
                         ]
+                    , unclassTree
                     ]
                 )
             )
@@ -480,6 +493,7 @@ suiteCumulPath =
                                }
                             []
                         ]
+                    , unclassTree
                     ]
                  )
             )
@@ -547,6 +561,7 @@ suiteCopyPast =
                                             ]
                           }
                           []
+                    , unclassTree
                     ]
                 )
             )
