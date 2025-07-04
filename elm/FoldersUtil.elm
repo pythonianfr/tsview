@@ -657,10 +657,7 @@ getOpenState menu =
 findOpen : Zipper Payload -> Set String -> Set String
 findOpen menu opened =
     let payload = (Tree.Zipper.label menu)
-        path = case payload.path of
-                Root -> ""
-                Branch p -> p
-                Unclassified -> ""
+        path = reprPath payload.path
         newOpen = if payload.open
                     then Set.insert path opened
                     else opened
@@ -684,10 +681,7 @@ setOpenState menu openState =
 muteOpen:  Zipper Payload -> Set String -> Zipper Payload
 muteOpen menu openState =
     let payload = ( Tree.Zipper.label menu )
-        path = case payload.path of
-                Root -> ""
-                Branch p -> p
-                Unclassified -> ""
+        path = reprPath payload.path
         newMenu = if Set.member path openState
                     then Tree.Zipper.mapLabel
                             (\ p -> { p | open = True})
