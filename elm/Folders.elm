@@ -89,7 +89,6 @@ type alias Model =
     , errors: List String
     , currentCut: Cut
     , focus : Maybe Path
-    , showUnclassified: Bool
     , creationName: String
     , openState: Set String
     }
@@ -151,8 +150,9 @@ update msg model =
             let
              decoded
                 = case path of
-                    Root -> JD.decodeString decodeFind raw
+                    Unclassified -> JD.decodeString decodeFind raw
                     Branch _ -> JD.decodeString ( JD.list JD.string ) raw
+                    Root -> JD.decodeString ( JD.list JD.string ) raw --should not occur
             in
             case decoded of
                 (Ok seriesL ) ->
@@ -401,16 +401,6 @@ update msg model =
                             , currentCut = NoCut
                         }
 
-                ShowRoot show ->
-                    ( { model | showUnclassified
-                                = not model.showUnclassified }
-                    , if show
-                        then getSeries
-                                model.baseUrl
-                                Root
-                        else Cmd.none
-                    )
-
                 Delete path ->
                     ( { model | openState =
                                     getOpenState
@@ -437,6 +427,7 @@ update msg model =
                     let prefix = case path of
                                     Root -> ""
                                     Branch p -> p ++ "."
+                                    Unclassified -> "not possible"
                         newPath =  prefix ++  model.creationName
                         newPaths = model.paths
                                    ++
@@ -541,7 +532,7 @@ updatePath baseUrl treeAttribute series source destination =
                             }
                         )
                         ( Set.toList series )
-                Root ->
+                Unclassified ->
                     -- deletion of path attribute in the metadata
                     Cmd.batch
                     <| List.map
@@ -562,6 +553,9 @@ updatePath baseUrl treeAttribute series source destination =
                             }
                         )
                         ( Set.toList series )
+                Root ->
+                    -- should not occur
+                    Cmd.none
 
 
 getSeries: String -> Path -> Cmd Msg
@@ -578,7 +572,7 @@ getSeries baseUrl path =
                         ]
                 , expect = Http.expectString (GotSeries path)
                 }
-        Root ->
+        Unclassified ->
             let query = "(by.without-path)"
             in
             Http.get
@@ -590,12 +584,16 @@ getSeries baseUrl path =
                         ]
                 , expect = Http.expectString (GotSeries path)
                 }
+        Root ->
+            Cmd.none
+
 
 
 deletePath: String -> Path -> Cmd Msg
 deletePath baseUrl path =
     case path of
         Root -> Cmd.none
+        Unclassified -> Cmd.none
         Branch pat ->
             Http.request
                 { method = "DELETE"
@@ -672,7 +670,6 @@ view model =
                     FromTree
                     model.focus
                     model.currentCut
-                    model.showUnclassified
                 ]
 
 
@@ -688,7 +685,6 @@ initModel baseUrl =
     , errors = []
     , currentCut = NoCut
     , focus = Nothing
-    , showUnclassified = False
     , creationName = ""
     , openState = Set.empty
     }

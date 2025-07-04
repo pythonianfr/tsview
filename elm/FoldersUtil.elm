@@ -43,8 +43,11 @@ type MyTree = MyTree ( Dict String  MyTree )
 type Path
     = Root
     | Branch String
+    | Unclassified
 
-root = "unclassified"
+root = "root"
+unclassified = "unclassified"
+
 
 
 reprPath: Path -> String
@@ -52,6 +55,7 @@ reprPath path =
     case path of
         Root -> root
         Branch branch -> branch
+        Unclassified -> unclassified
 
 
 type alias Payload =
@@ -68,7 +72,7 @@ type alias SeriesAttribute
 
 initPayload: Payload
 initPayload =
-    { name= root
+    { name = root
     , path = Root
     , open = False
     , status = Start
@@ -96,7 +100,6 @@ type MsgTree
     | ButtonCut Path
     | ButtonPaste Path
     | ButtonReset Path
-    | ShowRoot Bool
     | Delete Path
     | CreationName String
     | Create Path
@@ -242,46 +245,44 @@ selectFromUser payload =
                 (\ k v -> v.selected)
                 payload.series
 
-toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Bool -> Payload -> List (Html msg) -> Html msg
-toListItems baseUrl overDrag convertMsg focus cut showRoot payload children =
+toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
+toListItems baseUrl overDrag convertMsg focus cut payload children =
     let open = payload.open
-        isRoot = case payload.path of
-                    Root -> True
-                    Branch _ -> False
+        dropable = case payload.path of
+                    Root -> False
+                    Branch _ -> True
+                    Unclassified -> True
     in
         Html.li
             [ class "folder-and-series"
             , attribute "data-path" ( reprPath payload.path )
             ]
             ([ Html.div
-                [ class "node"
-                , tabindex 0
-                , onDragOver <| convertMsg (DragOver payload.path)
-                , onDrop <| convertMsg ( Drop payload.path )
-                , onClick <| convertMsg ( Focus payload.path )
-                , class <| case focus of
-                        Nothing -> ""
-                        Just f
-                            -> if f == payload.path
-                                then "focused"
-                                else ""
-                ]
+                ([ class "node"
+                 , tabindex 0
+                 ] ++ if  not dropable
+                     then []
+                     else
+                        [ onDragOver <| convertMsg (DragOver payload.path)
+                        , onDrop <| convertMsg ( Drop payload.path )
+                        , onClick <| convertMsg ( Focus payload.path )
+                        , class <| case focus of
+                                Nothing -> ""
+                                Just f
+                                    -> if f == payload.path
+                                        then "focused"
+                                        else ""
+                        ]
+                )
                 ([ viewFolder overDrag payload open convertMsg
                  ]++ if open
                       then
-                        ( if isRoot
-                          then buttonShowRoot convertMsg showRoot
-                          else []
-                        ) ++
-                        if ( not isRoot ) || showRoot
-                        then
                           [ viewSelector payload cut convertMsg
                           , viewSelected payload cut convertMsg
                           , viewSeries baseUrl overDrag payload convertMsg
                           ]
                         else
                           []
-                      else []
                 )
              ] ++ if open
                     then
@@ -302,6 +303,9 @@ toListItems baseUrl overDrag convertMsg focus cut showRoot payload children =
 
 viewSelector: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
 viewSelector payload cut convertMsg =
+    if payload.path == Root
+    then Html.div [] []
+    else
     Html.div
         [class "filter-name"]
         [ Html.input
@@ -333,9 +337,10 @@ viewSelector payload cut convertMsg =
 
 viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
 viewFolder overDrag payload open convertMsg =
-    let isRoot = case payload.path of
-                    Root -> True
-                    Branch _ -> False
+    let mutable = case payload.path of
+                    Root -> False
+                    Branch _ -> True
+                    Unclassified -> False
     in
     Html.div
         [ class "folder-row"
@@ -384,7 +389,7 @@ viewFolder overDrag payload open convertMsg =
                         ]
                     ]
                  ] ++
-                 ( if isRoot
+                 ( if not mutable
                     then []
                     else
                         [ Html.li
@@ -418,19 +423,6 @@ buttonOpen openMsg payload convertMsg =
                         else "+"
         ]
 
-
-buttonShowRoot :  ( MsgTree -> msg ) -> Bool -> List ( Html msg )
-buttonShowRoot convertMsg showRoot =
-    [ Html.button
-        [ class "button-show-root"
-        , onClick <| convertMsg
-                        (ShowRoot ( not showRoot ))
-        ]
-        [ Html.text <| if showRoot
-                        then "Hide"
-                        else "Show unclassified"
-        ]
-    ]
 
 viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
 viewSelected payload cut convertMsg  =
@@ -520,13 +512,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Bool -> Html msg
-viewTree baseUrl tree overDrag convertMsg focus cut showRoot =
+viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Html msg
+viewTree baseUrl tree overDrag convertMsg focus cut =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems baseUrl overDrag convertMsg focus cut showRoot )
+            ( toListItems baseUrl overDrag convertMsg focus cut )
             tree
         ]
 
@@ -647,6 +639,7 @@ findOpen menu opened =
         path = case payload.path of
                 Root -> ""
                 Branch p -> p
+                Unclassified -> ""
         newOpen = if payload.open
                     then Set.insert path opened
                     else opened
@@ -673,6 +666,7 @@ muteOpen menu openState =
         path = case payload.path of
                 Root -> ""
                 Branch p -> p
+                Unclassified -> ""
         newMenu = if Set.member path openState
                     then Tree.Zipper.mapLabel
                             (\ p -> { p | open = True})
@@ -685,5 +679,3 @@ muteOpen menu openState =
             muteOpen
                 nextStep
                 openState
-
-
