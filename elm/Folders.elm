@@ -184,6 +184,17 @@ update msg model =
                         ]
             )
 
+        GotUpdatePath source destination (Err _ ) ->
+            ( model
+            , Cmd.batch [ Task.perform
+                            identity
+                            ( Task.succeed ( FromTree ( Open source True )))
+                        , Task.perform
+                            identity
+                            ( Task.succeed ( FromTree ( Open destination True )))
+                        ]
+            )
+
         TowardDeletion source destinaton name ( Ok raw ) ->
             let treeAttribute = Maybe.withDefault "" model.treeAttribute
             in
@@ -206,9 +217,6 @@ update msg model =
                             }
 
         TowardDeletion name _ _ ( Err raw ) -> U.nocmd model
-
-        GotUpdatePath source destination (Err _ ) ->
-            U.nocmd model
 
         GotDelete path (Ok _) ->
             ( model
