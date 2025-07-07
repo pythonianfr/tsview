@@ -44,6 +44,7 @@ import FoldersUtil exposing
     , getOpenState
     , getPayload
     , mutePayload
+    , pathFromString
     , pasteSeries
     , selectFromQuery
     , setOpenState
@@ -123,11 +124,11 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree = setOpenState
-                                           ( initTree paths )
-                                           model.openState
+                              , tree = initTree paths
                       }
-                    , Cmd.none )
+                    , Cmd.batch
+                        <| reOpen ( getOpenState model.tree )
+                    )
                 ( Err err ) ->
                     U.nocmd { model | errors = model.errors
                                                ++ [JD.errorToString err]
@@ -441,15 +442,17 @@ update msg model =
                                    ++
                                    [ newPath ]
                     in
-                    ({ model | tree = setOpenState
-                                        ( initTree newPaths )
-                                        ( getOpenState model.tree)
+                    ({ model | tree = initTree newPaths
                              , paths = newPaths
                              , creationName = ""
-                      },
-                      Task.perform
+                      }
+                      , Cmd.batch
+                        ([ Task.perform
                             identity
                             ( Task.succeed ( FromTree ( Open path True )))
+                         ] ++ ( reOpen ( getOpenState model.tree ))
+                        )
+
                     )
 
 
@@ -478,6 +481,22 @@ getTreeAttribute baseUrl =
                 [ ]
         , expect =  Http.expectString GotTreeAttribute
         }
+
+
+reOpen: Set String -> List ( Cmd Msg )
+reOpen openState =
+    List.map
+        (\ dir ->
+            Task.perform
+                identity
+                <| Task.succeed
+                    ( FromTree
+                        <| Open
+                            ( pathFromString dir )
+                            True
+                    )
+        )
+        ( Set.toList openState )
 
 
 replaceMetadata: String -> String -> Metadata.Metadata -> Path -> Path -> Cmd Msg

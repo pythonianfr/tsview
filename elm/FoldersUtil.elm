@@ -58,6 +58,15 @@ reprPath path =
         Unclassified -> unclassified
 
 
+pathFromString : String -> Path
+pathFromString repr =
+    if repr == root
+    then Root
+    else
+    if repr == unclassified
+    then Unclassified
+    else Branch repr
+
 type alias Payload =
     { name: String
     , path: Path
