@@ -46,6 +46,7 @@ import FoldersUtil exposing
     , mutePayload
     , pathFromString
     , pasteSeries
+    , reprPath
     , selectFromQuery
     , setOpenState
     , viewTree
@@ -92,6 +93,7 @@ type alias Model =
     , focus : Maybe Path
     , creationName: String
     , openState: Set String
+    , currentTransactions : Dict (String, String) ( List String )
     }
 
 
@@ -99,9 +101,10 @@ type Msg
     = GotPaths ( Result Http.Error String )
     | GotTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
-    | GotUpdatePath Path Path ( Result Http.Error String )
+    | GotUpdatePath Path Path String ( Result Http.Error String )
     | TowardDeletion Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
+    | ProcessTransaction ( String, String )
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -174,26 +177,40 @@ update msg model =
         GotSeries path  ( Err err ) ->
             U.nocmd model
 
-        GotUpdatePath source destination (Ok _) ->
-            ( model
-            , Cmd.batch [ Task.perform
-                            identity
-                            ( Task.succeed ( FromTree ( Open source True )))
-                        , Task.perform
-                            identity
-                            ( Task.succeed ( FromTree ( Open destination True )))
-                        ]
+        GotUpdatePath source destination name (Ok _) ->
+            let newModel = removeFromQueue source destination name model
+            in
+            ( newModel
+            , if Dict.member
+                    ( reprPath source, reprPath destination )
+                    newModel.currentTransactions
+              then Cmd.none
+              else
+                 Cmd.batch [ Task.perform
+                                identity
+                                ( Task.succeed ( FromTree ( Open source True )))
+                            , Task.perform
+                                identity
+                                ( Task.succeed ( FromTree ( Open destination True )))
+                            ]
             )
 
-        GotUpdatePath source destination (Err _ ) ->
-            ( model
-            , Cmd.batch [ Task.perform
-                            identity
-                            ( Task.succeed ( FromTree ( Open source True )))
-                        , Task.perform
-                            identity
-                            ( Task.succeed ( FromTree ( Open destination True )))
-                        ]
+        GotUpdatePath source destination name (Err _ ) ->
+           let newModel = removeFromQueue source destination name model
+            in
+            ( newModel
+            , if Dict.member
+                    ( reprPath source, reprPath destination )
+                    newModel.currentTransactions
+              then Cmd.none
+              else
+                 Cmd.batch [ Task.perform
+                                identity
+                                ( Task.succeed ( FromTree ( Open source True )))
+                            , Task.perform
+                                identity
+                                ( Task.succeed ( FromTree ( Open destination True )))
+                            ]
             )
 
         TowardDeletion source destinaton name ( Ok raw ) ->
@@ -225,6 +242,24 @@ update msg model =
             )
 
         GotDelete path (Err _) -> U.nocmd model
+
+        ProcessTransaction ( source, destination )
+            -> let series = Dict.get ( source, destination ) model.currentTransactions
+               in
+               case series of
+                Nothing -> U.nocmd model
+                Just listSeries ->
+                    ( model
+                    , Cmd.batch
+                        <| List.map
+                            ( updateSinglePath
+                                model.baseUrl
+                                model.treeAttribute
+                                ( pathFromString source )
+                                ( pathFromString destination )
+                            )
+                            listSeries
+                    )
 
         CopyFromBrowser _ ->
              case model.focus of
@@ -298,16 +333,21 @@ update msg model =
                         NoDrag -> U.nocmd model
                         Drag source series ->
                             ( moveSeries
-                                { model | overDrag = Nothing }
+                                { model | overDrag = Nothing
+                                        , currentTransactions =
+                                            Dict.insert
+                                                ( reprPath source, reprPath destination )
+                                                ( Set.toList series )
+                                                model.currentTransactions
+                                }
                                 source
                                 destination
                                 series
-                            , updatePath
-                                model.baseUrl
-                                model.treeAttribute
-                                series
-                                source
-                                destination
+                            , Task.perform
+                                identity
+                                ( Task.succeed
+                                    <| ProcessTransaction
+                                        ( reprPath source, reprPath destination ))
                             )
 
                 Select path name ->
@@ -381,13 +421,17 @@ update msg model =
                                             series
                                             model.tree
                                     , currentCut = NoCut
+                                    , currentTransactions =
+                                            Dict.insert
+                                                ( reprPath from, reprPath path )
+                                                ( Set.toList series )
+                                                model.currentTransactions
                              }
-                            , updatePath
-                                model.baseUrl
-                                model.treeAttribute
-                                series
-                                from
-                                path
+                            , Task.perform
+                                identity
+                                ( Task.succeed
+                                    <| ProcessTransaction
+                                        ( reprPath from, reprPath path ))
                             )
 
                 ButtonReset path ->
@@ -515,15 +559,15 @@ replaceMetadata baseUrl name meta source destination =
                                         <| Metadata.encodemeta meta )
                         ]
         , expect = Http.expectString
-                    ( GotUpdatePath source destination )
+                    ( GotUpdatePath source destination name )
         , headers = [ ]
         , tracker = Nothing
         , timeout = Nothing
         }
 
 
-updatePath: String -> Maybe String -> Set String -> Path -> Path -> Cmd Msg
-updatePath baseUrl treeAttribute series source destination =
+updateSinglePath : String -> Maybe String -> Path -> Path -> String -> Cmd Msg
+updateSinglePath baseUrl treeAttribute source destination name =
     case treeAttribute of
         Nothing -> Cmd.none
         Just treeA ->
@@ -536,53 +580,72 @@ updatePath baseUrl treeAttribute series source destination =
                                     <| JE.object
                                         [( treeA, JE.string dest )]
                     in
-                    Cmd.batch
-                    <| List.map
-                        (\ name ->
-                            Http.request
-                            { method = "PATCH"
-                            , url =
-                                UB.crossOrigin
-                                    baseUrl
-                                    ["api", "series", "metadata"]
-                                    []
-                            , body = Http.jsonBody
-                                        <| JE.object
-                                            [( "name", JE.string name )
-                                            ,( "metadata", newMetadata)
-                                            ]
-                            , expect = Http.expectString
-                                        ( GotUpdatePath source destination )
-                            , headers = [ ]
-                            , tracker = Nothing
-                            , timeout = Nothing
-                            }
-                        )
-                        ( Set.toList series )
+                    Http.request
+                        { method = "PATCH"
+                        , url =
+                            UB.crossOrigin
+                                baseUrl
+                                ["api", "series", "metadata"]
+                                []
+                        , body = Http.jsonBody
+                                    <| JE.object
+                                        [( "name", JE.string name )
+                                        ,( "metadata", newMetadata)
+                                        ]
+                        , expect = Http.expectString
+                                    ( GotUpdatePath source destination name )
+                        , headers = [ ]
+                        , tracker = Nothing
+                        , timeout = Nothing
+                        }
                 Unclassified ->
                     -- deletion of path attribute in the metadata
-                    Cmd.batch
-                    <| List.map
-                        (\ name ->
-                            Http.request
-                            { method = "GET"
-                            , url =
-                                UB.crossOrigin
-                                    baseUrl
-                                    ["api", "series", "metadata"]
-                                    [ UB.string "name" name ]
-                            , body = Http.emptyBody
-                            , expect = Http.expectString
-                                        ( TowardDeletion source Root name )
-                            , headers = [ ]
-                            , tracker = Nothing
-                            , timeout = Nothing
-                            }
-                        )
-                        ( Set.toList series )
+                    Http.request
+                    { method = "GET"
+                    , url =
+                        UB.crossOrigin
+                            baseUrl
+                            ["api", "series", "metadata"]
+                            [ UB.string "name" name ]
+                    , body = Http.emptyBody
+                    , expect = Http.expectString
+                                ( TowardDeletion source Root name )
+                    , headers = [ ]
+                    , tracker = Nothing
+                    , timeout = Nothing
+                    }
                 Root ->
                     -- should not occur
                     Cmd.none
+
+
+removeFromQueue: Path -> Path -> String -> Model -> Model
+removeFromQueue source destination name model =
+    let s = reprPath source
+        d = reprPath destination
+    in
+    case Dict.get (s, d) model.currentTransactions of
+        Nothing -> model
+        Just seriesList ->
+            let newQueue =
+                    ( Set.toList
+                            ( Set.remove
+                                name
+                                ( Set.fromList seriesList )
+                            )
+                    )
+                updatedTransactions =
+                    if List.length newQueue > 0
+                    then Dict.insert
+                            (s, d)
+                            newQueue
+                            model.currentTransactions
+                    else
+                        Dict.remove
+                            (s, d)
+                            model.currentTransactions
+            in
+            { model | currentTransactions = updatedTransactions }
 
 
 getSeries: String -> Path -> Cmd Msg
@@ -714,6 +777,7 @@ initModel baseUrl =
     , focus = Nothing
     , creationName = ""
     , openState = Set.empty
+    , currentTransactions = Dict.empty
     }
 
 
