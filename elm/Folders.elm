@@ -332,17 +332,20 @@ update msg model =
                     case model.currentDrag of
                         NoDrag -> U.nocmd model
                         Drag source series ->
-                            ( moveSeries
-                                { model | overDrag = Nothing
-                                        , currentTransactions =
-                                            Dict.insert
+                            let newTree = pasteSeries
+                                            source
+                                            destination
+                                            series
+                                            model.tree
+                                transaction = Dict.insert
                                                 ( reprPath source, reprPath destination )
                                                 ( Set.toList series )
                                                 model.currentTransactions
+                            in
+                            ( { model | tree = newTree
+                                       , overDrag = Nothing
+                                       , currentTransactions = transaction
                                 }
-                                source
-                                destination
-                                series
                             , Task.perform
                                 identity
                                 ( Task.succeed
@@ -700,50 +703,6 @@ deletePath baseUrl path =
                 , timeout = Nothing
                 }
 
-
-moveSeries: Model -> Path -> Path -> Set String ->Model
-moveSeries model source destination names =
-        if source == destination
-        then model
-        else
-            { model | tree = moveSerieRec
-                                ( Set.toList names )
-                                source
-                                destination
-                                model.tree
-            }
-
-
-moveSerieRec : List String -> Path -> Path -> Tree Payload -> Tree Payload
-moveSerieRec names source destination tree =
-    case names of
-        [] -> tree
-        x :: xs ->
-            moveSerieRec
-                xs
-                source
-                destination
-                ( moveSerie x source destination tree )
-
-
-moveSerie: String -> Path -> Path -> Tree Payload -> Tree Payload
-moveSerie name source destination tree =
-    mutePayload
-        source
-        (\ p -> { p | series = Dict.remove
-                                name
-                                p.series
-                }
-        )
-        <| mutePayload
-            destination
-            (\ p -> { p | series = Dict.insert
-                                    name
-                                    ( SeriesAttribute False )
-                                    p.series
-                    }
-            )
-            tree
 
 
 view: Model -> Html Msg
