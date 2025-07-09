@@ -55,7 +55,7 @@ import FoldersUtil exposing
 import FoldersUtil exposing (MsgTree(..))
 
 
-port copySignal: (Bool -> msg) -> Sub msg
+port cutSignal: (Bool -> msg) -> Sub msg
 port pasteSignal: (Bool -> msg) -> Sub msg
 
 keyDecoder: JD.Decoder Msg
@@ -743,7 +743,7 @@ initModel baseUrl =
 
 sub: Model -> Sub Msg
 sub model = Sub.batch
-            [ copySignal CopyFromBrowser
+            [ cutSignal CopyFromBrowser
             , pasteSignal PasteFromBrowser
             , onKeyDown ( keyDecoder )
             ]

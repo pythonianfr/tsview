@@ -22,21 +22,21 @@
    </script>
   <script>
       // listen the copy event
-      document.getElementById('wrap-folder').addEventListener(
+      document.addEventListener(
           "copy",(event) => {
               console.log('in copy');
-              app.ports.copySignal.send(true);
+              app.ports.cutSignal.send(true);
           }
       );
       // listen the cut event
       // send it to the copySignal (same efect)
-      document.getElementById('wrap-folder').addEventListener(
+      document.addEventListener(
           "cut",(event) => {
-              app.ports.copySignal.send(true);
+              app.ports.cutSignal.send(true);
           }
       );
       // listen the past event
-      document.getElementById('wrap-folder').addEventListener(
+      document.addEventListener(
           "paste",(event) => {
               console.log('in paste');
               app.ports.pasteSignal.send(true);
