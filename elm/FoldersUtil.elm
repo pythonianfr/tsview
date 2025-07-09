@@ -38,9 +38,19 @@ import Tree.Zipper exposing
 
 
 type MyTree = MyTree ( Dict String  MyTree )
-type alias Path = String
+type Path
+    = Root
+    | Branch String
 
 root = "root"
+
+
+reprPath: Path -> String
+reprPath path =
+    case path of
+        Root -> root
+        Branch branch -> branch
+
 
 type alias Payload =
     { name: String
@@ -56,8 +66,8 @@ type alias SeriesAttribute
 
 initPayload: Payload
 initPayload =
-    { name= ""
-    , path = ""
+    { name= root
+    , path = Root
     , open = False
     , status = Start
     , series = Dict.empty
@@ -142,14 +152,13 @@ buildSingle path =
 
 convertTree : MyTree -> Tree Payload
 convertTree myTree =
-    Maybe.withDefault
-        ( tree initPayload [] )
-        <| List.head
-            <| convertTreeT ""
-                <| MyTree ( Dict.singleton root myTree )
+    tree initPayload
+            <| convertTreeT
+                Nothing
+                myTree
 
 
-convertTreeT : String -> MyTree -> List ( Tree Payload )
+convertTreeT : Maybe String -> MyTree -> List ( Tree Payload )
 convertTreeT path myTree =
     case myTree of
         MyTree dict ->
@@ -158,18 +167,17 @@ convertTreeT path myTree =
                 ( Dict.toList dict )
 
 
-recConvert: Path -> ( String,  MyTree ) -> Tree Payload
-recConvert path ( name,  subTree) =
-    let newPath = String.replace
-                    ".root."
-                    ""
-                    ( path ++ "." ++ name )
+recConvert: Maybe String -> ( String,  MyTree ) -> Tree Payload
+recConvert path ( name, subTree) =
+    let newPath = case path of
+                    Nothing -> name
+                    Just p -> ( p ++ "." ++ name )
     in
     tree
-        { initPayload | name=name
-                      , path = newPath
+        { initPayload | name = name
+                      , path = Branch newPath
         }
-        ( convertTreeT newPath subTree )
+        ( convertTreeT ( Just newPath ) subTree )
 
 
 unpack: MyTree -> ( Dict String  MyTree )
@@ -230,7 +238,7 @@ toListItems overDrag convertMsg focus cut payload children =
     in
         Html.li
             [ class "folder-and-series"
-            , attribute "data-path" payload.path
+            , attribute "data-path" ( reprPath payload.path )
             ]
             ([ Html.div
                 [ class "node"
@@ -309,15 +317,15 @@ viewFolder overDrag payload open convertMsg =
             ]
         , Html.button
             [ class "folder-action"
-            , attribute "popovertarget" ( "action-" ++ payload.path )
-            , style "anchor-name" ( "action-button-" ++ payload.path )
+            , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
+            , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
             ]
             [ Html.text "..."
             , Html.ul
                 [ class "action-box"
                 , attribute "popover" ""
-                , style "position-anchor" ( "action-button-" ++ payload.path )
-                , id ( "action-" ++ payload.path )
+                , style "position-anchor" ( "action-button-" ++ ( reprPath payload.path ) )
+                , id ( "action-" ++ ( reprPath payload.path ) )
                 ]
                 [ Html.li
                     []
@@ -437,7 +445,7 @@ viewTree tree overDrag convertMsg focus cut =
         ]
 
 
-getZipper : String -> Zipper Payload -> Maybe ( Zipper Payload )
+getZipper : Path -> Zipper Payload -> Maybe ( Zipper Payload )
 getZipper path menu =
     if (Tree.Zipper.label menu).path == path
         then Just menu
@@ -450,7 +458,7 @@ getZipper path menu =
                         nextStep
 
 
-getPayload: String -> Tree Payload -> Payload
+getPayload: Path -> Tree Payload -> Payload
 getPayload path menu =
     Maybe.withDefault
         initPayload
@@ -459,7 +467,7 @@ getPayload path menu =
             (getZipper path (fromTree menu))
 
 
-mutePayload : String -> (Payload -> Payload) -> Tree Payload -> Tree Payload
+mutePayload : Path -> (Payload -> Payload) -> Tree Payload -> Tree Payload
 mutePayload path mapping menu =
     case getZipper path ( fromTree menu ) of
         Nothing -> menu

@@ -30,6 +30,7 @@ import Url.Builder as UB
 import FoldersUtil exposing
     ( Cut(..)
     , Drag(..)
+    , Path(..)
     , Payload
     , SeriesAttribute
     , decodeTree
@@ -98,8 +99,6 @@ type Msg
     | ActionControl ControlKey
     | Typing Char
 
--- for documentation purpose
-type alias Path = String
 
 update: Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -108,11 +107,10 @@ update msg model =
             case JD.decodeString decodeTree raw of
                 ( Ok paths ) ->
                     ( { model | paths = paths
-                              , tree =
-                                mutePayload
-                                    ( "." ++ root )
-                                    (\ p -> {p | open = True})
-                                        <| buildTree paths
+                              , tree = mutePayload
+                                        Root
+                                        (\ p -> { p | open = True})
+                                        ( buildTree paths )
                       }
                     , Cmd.none )
                 ( Err err ) ->
@@ -384,50 +382,56 @@ updatePath baseUrl treeAttribute series source destination =
     case treeAttribute of
         Nothing -> Cmd.none
         Just treeA ->
-            -- the metadata dict must be send as string
-            let newMetadata
-                    = JE.string
-                        <| JE.encode 0 -- value to string
-                            <| JE.object
-                                [( treeA, JE.string destination )]
-            in
-            Cmd.batch
-            <| List.map
-                (\ name ->
-                    Http.request
-                    { method = "PATCH"
-                    , url =
-                        UB.crossOrigin
-                            baseUrl
-                            ["api", "series", "metadata"]
-                            []
-                    , body = Http.jsonBody
-                                <| JE.object
-                                    [( "name", JE.string name )
-                                    ,( "metadata", newMetadata)
-                                    ]
-                    , expect = Http.expectString
-                                ( GotUpdatePath source destination )
-                    , headers = [ ]
-                    , tracker = Nothing
-                    , timeout = Nothing
-                    }
-                )
-                ( Set.toList series )
+            case destination of
+                Branch dest ->
+                    -- the metadata dict must be send as string
+                    let newMetadata
+                            = JE.string
+                                <| JE.encode 0 -- value to string
+                                    <| JE.object
+                                        [( treeA, JE.string dest )]
+                    in
+                    Cmd.batch
+                    <| List.map
+                        (\ name ->
+                            Http.request
+                            { method = "PATCH"
+                            , url =
+                                UB.crossOrigin
+                                    baseUrl
+                                    ["api", "series", "metadata"]
+                                    []
+                            , body = Http.jsonBody
+                                        <| JE.object
+                                            [( "name", JE.string name )
+                                            ,( "metadata", newMetadata)
+                                            ]
+                            , expect = Http.expectString
+                                        ( GotUpdatePath source destination )
+                            , headers = [ ]
+                            , tracker = Nothing
+                            , timeout = Nothing
+                            }
+                        )
+                        ( Set.toList series )
+                Root -> Cmd.none
 
 
-getSeries: String -> String -> Cmd Msg
+getSeries: String -> Path -> Cmd Msg
 getSeries baseUrl path =
-    Http.get
-        { url =
-            UB.crossOrigin
-                baseUrl
-                ["api", "series", "tree-path"]
-                [ UB.string "name" path
-                , UB.string "type" "pathname"
-                ]
-        , expect = Http.expectString (GotSeries path)
-        }
+    case path of
+        Branch pat ->
+            Http.get
+                { url =
+                    UB.crossOrigin
+                        baseUrl
+                        ["api", "series", "tree-path"]
+                        [ UB.string "name" pat
+                        , UB.string "type" "pathname"
+                        ]
+                , expect = Http.expectString (GotSeries path)
+                }
+        Root -> Cmd.none
 
 
 moveSeries: Model -> Path -> Path -> Set String ->Model

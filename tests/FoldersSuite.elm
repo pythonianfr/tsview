@@ -19,6 +19,7 @@ import Json.Decode as JD
 
 import FoldersUtil exposing
     ( MyTree(..)
+    , Path(..)
     , buildMTree
     , buildSingle
     , convertTree
@@ -67,16 +68,16 @@ buildSinglePath =
         ( \ _ -> Expect.equal
                     rTree
                     ( tree { initPayload | name = root
-                                         , path = ".root"
+                                         , path = Root
                            }
                         [tree { initPayload | name = "a0"
-                                            , path = "a0"
+                                            , path = Branch "a0"
                               }
                             [tree { initPayload | name = "b0"
-                                                , path = "a0.b0"
+                                                , path = Branch "a0.b0"
                                   }
                                 [tree { initPayload | name = "c0"
-                                                    , path = "a0.b0.c0"
+                                                    , path = Branch "a0.b0.c0"
                                       }
                                     []
                                 ]
@@ -100,16 +101,16 @@ suiteMergeMBranch =
         (\_ -> Expect.equal
                 merge01
                 ( tree { initPayload | name = root
-                                     , path = ".root"
+                                     , path = Root
                        }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch  "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                   }
                                 []
                             ]
@@ -121,24 +122,24 @@ suiteMergeMBranch =
         (\_ -> Expect.equal
                 merge12
                 ( tree { initPayload | name = root
-                                     , path = ".root"
+                                     , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                    }
                                 []
                             ]
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                 }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b1.c0"
+                                                , path = Branch "a0.b1.c0"
                                   }
                                 []
                             ]
@@ -150,11 +151,11 @@ suiteMergeMBranch =
         (\_ -> Expect.equal
                 merge10
                 ( tree { initPayload | name = root
-                                     , path = ".root"
+                                     , path = Root
                         }
-                    [tree { initPayload | name = "a0", path = "a0"}
-                        [tree { initPayload | name = "b0", path = "a0.b0"}
-                            [tree { initPayload | name = "c0", path = "a0.b0.c0"}
+                    [tree { initPayload | name = "a0", path = Branch "a0"}
+                        [tree { initPayload | name = "b0", path = Branch "a0.b0"}
+                            [tree { initPayload | name = "c0", path = Branch "a0.b0.c0"}
                                 []
                             ]
                         ]
@@ -197,29 +198,29 @@ suiteConvertTree =
                 Expect.equal
                  rTree
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                   }
                                 []
                             ]
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                }
                             []
                         ]
                     , tree { initPayload | name = "a1"
-                                         , path = "a1"
+                                         , path = Branch "a1"
                            }
                         [tree { initPayload | name = "b0"
-                                            , path = "a1.b0"
+                                            , path = Branch "a1.b0"
                               }
                             []
                         ]
@@ -231,13 +232,13 @@ suiteConvertTree =
                 Expect.equal
                  rTree0
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             []
                         ]
@@ -249,17 +250,17 @@ suiteConvertTree =
                 Expect.equal
                  rTree1
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             []
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                }
                             []
                         ]
@@ -271,21 +272,21 @@ suiteConvertTree =
                 Expect.equal
                  rTree2
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                   }
                                 []
                             ]
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                }
                             []
                         ]
@@ -309,15 +310,15 @@ suiteIndexPosition =
          selected0 =
             Maybe.map
                 (Tree.Zipper.label)
-                 (getZipper ".root" (fromTree rTree))
+                 (getZipper Root (fromTree rTree))
          selected1 =
                 Maybe.map
                     (Tree.Zipper.label)
-                     (getZipper "a0" (fromTree rTree))
+                     (getZipper ( Branch "a0" ) (fromTree rTree))
          selected4 =
                 Maybe.map
                     (Tree.Zipper.label)
-                     (getZipper "a0.b1" (fromTree rTree))
+                     (getZipper ( Branch "a0.b1" ) (fromTree rTree))
 
      in
      T.concat
@@ -327,29 +328,29 @@ suiteIndexPosition =
                 Expect.equal
                  rTree
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                   }
                                 []
                             ]
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                }
                             []
                         ]
                     , tree { initPayload | name = "a1"
-                                         , path = "a1"
+                                         , path = Branch "a1"
                            }
                         [tree { initPayload | name = "b0"
-                                            , path = "a1.b0"
+                                            , path = Branch "a1.b0"
                               }
                             []
                         ]
@@ -363,7 +364,7 @@ suiteIndexPosition =
                     ( forward (fromTree rTree) )
                 )
                 (Just { initPayload | name = "a0"
-                                    , path = "a0"
+                                    , path = Branch "a0"
                       }
                 )
         )
@@ -373,7 +374,7 @@ suiteIndexPosition =
                 Expect.equal
                    selected0
                    <| Just { initPayload | name = root
-                                         , path = ".root"
+                                         , path = Root
                             }
             )
     ,
@@ -382,7 +383,7 @@ suiteIndexPosition =
                 Expect.equal
                    selected1
                    <| Just { initPayload | name = "a0"
-                                         , path = "a0"
+                                         , path = Branch "a0"
                            }
             )
     ,
@@ -391,7 +392,7 @@ suiteIndexPosition =
                 Expect.equal
                    selected4
                    <| Just { initPayload | name = "b1"
-                                         , path = "a0.b1"
+                                         , path = Branch "a0.b1"
                            }
             )
     ]
@@ -409,14 +410,14 @@ suiteMutatePayload =
                     <| buildMTree
                             paths
          modifiedTree = mutePayload
-                            "a0.b0.c0"
+                            ( Branch "a0.b0.c0" )
                             (\ p ->
                                 { p | open = True}
                             )
                             rTree
          newPayload = Maybe.map
                         (Tree.Zipper.label)
-                        (getZipper "a0.b0.c0" (fromTree modifiedTree))
+                        (getZipper ( Branch "a0.b0.c0" ) (fromTree modifiedTree))
 
      in
      T.test "Mute payload"
@@ -424,7 +425,7 @@ suiteMutatePayload =
                 newPayload
                 <| Just
                     <| { initPayload | name = "c0"
-                                     , path = "a0.b0.c0"
+                                     , path = Branch "a0.b0.c0"
                                      , open = True
                         }
         )
@@ -444,21 +445,21 @@ suiteCumulPath =
                 Expect.equal
                  rTree
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [tree { initPayload | name = "a0"
-                                        , path = "a0"
+                                        , path = Branch "a0"
                           }
                         [tree { initPayload | name = "b0"
-                                            , path = "a0.b0"
+                                            , path = Branch "a0.b0"
                               }
                             [tree { initPayload | name = "c0"
-                                                , path = "a0.b0.c0"
+                                                , path = Branch "a0.b0.c0"
                                   }
                                 []
                             ]
                         , tree { initPayload | name = "b1"
-                                             , path = "a0.b1"
+                                             , path = Branch "a0.b1"
                                }
                             []
                         ]
@@ -477,7 +478,7 @@ suiteCopyPast =
                     <| buildMTree
                             paths
         bTree = mutePayload
-                    "b0"
+                    ( Branch "b0" )
                     (\ p -> { p | series =
                                     Dict.fromList
                                         [ ( "s0", selected )
@@ -488,7 +489,7 @@ suiteCopyPast =
                     )
                     aTree
         cTree = mutePayload
-                    "b1"
+                    ( Branch "b1" )
                     (\ p -> { p | series =
                                     Dict.singleton
                                         "s4"
@@ -496,11 +497,11 @@ suiteCopyPast =
                             }
                     )
                     bTree
-        cut = selectFromUser (getPayload "b0" cTree)
+        cut = selectFromUser (getPayload ( Branch "b0" ) cTree)
 
         eTree = pasteSeries
-                    "b0"
-                    "b1"
+                    ( Branch "b0" )
+                    ( Branch "b1" )
                     cut
                     cTree
     in
@@ -509,10 +510,10 @@ suiteCopyPast =
                 Expect.equal
                  eTree
                  ( tree { initPayload | name = root
-                                      , path = ".root"
+                                      , path = Root
                         }
                     [ tree { initPayload | name = "b0"
-                                         , path = "b0"
+                                         , path = Branch "b0"
                                          , series =
                                             Dict.singleton
                                                 "s1"
@@ -520,7 +521,7 @@ suiteCopyPast =
                           }
                           []
                     , tree { initPayload | name = "b1"
-                                         , path = "b1"
+                                         , path = Branch "b1"
                                          , series =
                                           Dict.fromList
                                             [ ("s4", unselected )
