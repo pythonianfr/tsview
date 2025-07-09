@@ -9,6 +9,11 @@ import Tree exposing
     ( Tree
     , tree
     )
+import Tree.Zipper exposing
+    ( forward
+    , fromTree
+    , toTree
+    )
 
 import Json.Decode as JD
 
@@ -18,9 +23,11 @@ import FoldersUtil exposing
     , buildSingle
     , convertTree
     , decodeTree
+    , emptyTree
     , fillPostion
     , initPayload
     , mergeMBranch
+    , getZipper
     )
 
 
@@ -56,10 +63,10 @@ buildSinglePath =
     T.test "Build branch"
         ( \ _ -> Expect.equal
                     rTree
-                    ( tree { initPayload | label = "root"}
-                        [tree { initPayload | label = "a0"}
-                            [tree { initPayload | label = "b0"}
-                                [tree { initPayload | label = "c0"}
+                    ( tree { initPayload | name = "root"}
+                        [tree { initPayload | name = "a0"}
+                            [tree { initPayload | name = "b0"}
+                                [tree { initPayload | name = "c0"}
                                     []
                                 ]
                             ]
@@ -81,10 +88,10 @@ suiteMergeMBranch =
     [ T.test "Merge branch01"
         (\_ -> Expect.equal
                 merge01
-                ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
-                            [tree { initPayload | label = "c0"}
+                ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
                         ]
@@ -94,14 +101,14 @@ suiteMergeMBranch =
     , T.test "Merge branch12"
         (\_ -> Expect.equal
                 merge12
-                ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
-                            [tree { initPayload | label = "c0"}
+                ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
-                        , tree { initPayload | label = "b1"}
-                            [tree { initPayload | label = "c0"}
+                        , tree { initPayload | name = "b1"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
                         ]
@@ -111,10 +118,10 @@ suiteMergeMBranch =
     ,T.test "Merge branch10"
         (\_ -> Expect.equal
                 merge10
-                ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
-                            [tree { initPayload | label = "c0"}
+                ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
                         ]
@@ -156,17 +163,17 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
-                            [tree { initPayload | label = "c0"}
+                 ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
-                        , tree { initPayload | label = "b1"}
+                        , tree { initPayload | name = "b1"}
                             []
                         ]
-                    , tree { initPayload | label = "a1"}
-                        [tree { initPayload | label = "b0"}
+                    , tree { initPayload | name = "a1"}
+                        [tree { initPayload | name = "b0"}
                             []
                         ]
                     ]
@@ -176,9 +183,9 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree0
-                 ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
+                 ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
                             []
                         ]
                     ]
@@ -188,11 +195,11 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree1
-                 ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
+                 ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
                             []
-                        , tree { initPayload | label = "b1"}
+                        , tree { initPayload | name = "b1"}
                             []
                         ]
                     ]
@@ -202,13 +209,13 @@ suiteConvertTree =
             (\ _ ->
                 Expect.equal
                  rTree2
-                 ( tree { initPayload | label = "root"}
-                    [tree { initPayload | label = "a0"}
-                        [tree { initPayload | label = "b0"}
-                            [tree { initPayload | label = "c0"}
+                 ( tree { initPayload | name = "root"}
+                    [tree { initPayload | name = "a0"}
+                        [tree { initPayload | name = "b0"}
+                            [tree { initPayload | name = "c0"}
                                 []
                             ]
-                        , tree { initPayload | label = "b1"}
+                        , tree { initPayload | name = "b1"}
                             []
                         ]
                     ]
@@ -217,8 +224,8 @@ suiteConvertTree =
     ]
 
 
-suiteFillPosition : T.Test
-suiteFillPosition =
+suiteIndexPosition : T.Test
+suiteIndexPosition =
      let paths = [ "a0"
                 , "a0.b0"
                 , "a0.b1"
@@ -229,34 +236,49 @@ suiteFillPosition =
                     <| convertTree
                         <| buildMTree
                                 paths
+         selected0 =
+            Maybe.map
+                (Tree.Zipper.label)
+                 (getZipper 0 (fromTree rTree))
+         selected1 =
+                Maybe.map
+                    (Tree.Zipper.label)
+                     (getZipper 1 (fromTree rTree))
+         selected4 =
+                Maybe.map
+                    (Tree.Zipper.label)
+                     (getZipper 4 (fromTree rTree))
+
      in
+     T.concat
+     [
         T.test "Fill Position Tree"
             (\ _ ->
                 Expect.equal
                  rTree
-                 ( tree { initPayload | label = "root"
+                 ( tree { initPayload | name = "root"
                                       , position = 0
                         }
-                    [tree { initPayload | label = "a0"
+                    [tree { initPayload | name = "a0"
                                         , position = 1
                           }
-                        [tree { initPayload | label = "b0"
+                        [tree { initPayload | name = "b0"
                                             , position = 2
                               }
-                            [tree { initPayload | label = "c0"
+                            [tree { initPayload | name = "c0"
                                                 , position = 3
                                   }
                                 []
                             ]
-                        , tree { initPayload | label = "b1"
+                        , tree { initPayload | name = "b1"
                                              , position = 4
                                }
                             []
                         ]
-                    , tree { initPayload | label = "a1"
+                    , tree { initPayload | name = "a1"
                                          , position = 5
                            }
-                        [tree { initPayload | label = "b0"
+                        [tree { initPayload | name = "b0"
                                             , position = 6
                               }
                             []
@@ -264,3 +286,42 @@ suiteFillPosition =
                     ]
                 )
             )
+    , T.test "Forward in zipper"
+        (\_ -> Expect.equal
+                (Maybe.map
+                    Tree.Zipper.label
+                    ( forward (fromTree rTree) )
+                )
+                (Just { initPayload | name = "a0"
+                                    , position = 1
+                      }
+                )
+        )
+    ,
+        T.test "Get node from position 0"
+            (\ _ ->
+                Expect.equal
+                   selected0
+                   <| Just { initPayload | name = "root"
+                                         , position = 0
+                            }
+            )
+    ,
+        T.test "Get node from position 1"
+            (\ _ ->
+                Expect.equal
+                   selected1
+                   <| Just { initPayload | name = "a0"
+                                         , position = 1
+                           }
+            )
+    ,
+        T.test "Get node from position 4"
+            (\ _ ->
+                Expect.equal
+                   selected4
+                   <| Just { initPayload | name = "b1"
+                                         , position = 4
+                           }
+            )
+    ]

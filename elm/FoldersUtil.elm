@@ -14,11 +14,18 @@ import Tree exposing
     , restructure
     , tree
     )
+import Tree.Zipper
+import Tree.Zipper exposing
+    ( Zipper
+    , forward
+    , fromTree
+    )
+
 
 type MyTree = MyTree ( Dict String  MyTree )
 
 type alias Payload =
-    { label: String
+    { name: String
     , position: Int
     , path: String
     , open: Bool
@@ -28,7 +35,7 @@ type alias Payload =
 
 initPayload: Payload
 initPayload =
-    { label= ""
+    { name= ""
     , position = -1
     , path = ""
     , open = False
@@ -84,7 +91,7 @@ convertTreeT myTree =
         MyTree dict ->
             List.map
                 (\ (k, lmT) -> tree
-                                {initPayload | label=k}
+                                {initPayload | name=k}
                                 ( convertTreeT lmT ))
                 ( Dict.toList dict )
 
@@ -126,7 +133,7 @@ buildTree paths =
 
 labelToHtml : Payload -> Html msg
 labelToHtml payload =
-    Html.text payload.label
+    Html.text payload.name
 
 toListItems : msg -> Html msg -> List (Html msg) -> Html msg
 toListItems openMsg label children =
@@ -162,3 +169,16 @@ fillPostion menu =
     indexedMap
         ( \idx payload -> { payload | position = idx} )
         menu
+
+
+getZipper : Int -> Zipper Payload -> Maybe ( Zipper Payload )
+getZipper idx menu =
+    if (Tree.Zipper.label menu).position == idx
+        then Just menu
+        else
+            case ( forward menu ) of
+                Nothing -> Nothing
+                Just nextStep ->
+                    getZipper
+                        idx
+                        nextStep
