@@ -374,6 +374,7 @@ getplot model =
         , keepnans = False
         , apipoint = "state"
         , exclude = "right"
+        , tracker = Nothing
         }
 
 

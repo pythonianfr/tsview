@@ -911,12 +911,12 @@ getSeries model callback apipoint method name =
         , fromdate = start
         , todate = end
         , horizon = Nothing
-        , tzware = model.tzaware
         , tzone = model.horizon.timeZone
         , inferredFreq = model.horizon.inferredFreq
         , keepnans = True
         , apipoint = apipoint
         , exclude = "right"
+        , tracker = Nothing
         }
 
 

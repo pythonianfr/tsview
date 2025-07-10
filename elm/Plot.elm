@@ -219,6 +219,7 @@ fetchsingle model start end basket name  =
          , keepnans = False
          , apipoint = "state"
          , exclude = "right"
+         , tracker = Nothing
          }
 
 

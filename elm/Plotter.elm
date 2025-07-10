@@ -164,6 +164,8 @@ type alias PlotQuery msg =
     , inferredFreq : Bool
     , tzone : String
     , keepnans : Bool
+    , tracker : Maybe String
+    , exclude : String
     }
 
 
@@ -354,9 +356,14 @@ getdata query =
             (\horizonstr -> [ stringToMaybe "horizon" (String.trim horizonstr) ])
             query.horizon
     in
-    Http.get
-        { url = UB.crossOrigin query.baseurl [ "api", "series", query.apipoint ] fullquery
+    Http.request
+        { method = "GET"
+        , headers = []
+        , url = UB.crossOrigin query.baseurl [ "api", "series", query.apipoint ] fullquery
+        , body = Http.emptyBody
         , expect = Http.expectString query.callback
+        , timeout = Nothing
+        , tracker = query.tracker
         }
 
 -- groups
