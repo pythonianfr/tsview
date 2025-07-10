@@ -1560,6 +1560,14 @@ debugView model =
                                     else " False "
                                   )
                         ]
+        pending = H.div
+                    []
+                    <| List.map
+                            (\id -> H.p
+                                    []
+                                    [ H.text ("id : " ++ id)]
+                            )
+                            <| Set.toList model.activeRequests
         errors = H.div
                     []
                     <| List.map
@@ -1569,6 +1577,7 @@ debugView model =
         List.concat [ [ H.br [] []]
                     , legendStuff
                     , [ secondAxis ]
+                    , [ pending ]
                     , [ errors ]
                     ]
 
