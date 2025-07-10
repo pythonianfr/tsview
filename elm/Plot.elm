@@ -935,21 +935,8 @@ update msg model =
             case hMsg of
                 ModuleHorizon.Internal _ -> default
                 ModuleHorizon.Frame _ ->
-                    let
-                        cancelCmd = if Set.isEmpty model.activeRequests
-                                   then Cmd.none
-                                   else Cmd.batch
-                                        (List.map
-                                            Http.cancel
-                                            (Set.toList model.activeRequests)
-                                        )
-                        newModel = { resetModel
-                                   | versionControl = versionControl + 1
-                                   , activeRequests = Set.empty
-                                   }
-                    in
-                    ( newModel
-                    , Cmd.batch [ cancelCmd, commands ]
+                    ( resetModel
+                    , commands
                     )
                 ModuleHorizon.FromLocalStorage _ ->
                     let
