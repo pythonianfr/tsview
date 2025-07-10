@@ -75,6 +75,7 @@ type alias Model =
     , panActive: Bool
     , legendStatus : Maybe (List (String, Bool))
     , showLegend : Bool
+    , activeRequests : Set String
     }
 
 type Selecting =
@@ -205,6 +206,9 @@ findmissinggroup model =
 
 fetchsingle: Model -> String -> String ->  Maybe String -> String -> Cmd Msg
 fetchsingle model start end basket name  =
+    let
+        requestId = "series-" ++ name ++ "-" ++ String.fromInt model.versionControl
+    in
     getdata
          { baseurl = model.baseurl
          , name = name
@@ -219,12 +223,15 @@ fetchsingle model start end basket name  =
          , keepnans = False
          , apipoint = "state"
          , exclude = "right"
-         , tracker = Nothing
+         , tracker = Just requestId
          }
 
 
 fetchsinglegroup: Model -> String -> String ->  String -> Cmd Msg
 fetchsinglegroup model start end name  =
+    let
+        requestId = "group-" ++ name ++ "-" ++ String.fromInt model.versionControl
+    in
     getgroupplotdata
          { baseurl = model.baseurl
          , name = name
@@ -237,41 +244,61 @@ fetchsinglegroup model start end name  =
          , tzone = model.horizon.timeZone
          , keepnans = False
          , apipoint = "state"
+         , tracker = Just requestId
          }
 
-fetchseries: Model -> Bool -> Cmd Msg
+fetchseries: Model -> Bool -> (Model, Cmd Msg)
 fetchseries model reload =
-    let ( start, end ) = getFetchBounds model.horizon
-    in
-    Cmd.batch
-    <| List.reverse
-        ( List.map
+    let
+        ( start, end ) = getFetchBounds model.horizon
+        seriesToFetch = if not reload
+                         then findmissing model
+                         else ( Dict.keys model.registry.series )
+        requests = List.map
             ( fetchsingle model start end Nothing )
-            ( if not reload
-                then findmissing model
-                else ( Dict.keys model.registry.series ))
-        )
-
-fetchgroups: Model -> Bool -> Cmd Msg
-fetchgroups model reload =
-    let ( start, end ) = getFetchBounds model.horizon
+            seriesToFetch
+        requestIds = List.map
+            (\name -> "series-" ++ name ++ "-" ++ String.fromInt model.versionControl)
+            seriesToFetch
+        updatedModel = { model | activeRequests = Set.union model.activeRequests (Set.fromList requestIds) }
     in
-    Cmd.batch
-    <| List.reverse
-        ( List.map
+    ( updatedModel, Cmd.batch (List.reverse requests) )
+
+fetchgroups: Model -> Bool -> (Model, Cmd Msg)
+fetchgroups model reload =
+    let
+        ( start, end ) = getFetchBounds model.horizon
+        groupsToFetch = if not reload
+                         then findmissinggroup model
+                         else ( Dict.keys model.registry.groups )
+        requests = List.map
             ( fetchsinglegroup model start end )
-            ( if not reload
-                then findmissinggroup model
-                else ( Dict.keys model.registry.groups ))
-        )
+            groupsToFetch
+        requestIds = List.map
+            (\name -> "group-" ++ name ++ "-" ++ String.fromInt model.versionControl)
+            groupsToFetch
+        updatedModel = { model | activeRequests =
+                                    Set.union
+                                        model.activeRequests
+                                        (Set.fromList requestIds) }
+    in
+    ( updatedModel, Cmd.batch (List.reverse requests) )
 
 fetchbasket : Model -> Bool -> String -> Cmd Msg
 fetchbasket model remove  name =
-    Http.get
-        { expect = Http.expectString ( GotBasket remove name )
+    let
+        requestId = "basket-" ++ name ++ "-" ++ String.fromInt model.versionControl
+    in
+    Http.request
+        { method = "GET"
+        , headers = []
         , url = UB.crossOrigin model.baseurl
               [ "api", "series", "basket" ]
               [ UB.string "name" name ]
+        , body = Http.emptyBody
+        , expect = Http.expectString ( GotBasket remove name )
+        , timeout = Nothing
+        , tracker = Just requestId
         }
 
 
@@ -380,11 +407,20 @@ update msg model =
                                   }
 
                         ( start, end ) = getFetchBounds model.horizon
+                        basketRequestIds = List.map
+                                            (\name -> "basket-" ++ basket ++ "-" ++ String.fromInt model.versionControl)
+                                            names
+                        modelWithBasketRequests = { model | registry = updated
+                                                          , activeRequests =
+                                                                Set.union
+                                                                    model.activeRequests
+                                                                    (Set.fromList basketRequestIds)
+                                                  }
                     in
-                        ( { model | registry = updated }
+                        ( modelWithBasketRequests
                         , Cmd.batch
                             <| List.map
-                                    (fetchsingle model start end ( Just basket ))
+                                    (fetchsingle modelWithBasketRequests start end ( Just basket ))
                                      ( List.reverse names )
                         )
 
@@ -447,14 +483,16 @@ update msg model =
 
                 horizonmodel = model.horizon
             in
-            ( { newmodel | registry = updatedloadedseries
-                         , horizon =
-                         { horizonmodel | plotStatus = multiStatus
-                                                            updatedloadedseries
-                         }
-              }
-            , fetchseries newmodel False
-            )
+            let
+                ( modelWithRequests, fetchCmd ) = fetchseries newmodel False
+                finalModel = { modelWithRequests | registry = updatedloadedseries
+                                                 , horizon =
+                                                 { horizonmodel | plotStatus = multiStatus
+                                                                                updatedloadedseries
+                                                 }
+                             }
+            in
+            ( finalModel, fetchCmd )
 
         BeforeRemove dType name info ->
             let
@@ -679,13 +717,15 @@ update msg model =
 
                 horizonmodel = model.horizon
             in
-            ( { newmodel | registry = updatedregistry
-                         , horizon =
-                         { horizonmodel | plotStatus = multiStatus
-                                                            updatedregistry }
-              }
-            , fetchgroups newmodel False
-            )
+            let
+                ( modelWithRequests, fetchCmd ) = fetchgroups newmodel False
+                finalModel = { modelWithRequests | registry = updatedregistry
+                                                 , horizon =
+                                                 { horizonmodel | plotStatus = multiStatus
+                                                                                updatedregistry }
+                             }
+            in
+            ( finalModel, fetchCmd )
 
 
         FilterGroup x ->
@@ -771,8 +811,11 @@ update msg model =
                 Err err ->
                     doerr "gotplotdata decode" <| Decode.errorToString err
 
-        GotSeriesData _ basket name (Err err) ->
-            let newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
+        GotSeriesData versionControl basket name (Err err) ->
+            let
+                requestId = "series-" ++ name ++ "-" ++ String.fromInt versionControl
+                modelWithoutRequest = { model | activeRequests = Set.remove requestId model.activeRequests }
+                newmodel = U.adderror modelWithoutRequest ("gotplotdata error" ++ " -> " ++ name)
                 updatedinfos = { series =
                                     Dict.insert
                                         name
@@ -849,8 +892,17 @@ update msg model =
                 Err err ->
                     doerr "gotgroupdata decode" <| Decode.errorToString err
 
-        GotGroupData _ name (Err err) ->
-            let newmodel = U.adderror model ("gotgroupdata error" ++ " -> " ++ name)
+        GotGroupData versionControl name (Err err) ->
+            let
+                requestId = "group-" ++ name ++ "-" ++ String.fromInt versionControl
+                modelWithoutRequest =
+                    { model | activeRequests = Set.remove
+                                                requestId
+                                                model.activeRequests
+                    }
+                newmodel = U.adderror
+                            modelWithoutRequest
+                            ("gotgroupdata error" ++ " -> " ++ name)
                 registry = { groups =
                                 Dict.insert
                                     name
@@ -882,21 +934,47 @@ update msg model =
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
-                ModuleHorizon.Frame _ -> ( { resetModel
-                                                | versionControl = versionControl + 1
-                                            }
-                                         , commands )
-                ModuleHorizon.FromLocalStorage _ -> ( resetModel
-                                                    , Cmd.batch
-                                                        <| [ commands
-                                                           , fetchseries resetModel False])
+                ModuleHorizon.Frame _ ->
+                    let
+                        cancelCmd = if Set.isEmpty model.activeRequests
+                                   then Cmd.none
+                                   else Cmd.batch
+                                        (List.map
+                                            Http.cancel
+                                            (Set.toList model.activeRequests)
+                                        )
+                        newModel = { resetModel
+                                   | versionControl = versionControl + 1
+                                   , activeRequests = Set.empty
+                                   }
+                    in
+                    ( newModel
+                    , Cmd.batch [ cancelCmd, commands ]
+                    )
+                ModuleHorizon.FromLocalStorage _ ->
+                    let
+                        ( modelWithRequests, fetchCmd ) = fetchseries resetModel False
+                    in
+                    ( modelWithRequests
+                    , Cmd.batch [ commands, fetchCmd ]
+                    )
                 ModuleHorizon.Fetch _ ->
-                    ( resetModel
-                    , Cmd.batch ([ commands
-                                 , fetchseries resetModel True
-                                 , fetchgroups resetModel True
-                                 ]
-                                )
+                    let
+                        cancelCmd = if Set.isEmpty model.activeRequests
+                                   then Cmd.none
+                                   else Cmd.batch
+                                            (List.map
+                                                Http.cancel
+                                                (Set.toList model.activeRequests)
+                                            )
+                        resetModelEmpty = { resetModel | activeRequests = Set.empty
+                                                       , versionControl = versionControl + 1
+                                          }
+                        ( modelWithSeries, seriesCmd ) = fetchseries resetModelEmpty True
+                        ( modelWithGroups, groupsCmd ) = fetchgroups modelWithSeries True
+                    in
+                    ( modelWithGroups
+                    , Cmd.batch [ cancelCmd, commands, seriesCmd, groupsCmd ]
                     )
 
 
@@ -1628,9 +1706,12 @@ main =
                     , panActive = False
                     , legendStatus = Nothing
                     , showLegend = True
+                    , activeRequests = Set.empty
                     }
 
-            in ( model
+                ( modelWithSeries, seriesCmd ) = fetchseries model False
+                ( modelWithGroups, groupsCmd ) = fetchgroups modelWithSeries False
+            in ( modelWithGroups
                , Cmd.batch ([ Catalog.get
                                 model.baseurl
                                 "series" 1
@@ -1641,8 +1722,8 @@ main =
                                 model.baseurl
                                 "group" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedGroups h))
-                            , fetchseries model False
-                            , fetchgroups model False
+                            , seriesCmd
+                            , groupsCmd
                             ] ++ ( List.map
                                     ( fetchbasket model False )
                                     baskets
