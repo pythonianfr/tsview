@@ -65,7 +65,7 @@ type alias Model =
     , searchSeries : SeriesSelector.Model
     , searchBasket: SeriesSelector.Model
     , searchGroup: SeriesSelector.Model
-    , integrity: Int
+    , versionControl: Int
     , horizon : HorizonModel
     , selecting : Selecting
     , loaded : Loaded
@@ -209,7 +209,7 @@ fetchsingle model start end basket name  =
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotSeriesData model.integrity basket name
+         , callback = GotSeriesData model.versionControl basket name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -229,7 +229,7 @@ fetchsinglegroup model start end name  =
          { baseurl = model.baseurl
          , name = name
          , idate = Nothing
-         , callback = GotGroupData model.integrity name
+         , callback = GotGroupData model.versionControl name
          , nocache = (U.bool2int model.horizon.viewNoCache)
          , fromdate = start
          , todate = end
@@ -703,8 +703,8 @@ update msg model =
 
         -- plot
 
-        GotSeriesData integrity basket name (Ok rawdata) ->
-            if integrity /= model.integrity
+        GotSeriesData versionControl basket name (Ok rawdata) ->
+            if versionControl /= model.versionControl
             then U.nocmd model
             else
             let infos = readSInfo
@@ -786,8 +786,8 @@ update msg model =
                                                                 updatedinfos }}
                , Cmd.none )
 
-        GotGroupData integrity name (Ok rawdata) ->
-            if integrity /= model.integrity
+        GotGroupData versionControl name (Ok rawdata) ->
+            if versionControl /= model.versionControl
             then U.nocmd model
             else
             let infos = readGInfo
@@ -878,12 +878,12 @@ update msg model =
                                      , registry = resetRegistry model.registry
                              }
                 default = ( { model | horizon = newModelHorizon} , commands )
-                integrity = model.integrity
+                versionControl = model.versionControl
             in
             case hMsg of
                 ModuleHorizon.Internal _ -> default
                 ModuleHorizon.Frame _ -> ( { resetModel
-                                                | integrity = integrity + 1
+                                                | versionControl = versionControl + 1
                                             }
                                          , commands )
                 ModuleHorizon.FromLocalStorage _ -> ( resetModel
@@ -1612,7 +1612,7 @@ main =
                                     flags.debug
                                     None
                     , catalog = Catalog.empty
-                    , integrity = 0
+                    , versionControl = 0
                     , haseditor = False
                     , searchSeries = initSearch series
                     , searchBasket = initSearch baskets
