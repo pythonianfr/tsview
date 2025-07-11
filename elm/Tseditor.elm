@@ -203,6 +203,7 @@ type alias Model =
     , holding: Holding
     -- show-values for formula
     , expand : Bool
+    , loadedComponents: Bool
     , directComponents : List Component
     , terminalComponents : List Component
     , coordData: Dict ( Int, Int ) Stuff
@@ -1258,9 +1259,12 @@ update msg model =
                                                ( mapToFloat val )
                             }
                       )
-                    , Cmd.batch [ getComponents model False
-                                , getComponents model True
-                                ]
+                    , if not model.loadedComponents
+                        then
+                            Cmd.batch [ getComponents model False
+                                      , getComponents model True
+                                      ]
+                        else Cmd.none
                     )
                 Err (errFloat, errString) ->
                     U.nocmd ( addError
@@ -1280,10 +1284,11 @@ update msg model =
         GotComponents expand (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
                 Ok val ->
-                    let newmodel =
+                    let uModel = { model | loadedComponents = True }
+                        newmodel =
                             if expand
-                            then { model | terminalComponents = val}
-                            else { model | directComponents = val}
+                            then { uModel | terminalComponents = val}
+                            else { uModel | directComponents = val}
                     in if not expand
                        then
                            let (modelWithData, cmd) = getDataComponents newmodel False
@@ -5242,6 +5247,7 @@ init input =
             , panActive = False
             , activeRequests = Set.empty
             , expand = False
+            , loadedComponents = False
             , directComponents = []
             , terminalComponents = []
             , coordData = Dict.empty
