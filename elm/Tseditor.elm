@@ -4809,8 +4809,16 @@ debugView model =
                         )
                 , H.br [] []
                 , H.text ( "Query : " ++ model.query )
+                , H.div
+                    []
+                    <| List.map
+                            (\id -> H.p
+                                    []
+                                    [ H.text ("id : " ++ id)]
+                            )
+                            <| Set.toList model.activeRequests
                 , H.br [] []
-                , H.text ( "Series Basket : "
+                , H.text ( "Series Query : "
                           ++ String.join
                                 " / "
                                 (List.map .name model.directComponents )
