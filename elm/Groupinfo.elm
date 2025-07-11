@@ -225,6 +225,7 @@ getplot model =
             , tzware = model.tzaware
             , keepnans = False
             , apipoint = "state"
+            , tracker = Nothing
             }
 
 bindingdecoder : D.Decoder Binding

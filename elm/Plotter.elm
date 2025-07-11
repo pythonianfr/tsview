@@ -396,7 +396,12 @@ getgroupplotdata query =
             (\horizonstr -> [ stringToMaybe "horizon" (String.trim horizonstr) ])
             query.horizon
     in
-    Http.get
-        { url = UB.crossOrigin query.baseurl [ "api", "group", query.apipoint ] fullquery
+    Http.request
+        { method = "GET"
+        , headers = []
+        , url = UB.crossOrigin query.baseurl [ "api", "group", query.apipoint ] fullquery
+        , body = Http.emptyBody
         , expect = Http.expectString query.callback
+        , timeout = Nothing
+        , tracker = query.tracker
         }
