@@ -135,6 +135,23 @@ type ControlKey
 
 naiveTag = "Naive"
 
+type RequestDataType =
+    EditDataRequest
+    | ValueDataRequest
+    | InsertionDatesRequest
+    | ComponentDataRequest
+
+buildRequestId: RequestDataType -> String -> Int -> String
+buildRequestId requestType name versionControl =
+    let
+        prefix = case requestType of
+            EditDataRequest -> "editdata"
+            ValueDataRequest -> "valuedata"
+            InsertionDatesRequest -> "insertdates"
+            ComponentDataRequest -> "componentdata"
+    in
+    prefix ++ "-" ++ name ++ "-" ++ String.fromInt versionControl
+
 
 type alias Model =
     { baseurl : String
@@ -165,6 +182,7 @@ type alias Model =
     , initialCommands : Cmd Msg
     , statusCopy : StatusCopy
     , panActive : Bool
+    , activeRequests : Set String
     -- user actions
     , forceDraw : Bool
     , allowInferFreq : Bool
@@ -242,7 +260,7 @@ type Msg
     | NewRound ActionRound
     | InsertionDates Int (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
-    | GetLastEditedData (Result Http.Error String)
+    | GetLastEditedData Int (Result Http.Error String)
     | FromZoom ZoomFromPlotly
     | NewDragMode Bool
 
@@ -887,17 +905,55 @@ isSingle model =
         _ -> False
 
 
-getPoints: Model -> Cmd Msg
+getPoints: Model -> (Model, Cmd Msg)
 getPoints model =
     case model.mode of
-        Existing I.Primary -> getSeries model (GotEditData model.versionControl) "supervision" GET model.name
-        Existing I.Formula -> getSeries model (GotValueData model.versionControl) "state" GET model.name
-        Creation _ -> Cmd.none
-        BasketMode -> Cmd.none
+        Existing I.Primary ->
+            let
+                requestId = buildRequestId
+                                EditDataRequest
+                                model.name
+                                model.versionControl
+                cmd = getSeries
+                        model
+                        (GotEditData model.versionControl)
+                        "supervision"
+                        GET
+                        model.name
+                        (Just requestId)
+                updatedModel = { model |
+                                    activeRequests = Set.insert
+                                                        requestId
+                                                        model.activeRequests
+                               }
+            in
+            (updatedModel, cmd)
+        Existing I.Formula ->
+            let
+                requestId = buildRequestId
+                                ValueDataRequest
+                                model.name
+                                model.versionControl
+                cmd = getSeries
+                        model
+                        (GotValueData model.versionControl)
+                        "state"
+                        GET
+                        model.name
+                        (Just requestId)
+                updatedModel = { model |
+                                    activeRequests = Set.insert
+                                                        requestId
+                                                        model.activeRequests
+                                }
+            in
+            (updatedModel, cmd)
+        Creation _ -> (model, Cmd.none)
+        BasketMode -> (model, Cmd.none)
 
 
-getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String  -> Cmd Msg
-getSeries model callback apipoint method name =
+getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String -> Maybe String -> Cmd Msg
+getSeries model callback apipoint method name tracker =
     let
         ( start, end ) =
             getFetchBounds model.horizon
@@ -917,7 +973,7 @@ getSeries model callback apipoint method name =
         , keepnans = True
         , apipoint = apipoint
         , exclude = "right"
-        , tracker = Nothing
+        , tracker = tracker
         }
 
 
@@ -950,18 +1006,24 @@ getBasket baseUrl name =
         }
 
 
-getDataComponents: Model -> Bool -> Cmd Msg
+getDataComponents: Model -> Bool -> (Model, Cmd Msg)
 getDataComponents model expand =
-    Cmd.batch
-        <| List.reverse
-               ( List.map
-                     ( getRelevantComponent model expand )
-                     ( relevantComponents model )
-               )
+    let
+        components = relevantComponents model
+        requestIds = List.map
+            (\component -> buildRequestId ComponentDataRequest component.name model.versionControl)
+            components
+        updatedModel = { model | activeRequests = Set.union model.activeRequests (Set.fromList requestIds) }
+        commands = List.map2
+            ( getRelevantComponent updatedModel expand )
+            requestIds
+            components
+    in
+    (updatedModel, Cmd.batch (List.reverse commands))
 
 
-getRelevantComponent : Model -> Bool -> Component ->  Cmd Msg
-getRelevantComponent model expand component  =
+getRelevantComponent : Model -> Bool -> String -> Component ->  Cmd Msg
+getRelevantComponent model expand requestId component  =
     case component.cType of
         Auto ->
             getSeries
@@ -970,6 +1032,7 @@ getRelevantComponent model expand component  =
                 "eval_formula"
                 POST
                 component.name
+                (Just requestId)
         Primary ->
             getSeries
                 model
@@ -977,6 +1040,7 @@ getRelevantComponent model expand component  =
                 "supervision"
                 GET
                 component.name
+                (Just requestId)
         Formula ->
             getSeries
                 model
@@ -984,6 +1048,7 @@ getRelevantComponent model expand component  =
                 "state"
                 GET
                 component.name
+                (Just requestId)
 
 
 printFreq: FreqType -> String
@@ -1088,8 +1153,10 @@ encodeBodyEvalFormula formula from to =
 
 
 postData query =
-    Http.post
-        { url =
+    Http.request
+        { method = "POST"
+        , headers = []
+        , url =
               UB.crossOrigin query.baseurl
               [ "api", "series", query.apipoint ]
               []
@@ -1100,6 +1167,8 @@ postData query =
                                 query.todate
                           )
         , expect = Http.expectString query.callback
+        , timeout = Nothing
+        , tracker = query.tracker
         }
 
 
@@ -1215,11 +1284,11 @@ update msg model =
                             if expand
                             then { model | terminalComponents = val}
                             else { model | directComponents = val}
-                    in ( newmodel
-                       , if not expand
-                         then getDataComponents newmodel False
-                         else Cmd.none
-                       )
+                    in if not expand
+                       then
+                           let (modelWithData, cmd) = getDataComponents newmodel False
+                           in (modelWithData, cmd)
+                       else (newmodel, Cmd.none)
                 Err err ->
                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
@@ -1231,9 +1300,8 @@ update msg model =
                 Ok names ->
                     let
                         newmodel = { model | directComponents = names}
-                    in ( newmodel
-                       , getDataComponents newmodel False
-                       )
+                        (modelWithData, cmd) = getDataComponents newmodel False
+                    in ( modelWithData, cmd )
                 Err err ->
                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
@@ -1443,10 +1511,19 @@ update msg model =
                             )
 
                 ModuleHorizon.Fetch _ ->
-                    ( { resetModel | expand = False
-                                   , versionControl = model.versionControl + 1 }
-                    , Cmd.batch ( [ moreCommands ] ++
-                                  getRelevantData resetModel )
+                    let
+                        cancelCmd = Cmd.batch
+                                            (List.map
+                                                Http.cancel
+                                                (Set.toList model.activeRequests)
+                                            )
+                        resetModelEmpty = { resetModel | expand = False
+                                                       , versionControl = model.versionControl + 1
+                                                       , activeRequests = Set.empty }
+                        (modelWithData, dataCommands) = getRelevantData resetModelEmpty
+                    in
+                    ( modelWithData
+                    , Cmd.batch ( [ cancelCmd, moreCommands ] ++ dataCommands )
                     )
 
 
@@ -1564,12 +1641,13 @@ update msg model =
         Expand expand ->
             let
                 newModel = { model | expand = expand }
+                cleanModel = buildCoord ( cleanDiff  newModel )
             in
-            ( buildCoord ( cleanDiff  newModel )
-            , if ( expand && loadedComponents model.terminalComponents == 0 )
-              then getDataComponents newModel True
-              else Cmd.none
-            )
+            if ( expand && loadedComponents model.terminalComponents == 0 )
+            then
+                let (modelWithData, cmd) = getDataComponents cleanModel True
+                in (modelWithData, cmd)
+            else (cleanModel, Cmd.none)
 
         Visible eCol ->
             case model.nameVisbility of
@@ -1601,9 +1679,11 @@ update msg model =
                         newmodel = { model | insertion_dates = adates }
                     in
                     if (Array.length model.insertion_dates) /= (Array.length adates) then
-                        ( newmodel
-                        , getSeries model GetLastEditedData "supervision" GET model.name
-                        )
+                        let requestId = buildRequestId EditDataRequest model.name model.versionControl
+                            updatedModel = { newmodel | activeRequests = Set.insert requestId newmodel.activeRequests }
+                            cmd = getSeries model (GetLastEditedData model.versionControl) "supervision" GET model.name (Just requestId)
+                        in
+                        ( updatedModel, cmd )
                     else
                         ( newmodel
                         , patchEditedData model
@@ -1615,7 +1695,10 @@ update msg model =
         GetLastInsertionDates (Err error) ->
             doerr "idates http" <| U.unwraperror error
 
-        GetLastEditedData (Ok rawdata) ->
+        GetLastEditedData versionControl (Ok rawdata) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             case decodeSupervised rawdata of
                 Ok val ->
                     let
@@ -1638,7 +1721,7 @@ update msg model =
                 Err _ ->
                     U.nocmd model
 
-        GetLastEditedData (Err _) ->
+        GetLastEditedData versionControl (Err _) ->
             U.nocmd model
 
         SaveEditedData ->
@@ -1681,8 +1764,12 @@ update msg model =
         Saved (Ok _) ->
             case model.mode of
                 Existing _ ->
-                    ( cleanDiff model
-                    , Cmd.batch ( getRelevantData model )
+                    let
+                        cleanModel = cleanDiff model
+                        (modelWithData, dataCommands) = getRelevantData cleanModel
+                    in
+                    ( modelWithData
+                    , Cmd.batch dataCommands
                     )
                 Creation _ -> ( model
                               , Browser.Navigation.load
@@ -1692,9 +1779,12 @@ update msg model =
                                             [ UB.string "name" model.name ]
                               )
                 BasketMode ->
-                    ( cleanDiff model
-                    , Cmd.batch
-                          ( getRelevantData model)
+                    let
+                        cleanModel = cleanDiff model
+                        (modelWithData, dataCommands) = getRelevantData cleanModel
+                    in
+                    ( modelWithData
+                    , Cmd.batch dataCommands
                     )
 
         Saved (Err _) ->
@@ -2429,7 +2519,7 @@ getLastNaive dates =
                    Nothing -> "No Last"
                    Just naive -> String.replace "T" " " naive
 
- 
+
 packDates: Series -> String
 packDates series =
     String.join("\n")
@@ -2877,17 +2967,39 @@ arrowActionT model increment =
                                     ( Just extrem)
 
 
-getRelevantData : Model -> List (Cmd Msg)
+getRelevantData : Model -> (Model, List (Cmd Msg))
 getRelevantData model =
     case model.mode of
         Existing I.Primary ->
-            [ getPoints model
-            , I.getidates model "series" (InsertionDates model.versionControl) True
-            ]
+            let
+                (modelWithPoints, pointsCmd) = getPoints model
+                insertDatesRequestId = buildRequestId
+                                        InsertionDatesRequest
+                                        model.name
+                                        model.versionControl
+                insertDatesCmd = I.getidates
+                                    model
+                                    "series"
+                                    (InsertionDates model.versionControl)
+                                    True
+                updatedModel = { modelWithPoints |
+                                    activeRequests = Set.insert
+                                                        insertDatesRequestId
+                                                        modelWithPoints.activeRequests
+                               }
+            in
+            (updatedModel, [ pointsCmd, insertDatesCmd ])
         Existing I.Formula ->
-            [ getPoints model ]
-        Creation _ -> [ Cmd.none ]
-        BasketMode ->  [ getDataComponents model False ]
+            let
+                (modelWithPoints, pointsCmd) = getPoints model
+            in
+            (modelWithPoints, [ pointsCmd ])
+        Creation _ -> (model, [ Cmd.none ])
+        BasketMode ->
+            let
+                (modelWithComponents, componentsCmd) = getDataComponents model False
+            in
+            (modelWithComponents, [ componentsCmd ])
 
 
 parseInput : String -> Edited
@@ -5128,6 +5240,7 @@ init input =
             , roundValues = Nothing
             , statusCopy = initialStatusCopy
             , panActive = False
+            , activeRequests = Set.empty
             , expand = False
             , directComponents = []
             , terminalComponents = []
