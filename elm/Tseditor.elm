@@ -150,6 +150,7 @@ type alias Model =
     , horizon : HorizonModel
     , creation: CreationModel
     , newBatch : Bool
+    , versionControl: Int
     -- data
     , insertion_dates : Array String
     , series : Series
@@ -193,10 +194,10 @@ type alias Model =
 
 type Msg
     = GetPermissions (Result Http.Error String)
-    | GotEditData (Result Http.Error String)
-    | GotValueData (Result Http.Error String)
+    | GotEditData Int (Result Http.Error String)
+    | GotValueData Int (Result Http.Error String)
     | GotComponents Bool (Result Http.Error String)
-    | GotComponentData CType String Bool (Result Http.Error String)
+    | GotComponentData Int CType String Bool (Result Http.Error String)
     | GotGenerated PreviewType (Result Http.Error String)
     | GotBasket (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
@@ -239,7 +240,7 @@ type Msg
     | FillAll
     | FromLocal String
     | NewRound ActionRound
-    | InsertionDates (Result Http.Error String)
+    | InsertionDates Int (Result Http.Error String)
     | GetLastInsertionDates (Result Http.Error String)
     | GetLastEditedData (Result Http.Error String)
     | FromZoom ZoomFromPlotly
@@ -889,8 +890,8 @@ isSingle model =
 getPoints: Model -> Cmd Msg
 getPoints model =
     case model.mode of
-        Existing I.Primary -> getSeries model GotEditData "supervision" GET model.name
-        Existing I.Formula -> getSeries model GotValueData "state" GET model.name
+        Existing I.Primary -> getSeries model (GotEditData model.versionControl) "supervision" GET model.name
+        Existing I.Formula -> getSeries model (GotValueData model.versionControl) "state" GET model.name
         Creation _ -> Cmd.none
         BasketMode -> Cmd.none
 
@@ -965,21 +966,21 @@ getRelevantComponent model expand component  =
         Auto ->
             getSeries
                 model
-                ( GotComponentData Auto component.name expand )
+                ( GotComponentData model.versionControl Auto component.name expand )
                 "eval_formula"
                 POST
                 component.name
         Primary ->
             getSeries
                 model
-                ( GotComponentData Primary component.name expand )
+                ( GotComponentData model.versionControl Primary component.name expand )
                 "supervision"
                 GET
                 component.name
         Formula ->
             getSeries
                 model
-                ( GotComponentData Formula component.name expand )
+                ( GotComponentData model.versionControl Formula component.name expand )
                 "state"
                 GET
                 component.name
@@ -1125,7 +1126,10 @@ update msg model =
         GetPermissions (Err err) ->
             doerr "getpermissions http" <| U.unwraperror err
 
-        GotEditData (Ok rawdata) ->
+        GotEditData versionControl (Ok rawdata) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             case decodeSupervised rawdata of
                 Ok indexedval ->
                     let
@@ -1157,10 +1161,15 @@ update msg model =
                                 ( JD.errorToString errString )
                           )
 
-        GotEditData (Err _) ->
-            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+        GotEditData versionControl (Err _) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
-        GotValueData (Ok rawdata) ->
+        GotValueData versionControl (Ok rawdata) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             case decodeValues rawdata of
                 Ok val ->
                     let zoomTs =
@@ -1194,8 +1203,10 @@ update msg model =
                                   ( JD.errorToString errFloat ) ++ ( JD.errorToString errString )
                             )
 
-        GotValueData (Err _) ->
-            U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
+        GotValueData versionControl (Err _) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else U.nocmd { model | horizon = setStatusPlot model.horizon Failure }
 
         GotComponents expand (Ok rawdata) ->
             case JD.decodeString componentsDecoder rawdata of
@@ -1229,7 +1240,10 @@ update msg model =
         GotBasket (Err _) ->
             U.nocmd model
 
-        GotComponentData cType name expand (Ok rawdata) ->
+        GotComponentData versionControl cType name expand (Ok rawdata) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             case cType of
                 Primary ->
                     case decodeSupervised rawdata of
@@ -1299,7 +1313,10 @@ update msg model =
                         Err err ->
                             U.nocmd { model | errors = model.errors ++ [ JD.errorToString err ] }
 
-        GotComponentData cType name expand (Err _) ->
+        GotComponentData versionControl cType name expand (Err _) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             let
                 newCD = insertComponentData
                         ( if expand
@@ -1426,7 +1443,8 @@ update msg model =
                             )
 
                 ModuleHorizon.Fetch _ ->
-                    ( { resetModel | expand = False }
+                    ( { resetModel | expand = False
+                                   , versionControl = model.versionControl + 1 }
                     , Cmd.batch ( [ moreCommands ] ++
                                   getRelevantData resetModel )
                     )
@@ -2025,15 +2043,20 @@ update msg model =
                          Nothing -> U.nocmd { model | roundValues = Nothing }
                          Just round -> U.nocmd { model | roundValues = ( String.toInt  round)}
 
-        InsertionDates (Ok rawdates) ->
+        InsertionDates versionControl (Ok rawdates) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else
             case JD.decodeString I.idatesdecoder rawdates of
                 Ok dates ->
                     U.nocmd { model | insertion_dates = Array.fromList dates }
                 Err err ->
                     doerr "idates decode" <| JD.errorToString err
 
-        InsertionDates (Err error) ->
-            doerr "idates http" <| U.unwraperror error
+        InsertionDates versionControl (Err error) ->
+            if versionControl /= model.versionControl
+            then U.nocmd model
+            else doerr "idates http" <| U.unwraperror error
 
         FromZoom dates ->
                  let
@@ -2859,7 +2882,7 @@ getRelevantData model =
     case model.mode of
         Existing I.Primary ->
             [ getPoints model
-            , I.getidates model "series" InsertionDates True
+            , I.getidates model "series" (InsertionDates model.versionControl) True
             ]
         Existing I.Formula ->
             [ getPoints model ]
@@ -5078,6 +5101,7 @@ init input =
                         None
             , creation = initCreationModel
             , newBatch = False
+            , versionControl = 0
             , initialCommands = Cmd.none
             , forceDraw = False
             , allowInferFreq = False
