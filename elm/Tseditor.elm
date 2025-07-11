@@ -157,7 +157,7 @@ type alias Model =
     { baseurl : String
     , name : String
     , canwrite : Bool
-    , basket : String
+    , query : String
     , mode : EditionMode
     , meta : M.Metadata
     , exist: Bool
@@ -218,7 +218,7 @@ type Msg
     | GotComponents Bool (Result Http.Error String)
     | GotComponentData Int CType String Bool (Result Http.Error String)
     | GotGenerated PreviewType (Result Http.Error String)
-    | GotBasket (Result Http.Error String)
+    | GotQuery (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
@@ -300,7 +300,7 @@ type alias Box =
 type EditionMode
     = Creation CreationMode
     | Existing I.SeriesType
-    | BasketMode
+    | QueryMode
 
 
 type CreationMode
@@ -645,7 +645,7 @@ isStr meta =
 likeComp: Model -> List Component
 likeComp model =
     case model.mode of
-        BasketMode ->
+        QueryMode ->
             []
         _ ->
             [ Component
@@ -680,7 +680,7 @@ type CompStatus
     | CompError
 
 
-type alias BasketItem =
+type alias QueryItem =
     { name : String
     , imeta : Maybe M.Metadata
     , meta : Maybe M.Metadata
@@ -689,12 +689,12 @@ type alias BasketItem =
     }
 
 
-toComp: BasketItem -> Component
-toComp basket =
-    { name= basket.name
-    , cType = if basket.kind == "primary" then Primary else Formula
+toComp: QueryItem -> Component
+toComp queryItem =
+    { name= queryItem.name
+    , cType = if queryItem.kind == "primary" then Primary else Formula
     , data = emptySeries
-    , tzaware = case basket.imeta of
+    , tzaware = case queryItem.imeta of
                     Nothing -> True
                     Just imeta -> isTzaware imeta
     , status = CompEmpty
@@ -756,9 +756,9 @@ pasteWithDataDecoder : JD.Decoder PasteType
 pasteWithDataDecoder =
         JD.map2 PasteType textDecoder indexDecoder
 
-basketItemDecode : JD.Decoder BasketItem
-basketItemDecode =
-    JD.map5 BasketItem
+queryItemDecode : JD.Decoder QueryItem
+queryItemDecode =
+    JD.map5 QueryItem
         (JD.field "name" JD.string)
         (JD.field "imeta" (JD.succeed Nothing))
         (JD.field "meta" (JD.succeed Nothing))
@@ -950,7 +950,7 @@ getPoints model =
             in
             (updatedModel, cmd)
         Creation _ -> (model, Cmd.none)
-        BasketMode -> (model, Cmd.none)
+        QueryMode -> (model, Cmd.none)
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String -> Maybe String -> Cmd Msg
@@ -997,13 +997,13 @@ getComponents model expand =
         }
 
 
-getBasket : String -> String -> Cmd Msg
-getBasket baseUrl name =
+getQuery : String -> String -> Cmd Msg
+getQuery baseUrl queryStr =
     Http.get
-        { expect = Http.expectString GotBasket
+        { expect = Http.expectString GotQuery
         , url = UB.crossOrigin baseUrl
-              [ "api", "series", "basket" ]
-              [ UB.string "name" name ]
+              [ "api", "series", "find" ]
+              [ UB.string "query" queryStr ]
         }
 
 
@@ -1300,8 +1300,8 @@ update msg model =
         GotComponents _ (Err _) ->
             U.nocmd model
 
-        GotBasket (Ok rawdata) ->
-            case JD.decodeString ( JD.list ( JD.map toComp basketItemDecode ) ) rawdata of
+        GotQuery (Ok rawdata) ->
+            case JD.decodeString ( JD.list ( JD.map toComp queryItemDecode ) ) rawdata of
                 Ok names ->
                     let
                         newmodel = { model | directComponents = names}
@@ -1310,7 +1310,7 @@ update msg model =
                 Err err ->
                     U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
 
-        GotBasket (Err _) ->
+        GotQuery (Err _) ->
             U.nocmd model
 
         GotComponentData versionControl cType name expand (Ok rawdata) ->
@@ -1500,7 +1500,7 @@ update msg model =
                     )
                 ModuleHorizon.FromLocalStorage _ ->
                     case model.mode of
-                        BasketMode ->
+                        QueryMode ->
                             ( resetModel
                             , Cmd.batch [ moreCommands
                                         , commandStart resetModel
@@ -1783,7 +1783,7 @@ update msg model =
                                             [ "tseditor" ]
                                             [ UB.string "name" model.name ]
                               )
-                BasketMode ->
+                QueryMode ->
                     let
                         cleanModel = cleanDiff model
                         (modelWithData, dataCommands) = getRelevantData cleanModel
@@ -3000,7 +3000,7 @@ getRelevantData model =
             in
             (modelWithPoints, [ pointsCmd ])
         Creation _ -> (model, [ Cmd.none ])
-        BasketMode ->
+        QueryMode ->
             let
                 (modelWithComponents, componentsCmd) = getDataComponents model False
             in
@@ -3390,7 +3390,7 @@ underThePlot model =
                      , buttonShowDiff model
                      , buttonFillAll model
                      ]
-                BasketMode ->
+                QueryMode ->
                     [ roundForm model
                      , buttonShowDiff model
                      , buttonFillAll model
@@ -3412,7 +3412,7 @@ permaLink model =
                         model.baseurl
                         ["tseditor"]
                         <| case model.mode of
-                            BasketMode -> basketLink model
+                            QueryMode -> queryLink model
                             _ ->
                                 ( queryNav model model.name )
                   )
@@ -3597,7 +3597,7 @@ viewRelevantTable model =
     case model.mode of
         Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
-        BasketMode ->  viewValueTable model
+        QueryMode ->  viewValueTable model
         Creation Form ->
             H.table
                 [ HA.class "creation-form"
@@ -4252,7 +4252,7 @@ insideHeader model name cType iCol =
              ]
         1 ->
             case model.mode of
-                BasketMode ->
+                QueryMode ->
                     buildLink model iCol name cType
                 _ ->
                     [ H.p
@@ -4481,10 +4481,10 @@ datesComponent model comp =
         Set.fromList allDates
 
 
-basketLink: Model -> List UB.QueryParameter
-basketLink model =
+queryLink: Model -> List UB.QueryParameter
+queryLink model =
     let bounds = getFromToDates model.horizon
-        base = UB.string "basket" model.basket
+        base = UB.string "query" model.query
     in
     case bounds of
         Nothing -> [ base ]
@@ -4808,7 +4808,7 @@ debugView model =
                                 )
                         )
                 , H.br [] []
-                , H.text ( "Basket : " ++ model.basket )
+                , H.text ( "Query : " ++ model.query )
                 , H.br [] []
                 , H.text ( "Series Basket : "
                           ++ String.join
@@ -4915,7 +4915,7 @@ displayStatus model =
       then H.text ""
       else if isEmpty model
                 && (model.horizon.plotStatus == Success)
-                && model.mode /= BasketMode
+                && model.mode /= QueryMode
            then H.text """No data in this interval: select another one."""
            else H.text ""
 
@@ -4945,7 +4945,7 @@ plotNode model =
                    }
     in
     case model.mode
-        of BasketMode -> plotBasket model dragMode lineMarker newXaxis newYaxis
+        of QueryMode -> plotQuery model dragMode lineMarker newXaxis newYaxis
            _ ->
                case (isStr model.meta) of
                    True -> plotString model
@@ -5051,8 +5051,8 @@ plotString model =
     ]
 
 
-plotBasket: Model -> String -> String -> Axis -> Axis -> H.Html Msg
-plotBasket model dragMode lineMarker xAxis yAxis =
+plotQuery: Model -> String -> String -> Axis -> Axis -> H.Html Msg
+plotQuery model dragMode lineMarker xAxis yAxis =
     let diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
     in
         H.node "plot-figure"
@@ -5106,7 +5106,7 @@ traceComp lineMarker component =
 tableStat: Model -> H.Html Msg
 tableStat model =
     case model.mode of
-        BasketMode -> H.div [] []
+        QueryMode -> H.div [] []
         _ -> H.div
                 [ HA.class "stat-table-container"]
                 ( [ buttonStat model ]
@@ -5178,13 +5178,13 @@ commandStart model =
         Creation _ -> Cmd.batch [ getCatalog model
                                 , getOffsets model
                                 ]
-        BasketMode -> getBasket model.baseurl model.basket
+        QueryMode -> getQuery model.baseurl model.query
 
 
 type alias Input =
     { baseurl : String
     , name : String
-    , basket: String
+    , query: String
     , min: String
     , max: String
     , debug: String
@@ -5198,12 +5198,12 @@ init input =
             , errors = [ ]
             , name = input.name
             , canwrite = True
-            , basket = input.basket
+            , query = input.query
             , mode = if input.name /= ""
                      then Existing I.Primary
                      else
-                         if input.basket /= ""
-                         then BasketMode
+                         if input.query /= ""
+                         then QueryMode
                          else Creation Form
             , meta = Dict.empty
             , exist = False
