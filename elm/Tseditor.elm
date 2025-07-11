@@ -1304,7 +1304,9 @@ update msg model =
             case JD.decodeString ( JD.list ( JD.map toComp queryItemDecode ) ) rawdata of
                 Ok names ->
                     let
-                        newmodel = { model | directComponents = names}
+                        newmodel = { model | directComponents = names
+                                           , horizon = setStatusPlot model.horizon Loading
+                                   }
                         (modelWithData, cmd) = getDataComponents newmodel False
                     in ( modelWithData, cmd )
                 Err err ->
@@ -1374,8 +1376,8 @@ update msg model =
                                     else { model | directComponents = newCD}
                                 status =
                                     if expand
-                                    then multiStatus model.terminalComponents
-                                    else multiStatus model.directComponents
+                                    then multiStatus newModel.terminalComponents
+                                    else multiStatus newModel.directComponents
                                in
                                U.nocmd
                                    <| buildCoord { newModel |
@@ -4819,6 +4821,7 @@ debugView model =
                             <| Set.toList model.activeRequests
                 , H.br [] []
                 , H.text ( "Series Query : "
+                          ++ "(" ++ String.fromInt (List.length model.directComponents ) ++ ")"
                           ++ String.join
                                 " / "
                                 (List.map .name model.directComponents )
