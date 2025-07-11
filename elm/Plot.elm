@@ -274,7 +274,10 @@ fetchseries model reload =
         requestIds = List.map
             (\name -> buildRequestId SeriesRequest name model.versionControl)
             seriesToFetch
-        updatedModel = { model | activeRequests = Set.union model.activeRequests (Set.fromList requestIds) }
+        updatedModel = { model | activeRequests =
+                                    Set.union
+                                        model.activeRequests
+                                        (Set.fromList requestIds) }
     in
     ( updatedModel, Cmd.batch (List.reverse requests) )
 
@@ -896,14 +899,8 @@ update msg model =
 
         GotGroupData versionControl name (Err err) ->
             let
-                requestId = buildRequestId GroupRequest name versionControl
-                modelWithoutRequest =
-                    { model | activeRequests = Set.remove
-                                                requestId
-                                                model.activeRequests
-                    }
                 newmodel = U.adderror
-                            modelWithoutRequest
+                            model
                             ("gotgroupdata error" ++ " -> " ++ name)
                 registry = { groups =
                                 Dict.insert
