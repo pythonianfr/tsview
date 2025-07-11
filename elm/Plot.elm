@@ -88,6 +88,10 @@ type DataType =
     TypeSeries
     | TypeGroup
 
+type RequestDataType =
+    SeriesRequest
+    | GroupRequest
+
 
 type alias Loaded =
     { series : Dict String Series
@@ -204,10 +208,20 @@ findmissinggroup model =
     in List.filter ismissing selected
 
 
+buildRequestId: RequestDataType -> String -> Int -> String
+buildRequestId requestType name versionControl =
+    let
+        prefix = case requestType of
+            SeriesRequest -> "series"
+            GroupRequest -> "group"
+    in
+    prefix ++ "-" ++ name ++ "-" ++ String.fromInt versionControl
+
+
 fetchsingle: Model -> String -> String ->  Maybe String -> String -> Cmd Msg
 fetchsingle model start end basket name  =
     let
-        requestId = "series-" ++ name ++ "-" ++ String.fromInt model.versionControl
+        requestId = buildRequestId SeriesRequest name model.versionControl
     in
     getdata
          { baseurl = model.baseurl
@@ -230,7 +244,7 @@ fetchsingle model start end basket name  =
 fetchsinglegroup: Model -> String -> String ->  String -> Cmd Msg
 fetchsinglegroup model start end name  =
     let
-        requestId = "group-" ++ name ++ "-" ++ String.fromInt model.versionControl
+        requestId = buildRequestId GroupRequest name model.versionControl
     in
     getgroupplotdata
          { baseurl = model.baseurl
@@ -258,7 +272,7 @@ fetchseries model reload =
             ( fetchsingle model start end Nothing )
             seriesToFetch
         requestIds = List.map
-            (\name -> "series-" ++ name ++ "-" ++ String.fromInt model.versionControl)
+            (\name -> buildRequestId SeriesRequest name model.versionControl)
             seriesToFetch
         updatedModel = { model | activeRequests = Set.union model.activeRequests (Set.fromList requestIds) }
     in
@@ -275,7 +289,7 @@ fetchgroups model reload =
             ( fetchsinglegroup model start end )
             groupsToFetch
         requestIds = List.map
-            (\name -> "group-" ++ name ++ "-" ++ String.fromInt model.versionControl)
+            (\name -> buildRequestId GroupRequest name model.versionControl)
             groupsToFetch
         updatedModel = { model | activeRequests =
                                     Set.union
@@ -882,7 +896,7 @@ update msg model =
 
         GotGroupData versionControl name (Err err) ->
             let
-                requestId = "group-" ++ name ++ "-" ++ String.fromInt versionControl
+                requestId = buildRequestId GroupRequest name versionControl
                 modelWithoutRequest =
                     { model | activeRequests = Set.remove
                                                 requestId
