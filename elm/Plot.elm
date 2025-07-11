@@ -286,9 +286,6 @@ fetchgroups model reload =
 
 fetchbasket : Model -> Bool -> String -> Cmd Msg
 fetchbasket model remove  name =
-    let
-        requestId = "basket-" ++ name ++ "-" ++ String.fromInt model.versionControl
-    in
     Http.request
         { method = "GET"
         , headers = []
@@ -298,7 +295,7 @@ fetchbasket model remove  name =
         , body = Http.emptyBody
         , expect = Http.expectString ( GotBasket remove name )
         , timeout = Nothing
-        , tracker = Just requestId
+        , tracker = Nothing
         }
 
 
@@ -407,20 +404,13 @@ update msg model =
                                   }
 
                         ( start, end ) = getFetchBounds model.horizon
-                        basketRequestIds = List.map
-                                            (\name -> "basket-" ++ basket ++ "-" ++ String.fromInt model.versionControl)
-                                            names
-                        modelWithBasketRequests = { model | registry = updated
-                                                          , activeRequests =
-                                                                Set.union
-                                                                    model.activeRequests
-                                                                    (Set.fromList basketRequestIds)
+                        newModel = { model | registry = updated
                                                   }
                     in
-                        ( modelWithBasketRequests
+                        ( newModel
                         , Cmd.batch
                             <| List.map
-                                    (fetchsingle modelWithBasketRequests start end ( Just basket ))
+                                    (fetchsingle newModel start end ( Just basket ))
                                      ( List.reverse names )
                         )
 
@@ -813,9 +803,7 @@ update msg model =
 
         GotSeriesData versionControl basket name (Err err) ->
             let
-                requestId = "series-" ++ name ++ "-" ++ String.fromInt versionControl
-                modelWithoutRequest = { model | activeRequests = Set.remove requestId model.activeRequests }
-                newmodel = U.adderror modelWithoutRequest ("gotplotdata error" ++ " -> " ++ name)
+                newmodel = U.adderror model ("gotplotdata error" ++ " -> " ++ name)
                 updatedinfos = { series =
                                     Dict.insert
                                         name
