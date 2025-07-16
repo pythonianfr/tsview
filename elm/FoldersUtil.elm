@@ -341,6 +341,7 @@ viewSelector payload cut convertMsg =
             , onInput (\ s ->  convertMsg ( Query payload.path s ))
             , onFocus ( convertMsg ( Query payload.path payload.query ))
             , value payload.query
+            , disabled ( not ( anySeries payload ))
             ]
             []
         , Html.button
@@ -723,6 +724,11 @@ anyAction: Payload -> Bool
 anyAction payload =
     anySelected payload
     || payload.query /= ""
+
+
+anySeries: Payload -> Bool
+anySeries payload =
+    not ( Dict.isEmpty payload.series )
 
 
 getOpenState: Tree Payload -> Set String
