@@ -301,7 +301,7 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                                         else ""
                         ]
                 )
-                ([ viewFolder overDrag payload open convertMsg
+                ([ viewFolder baseUrl overDrag payload open convertMsg
                  ]++ if open
                       then
                           [ viewSelector payload cut convertMsg
@@ -367,8 +367,9 @@ viewSelector payload cut convertMsg =
             [ Html.text ( buildCounter payload )]
         ]
 
-viewFolder: Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
-viewFolder overDrag payload open convertMsg =
+
+viewFolder: String -> Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
+viewFolder baseUrl overDrag payload open convertMsg =
     let mutable = case payload.path of
                     Root -> False
                     Branch _ -> True
@@ -389,58 +390,66 @@ viewFolder overDrag payload open convertMsg =
          if payload.path == Unclassified
          then []
          else
-         [ Html.button
-            [ class "folder-action"
-            , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
-            , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
+            [ folderActionButton payload mutable convertMsg
+            , linkQuery baseUrl "tsview" "view" payload.path
+            , linkQuery baseUrl "tseditor" "edition" payload.path
             ]
-            [ Html.text "..."
-            , Html.ul
-                [ class "action-box"
-                , attribute "popover" ""
-                , style "position-anchor" ( "action-button-" ++ ( reprPath payload.path ) )
-                , id ( "action-" ++ ( reprPath payload.path ) )
-                ]
-                ([ Html.li
-                    [ title "Creation take effect when a series is moved into. Dots are removed"
-                    , onClick <| convertMsg
-                                    ( Create payload.path )
-                    ]
-                    [ Html.text "Create"
-                    , Html.div
-                        []
-                        [ Html.input
-                            [ class "input-new-name"
-                            , placeholder "name"
-                            , onInput
-                                (\ s ->  convertMsg
-                                            ( CreationName s )
-                                )
-                            ]
-                            []
-                        , Html.button
-                            [ class "validate-new-name" ]
-                            [ Html.text "Ok" ]
-                        ]
-                    ]
-                 ] ++
-                 ( if not mutable
-                    then []
-                    else
-                        [ Html.li
-                            []
-                            [ Html.text "Rename"]
-                        , Html.li
-                            [ onClick <| convertMsg
-                                            ( Delete payload.path )
-                            ]
-                            [ Html.text "Delete" ]
-                        ]
-                    )
-                 )
-            ]
-         ]
         )
+
+
+folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
+folderActionButton payload mutable convertMsg =
+    Html.button
+        [ class "folder-action"
+        , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
+        , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
+        ]
+        [ Html.text "..."
+        , Html.ul
+            [ class "action-box"
+            , attribute "popover" ""
+            , style "position-anchor" ( "action-button-" ++ ( reprPath payload.path ) )
+            , id ( "action-" ++ ( reprPath payload.path ) )
+            ]
+            ([ Html.li
+                [ title "Creation take effect when a series is moved into. Dots are removed"
+                , onClick <| convertMsg
+                                ( Create payload.path )
+                ]
+                [ Html.text "Create"
+                , Html.div
+                    []
+                    [ Html.input
+                        [ class "input-new-name"
+                        , placeholder "name"
+                        , onInput
+                            (\ s ->  convertMsg
+                                        ( CreationName s )
+                            )
+                        ]
+                        []
+                    , Html.button
+                        [ class "validate-new-name" ]
+                        [ Html.text "Ok" ]
+                    ]
+                ]
+             ] ++
+             ( if not mutable
+                then []
+                else
+                    [ Html.li
+                        []
+                        [ Html.text "Rename"]
+                    , Html.li
+                        [ onClick <| convertMsg
+                                        ( Delete payload.path )
+                        ]
+                        [ Html.text "Delete" ]
+                    ]
+                )
+             )
+        ]
+
 
 
 
@@ -540,6 +549,32 @@ linkInfo baseUrl sn =
         , target "_blank"
         ]
         [ Html.text "info" ]
+
+
+buildQuery: String -> String
+buildQuery branch =
+    "(by.at-path "
+    ++ """ " """
+    ++ branch
+    ++ """ " """
+    ++ ")"
+
+
+linkQuery: String -> String -> String ->Path -> Html msg
+linkQuery baseUrl page label path =
+    case path of
+        Unclassified -> Html.p [] []
+        Root -> Html.p [] []
+        Branch branch ->
+            Html.a
+                [ href
+                    <| UB.crossOrigin
+                        baseUrl
+                        [page]
+                        [ UB.string "query" (buildQuery branch) ]
+                , target "_blank"
+                ]
+                [ Html.text label ]
 
 
 classOver: Payload -> Maybe Path -> String

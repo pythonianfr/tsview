@@ -592,7 +592,7 @@ label.option {
   background: #F0F0F0;
   margin-top: 0;
   padding: 0;
-  padding-right: 1em;
+  padding-right: 2em;
   font-family: 'Roboto Mono', monospace;
   font-size: .85rem;
   font-weight: 400;
@@ -640,6 +640,12 @@ label.option {
 
 .menu-folders .folder-row p {
     padding-right: 0.3em;
+    float: right;
+}
+
+.menu-folders .folder-row a {
+    padding-left: 0.3em;
+    float: right;
 }
 
 .menu-folders .folder-name {
