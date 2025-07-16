@@ -313,7 +313,9 @@ update msg model =
                     )
 
                 DragStart from name ->
-                    ( { model | currentDrag = Drag from name}
+                    ( { model | currentDrag = Drag from name
+                              , focus = Just from
+                      }
                     , Cmd.none
                     )
                 DragOver over ->
