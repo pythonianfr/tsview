@@ -639,7 +639,10 @@ label.option {
 .menu-folders .folder-row-left {
     display: flex;
     cursor: pointer;
+}
 
+.menu-folders .folder-row button {
+    cursor: pointer;
 }
 
 .menu-folders .fill-row {

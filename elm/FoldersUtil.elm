@@ -301,12 +301,12 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                                         else ""
                         ]
                 )
-                ([ viewFolder baseUrl overDrag payload open convertMsg
+                ([ viewFolder baseUrl payload open convertMsg
                  ]++ if open
                       then
                           [ viewSelector payload cut convertMsg
                           , viewSelected baseUrl payload cut convertMsg
-                          , viewSeries baseUrl overDrag payload convertMsg
+                          , viewSeries baseUrl payload convertMsg
                           ]
                         else
                           []
@@ -336,8 +336,7 @@ viewSelector payload cut convertMsg =
     Html.div
         [class "filter-name"]
         [ Html.input
-            [ placeholder "filter series (>2 chars)"
-            , title "at least 3 characters"
+            [ title "filter series : at least 3 characters"
             , onInput (\ s ->  convertMsg ( Query payload.path s ))
             , onFocus ( convertMsg ( Query payload.path payload.query ))
             , value payload.query
@@ -369,8 +368,8 @@ viewSelector payload cut convertMsg =
         ]
 
 
-viewFolder: String -> Maybe Path -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
-viewFolder baseUrl overDrag payload open convertMsg =
+viewFolder: String -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
+viewFolder baseUrl payload open convertMsg =
     let mutable = case payload.path of
                     Root -> False
                     Branch _ -> True
@@ -509,8 +508,8 @@ viewSelected basUrl payload cut convertMsg  =
                 ( selectFromUser payload )
 
 
-viewSeries : String -> Maybe Path-> Payload -> (MsgTree -> msg) -> Html msg
-viewSeries baseUrl overDrag payload convertMsg =
+viewSeries : String -> Payload -> (MsgTree -> msg) -> Html msg
+viewSeries baseUrl payload convertMsg =
     Html.ul
         [ class "series-list"
         ]
