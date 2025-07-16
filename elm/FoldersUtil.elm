@@ -379,22 +379,27 @@ viewFolder baseUrl overDrag payload open convertMsg =
         [ class "folder-row"
         , class ( if open then "open" else "not-open" )
         ]
-        ([ buttonOpen Open payload convertMsg
-        , Html.p
-            [ class "folder-name"
+        [ Html.div
+            [ class "folder-row-left"
             , onClick <| convertMsg ( Open payload.path ( not open ) )
             ]
-            [ Html.text payload.name
-            ]
-         ] ++
-         if payload.path == Unclassified
-         then []
-         else
-            [ folderActionButton payload mutable convertMsg
-            , linkQuery baseUrl "tsview" "view" payload.path
-            , linkQuery baseUrl "tseditor" "edition" payload.path
-            ]
-        )
+            ([ buttonOpen Open payload convertMsg
+            , Html.p
+                [ class "folder-name"]
+                [ Html.text payload.name
+                ]
+             ] ++
+             if payload.path == Unclassified
+             then []
+             else
+                [ folderActionButton payload mutable convertMsg ]
+            )
+        , Html.div
+                [ class "multi-links"]
+                [ linkQuery baseUrl "tsview" "view" payload.path
+                , linkQuery baseUrl "tseditor" "edition" payload.path
+                ]
+        ]
 
 
 folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
@@ -456,11 +461,10 @@ folderActionButton payload mutable convertMsg =
 buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg
 buttonOpen openMsg payload convertMsg =
     Html.i
-        [ onClick <| convertMsg
-                        (openMsg payload.path (not payload.open))
-        , class <| if payload.open
+        [class <| if payload.open
                     then "fa fa-folder-open"
                     else "fa fa-folder"
+        , onClick <| convertMsg ( openMsg payload.path ( not payload.open ) )
         ]
         []
 

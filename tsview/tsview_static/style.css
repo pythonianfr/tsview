@@ -616,6 +616,10 @@ label.option {
     color: #f21f10;
   }
 
+.menu-folders .node {
+    min-width: 35em;
+}
+
 .menu-folders .node.focused {
     border-style: solid;
     margin: -1px;
@@ -628,8 +632,18 @@ label.option {
 
 
 .menu-folders .folder-row {
+    justify-content: space-between;
+    display: flex;
+}
+
+.menu-folders .folder-row-left {
     display: flex;
     cursor: pointer;
+
+}
+
+.menu-folders .fill-row {
+    max-width: 100%;
 }
 
 .menu-folders .folder-row i {
@@ -640,7 +654,6 @@ label.option {
 
 .menu-folders .folder-row p {
     padding-right: 0.3em;
-    float: right;
 }
 
 .menu-folders .folder-row a {
@@ -719,11 +732,6 @@ label.option {
 
 .menu-folders .series-item button {
     background-color: white;
-}
-
-.series-list ul {
-    display: flex;
-    flex-direction: column;
 }
 
 .sub-folders-list, .folders-list {
