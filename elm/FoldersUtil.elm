@@ -14,6 +14,7 @@ import Html.Attributes exposing
     , placeholder
     , style
     , tabindex
+    , target
     , title
     , value
     )
@@ -304,7 +305,7 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                  ]++ if open
                       then
                           [ viewSelector payload cut convertMsg
-                          , viewSelected payload cut convertMsg
+                          , viewSelected baseUrl payload cut convertMsg
                           , viewSeries baseUrl overDrag payload convertMsg
                           ]
                         else
@@ -455,8 +456,8 @@ buttonOpen openMsg payload convertMsg =
         []
 
 
-viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
-viewSelected payload cut convertMsg  =
+viewSelected: String -> Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
+viewSelected basUrl payload cut convertMsg  =
      Html.ul
         [ class "series-list"
         , draggable "true"
@@ -486,8 +487,9 @@ viewSelected payload cut convertMsg  =
                         , Html.p
                             [ class "series-name"
                             ]
-                            [ Html.text sn ]]
-
+                            [ Html.text sn ]
+                        , linkInfo basUrl sn
+                        ]
             )
             <| Set.toList
                 ( selectFromUser payload )
@@ -518,20 +520,26 @@ viewSeries baseUrl overDrag payload convertMsg =
                                         ( Set.singleton sn )
                             ]
                             [ Html.text sn ]
-                        , Html.a
-                                [ href
-                                    <| UB.crossOrigin
-                                        baseUrl
-                                        ["tsinfo"]
-                                        [ UB.string "name" sn ]
-                                ]
-                                [ Html.text "info" ]
+                        , linkInfo baseUrl sn
                         ]
             )
             <| Dict.keys
                 <| Dict.filter
                     (\ k v -> not v.selected)
                     payload.series
+
+
+linkInfo: String -> String -> Html msg
+linkInfo baseUrl sn =
+    Html.a
+        [ href
+            <| UB.crossOrigin
+                baseUrl
+                ["tsinfo"]
+                [ UB.string "name" sn ]
+        , target "_blank"
+        ]
+        [ Html.text "info" ]
 
 
 classOver: Payload -> Maybe Path -> String
