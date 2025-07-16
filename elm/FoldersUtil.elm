@@ -445,18 +445,14 @@ viewFolder overDrag payload open convertMsg =
 
 buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg
 buttonOpen openMsg payload convertMsg =
-    Html.button
+    Html.i
         [ onClick <| convertMsg
                         (openMsg payload.path (not payload.open))
-        , class "button-switch"
         , class <| if payload.open
-                    then "closer"
-                    else "opener"
+                    then "fa fa-folder-open"
+                    else "fa fa-folder"
         ]
-        [ Html.text <| if payload.open
-                        then "-"
-                        else "+"
-        ]
+        []
 
 
 viewSelected: Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
@@ -482,6 +478,7 @@ viewSelected payload cut convertMsg  =
                         [ class "series-item" ]
                         [ Html.button
                             [ title "deselect series"
+                            , class "assign-series"
                             , onClick
                                 <| convertMsg
                                     <| Deselect payload.path sn ]
@@ -506,6 +503,7 @@ viewSeries baseUrl overDrag payload convertMsg =
                         [ class "series-item" ]
                         [ Html.button
                             [ title "select series"
+                            , class "assign-series"
                             , onClick
                                 <| convertMsg
                                     <| Select payload.path sn ]
