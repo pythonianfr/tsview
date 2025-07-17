@@ -393,12 +393,12 @@ viewFolder baseUrl payload open convertMsg =
         , class ( if open then "open" else "not-open" )
         ]
         [ Html.div
-            [ class "folder-row-left"
-            , onClick <| convertMsg ( Open payload.path ( not open ) )
-            ]
+            [ class "folder-row-left" ]
             ([ buttonOpen Open payload convertMsg
             , Html.p
-                [ class "folder-name"]
+                [ class "folder-name"
+                , onClick <| convertMsg ( Open payload.path ( not open ) )
+                ]
                 [ Html.text payload.name
                 ]
              ] ++
