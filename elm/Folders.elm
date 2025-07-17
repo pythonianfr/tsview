@@ -4,6 +4,13 @@ import Browser
 import Browser.Events exposing
     ( onKeyDown
     )
+import Debouncer.Messages as Debouncer exposing
+    ( Debouncer
+    , fromSeconds
+    , provideInput
+    , settleWhenQuietFor
+    , toDebouncer
+    )
 import Dict exposing (Dict)
 import Json.Decode as JD
 import Json.Encode as JE
@@ -96,6 +103,7 @@ type alias Model =
     , creationName: String
     , openState: Set String
     , currentTransactions : Dict (String, String) ( List String )
+    , queryDebouncer: Debouncer Msg
     }
 
 
@@ -112,6 +120,7 @@ type Msg
     | PasteFromBrowser Bool
     | ActionControl ControlKey
     | Typing Char
+    | DebounceQuery (Debouncer.Msg Msg)
 
 
 initTree: List String -> Tree Payload
@@ -311,6 +320,9 @@ update msg model =
 
         Typing _ -> U.nocmd model
 
+        DebounceQuery val ->
+            Debouncer.update update queryDebouncerConfig val model
+
         FromTree msgTree ->
             case msgTree of
                 Open path open ->
@@ -431,6 +443,19 @@ update msg model =
                                     model.tree
                             }
 
+                QueryInput path queryInput ->
+                    let
+                        updatedModel = { model | tree =
+                                            mutePayload
+                                                path
+                                                (\ p -> { p | queryInput = queryInput })
+                                                model.tree
+                                       }
+                        debouncedMsg = FromTree (Query path queryInput)
+                    in
+                    Debouncer.update update queryDebouncerConfig
+                        (Debouncer.provideInput debouncedMsg) updatedModel
+
                 Restrict nb ->
                     U.nocmd { model | restriction = nb }
 
@@ -481,6 +506,7 @@ update msg model =
                                                     )
                                                     p.series
                                             , query = ""
+                                            , queryInput = ""
                                             }
                                     )
                                     model.tree
@@ -754,8 +780,21 @@ view model =
 
 
 
+queryDebouncerConfig =
+    { mapMsg = DebounceQuery
+    , getDebouncer = .queryDebouncer
+    , setDebouncer = \deb model -> { model | queryDebouncer = deb }
+    }
+
+
 initModel: String -> Model
 initModel baseUrl =
+    let
+        debouncerConfig =
+            Debouncer.manual |>
+            settleWhenQuietFor (Just <| fromSeconds 0.2) |>
+            toDebouncer
+    in
     { baseUrl = baseUrl
     , treeAttribute = Nothing
     , paths = []
@@ -769,6 +808,7 @@ initModel baseUrl =
     , creationName = ""
     , openState = Set.empty
     , currentTransactions = Dict.empty
+    , queryDebouncer = debouncerConfig
     }
 
 

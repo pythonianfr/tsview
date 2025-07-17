@@ -74,6 +74,7 @@ type alias Payload =
     , status: LoadingStatus
     , series: Dict String SeriesAttribute
     , query: String
+    , queryInput: String
     }
 
 type alias SeriesAttribute
@@ -87,6 +88,7 @@ initPayload =
     , status = Start
     , series = Dict.empty
     , query = ""
+    , queryInput = ""
     }
 
 unclassifiedPayload: Payload
@@ -114,6 +116,7 @@ type MsgTree
     | Deselect Path String
     | Focus Path
     | Query Path String
+    | QueryInput Path String
     | Restrict Int
     | ButtonCut Path
     | ButtonPaste Path
@@ -348,9 +351,9 @@ viewSelector payload cut convertMsg =
         [class "filter-name"]
         [ Html.input
             [ title "filter series : at least 3 characters"
-            , onInput (\ s ->  convertMsg ( Query payload.path s ))
+            , onInput (\ s ->  convertMsg ( QueryInput payload.path s ))
             , onFocus ( convertMsg ( Query payload.path payload.query ))
-            , value payload.query
+            , value payload.queryInput
             , disabled ( not ( anySeries payload ))
             ]
             []
@@ -792,7 +795,7 @@ buildCounter payload =
 anyAction: Payload -> Bool
 anyAction payload =
     anySelected payload
-    || payload.query /= ""
+    || payload.queryInput /= ""
 
 
 anySeries: Payload -> Bool
