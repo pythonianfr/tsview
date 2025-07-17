@@ -33,7 +33,6 @@ import FoldersUtil exposing
     , mutePayload
     , pasteSeries
     , root
-    , selectFromUser
     , setOpenState
     , unclassifiedPayload
     )
@@ -528,7 +527,10 @@ suiteCopyPast =
                             }
                     )
                     bTree
-        cut = selectFromUser (getPayload ( Branch "b0" ) cTree)
+        cut = Set.fromList
+                <| Dict.keys
+                <| Dict.filter (\k v -> v.selected)
+                <| (getPayload ( Branch "b0" ) cTree).series
 
         eTree = pasteSeries
                     ( Branch "b0" )

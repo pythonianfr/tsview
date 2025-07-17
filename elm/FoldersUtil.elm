@@ -16,6 +16,7 @@ import Html.Attributes exposing
     , tabindex
     , target
     , title
+    , type_
     , value
     )
 import Html.Events as Events
@@ -113,6 +114,7 @@ type MsgTree
     | Deselect Path String
     | Focus Path
     | Query Path String
+    | Restrict Int
     | ButtonCut Path
     | ButtonPaste Path
     | ButtonReset Path
@@ -264,16 +266,20 @@ zHeight path =
         <| String.length
             path
 
-selectFromUser: Payload -> Set String
-selectFromUser payload =
-    Set.fromList
-        <| Dict.keys
-           <| Dict.filter
-                (\ k v -> v.selected)
-                payload.series
 
-toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
-toListItems baseUrl overDrag convertMsg focus cut payload children =
+restrictList: Int -> List a -> List a
+restrictList restriction mylist  =
+    List.map
+        (\ (_, sn) -> sn)
+        <| List.filter
+            (\(idx, _ ) -> idx < restriction)
+            <| List.indexedMap
+                Tuple.pair
+                mylist
+
+
+toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Int -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
+toListItems baseUrl overDrag convertMsg restriction focus cut payload children =
     let open = payload.open
         dropable = case payload.path of
                     Root -> False
@@ -303,19 +309,14 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                         ]
                 )
                 ([ viewFolder baseUrl payload open convertMsg
-                 ]++
-                    (if payload.path == Unclassified
-                     then
-                        [ viewRestriction ]
-                     else
-                        []
-                    )
+                 ]
                  ++
                     (if open
                       then
                           [ viewSelector payload cut convertMsg
-                          , viewSelected baseUrl payload cut convertMsg
-                          , viewSeries baseUrl payload convertMsg
+                          , viewRestriction payload restriction convertMsg
+                          , viewSelected baseUrl restriction payload cut convertMsg
+                          , viewSeries baseUrl restriction payload convertMsg
                           ]
                         else
                           []
@@ -371,8 +372,7 @@ viewSelector payload cut convertMsg =
             ]
             [ Html.text "Deselect" ]
         , Html.p
-            [ style "display" "inline"
-            , title "selected / total"
+            [ title "selected / total"
             ]
             [ Html.text ( buildCounter payload )]
         ]
@@ -493,8 +493,48 @@ buttonOpen openMsg payload convertMsg =
         []
 
 
-viewSelected: String -> Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
-viewSelected basUrl payload cut convertMsg  =
+viewRestriction : Payload -> Int ->  (MsgTree -> msg) ->Html msg
+viewRestriction payload restriction convertMsg =
+    case payload.path of
+        Unclassified ->
+            Html.div
+                [ class "series-restriction" ]
+                [ Html.p
+                    []
+                    [ Html.text "Show firsts " ]
+                , Html.input
+                    [ title "Number of series shown"
+                    , value ( String.fromInt restriction )
+                    , type_ "number"
+                    , onInput (\s -> convertMsg
+                                        <| Restrict
+                                            <| Maybe.withDefault
+                                                0
+                                                <| String.toInt s
+                              )
+                    ]
+                    []
+                ,Html.p
+                    []
+                    [ Html.text " series" ]
+                ]
+        _ -> htmlNone
+
+
+viewSelected: String -> Int -> Payload -> Cut -> ( MsgTree -> msg ) -> Html msg
+viewSelected basUrl restriction payload cut convertMsg  =
+    let allSeries =
+            Dict.keys
+                <| Dict.filter
+                    (\ k v -> v.selected)
+                        payload.series
+        restrictSeries =
+            if payload.path == Unclassified
+            then restrictList
+                    restriction
+                    allSeries
+            else allSeries
+    in
      Html.ul
         [ class "series-list"
         , draggable "true"
@@ -502,7 +542,7 @@ viewSelected basUrl payload cut convertMsg  =
             <| convertMsg
                 <| DragStart
                     payload.path
-                    ( selectFromUser payload )
+                    ( Set.fromList restrictSeries )
         , class <| case cut of
                     NoCut -> "selected"
                     Cut path _ ->
@@ -528,12 +568,22 @@ viewSelected basUrl payload cut convertMsg  =
                         , linkInfo basUrl sn
                         ]
             )
-            <| Set.toList
-                ( selectFromUser payload )
+            <| restrictSeries
 
 
-viewSeries : String -> Payload -> (MsgTree -> msg) -> Html msg
-viewSeries baseUrl payload convertMsg =
+viewSeries : String -> Int -> Payload -> (MsgTree -> msg) -> Html msg
+viewSeries baseUrl restriction payload convertMsg =
+    let allSeries =  Dict.keys
+                        <| Dict.filter
+                            (\ k v -> not v.selected)
+                                payload.series
+        restrictSeries =
+            if payload.path == Unclassified
+            then restrictList
+                    restriction
+                    allSeries
+            else allSeries
+    in
     Html.ul
         [ class "series-list"
         ]
@@ -560,11 +610,7 @@ viewSeries baseUrl payload convertMsg =
                         , linkInfo baseUrl sn
                         ]
             )
-            <| Dict.keys
-                <| Dict.filter
-                    (\ k v -> not v.selected)
-                    payload.series
-
+            restrictSeries
 
 linkInfo: String -> String -> Html msg
 linkInfo baseUrl sn =
@@ -615,13 +661,13 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Maybe Path -> Cut -> Html msg
-viewTree baseUrl tree overDrag convertMsg focus cut =
+viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Int -> Maybe Path -> Cut -> Html msg
+viewTree baseUrl tree overDrag convertMsg restriction focus cut =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems baseUrl overDrag convertMsg focus cut )
+            ( toListItems baseUrl overDrag convertMsg restriction focus cut )
             tree
         ]
 

@@ -621,6 +621,17 @@ label.option {
     margin-left: 0.5em;
 }
 
+.menu-folders .series-restriction {
+    margin-left: 1.69em;
+}
+.menu-folders .series-restriction p {
+    display: inline
+}
+
+.menu-folders .series-restriction input {
+    width: 4em;
+}
+
 .menu-folders .node {
     min-width: 35em;
 }
@@ -681,6 +692,10 @@ label.option {
     padding-left: 0;
     padding-top: 0.1em;
     margin-left: 1.69em;
+}
+
+.menu-folders .filter-name p {
+    display: inline;
 }
 
 .menu-folders .series-list {

@@ -87,6 +87,7 @@ type alias Model =
     , treeAttribute: Maybe String
     , paths: List String
     , tree: Tree Payload
+    , restriction: Int
     , currentDrag: Drag
     , overDrag: Maybe Path
     , errors: List String
@@ -430,6 +431,9 @@ update msg model =
                                     model.tree
                             }
 
+                Restrict nb ->
+                    U.nocmd { model | restriction = nb }
+
                 ButtonCut path ->
                     let cut = Dict.keys
                                 <| Dict.filter
@@ -743,6 +747,7 @@ view model =
                     model.tree
                     model.overDrag
                     FromTree
+                    model.restriction
                     model.focus
                     model.currentCut
                 ]
@@ -755,6 +760,7 @@ initModel baseUrl =
     , treeAttribute = Nothing
     , paths = []
     , tree = emptyTree
+    , restriction = 150
     , currentDrag = NoDrag
     , overDrag = Nothing
     , errors = []
