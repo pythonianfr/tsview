@@ -616,6 +616,11 @@ label.option {
     color: #f21f10;
   }
 
+.menu-folders .user-msg {
+    font-style: italic;
+    margin-left: 0.5em;
+}
+
 .menu-folders .node {
     min-width: 35em;
 }

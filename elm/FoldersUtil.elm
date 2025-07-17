@@ -49,8 +49,6 @@ type Path
 root = "root"
 unclassified = "unclassified"
 
-
-
 reprPath: Path -> String
 reprPath path =
     case path of
@@ -102,6 +100,7 @@ type LoadingStatus =
     | Loading
     | Success
     | LoadingError
+    | DecodingError
 
 
 type MsgTree
@@ -130,6 +129,8 @@ type Cut
     = NoCut
     | Cut Path ( Set String )
 
+
+htmlNone = Html.text ""
 
 -- ref for drag/drop: https://benpaulhanna.com/basic-html5-drag-and-drop-with-elm.html
 
@@ -302,7 +303,15 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                         ]
                 )
                 ([ viewFolder baseUrl payload open convertMsg
-                 ]++ if open
+                 ]++
+                    (if payload.path == Unclassified
+                     then
+                        [ viewRestriction ]
+                     else
+                        []
+                    )
+                 ++
+                    (if open
                       then
                           [ viewSelector payload cut convertMsg
                           , viewSelected baseUrl payload cut convertMsg
@@ -310,6 +319,7 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
                           ]
                         else
                           []
+                      )
                 )
              ] ++ if open
                     then
@@ -389,10 +399,13 @@ viewFolder baseUrl payload open convertMsg =
                 [ Html.text payload.name
                 ]
              ] ++
-             if payload.path == Unclassified
-             then []
-             else
-                [ folderActionButton payload mutable convertMsg ]
+                 ( if payload.path == Unclassified
+                    then []
+                    else
+                    [ folderActionButton payload mutable convertMsg ]
+                 )
+               ++
+                [ loadingStatus payload ]
             )
         , Html.div
                 [ class "multi-links"]
@@ -400,6 +413,19 @@ viewFolder baseUrl payload open convertMsg =
                 , linkQuery baseUrl "tseditor" "edition" payload.path
                 ]
         ]
+
+
+loadingStatus : Payload -> Html msg
+loadingStatus payload =
+    case payload.status of
+        Start -> htmlNone
+        Loading ->
+            Html.div [class "user-msg"] [ Html.text "Loading..." ]
+        LoadingError ->
+            Html.div [class "user-msg"] [ Html.text "Network error." ]
+        DecodingError ->
+            Html.div [class "user-msg"] [ Html.text "Decoding error." ]
+        Success -> htmlNone
 
 
 folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
@@ -454,8 +480,6 @@ folderActionButton payload mutable convertMsg =
                 )
              )
         ]
-
-
 
 
 buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg

@@ -34,6 +34,7 @@ import FoldersUtil exposing
     ( Cut(..)
     , Drag(..)
     , Path(..)
+    , LoadingStatus(..)
     , Payload
     , SeriesAttribute
     , decodeFind
@@ -166,16 +167,30 @@ update msg model =
                                 path
                                 (\p -> { p | series = dressSeries seriesL
                                        }
-                               )
-                                model.tree
-                        }
+                                )
+                                <| mutePayload
+                                    path
+                                    (\p -> { p | status = Success })
+                                    model.tree
+                                    }
                 (Err err ) ->
                     U.nocmd { model | errors = model.errors
                                                ++ [JD.errorToString err]
-                            }
+                                    , tree
+                                        = mutePayload
+                                            path
+                                            (\p -> { p | status = DecodingError })
+                                            model.tree
+                                        }
 
         GotSeries path  ( Err err ) ->
-            U.nocmd model
+            U.nocmd
+                { model | tree
+                    = mutePayload
+                        path
+                        (\p -> { p | status = LoadingError })
+                        model.tree
+                }
 
         GotUpdatePath source destination name (Ok _) ->
             let newModel = removeFromQueue source destination name model
@@ -298,19 +313,28 @@ update msg model =
         FromTree msgTree ->
             case msgTree of
                 Open path open ->
-                    ( { model | tree = mutePayload
-                                        path
-                                        (\ p -> {p | open = open})
-                                        model.tree
-                      }
-                    , if not open
-                        then Cmd.none
+                    let newModel = { model | tree
+                                        = mutePayload
+                                            path
+                                            (\ p -> {p | open = open})
+                                            model.tree
+                                   }
+                    in
+                    if not open
+                        then
+                        ( newModel
+                        , Cmd.none )
                         else
-                            getSeries
+                        ( { newModel | tree =
+                                mutePayload
+                                    path
+                                    (\ p -> { p | status = Loading })
+                                    newModel.tree
+                          }
+                        , getSeries
                                 model.baseUrl
                                 path
-
-                    )
+                        )
 
                 DragStart from name ->
                     ( { model | currentDrag = Drag from name
