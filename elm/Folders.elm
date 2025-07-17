@@ -730,6 +730,7 @@ getSeries baseUrl path =
                         baseUrl
                         ["api", "series", "find"]
                         [ UB.string "query" query
+                        , UB.string "sources" "local"
                         ]
                 , expect = Http.expectString (GotSeries path)
                 }
