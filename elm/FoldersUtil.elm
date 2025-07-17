@@ -420,15 +420,24 @@ viewFolder baseUrl payload open convertMsg =
 
 loadingStatus : Payload -> Html msg
 loadingStatus payload =
-    case payload.status of
-        Start -> htmlNone
-        Loading ->
-            Html.div [class "user-msg"] [ Html.text "Loading..." ]
-        LoadingError ->
-            Html.div [class "user-msg"] [ Html.text "Network error." ]
-        DecodingError ->
-            Html.div [class "user-msg"] [ Html.text "Decoding error." ]
-        Success -> htmlNone
+    case payload.path of
+        Root -> htmlNone
+        _ ->
+            case payload.status of
+                Start -> htmlNone
+                Loading ->
+                    Html.div
+                        [class "user-msg"]
+                        [ Html.text "Loading..." ]
+                LoadingError ->
+                    Html.div
+                        [class "user-msg"]
+                        [ Html.text "Network error." ]
+                DecodingError ->
+                    Html.div
+                        [class "user-msg"]
+                        [ Html.text "Decoding error." ]
+                Success -> htmlNone
 
 
 folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
@@ -437,6 +446,7 @@ folderActionButton payload mutable convertMsg =
         [ class "folder-action"
         , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
         , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
+        , title "Create/Rename/Delete"
         ]
         [ Html.text "..."
         , Html.ul
