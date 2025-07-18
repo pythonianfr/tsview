@@ -620,6 +620,11 @@ label.option {
 .menu-folders .folder-action {
     position: relative;
     border-width: var(--folder-button-border)
+    width: fit-content;
+    background-color:lightgrey;
+    display: inline;
+    cursor: pointer;
+
 }
 
 .menu-folders .action-box {
@@ -631,15 +636,6 @@ label.option {
     padding: 0px;
     margin:0;
     z-index:1000;
-}
-
-.menu-folders .folder-action {
-    display: inline;
-    width: fit-content;
-    background-color:lightgrey;
-    cursor: pointer;
-    position: relative;
-    border: 0;
 }
 
 .menu-folders .action-box li {

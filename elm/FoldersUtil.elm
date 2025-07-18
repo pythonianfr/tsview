@@ -75,6 +75,7 @@ type alias Payload =
     , series: Dict String SeriesAttribute
     , query: String
     , queryInput: String
+    , submenuOpen: Bool
     }
 
 type alias SeriesAttribute
@@ -89,6 +90,7 @@ initPayload =
     , series = Dict.empty
     , query = ""
     , queryInput = ""
+    , submenuOpen = False
     }
 
 unclassifiedPayload: Payload
@@ -124,6 +126,7 @@ type MsgTree
     | Delete Path
     | CreationName String
     | Create Path
+    | SubMenu Bool Path
 
 
 type Drag
@@ -445,48 +448,53 @@ folderActionButton payload mutable convertMsg =
     Html.button
         [ class "folder-action"
         , title "Create/Rename/Delete"
+        , onClick <| convertMsg
+                    <| SubMenu
+                        (not payload.submenuOpen)
+                        payload.path
         ]
         [ Html.text "..."
-        , Html.ul
-            [ class "action-box"
-            ]
-            ([ Html.li
-                [ title "Creation take effect when a series is moved into. Dots are removed"
-                , onClick <| convertMsg
-                                ( Create payload.path )
-                ]
-                [ Html.text "Create"
-                , Html.div
-                    []
-                    [ Html.input
-                        [ class "input-new-name"
-                        , placeholder "name"
-                        , onInput
-                            (\ s ->  convertMsg
-                                        ( CreationName s )
-                            )
-                        ]
-                        []
+        , if payload.submenuOpen then
+            Html.ul
+                [ class "action-box" ]
+                ([ Html.li
+                    [ title
+                        "Creation take effect when a series is moved into. Dots are removed"
+                    ]
+                    [ Html.text "Create"
+                    , Html.input
+                            [ class "input-new-name"
+                            , placeholder "name"
+                            , onInput
+                                (\ s ->  convertMsg
+                                            ( CreationName s )
+                                )
+                            ]
+                            []
                     , Html.button
-                        [ class "validate-new-name" ]
+                        [ class "validate-new-name"
+                        , onClick <| convertMsg
+                            ( Create payload.path )
+                        ]
                         [ Html.text "Ok" ]
                     ]
-                ]
-             ] ++
-             ( if not mutable
-                then []
-                else
-                    [ Html.li
-                        []
-                        [ Html.text "Rename"]
-                    , Html.li
-                        [ onClick <| convertMsg
-                                        ( Delete payload.path )
+                 ] ++
+                 ( if not mutable
+                    then []
+                    else
+                        [ Html.li
+                            []
+                            [ Html.text "Rename"]
+                        , Html.li
+                            [ onClick <| convertMsg
+                                            ( Delete payload.path )
+                            ]
+                            [ Html.text "Delete" ]
                         ]
-                        [ Html.text "Delete" ]
-                    ]
-                )
-             )
+                    )
+                 )
+          else
+            htmlNone
         ]
 
 

@@ -507,6 +507,7 @@ update msg model =
                                                     p.series
                                             , query = ""
                                             , queryInput = ""
+                                            , submenuOpen = False
                                             }
                                     )
                                     model.tree
@@ -557,6 +558,14 @@ update msg model =
                         )
 
                     )
+
+                SubMenu open path ->
+                    U.nocmd { model | tree =
+                                mutePayload
+                                    path
+                                    (\p -> { p | submenuOpen = open })
+                                    model.tree
+                            }
 
 
 
