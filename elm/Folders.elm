@@ -116,6 +116,7 @@ type Msg
     | GotUpdatePath Path Path String ( Result Http.Error String )
     | TowardDeletion Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
+    | GotRename String String ( Result Http.Error String )
     | ProcessTransaction ( String, String )
     | FromTree MsgTree
     | CopyFromBrowser Bool
@@ -269,6 +270,13 @@ update msg model =
             )
 
         GotDelete path (Err _) -> U.nocmd model
+
+        GotRename oldBranch newBranch (Ok _) ->
+            ( model
+            , getPaths model.baseUrl
+            )
+
+        GotRename oldBranch newBranch (Err _) -> U.nocmd model
 
         ProcessTransaction ( source, destination )
             -> let series = Dict.get ( source, destination ) model.currentTransactions
@@ -591,13 +599,16 @@ update msg model =
                                     renamePaths oldBranch newBranch model.paths
                             in
                                 ( { model | tree = initTree newPaths }
-                                , Cmd.batch <| reOpen
-                                                <|Set.fromList
-                                                    <| renamePaths
-                                                        oldBranch
-                                                        newBranch
-                                                        <| Set.toList
-                                                            ( getOpenState model.tree )
+                                , Cmd.batch
+                                    <| [ renameTreePath model.baseUrl oldBranch newBranch ]
+                                    ++ ( reOpen
+                                        <|Set.fromList
+                                            <| renamePaths
+                                                oldBranch
+                                                newBranch
+                                                <| Set.toList
+                                                    ( getOpenState model.tree )
+                                        )
                                 )
 
                 SubMenu open path ->
@@ -811,6 +822,27 @@ deletePath baseUrl path =
                 , tracker = Nothing
                 , timeout = Nothing
                 }
+
+
+renameTreePath: String -> String -> String -> Cmd Msg
+renameTreePath baseUrl oldBranch newBranch =
+    Http.request
+        { method = "PUT"
+        , url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "tree-path"]
+                []
+        , body = Http.jsonBody
+                    <| JE.object
+                        [ ( "path", JE.string oldBranch )
+                        , ( "newpath", JE.string newBranch )
+                        ]
+        , expect = Http.expectString (GotRename oldBranch newBranch)
+        , headers = [ ]
+        , tracker = Nothing
+        , timeout = Nothing
+        }
 
 
 
