@@ -22,6 +22,7 @@ import FoldersUtil exposing
     , Path(..)
     , buildMTree
     , buildSingle
+    , closeAllMenus
     , convertTree
     , decodeFind
     , decodeTree

@@ -25,6 +25,8 @@ import Html exposing
     )
 import Html.Attributes exposing
     ( class )
+import Html.Events exposing
+    ( onClick )
 import Http
 import Set exposing (Set)
 import Task
@@ -44,6 +46,7 @@ import FoldersUtil exposing
     , LoadingStatus(..)
     , Payload
     , SeriesAttribute
+    , closeAllMenus
     , decodeFind
     , decodeTree
     , dressSeries
@@ -321,9 +324,11 @@ update msg model =
                 Other _ -> U.nocmd model
                 Escape ->
                     case model.focus of
-                        Nothing -> U.nocmd model
+                        Nothing -> U.nocmd { model | tree = closeAllMenus model.tree }
                         Just focus ->
-                            ( { model | focus = Nothing },
+                            ( { model | focus = Nothing
+                                      , tree = closeAllMenus model.tree
+                              },
                             Task.perform
                                 identity
                                 ( Task.succeed ( FromTree ( ButtonReset focus ))))
@@ -544,12 +549,7 @@ update msg model =
                     )
 
                 CancelDelete path ->
-                    U.nocmd { model | tree =
-                                mutePayload
-                                    path
-                                    (\p -> { p | deleteConfirmOpen = False })
-                                    model.tree
-                            }
+                    U.nocmd { model | tree = closeAllMenus model.tree }
 
                 CreationName creationName ->
                     U.nocmd
@@ -630,10 +630,13 @@ update msg model =
 
                 SubMenu open path ->
                     U.nocmd { model | tree =
-                                mutePayload
-                                    path
-                                    (\p -> { p | submenuOpen = open })
-                                    model.tree
+                                if open then
+                                    mutePayload
+                                        path
+                                        (\p -> { p | submenuOpen = open })
+                                        (closeAllMenus model.tree)
+                                else
+                                    closeAllMenus model.tree
                             }
 
                 NoAction -> U.nocmd model
@@ -869,7 +872,9 @@ view model =
         Nothing -> div [] [text "No tree attribute defined"]
         Just _ ->
             div
-                [ class "menu-folders" ]
+                [ class "menu-folders"
+                , onClick (FromTree (SubMenu False Root))
+                ]
                 [ viewTree
                     model.baseUrl
                     model.tree

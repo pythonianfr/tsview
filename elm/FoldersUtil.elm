@@ -424,7 +424,9 @@ viewFolder baseUrl payload open convertMsg =
         , class ( if open then "open" else "not-open" )
         ]
         [ Html.div
-            [ class "folder-row-left" ]
+            [ class "folder-row-left"
+            , stopPropagationNoAction convertMsg
+            ]
             ([ buttonOpen Open payload convertMsg
             , Html.p
                 [ class "folder-name"
@@ -908,6 +910,27 @@ setOpenState menu openState =
         <| muteOpen
             ( fromTree menu )
             openState
+
+
+closeAllMenus: Tree Payload -> Tree Payload
+closeAllMenus menu =
+    closeAllMenusR (fromTree menu) menu
+
+
+closeAllMenusR: Zipper Payload -> Tree Payload -> Tree Payload
+closeAllMenusR zipper tree =
+    let payload = Tree.Zipper.label zipper
+        updatedTree = mutePayload
+                        payload.path
+                        (\p -> { p | submenuOpen = False
+                                   , deleteConfirmOpen = False
+                               })
+                        tree
+    in
+    case forward zipper of
+        Nothing -> updatedTree
+        Just nextZipper ->
+            closeAllMenusR nextZipper updatedTree
 
 
 muteOpen:  Zipper Payload -> Set String -> Zipper Payload
