@@ -54,6 +54,7 @@ import FoldersUtil exposing
     , mutePayload
     , pathFromString
     , pasteSeries
+    , renamePaths
     , reprPath
     , selectFromQuery
     , setOpenState
@@ -101,6 +102,7 @@ type alias Model =
     , currentCut: Cut
     , focus : Maybe Path
     , creationName: String
+    , renameName: String
     , openState: Set String
     , currentTransactions : Dict (String, String) ( List String )
     , queryDebouncer: Debouncer Msg
@@ -559,6 +561,45 @@ update msg model =
 
                     )
 
+                RenameName renameName ->
+                    U.nocmd
+                        { model | renameName =
+                                    String.replace
+                                        "."
+                                        ""
+                                        renameName
+                        }
+
+                Rename path ->
+                    if model.renameName == ""
+                    then U.nocmd model
+                    else
+                    case path of
+                        Root -> U.nocmd model
+                        Unclassified -> U.nocmd model
+                        Branch oldBranch ->
+                            let splited = String.split "." oldBranch
+                                newBranch =
+                                     case List.reverse splited of
+                                        [ ] -> "" --at the root. Should not occur
+                                        x :: xs ->
+                                            String.join
+                                                "."
+                                                <| List.reverse
+                                                    <| [ model.renameName ] ++ xs
+                                newPaths =
+                                    renamePaths oldBranch newBranch model.paths
+                            in
+                                ( { model | tree = initTree newPaths }
+                                , Cmd.batch <| reOpen
+                                                <|Set.fromList
+                                                    <| renamePaths
+                                                        oldBranch
+                                                        newBranch
+                                                        <| Set.toList
+                                                            ( getOpenState model.tree )
+                                )
+
                 SubMenu open path ->
                     U.nocmd { model | tree =
                                 mutePayload
@@ -610,6 +651,7 @@ reOpen openState =
                     )
         )
         ( Set.toList openState )
+
 
 
 replaceMetadata: String -> String -> Metadata.Metadata -> Path -> Path -> Cmd Msg
@@ -817,6 +859,7 @@ initModel baseUrl =
     , currentCut = NoCut
     , focus = Nothing
     , creationName = ""
+    , renameName = ""
     , openState = Set.empty
     , currentTransactions = Dict.empty
     , queryDebouncer = debouncerConfig

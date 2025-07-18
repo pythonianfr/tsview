@@ -698,6 +698,7 @@ label.option {
     margin-right: 0.25em;
     background-color: white;
     font-size: 120%;
+    user-select: none;
 }
 
 .menu-folders .filter-name {

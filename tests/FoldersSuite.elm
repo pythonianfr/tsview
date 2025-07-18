@@ -32,10 +32,12 @@ import FoldersUtil exposing
     , mergeMBranch
     , mutePayload
     , pasteSeries
+    , renamePaths
     , root
     , setOpenState
     , unclassifiedPayload
     )
+
 
 unclassTree = tree
                 unclassifiedPayload
@@ -615,3 +617,26 @@ suiteKeepOpenState =
                     openedTree
              )
         ]
+
+
+suiteReplacePath : T.Test
+suiteReplacePath =
+    let paths = [ "a0"
+                , "a0.b0"
+                , "a0.b1"
+                , "a0.b0.c0"
+                , "a1.b0"
+                ]
+        result = renamePaths "a0.b0" "a0.x" paths
+    in
+        T.test "Replace path"
+            (\ _ ->
+                Expect.equal
+                    result
+                     [ "a0"
+                     , "a0.x"
+                     , "a0.b1"
+                     , "a0.x.c0"
+                     , "a1.b0"
+                     ]
+            )

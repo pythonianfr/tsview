@@ -127,6 +127,8 @@ type MsgTree
     | Delete Path
     | CreationName String
     | Create Path
+    | RenameName String
+    | Rename Path
     | SubMenu Bool Path
     | NoAction
 
@@ -264,6 +266,20 @@ buildTree : List String -> Tree Payload
 buildTree paths =
     convertTree
         <| buildMTree paths
+
+
+renamePaths: String -> String -> List String -> List String
+renamePaths oldPath newPath paths =
+    List.map
+        (\ p -> if String.startsWith oldPath p
+                then
+                    newPath ++ String.dropLeft
+                                    (String.length oldPath)
+                                    p
+                else
+                    p
+        )
+        paths
 
 
 zHeight path =
@@ -492,13 +508,29 @@ folderActionButton payload mutable convertMsg =
                     else
                         [ Html.li
                             []
-                            [ Html.text "Rename"]
-                        , Html.li
-                            [ onClick <| convertMsg
-                                            ( Delete payload.path )
+                            [ Html.text "Rename"
+                            , Html.input
+                            [ class "input-rename"
+                            , placeholder "name"
+                            , onInput
+                                (\ s ->  convertMsg
+                                            ( RenameName s )
+                                )
                             ]
-                            [ Html.text "Delete" ]
-                        ]
+                            []
+                        , Html.button
+                            [ class "validate-new-name"
+                            , onClick <| convertMsg
+                                ( Rename payload.path )
+                            ]
+                            [ Html.text "Ok" ]
+                            ]
+                            , Html.li
+                                [ onClick <| convertMsg
+                                                ( Delete payload.path )
+                                ]
+                                [ Html.text "Delete" ]
+                            ]
                     )
                  )
           else
