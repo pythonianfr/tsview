@@ -444,16 +444,11 @@ folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
 folderActionButton payload mutable convertMsg =
     Html.button
         [ class "folder-action"
-        , attribute "popovertarget" ( "action-" ++ ( reprPath payload.path ) )
-        , style "anchor-name" ( "action-button-" ++ ( reprPath payload.path ) )
         , title "Create/Rename/Delete"
         ]
         [ Html.text "..."
         , Html.ul
             [ class "action-box"
-            , attribute "popover" ""
-            , style "position-anchor" ( "action-button-" ++ ( reprPath payload.path ) )
-            , id ( "action-" ++ ( reprPath payload.path ) )
             ]
             ([ Html.li
                 [ title "Creation take effect when a series is moved into. Dots are removed"

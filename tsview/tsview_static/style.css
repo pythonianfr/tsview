@@ -527,43 +527,7 @@ label.option {
 
 
 
-.menu-folders .folder-action {
-    display: inline;
-    width: fit-content;
-    background-color:lightgrey;
-    cursor: pointer;
-    position: relative;
-    border: 0;
-}
 
-.menu-folders .action-box li {
-    list-style-type: none;
-    cursor: pointer;
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-    text-align: left;
-    }
-
-.menu-folders .action-box li:hover {
-    list-style-type: none;
-    background: #A9A9A9;
-}
-
-.menu-folders .action-box {
-    background-color:lightgrey;
-    border: none;
-    padding: 0px;
-    margin:0;
-    inset: auto;
-    position: absolute;
-    top: anchor(top);
-    left: anchor(right);
-}
-
-.menu-folders .action-box:popover-open {
-    display: grid;
-    grid-template-columns: 1fr;
-}
 
 .menu-folders .focused {
     background-color: lightyellow;
@@ -641,6 +605,58 @@ label.option {
     margin: -1px;
     z-index:10;
 }
+
+/* reactive menu */
+/*  The overlaid element (absolute) must be
+    inside the element it is attached to in
+    the html code. Hence the 100% in the "left"
+    parameter will use the width of the parent
+*/
+
+:root {
+  --folder-button-border: 2px;
+}
+
+.menu-folders .folder-action {
+    position: relative;
+    border-width: var(--folder-button-border)
+}
+
+.menu-folders .action-box {
+    position:absolute;
+    top: calc(-1 * var(--folder-button-border));
+    left: calc(100% + var(--folder-button-border));
+    background-color:lightgrey;
+    border: none;
+    padding: 0px;
+    margin:0;
+    z-index:1000;
+}
+
+.menu-folders .folder-action {
+    display: inline;
+    width: fit-content;
+    background-color:lightgrey;
+    cursor: pointer;
+    position: relative;
+    border: 0;
+}
+
+.menu-folders .action-box li {
+    display: flex;
+    list-style-type: none;
+    cursor: pointer;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    text-align: left;
+    }
+
+.menu-folders .action-box li:hover {
+    list-style-type: none;
+    background: #A9A9A9;
+}
+
+
 
 .menu-folders .folder-name {
     box-shadow: 1px 1px 5px #A9A9A9	;
@@ -766,7 +782,7 @@ label.option {
     background-color: #E0E0E0;
 }
 
-
+/*  This does the carets for the tree */
 .folder-and-series {
       position: relative;
       padding-top: 0.3em;
