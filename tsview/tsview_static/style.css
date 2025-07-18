@@ -645,6 +645,7 @@ label.option {
     padding-left: 0.5em;
     padding-right: 0.5em;
     text-align: left;
+    position:relative;
     }
 
 .menu-folders .action-box li:hover {
@@ -652,7 +653,16 @@ label.option {
     background: #A9A9A9;
 }
 
-
+.menu-folders .confirmation-delete {
+    position:absolute;
+    top: 0;
+    left: calc(100%);
+    background-color:lightgrey;
+    border: none;
+    padding: 0px;
+    margin:0;
+    z-index:1000;
+}
 
 .menu-folders .folder-name {
     box-shadow: 1px 1px 5px #A9A9A9	;

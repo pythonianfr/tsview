@@ -518,13 +518,22 @@ update msg model =
                                             , query = ""
                                             , queryInput = ""
                                             , submenuOpen = False
+                                            , deleteConfirmOpen = False
                                             }
                                     )
                                     model.tree
                             , currentCut = NoCut
                         }
 
-                Delete path ->
+                PrepareDelete path ->
+                    U.nocmd { model | tree =
+                                mutePayload
+                                    path
+                                    (\p -> { p | deleteConfirmOpen = True })
+                                    model.tree
+                            }
+
+                ConfirmDelete path ->
                     ( { model | openState =
                                     getOpenState
                                         model.tree
@@ -533,6 +542,14 @@ update msg model =
                         model.baseUrl
                         path
                     )
+
+                CancelDelete path ->
+                    U.nocmd { model | tree =
+                                mutePayload
+                                    path
+                                    (\p -> { p | deleteConfirmOpen = False })
+                                    model.tree
+                            }
 
                 CreationName creationName ->
                     U.nocmd

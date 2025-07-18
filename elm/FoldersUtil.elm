@@ -42,6 +42,12 @@ import Tree.Zipper exposing
 import Url.Builder as UB
 
 
+stopPropagationNoAction : (MsgTree -> msg) -> Html.Attribute msg
+stopPropagationNoAction convertMsg =
+  Events.stopPropagationOn "click"
+      (JD.succeed ( convertMsg NoAction, True ))
+
+
 type MyTree = MyTree ( Dict String  MyTree )
 type Path
     = Root
@@ -77,6 +83,7 @@ type alias Payload =
     , query: String
     , queryInput: String
     , submenuOpen: Bool
+    , deleteConfirmOpen: Bool
     }
 
 type alias SeriesAttribute
@@ -92,6 +99,7 @@ initPayload =
     , query = ""
     , queryInput = ""
     , submenuOpen = False
+    , deleteConfirmOpen = False
     }
 
 unclassifiedPayload: Payload
@@ -124,7 +132,9 @@ type MsgTree
     | ButtonCut Path
     | ButtonPaste Path
     | ButtonReset Path
-    | Delete Path
+    | PrepareDelete Path
+    | ConfirmDelete Path
+    | CancelDelete Path
     | CreationName String
     | Create Path
     | RenameName String
@@ -475,11 +485,7 @@ folderActionButton payload mutable convertMsg =
         , if payload.submenuOpen then
             Html.ul
                 [ class "action-box"
-                 , Events.stopPropagationOn "click"
-                     <| JD.succeed ( convertMsg
-                                    <| NoAction
-                                   , True
-                                   )
+                 , stopPropagationNoAction convertMsg
                 ]
                 ([ Html.li
                     [ title
@@ -527,9 +533,28 @@ folderActionButton payload mutable convertMsg =
                             ]
                             , Html.li
                                 [ onClick <| convertMsg
-                                                ( Delete payload.path )
+                                                ( PrepareDelete payload.path )
                                 ]
-                                [ Html.text "Delete" ]
+                                [ Html.text "Delete"
+                                , if payload.deleteConfirmOpen then
+                                    Html.ul
+                                        [ class "confirmation-delete"
+                                        , stopPropagationNoAction convertMsg
+                                        ]
+                                        [ Html.li
+                                            [ onClick <| convertMsg
+                                                        ( ConfirmDelete payload.path )
+                                            ]
+                                            [ Html.text "Yes" ]
+                                        , Html.li
+                                            [ onClick <| convertMsg
+                                                        ( CancelDelete payload.path )
+                                            ]
+                                            [ Html.text "No" ]
+                                        ]
+                                  else
+                                    htmlNone
+                                ]
                             ]
                     )
                  )
