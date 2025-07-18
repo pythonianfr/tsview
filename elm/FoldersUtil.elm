@@ -41,6 +41,7 @@ import Tree.Zipper exposing
     )
 import Url.Builder as UB
 
+
 type MyTree = MyTree ( Dict String  MyTree )
 type Path
     = Root
@@ -127,6 +128,7 @@ type MsgTree
     | CreationName String
     | Create Path
     | SubMenu Bool Path
+    | NoAction
 
 
 type Drag
@@ -456,7 +458,13 @@ folderActionButton payload mutable convertMsg =
         [ Html.text "..."
         , if payload.submenuOpen then
             Html.ul
-                [ class "action-box" ]
+                [ class "action-box"
+                 , Events.stopPropagationOn "click"
+                     <| JD.succeed ( convertMsg
+                                    <| NoAction
+                                   , True
+                                   )
+                ]
                 ([ Html.li
                     [ title
                         "Creation take effect when a series is moved into. Dots are removed"
