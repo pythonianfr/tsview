@@ -627,26 +627,45 @@ label.option {
 
 }
 
+
 .menu-folders .action-box {
     position:absolute;
     top: calc(-1 * var(--folder-button-border));
     left: calc(100% + var(--folder-button-border));
     background-color:lightgrey;
-    border: none;
+    box-shadow: 10px 10px 10px #A9A9A9	;
     padding: 0px;
     margin:0;
+    font-size: 120%;
     z-index:1000;
+    display: table;
 }
 
 .menu-folders .action-box li {
-    display: flex;
     list-style-type: none;
     cursor: pointer;
-    padding-left: 0.5em;
-    padding-right: 0.5em;
     text-align: left;
     position:relative;
+    display: table-row;
     }
+
+
+.menu-folders .action-box li > * {
+    display: table-cell;
+    font-size: 120%;
+    vertical-align: middle;
+    padding: 4px 8px;
+    white-space: nowrap;
+}
+
+.menu-folders .action-box li div {
+    padding:0;
+}
+
+
+.menu-folders .action-box li  button {
+    font-size: 120%;
+}
 
 .menu-folders .action-box li:hover {
     list-style-type: none;
@@ -658,7 +677,7 @@ label.option {
     top: 0;
     left: calc(100%);
     background-color:lightgrey;
-    border: none;
+    box-shadow: 10px 10px 10px #A9A9A9	;
     padding: 0px;
     margin:0;
     z-index:1000;

@@ -493,7 +493,7 @@ folderActionButton payload mutable convertMsg =
                     [ title
                         "Creation take effect when a series is moved into. Dots are removed"
                     ]
-                    [ Html.text "Create"
+                    [ Html.p [] [Html.text "Create"]
                     , Html.input
                             [ class "input-new-name"
                             , placeholder "name"
@@ -503,12 +503,15 @@ folderActionButton payload mutable convertMsg =
                                 )
                             ]
                             []
-                    , Html.button
-                        [ class "validate-new-name"
-                        , onClick <| convertMsg
-                            ( Create payload.path )
+                    , Html.div
+                        []
+                        [ Html.button
+                            [ class "validate-new-name"
+                            , onClick <| convertMsg
+                                ( Create payload.path )
+                            ]
+                            [ Html.text "Ok" ]
                         ]
-                        [ Html.text "Ok" ]
                     ]
                  ] ++
                  ( if not mutable
@@ -516,7 +519,7 @@ folderActionButton payload mutable convertMsg =
                     else
                         [ Html.li
                             []
-                            [ Html.text "Rename"
+                            [ Html.p [] [Html.text "Rename"]
                             , Html.input
                             [ class "input-rename"
                             , placeholder "name"
@@ -526,38 +529,43 @@ folderActionButton payload mutable convertMsg =
                                 )
                             ]
                             []
-                        , Html.button
-                            [ class "validate-new-name"
-                            , onClick <| convertMsg
-                                ( Rename payload.path )
-                            ]
-                            [ Html.text "Ok" ]
-                            ]
-                            , Html.li
-                                [ onClick <| convertMsg
-                                                ( PrepareDelete payload.path )
-                                ]
-                                [ Html.text "Delete"
-                                , if payload.deleteConfirmOpen then
-                                    Html.ul
-                                        [ class "confirmation-delete"
-                                        , stopPropagationNoAction convertMsg
-                                        ]
-                                        [ Html.li
-                                            [ onClick <| convertMsg
-                                                        ( ConfirmDelete payload.path )
-                                            ]
-                                            [ Html.text "Yes" ]
-                                        , Html.li
-                                            [ onClick <| convertMsg
-                                                        ( CancelDelete payload.path )
-                                            ]
-                                            [ Html.text "No" ]
-                                        ]
-                                  else
-                                    htmlNone
+                            , Html.div
+                                []
+                                [Html.button
+                                    [ class "validate-new-name"
+                                    , onClick <| convertMsg
+                                        ( Rename payload.path )
+                                    ]
+                                    [ Html.text "Ok" ]
                                 ]
                             ]
+                        , Html.li
+                            [ onClick <| convertMsg
+                                            ( PrepareDelete payload.path )
+                            ]
+                            [ Html.p [] [Html.text "Delete"]
+                            , Html.p [] [ ]
+                            , Html.p [] [ ]
+                            , if payload.deleteConfirmOpen then
+                                Html.ul
+                                    [ class "confirmation-delete"
+                                    , stopPropagationNoAction convertMsg
+                                    ]
+                                    [ Html.li
+                                        [ onClick <| convertMsg
+                                                    ( ConfirmDelete payload.path )
+                                        ]
+                                        [ Html.text "Yes" ]
+                                    , Html.li
+                                        [ onClick <| convertMsg
+                                                    ( CancelDelete payload.path )
+                                        ]
+                                        [ Html.text "No" ]
+                                    ]
+                              else
+                                htmlNone
+                            ]
+                        ]
                     )
                  )
           else
