@@ -845,3 +845,15 @@ label.option {
       }
     }
 
+.menu-folders .moving-warning {
+    padding: 1em;
+    font-style: italic;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+    background-color: white;
+    border: solid 1px;
+    box-shadow: 10px 10px 10px #A9A9A9;
+}

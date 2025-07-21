@@ -295,7 +295,9 @@ update msg model =
         GotRename oldBranch newBranch (Err _) -> U.nocmd model
 
         ProcessTransaction ( source, destination )
-            -> let series = Dict.get ( source, destination ) model.currentTransactions
+            -> let series = Dict.get
+                                ( source, destination )
+                                model.currentTransactions
                in
                case series of
                 Nothing -> U.nocmd model
@@ -768,7 +770,7 @@ updateSinglePath baseUrl treeAttribute source destination name =
                             [ UB.string "name" name ]
                     , body = Http.emptyBody
                     , expect = Http.expectString
-                                ( TowardDeletion source Root name )
+                                ( TowardDeletion source Unclassified name )
                     , headers = [ ]
                     , tracker = Nothing
                     , timeout = Nothing
@@ -892,7 +894,8 @@ view model =
                 [ class "menu-folders"
                 , onClick (FromTree (SubMenu False Root))
                 ]
-                [ viewTree
+                [ viewMoving model.currentTransactions
+                , viewTree
                     model.baseUrl
                     model.tree
                     model.overDrag
@@ -902,6 +905,26 @@ view model =
                     model.currentCut
                 ]
 
+
+viewMoving : Dict (String, String) ( List String )-> Html Msg
+viewMoving transactions =
+    let remaining = List.concat
+                    ( Dict.values transactions )
+        nbR = List.length remaining
+    in
+        if nbR == 0
+        then Html.text ""
+        else
+            Html.div
+                [ class "moving-warning" ]
+                [ Html.p
+                    []
+                    [ Html.text
+                        <| "Moving series : "
+                        ++ String.fromInt nbR
+                        ++ " remaining"
+                    ]
+            ]
 
 
 queryDebouncerConfig =
