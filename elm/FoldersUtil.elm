@@ -111,10 +111,10 @@ unclassifiedPayload =
 
 type LoadingStatus =
     Start
-    | Loading
-    | Success
-    | LoadingError
-    | DecodingError
+    | LoadingFolder
+    | SuccessFolder
+    | LoadingErrorFolder
+    | DecodingErrorFolder
 
 
 type MsgTree
@@ -458,19 +458,19 @@ loadingStatus payload =
         _ ->
             case payload.status of
                 Start -> htmlNone
-                Loading ->
+                LoadingFolder ->
                     Html.div
                         [class "user-msg"]
                         [ Html.text "Loading..." ]
-                LoadingError ->
+                LoadingErrorFolder ->
                     Html.div
                         [class "user-msg"]
                         [ Html.text "Network error." ]
-                DecodingError ->
+                DecodingErrorFolder ->
                     Html.div
                         [class "user-msg"]
                         [ Html.text "Decoding error." ]
-                Success -> htmlNone
+                SuccessFolder -> htmlNone
 
 
 folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg

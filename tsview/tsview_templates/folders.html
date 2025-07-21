@@ -43,6 +43,16 @@
               app.ports.pasteSignal.send(true);
           }
       );
+
+      // horizon
+      app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+           localStorage.setItem("horizon", JSON.stringify(dataInCache))
+       });
+       incache = localStorage.getItem("horizon")
+       if (incache === null) {
+           incache = '{"horizon": null, "inferredFreq": false, "timeZone": "UTC"}'
+       }
+       app.ports.loadFromLocalStorage.send(incache);
   </script>
 </body>
 </html>

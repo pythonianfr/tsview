@@ -24,7 +24,9 @@ import Html exposing
     , ul
     )
 import Html.Attributes exposing
-    ( class )
+    ( class
+    , title
+    )
 import Html.Events exposing
     ( onClick )
 import Http
@@ -36,12 +38,10 @@ import Tree exposing
     )
 import Url.Builder as UB
 
-import Metadata
-import Util as U
-
 import FoldersUtil exposing
     ( Cut(..)
     , Drag(..)
+    , MsgTree(..)
     , Path(..)
     , LoadingStatus(..)
     , Payload
@@ -64,7 +64,18 @@ import FoldersUtil exposing
     , viewTree
     )
 
-import FoldersUtil exposing (MsgTree(..))
+import Horizon exposing
+    ( PlotStatus(..)
+    , HorizonModel
+    , initHorizon
+    , loadFromLocalStorage
+    , selectHorizon
+    , updateHorizon
+    )
+import Horizon as ModuleHorizon
+
+import Metadata
+import Util as U
 
 
 port cutSignal: (Bool -> msg) -> Sub msg
@@ -82,7 +93,6 @@ toKey keyValue =
         _ ->
             ActionControl ( keyToType keyValue )
 
-
 keyToType:  String -> ControlKey
 keyToType keyValue =
     case keyValue of
@@ -92,6 +102,8 @@ keyToType keyValue =
 type ControlKey
     = Escape
     | Other String
+
+
 
 type alias Model =
     { baseUrl: String
@@ -109,6 +121,7 @@ type alias Model =
     , openState: Set String
     , currentTransactions : Dict (String, String) ( List String )
     , queryDebouncer: Debouncer Msg
+    , horizon : HorizonModel
     }
 
 
@@ -127,6 +140,7 @@ type Msg
     | ActionControl ControlKey
     | Typing Char
     | DebounceQuery (Debouncer.Msg Msg)
+    | Horizon ModuleHorizon.Msg
 
 
 forbidden : List String
@@ -199,7 +213,7 @@ update msg model =
                                 )
                                 <| mutePayload
                                     path
-                                    (\p -> { p | status = Success })
+                                    (\p -> { p | status = SuccessFolder })
                                     model.tree
                                     }
                 (Err err ) ->
@@ -208,7 +222,7 @@ update msg model =
                                     , tree
                                         = mutePayload
                                             path
-                                            (\p -> { p | status = DecodingError })
+                                            (\p -> { p | status = DecodingErrorFolder })
                                             model.tree
                                         }
 
@@ -217,7 +231,7 @@ update msg model =
                 { model | tree
                     = mutePayload
                         path
-                        (\p -> { p | status = LoadingError })
+                        (\p -> { p | status = LoadingErrorFolder })
                         model.tree
                 }
 
@@ -353,6 +367,14 @@ update msg model =
         DebounceQuery val ->
             Debouncer.update update queryDebouncerConfig val model
 
+        Horizon hMsg ->
+            let ( newModelHorizon, commands ) =  updateHorizon
+                                                    hMsg
+                                                    Horizon
+                                                    model.horizon
+            in ( { model | horizon = newModelHorizon}, commands )
+
+
         FromTree msgTree ->
             case msgTree of
                 Open path open ->
@@ -371,7 +393,7 @@ update msg model =
                         ( { newModel | tree =
                                 mutePayload
                                     path
-                                    (\ p -> { p | status = Loading })
+                                    (\ p -> { p | status = LoadingFolder })
                                     newModel.tree
                           }
                         , getSeries
@@ -894,7 +916,12 @@ view model =
                 [ class "menu-folders"
                 , onClick (FromTree (SubMenu False Root))
                 ]
-                [ viewMoving model.currentTransactions
+                [ Html.div
+                    [ class "horizon"
+                    , title "Selected horizon used in Quickview and Series Editor"
+                    ]
+                    [ Html.text "Selected horizon : "
+                    , selectHorizon model.horizon Horizon ]
                 , viewTree
                     model.baseUrl
                     model.tree
@@ -903,6 +930,7 @@ view model =
                     model.restriction
                     model.focus
                     model.currentCut
+                , viewMoving model.currentTransactions
                 ]
 
 
@@ -957,6 +985,12 @@ initModel baseUrl =
     , openState = Set.empty
     , currentTransactions = Dict.empty
     , queryDebouncer = debouncerConfig
+    , horizon = initHorizon
+                    baseUrl
+                    ""
+                    ""
+                    ""
+                    None
     }
 
 
@@ -966,6 +1000,8 @@ sub model = Sub.batch
             [ cutSignal CopyFromBrowser
             , pasteSignal PasteFromBrowser
             , onKeyDown ( keyDecoder )
+            , loadFromLocalStorage
+                    (\ s-> Horizon (ModuleHorizon.FromLocalStorage s))
             ]
 
 type alias Input =

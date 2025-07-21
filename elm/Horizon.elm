@@ -15,6 +15,7 @@ port module Horizon exposing
     , saveToLocalStorage
     , loadFromLocalStorage
     , localstoragedecoder
+    , selectHorizon
     , updatefromlocalstorage
     , updateHorizon
     , updateHorizonFromData

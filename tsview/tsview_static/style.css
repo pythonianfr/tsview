@@ -845,6 +845,15 @@ label.option {
       }
     }
 
+.menu-folders .horizon {
+    position: fixed;
+    top: 0;
+    right: 0;
+    background: white;
+    z-index: 200;
+    box-shadow: -5px 5px 5px #A9A9A9;
+}
+
 .menu-folders .moving-warning {
     padding: 1em;
     font-style: italic;
