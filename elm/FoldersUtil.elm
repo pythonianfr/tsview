@@ -118,7 +118,7 @@ type LoadingStatus =
 
 
 type MsgTree
-    = Open Path Bool
+    = Open Path Bool Bool
     | DragStart Path ( Set String )
     | DragOver Path
     | DragEnd
@@ -427,10 +427,10 @@ viewFolder baseUrl payload open convertMsg =
             [ class "folder-row-left"
             , stopPropagationNoAction convertMsg
             ]
-            ([ buttonOpen Open payload convertMsg
+            ([ buttonOpen payload convertMsg
             , Html.p
                 [ class "folder-name"
-                , onClick <| convertMsg ( Open payload.path ( not open ) )
+                , onClick <| convertMsg ( Open payload.path ( not open ) True )
                 ]
                 [ Html.text payload.name
                 ]
@@ -573,13 +573,13 @@ folderActionButton payload mutable convertMsg =
         ]
 
 
-buttonOpen: (Path -> Bool -> MsgTree) -> Payload -> ( MsgTree -> msg ) -> Html msg
-buttonOpen openMsg payload convertMsg =
+buttonOpen: Payload -> ( MsgTree -> msg ) -> Html msg
+buttonOpen payload convertMsg =
     Html.i
         [class <| if payload.open
                     then "fa fa-folder-open"
                     else "fa fa-folder"
-        , onClick <| convertMsg ( openMsg payload.path ( not payload.open ) )
+        , onClick <| convertMsg ( Open payload.path ( not payload.open ) True )
         ]
         []
 

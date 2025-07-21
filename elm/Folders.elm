@@ -246,10 +246,10 @@ update msg model =
               else
                  Cmd.batch [ Task.perform
                                 identity
-                                ( Task.succeed ( FromTree ( Open source True )))
+                                ( Task.succeed ( FromTree ( Open source True False )))
                             , Task.perform
                                 identity
-                                ( Task.succeed ( FromTree ( Open destination True )))
+                                ( Task.succeed ( FromTree ( Open destination True False )))
                             ]
             )
 
@@ -264,10 +264,10 @@ update msg model =
               else
                  Cmd.batch [ Task.perform
                                 identity
-                                ( Task.succeed ( FromTree ( Open source True )))
+                                ( Task.succeed ( FromTree ( Open source True False )))
                             , Task.perform
                                 identity
-                                ( Task.succeed ( FromTree ( Open destination True )))
+                                ( Task.succeed ( FromTree ( Open destination True False )))
                             ]
             )
 
@@ -377,20 +377,23 @@ update msg model =
 
         FromTree msgTree ->
             case msgTree of
-                Open path open ->
+                Open path open focus ->
                     let newModel = { model | tree
                                         = mutePayload
                                             path
                                             (\ p -> {p | open = open})
                                             model.tree
                                    }
+                        focusedModel = if open && focus
+                                        then { newModel | focus = Just path }
+                                        else newModel
                     in
                     if not open
                         then
                         ( newModel
                         , Cmd.none )
                         else
-                        ( { newModel | tree =
+                        ( { focusedModel | tree =
                                 mutePayload
                                     path
                                     (\ p -> { p | status = LoadingFolder })
@@ -621,7 +624,7 @@ update msg model =
                       , Cmd.batch
                         ([ Task.perform
                             identity
-                            ( Task.succeed ( FromTree ( Open path True )))
+                            ( Task.succeed ( FromTree ( Open path True False )))
                          ] ++ ( reOpen ( getOpenState model.tree ))
                         )
 
@@ -720,6 +723,7 @@ reOpen openState =
                         <| Open
                             ( pathFromString dir )
                             True
+                            False
                     )
         )
         ( Set.toList openState )
