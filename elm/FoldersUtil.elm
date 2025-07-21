@@ -284,6 +284,7 @@ toListItems baseUrl overDrag convertMsg focus cut payload children =
             ]
             ([ Html.div
                 ([ class "node"
+                , class ( classOver payload overDrag )
                  , tabindex 0
                  ] ++ if  not dropable
                      then []
@@ -375,7 +376,6 @@ viewFolder overDrag payload open convertMsg =
     Html.div
         [ class "folder-row"
         , class ( if open then "open" else "not-open" )
-        , class ( classOver payload overDrag )
         ]
         ([ buttonOpen Open payload convertMsg
         , Html.p
@@ -511,7 +511,6 @@ viewSeries baseUrl overDrag payload convertMsg =
                         , Html.p
                             [ class "series-name"
                             , draggable "true"
-                            , class ( classOver payload overDrag )
                             , onDragStart
                                 <| convertMsg
                                     <| DragStart
