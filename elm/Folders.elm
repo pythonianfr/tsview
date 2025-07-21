@@ -129,6 +129,19 @@ type Msg
     | DebounceQuery (Debouncer.Msg Msg)
 
 
+forbidden : List String
+forbidden =
+    [ "."
+    , "-"
+    , "+"
+    , "/"
+    , "-"
+    , "("
+    , ")"
+    ]
+
+
+
 initTree: List String -> Tree Payload
 initTree paths =
     mutePayload
@@ -554,10 +567,14 @@ update msg model =
                 CreationName creationName ->
                     U.nocmd
                         { model | creationName =
-                                    String.replace
-                                        "."
-                                        ""
+                                    List.foldl
+                                        (\ b -> String.replace
+                                                b
+                                                ""
+                                        )
                                         creationName
+                                        forbidden
+
                         }
 
                 Create path ->
