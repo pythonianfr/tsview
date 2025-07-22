@@ -18,17 +18,25 @@ import Html exposing
     ( Html
     , Attribute
     , br
+    , button
     , div
+    , h2
+    , input
     , li
+    , p
     , text
     , ul
     )
 import Html.Attributes exposing
     ( class
+    , placeholder
     , title
+    , type_
+    , value
     )
 import Html.Events exposing
-    ( onClick )
+    ( onClick
+    , onInput )
 import Http
 import Set exposing (Set)
 import Task
@@ -108,6 +116,8 @@ type ControlKey
 type alias Model =
     { baseUrl: String
     , treeAttribute: Maybe String
+    , treeAttributeInput: String
+    , treeAttributeConfirmation: Bool
     , paths: List String
     , tree: Tree Payload
     , restriction: Int
@@ -128,12 +138,17 @@ type alias Model =
 type Msg
     = GotPaths ( Result Http.Error String )
     | GotTreeAttribute ( Result Http.Error String )
+    | GotSetTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path String ( Result Http.Error String )
     | TowardDeletion Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
     | GotRename String String ( Result Http.Error String )
     | ProcessTransaction ( String, String )
+    | TreeAttributeInput String
+    | SubmitTreeAttribute
+    | ConfirmTreeAttribute
+    | CancelTreeAttribute
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -193,6 +208,31 @@ update msg model =
                             }
         GotTreeAttribute ( Err err ) ->
             U.nocmd model
+
+        GotSetTreeAttribute (Ok _) ->
+            ( model
+            , getTreeAttribute model.baseUrl
+            )
+
+        GotSetTreeAttribute (Err _) ->
+            U.nocmd model
+
+        TreeAttributeInput input ->
+            U.nocmd { model | treeAttributeInput = input }
+
+        SubmitTreeAttribute ->
+            if String.trim model.treeAttributeInput == "" then
+                U.nocmd model
+            else
+                U.nocmd { model | treeAttributeConfirmation = True }
+
+        ConfirmTreeAttribute ->
+            ( { model | treeAttributeConfirmation = False }
+            , setTreeAttribute model.baseUrl model.treeAttributeInput
+            )
+
+        CancelTreeAttribute ->
+            U.nocmd { model | treeAttributeConfirmation = False }
 
         GotSeries path (Ok raw) ->
             let
@@ -712,6 +752,25 @@ getTreeAttribute baseUrl =
         }
 
 
+setTreeAttribute: String -> String -> Cmd Msg
+setTreeAttribute baseUrl attribute =
+    Http.request
+        { method = "PUT"
+        , url =
+            UB.crossOrigin
+                baseUrl
+                ["api", "series", "tree-attribute"]
+                []
+        , body = Http.jsonBody
+                    <| JE.object
+                        [ ( "attribute", JE.string attribute ) ]
+        , expect = Http.expectString GotSetTreeAttribute
+        , headers = [ ]
+        , tracker = Nothing
+        , timeout = Nothing
+        }
+
+
 reOpen: Set String -> List ( Cmd Msg )
 reOpen openState =
     List.map
@@ -914,7 +973,8 @@ renameTreePath baseUrl oldBranch newBranch =
 view: Model -> Html Msg
 view model =
     case model.treeAttribute of
-        Nothing -> div [] [text "No tree attribute defined"]
+        Nothing -> 
+            viewTreeAttributeSetup model
         Just _ ->
             div
                 [ class "menu-folders"
@@ -936,6 +996,86 @@ view model =
                     model.currentCut
                 , viewMoving model.currentTransactions
                 ]
+
+
+viewTreeAttributeSetup: Model -> Html Msg
+viewTreeAttributeSetup model =
+    div
+        [ class "menu-folders tree-attribute-setup" ]
+        [ div
+            [ class "card" ]
+            ( if model.treeAttributeConfirmation then
+                viewTreeAttributeConfirmation model
+              else
+                viewTreeAttributeForm model
+            )
+        ]
+
+
+viewTreeAttributeForm: Model -> List (Html Msg)
+viewTreeAttributeForm model =
+    [ h2 [] [ text "Setup Tree Attribute" ]
+    , viewTreeAttributeInstructions
+    , div
+        [ class "tree-attribute-form" ]
+        [ div
+            [ class "form-group" ]
+            [ input
+                [ type_ "text"
+                , placeholder "Enter attribute name (e.g., 'path', 'folder')"
+                , value model.treeAttributeInput
+                , onInput TreeAttributeInput
+                , class "tree-attribute-input"
+                ]
+                []
+            ]
+        , button
+            [ onClick SubmitTreeAttribute
+            , class "tree-attribute-submit"
+            ]
+            [ text "Submit" ]
+        ]
+    ]
+
+
+viewTreeAttributeConfirmation: Model -> List (Html Msg)
+viewTreeAttributeConfirmation model =
+    [ h2 [] [ text "Confirm Tree Attribute" ]
+    , viewTreeAttributeConfirmationInstructions model
+    , div
+        [ class "tree-attribute-form" ]
+        [ div
+            [ class "confirmation-buttons" ]
+            [ button
+                [ onClick CancelTreeAttribute
+                , class "tree-attribute-cancel"
+                ]
+                [ text "Cancel" ]
+            , button
+                [ onClick ConfirmTreeAttribute
+                , class "tree-attribute-confirm"
+                ]
+                [ text "Confirm" ]
+            ]
+        ]
+    ]
+
+
+viewTreeAttributeInstructions: Html Msg
+viewTreeAttributeInstructions =
+    p [] [ text "Please define the attribute name that will be used to organize series in a tree structure. This will determine how your time series data is categorized and displayed in the folder tree." ]
+
+
+viewTreeAttributeConfirmationInstructions: Model -> Html Msg
+viewTreeAttributeConfirmationInstructions model =
+    div []
+        [ p []
+            [ text "Are you sure you want to set the tree attribute to: "
+            , Html.strong [] [ text ("\"" ++ model.treeAttributeInput ++ "\"") ]
+            , text "?"
+            ]
+        , p [] [ text "This will determine how your time series data is organized. This setting can be changed later if needed." ]
+        ]
 
 
 viewMoving : Dict (String, String) ( List String )-> Html Msg
@@ -976,6 +1116,8 @@ initModel baseUrl =
     in
     { baseUrl = baseUrl
     , treeAttribute = Nothing
+    , treeAttributeInput = ""
+    , treeAttributeConfirmation = False
     , paths = []
     , tree = emptyTree
     , restriction = 150
