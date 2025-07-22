@@ -205,6 +205,7 @@ def tsview(tsa):
         min = request.args.get('startdate')
         max = request.args.get('enddate')
         debug = request.args.get('debug')
+        query = request.args.get('query', '')
         title = 'Quick view'
         return render_template(
             'tsview.html',
@@ -217,6 +218,7 @@ def tsview(tsa):
             min=min,
             max=max,
             debug=debug,
+            query=query,
             flags_menu=flags_menu,
             title=title,
         )

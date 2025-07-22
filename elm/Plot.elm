@@ -76,6 +76,7 @@ type alias Model =
     , legendStatus : Maybe (List (String, Bool))
     , showLegend : Bool
     , activeRequests : Set String
+    , query : String
     }
 
 type Selecting =
@@ -161,6 +162,7 @@ type Msg
     | GotGroupData Int String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
     | GotBasket Bool String (Result Http.Error String)
+    | GotQuery (Result Http.Error String)
     | ChangeSelection Selecting
     | ToggleSeries String
     | FilterSeries String
@@ -316,6 +318,16 @@ fetchbasket model remove  name =
         }
 
 
+getQuery : String -> String -> Cmd Msg
+getQuery baseUrl queryStr =
+    Http.get
+        { expect = Http.expectString GotQuery
+        , url = UB.crossOrigin baseUrl
+              [ "api", "series", "find" ]
+              [ UB.string "query" queryStr ]
+        }
+
+
 plotFigure : List (H.Attribute msg) -> List (H.Html msg) -> H.Html msg
 plotFigure =
     H.node "plot-figure"
@@ -433,6 +445,39 @@ update msg model =
 
         GotBasket remove basketName (Err err) ->
             doerr "gotbasket network" ""
+
+        GotQuery (Ok rawdata) ->
+            case Decode.decodeString (Decode.list basketItemDecode) rawdata of
+                Ok items ->
+                    let
+                        names = List.map .name items
+                        searchSeries = model.searchSeries
+                        updatedSearchSeries =
+                            { searchSeries | selected = names }
+                        previousRegistry = model.registry
+                        newRegistry = Dict.fromList
+                                        <| List.map
+                                             (\ n -> ( n, emptyInfo ))
+                                             names
+                        updatedRegistry = { previousRegistry
+                                                | series =
+                                                    Dict.union
+                                                    previousRegistry.series
+                                                    newRegistry
+                                          }
+                        newModel = { model
+                                   | registry = updatedRegistry
+                                   , searchSeries = updatedSearchSeries
+                                   , selecting = ModeSeries
+                                  }
+                        ( modelWithRequests, fetchCmd ) = fetchseries newModel False
+                    in
+                    ( modelWithRequests, fetchCmd )
+                Err err ->
+                    doerr "gotquery decode" <| Decode.errorToString err
+
+        GotQuery (Err err) ->
+            doerr "gotquery network" ""
 
         -- never used in this page
         KindChange kind checked ->
@@ -1661,6 +1706,7 @@ main : Program
        , min: String
        , max : String
        , debug: String
+       , query: String
        } Model Msg
 main =
     let
@@ -1690,7 +1736,7 @@ main =
                     , searchSeries = initSearch series
                     , searchBasket = initSearch baskets
                     , searchGroup = initSearch groups
-                    , selecting = if fromScratch
+                    , selecting = if fromScratch && flags.query == ""
                                     then ModeSeries
                                     else NoMode
                     , loaded = { series = Dict.empty
@@ -1702,6 +1748,7 @@ main =
                     , legendStatus = Nothing
                     , showLegend = True
                     , activeRequests = Set.empty
+                    , query = flags.query
                     }
 
                 ( modelWithSeries, seriesCmd ) = fetchseries model False
@@ -1722,6 +1769,10 @@ main =
                             ] ++ ( List.map
                                     ( fetchbasket model False )
                                     baskets
+                                 )
+                              ++ ( if flags.query /= ""
+                                   then [ getQuery model.baseurl flags.query ]
+                                   else []
                                  )
                             )
                )
