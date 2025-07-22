@@ -29,6 +29,7 @@ import Html exposing
     )
 import Html.Attributes exposing
     ( class
+    , disabled
     , placeholder
     , title
     , type_
@@ -1032,6 +1033,7 @@ viewTreeAttributeForm model =
         , button
             [ onClick SubmitTreeAttribute
             , class "tree-attribute-submit"
+            , disabled ( model.treeAttributeInput == "" )
             ]
             [ text "Submit" ]
         ]
@@ -1063,7 +1065,23 @@ viewTreeAttributeConfirmation model =
 
 viewTreeAttributeInstructions: Html Msg
 viewTreeAttributeInstructions =
-    p [] [ text "Please define the attribute name that will be used to organize series in a tree structure. This will determine how your time series data is categorized and displayed in the folder tree." ]
+    p
+    []
+    [ text
+        "Choose the attribute name that will be used to organize series in a folder-like structure."
+    , text " This input will determine the name of the key used in the metadata to describe the path of the series."
+    , text " The actual path can be changed with the following view, but can also be accessed and edited directly "
+    , text "through the metadata via the python API or the /tsinfo page."
+    , br [] []
+    , text "e.g.:"
+    , ul
+        []
+        [ li [] [ text "folder"]
+        , li [] [ text "path"]
+        , li [] [ text "tree"]
+        , li [] [ text "etc ..."]
+        ]
+    ]
 
 
 viewTreeAttributeConfirmationInstructions: Model -> Html Msg
@@ -1074,7 +1092,18 @@ viewTreeAttributeConfirmationInstructions model =
             , Html.strong [] [ text ("\"" ++ model.treeAttributeInput ++ "\"") ]
             , text "?"
             ]
-        , p [] [ text "This will determine how your time series data is organized. This setting can be changed later if needed." ]
+        , p [] [ text "This will determine the assigned key in the metadata."
+                , br [] []
+                , text "this will appear in the metadata like: "
+                ,  br [] []
+                , ul [] [ li [] [
+                    text <| model.treeAttributeInput
+                            ++ " -> path.to.folder "
+                    ]]
+                , br [] []
+                , text "(The dots separate the tree levels.)"
+                , br [] []
+                , text "This cannot be easly changed." ]
         ]
 
 
