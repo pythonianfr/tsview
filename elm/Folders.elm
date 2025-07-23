@@ -979,15 +979,18 @@ view model =
             viewTreeAttributeSetup model
         Just _ ->
             div
-                [ class "menu-folders"
-                , onClick (FromTree (SubMenu False Root))
+            [ class "menu-folders"
+            , onClick (FromTree (SubMenu False Root))
+            ]
+            [ Html.h1
+                [ class "page-title" ]
+                [ Html.text "Series Tree" ]
+            ,  Html.div
+                [ class "horizon"
+                , title "Selected horizon used in Quickview and Series Editor"
                 ]
-                [ Html.div
-                    [ class "horizon"
-                    , title "Selected horizon used in Quickview and Series Editor"
-                    ]
-                    [ Html.text "Selected horizon : "
-                    , selectHorizon model.horizon Horizon ]
+                [ Html.text "Selected horizon : "
+                , selectHorizon model.horizon Horizon ]
                 , viewTree
                     model.baseUrl
                     model.tree
