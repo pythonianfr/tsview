@@ -312,7 +312,7 @@ update msg model =
                             ]
             )
 
-        TowardDeletion source destinaton name ( Ok raw ) ->
+        TowardDeletion source destination name ( Ok raw ) ->
             let treeAttribute = Maybe.withDefault "" model.treeAttribute
             in
             case JD.decodeString Metadata.decodemeta raw of
@@ -326,14 +326,15 @@ update msg model =
                             name
                             newMeta
                             source
-                            destinaton
+                            destination
                         )
                 ( Err err ) ->
                     U.nocmd { model | errors = model.errors
                                                ++ [JD.errorToString err]
                             }
 
-        TowardDeletion name _ _ ( Err raw ) -> U.nocmd model
+        TowardDeletion source destination name ( Err raw ) ->
+            U.nocmd ( removeFromQueue source destination name model )
 
         GotDelete path (Ok _) ->
             ( model
