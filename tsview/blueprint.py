@@ -934,9 +934,11 @@ def tsview(tsa):
     @bp.route('/folders')
     def folders():
         baseurl = homeurl()
+        flags_menu = json.dumps([homeurl(), 'timeseries-catalog'])
         return render_template(
             'folders.html',
-            baseurl=baseurl
+            baseurl=baseurl,
+            flags_menu=flags_menu,
         )
 
     return bp
