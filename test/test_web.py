@@ -226,7 +226,6 @@ def test_group_formulas(client, tsa):
 
     res = client.get('/groupsearch/allmetadata')
     out = res.json
-    out['base'].pop('tablename')
     assert out == {
         'base': {
             'index_dtype': '<M8[ns]',
@@ -545,7 +544,7 @@ def test_generate_ts(client, tsa):
     })
     # this is not even json earmarked :/
     assert res.body == (
-        b'{"2025-01-01T00:00:00+01:00": 42.0, "2025-01-02T00:00:00+01:00": 42.0}'
+        b'{"2025-01-01T00:00:00+01:00":42.0,"2025-01-02T00:00:00+01:00":42.0}'
     )
 
     res = client.get('/generate-ts', params={
@@ -557,5 +556,5 @@ def test_generate_ts(client, tsa):
         'freq': 'D'
     })
     assert res.body == (
-        b'{"2025-01-01T00:00:00+00:00": "hello", "2025-01-02T00:00:00+00:00": "hello"}'
+        b'{"2025-01-01T00:00:00+00:00":"hello","2025-01-02T00:00:00+00:00":"hello"}'
     )
