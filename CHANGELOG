@@ -1,0 +1,768 @@
+# Changelog
+
+## [Unreleased]
+
+### Added
+- ui/groups: horizon widget for group pages
+- ui/horizon: canadian timezone support
+- query editor:
+  - basic and expert search modes with tabs
+  - filter tree operations (expand, simplify, delete)
+  - drag and drop support for filter nodes
+  - grab cursor for list items
+  - filter for basket names in baskets list
+  - root "and" expression initialization in expert mode
+  - conversion from basic to expert filter on first switch
+- tseditor multi-series editing:
+  - 2d table support for editing multiple series simultaneously
+  - rectangular selection and copy/paste
+  - cell-level edition mode
+  - arrow key navigation (left/right) in 2d table
+  - typing triggers cell activation (standard spreadsheet behavior)
+  - improved ctrl key behavior
+  - rounded values display in non-editing cells
+  - proper focus management outside edition table
+  - dates and column headers integrated into coorddata model
+  - focusable and selectable dates with visual feedback
+  - copy dates without overwriting functionality
+  - back button in creation edit mode
+  - show/hide current diff toggle
+  - protection for non-editable columns from erasure
+  - display of falsy inputs (0, false, etc.)
+  - improved selection boundaries visualization
+- custom paste method using div wrapper instead of input element tweaking
+- schema: horizon default values initialization
+
+### Changed
+- search ui:
+  - aerated text input fields
+  - cache interface tweaks
+  - source and metadata display in export mode
+  - avoid wrapping bynames in redundant "and" clauses
+- tseditor refactoring:
+  - selection info moved to model root instead of data
+  - components data properly organized
+  - better zoom handling for multi-series
+  - restore cancel action functionality
+  - delete cell on focus with "del" key
+  - coorddata now includes dates (column -1) and headers
+  - improved diff table display and styling
+  - primary edition view behavior restored
+  - creation from scratch behavior restored
+  - better na representation (not shown as deletion)
+- folders ui:
+  - restrict to local series only (federation read-only in future)
+  - improved click zones for folder open/close
+  - replaced popover with css solution for better elm integration
+  - better error state display and loading indicators
+  - queue count display for pending operations
+  - style homogenization with rest of ui
+- test/web: updated for metadata integrity changes (removed tablename field)
+
+### Fixed
+- ui/groupinfo: removed inferfreq button for groups (not supported)
+- tseditor:
+  - ensure non-editable cells cannot be altered by key presses
+  - clean current diff when necessary
+  - proper fill setup placement
+  - falsy input display
+  - non-editable column protection
+  - na representation distinct from deletion
+  - focus error tracking
+- folders:
+  - server update after failed series displacement
+  - error counting in transactions
+  - browser resource limits with large batch operations (>1300 series)
+
+## [0.21.0] - 2025-02-25
+
+### Added
+- tseditor enhancements:
+  - series creation mode with form validation
+  - statistical indicators display (mean, std, min, max, count, nas)
+  - inferred frequency calculation with unlock mechanism
+  - linear transformation for edited values
+  - multi-cell selection with mouse drag and keyboard shortcuts
+  - copy/paste for dates and values separately
+  - fill nas functionality with buttons
+  - thousands separator formatting for display
+  - round values feature with +/- buttons and local storage
+  - show all points button for large datasets
+  - cancel edition button
+  - keyboard navigation with arrow keys, page up/down
+  - shift+click for range selection, ctrl+shift+arrow for select to limits
+- groupinfo page improvements:
+  - rename mechanism (commented out pending integrity guarantees)
+  - copy icon next to group name
+  - user metadata in dedicated tab
+  - error message for non-existent groups
+  - log entries for primary groups
+- query editor:
+  - addressable with ?basket=<basket-name> parameter
+  - proposals for metadata keys, sources, and cache policies
+  - "by.and" operator selected by default for new baskets
+- formula editor:
+  - loading indicator during plot rendering
+  - create/update indication when saving formulas
+- monitoring:
+  - /ping endpoint for health checks
+- configuration:
+  - new configuration object usage
+  - dashboard link configuration
+- vertical zoom support in tsinfo page
+
+### Changed
+- tseditor refactoring:
+  - unified series model with naked and toedit modes
+  - edition type system (edition string | noedition | deletion)
+  - better handling of nas groups with start position tracking
+  - improved paste behavior after horizon actions
+  - deselect cells on save and escape key
+  - lose focus on horizon interaction
+  - permalink moved to header
+  - compact table header and vertical space optimization
+- horizon widget:
+  - better zoom behavior preserving non-updated components
+  - timezone choices in model
+  - debug view showing zoomy values
+- groupinfo:
+  - moved delete button to right
+  - fixed cache button for formula groups
+  - avoid boundformula requests for non-bound groups
+- tsinfo:
+  - removed cache button for primaries
+  - unified getidates function
+  - always expect non-cached idates to avoid conflicts
+- plot improvements:
+  - removed "editor.code" title
+  - more generous margins to avoid truncations
+  - default axis with hoverformat set to "locals"
+- configuration and setup:
+  - removed cli module (now useless)
+  - schema registration at init-db time
+  - integration with refinery architecture
+  - switch postgresql port to 5434 for server usage
+
+### Fixed
+- tseditor:
+  - spurious /supervision calls for formulas
+  - horizon interaction bugs
+  - deletion cleanup for raw field
+  - thousands separator on integers
+  - focus persistence after copy
+  - nas position calculation after zoom
+  - negative number parsing (-123.45)
+  - interval metadata closing right bounds
+  - paste data space removal
+  - formula components using correct api endpoint
+- plot rendering for edited values during editing
+- query editor "by.source" input help
+- config file handling for missing dashboard section
+- werkzeug version constraint (< 3.1.x)
+- metadata decoder for null intervals
+- test adjustments for upstream changes
+
+### Removed
+- cache: spurious h1 title
+- cli module completely
+- duplicated and unused functions in ui modules
+
+## [0.20.1] - 2024-10-25
+
+### Fixed
+- packaging: include missing schema.sql resource file
+
+## [0.20.0] - 2024-10-22
+
+### Added
+- quickview page with y-axis zoom support:
+  - persistent y-zoom parameters in url
+  - synchronized y-zoom across tsinfo and tseditor views
+  - legend selection state tracking from plotly
+- pro feature detection:
+  - automatic hiding of pro-only menu items when refinery_pro not available
+  - /ispro endpoint check for conditional menu rendering
+- horizon widget enhancements:
+  - better date format validation (date vs datetime)
+  - improved json key naming between client and server
+- tsinfo history improvements:
+  - user-configurable max revisions display
+  - navigation arrows for stepping through insertion dates one by one
+  - better handling of last N versions instead of first N
+  - idate displayed as html element with css styling
+  - automatic history reset on horizon changes
+- settings backend improvements:
+  - configurationerror for bad configuration
+  - proper 500 error handling with detailed messages
+
+### Changed
+- tseditor optimizations:
+  - zoom preservation after editing
+  - renamed editedts to zoomedts for clarity
+  - skip insertion-dates query for formulas
+  - monotonic index generation instead of random
+  - formula components loaded after main series
+  - better handling of edited values during zoom
+- horizon widget:
+  - renamed newdates to datesfromzoom
+  - zoombounds now nothing instead of ["", ""] when empty
+  - aligned horizonbounds with other bound types
+- tsinfo cache improvements:
+  - cache parameter now affects version requests
+  - cache toggle wipes and replaces insertion dates
+- query improvements:
+  - editor links only use zoombounds in query
+  - better bounds formalism using maybe (string, string)
+  - optimized full history requests
+
+### Fixed
+- tseditor zoom conservation and change behavior
+- horizon empty bounds handling
+- tsinfo roundtrip zoom preservation with horizon actions
+- proper error propagation from backend to web client
+- user metadata migration with mandatory parameters
+- settings validation robustness
+
+### Removed
+- graph title display of idate (moved to html element)
+- redundant code in history view paths
+
+## [0.19.0] - 2024-08-22
+
+### Added
+- new elm-based time series editor (tseditor) with:
+  - table display of series values with editing capabilities
+  - excel copy/paste support
+  - timezone selection (utc/cet)
+  - inferred frequency option to detect gaps
+  - synchronization between graph zoom and table display
+  - cache control for formula series
+  - override highlighting for edited values
+- time horizon widget with:
+  - predefined periods (2 weeks, 1 month, 3 months, 1 year, all)
+  - navigation arrows for time offset
+  - local storage persistence
+  - date bounds display
+- history mode for visualizing series evolution:
+  - interactive timeline slider
+  - color-coded historical curves
+  - point evolution tracking on hover
+  - limited to 70 insertion dates for performance
+- query editor (qeditor) for basket management:
+  - filter tree visualization
+  - basket creation and editing
+  - lisp expression parsing
+- standalone menu system:
+  - icon and text modes
+  - current page highlighting
+  - consistent navigation across all views
+- new homepage replacing cockpit
+- operators page with syntax highlighting
+- formula batch ui
+- security roles support (admin, rw, ro, guest)
+
+### Changed
+- completely rewrote tseditor replacing dash-based version
+- migrated all views to use standalone menu system
+- improved tsinfo with:
+  - tabbed interface for different aspects
+  - metadata badges on series name line
+  - formula depth slider improvements
+  - better delete/rename action placement
+- enhanced formula editor with:
+  - text mode editing
+  - better validation
+  - void type handling
+  - support for ** operator
+- upgraded elm tooling and dependencies
+- simplified data fetching with keepnans parameter
+- better css organization and naming conventions
+
+### Fixed
+- horizon widget offset buttons when series out of bounds
+- table jumping on save button appearance
+- plotly rendering timing issues with tabs
+- negative number handling in editor
+- paste action reliability
+- timezone display for naive series
+- insertion date checking for concurrent edits
+- many style and layout improvements
+
+### Removed
+- old dash-based history module
+- elm-integrated menu system (replaced with standalone)
+- redundant cdn links
+- unused model items and code
+
+## [0.18.1] - 2023-09-07
+
+### Added
+- initial continuous integration system
+
+### Changed
+- adapted to latest groups schema changes
+
+### Fixed
+- refinery schema initialization (explicit source handling required)
+- test configuration to avoid local config file lookup
+
+## [0.18.0] - 2023-08-11
+
+### Added
+- series source display in tsinfo title
+- expandable formula depth slider (replacing all-or-nothing expansion)
+- clickable series links in formulas (including integration operator)
+- minimalist lisp parser with support for:
+  - symbols, strings, numbers, booleans, nil, keywords
+  - arithmetic and inequality operators
+  - recursive expressions
+- proper lisp expression formatting with indentation
+- package.json for formula validation
+- __version__ attribute in package root
+- cache initial_revdate display
+
+### Changed
+- history slider fixed for newer dash api
+- switched from pygments lexer for consistent coloration
+- replaced expanded formula view with depth-based representation
+- improved formula grouping by level with immediate queries
+- enhanced cache status coherency
+- better handling of string series
+- upgraded dependencies (especially flask for security)
+
+### Fixed
+- nas handling without bounds in editor
+- internal and normal metadata fetching
+- meta filter for key/value combos
+- formula parser support for ** (exponent) operator
+- packed/list type handling in spec parser
+- error messaging improvements
+
+### Removed
+- rename view (functionality moved to tsinfo)
+- components section from tsinfo
+- supervision status hack (replaced with proper series type)
+- remnants of expanded_formula in groupinfo
+- tachyons css references
+
+## [0.17.0] - 2023-02-24
+
+### Added
+- support for query type in editor (transient type)
+
+### Changed
+- adapted to tshistory schema changes for allmetadata
+- adapted to upstream schema changes for group formulas
+- followed internal/user metadata split from tshistory in tsinfo
+- pinned working dash version
+
+### Fixed
+- pygments test adjustments
+
+## [0.16.0] - 2022-12-26
+
+### Added
+- editable table for primary series (integrated from tshistory_editor)
+- group info page with:
+  - metadata display and editing
+  - bindings display for bound formula groups
+  - delete action
+  - links to bound formulas
+- cache filtering by formula contents
+- group support in search/catalog:
+  - toggle between series and groups view
+  - group filtering capabilities
+  - distinct badge for bound formulas
+- delete and rename actions in tsinfo page
+- online documentation for cache
+- helper titles for policy creation form
+- license file
+
+### Changed
+- integrated tshistory_editor contents into tsview
+- renamed info.elm to tsinfo.elm for clarity
+- refactored common info page components into shared modules
+- improved ui with record types for cache inputs
+- upgraded flask and dash dependencies
+- normalized catalog data types for series and groups
+
+### Fixed
+- nats creation issue (use none instead)
+- unconditionally show "view uncached" action
+- group and series timezone compatibility
+- formula formatter test adjustments
+
+## [0.15.1] - 2022-10-14
+
+### Added
+- helper titles for name and formula filters to provide more user guidance
+
+### Changed
+- larger input fields for name in editor and search
+- larger input field for formula contents filter
+- improved search ui by removing redundant tail node
+
+## [0.15.0] - 2022-10-11
+
+### Added
+- from/to value date selection widget in tsview
+- series kind and source display in search results
+- generic lisp parser written in elm
+- keyword notation support for non-positional parameters
+- patched assoclist implementation
+
+### Changed
+- complete rewrite of tsview removing lru cache and task usage
+- switched from tachyon css to bootstrap for consistency
+- improved formula editor layout (editor left, tree right)
+- conditional save with better feedback in formula editor
+- series selector input widget made larger for comfort
+- cache ui moved from tshistory_refinery
+- limit search results to 1000 items for performance
+
+### Fixed
+- error logger tagging for better debugging
+- null cache policy handling
+- min/max dates coupling with revdate changes
+- plot reload on insertion date picker change
+- display order in metadata (key -> value)
+- browser quirks mode issues
+- list.extra.remove stack exhaustion in chrome
+- performance regression in search
+- multiple source display for series
+
+### Removed
+- lrucache module (no longer used)
+- tachyon css library completely
+- menu to select series kind in series-selector
+- dead code in various modules
+
+### Security
+- bumped virtual-dom to fix security issue
+
+## [0.14.0] - 2022-06-23
+
+### Added
+- formula cache management in info page
+  - display cache status
+  - show cache policy
+  - delete cache with confirmation
+  - toggle between cached/uncached views
+- date picker for precise revision selection
+- min/max value dates display
+- date widgets for date control
+
+### Changed
+- formula display now hides implementation artifacts
+- eval_formula now uses official api
+- improved cache view organization and ui
+- cache deletion triggers plot and log reload
+- always fetch series log even with formula cache
+
+### Fixed
+- plot loading with selected insertion date
+- insertion dates using nocache switch
+- werkzeug pinned to version < 2
+
+## [0.13.1] - 2022-01-19
+
+### Added
+- vendored ace editor core elements (minified + no-conflict)
+
+### Changed
+- use vendored ace editor instead of fetching
+- manual ace module updates instead of automatic fetching
+
+### Fixed
+- elm files missing from build
+- build process for elm files
+- code style issues
+
+## [0.13.0] - 2022-01-13
+
+### Changed
+- adapted to tshistory_rest being folded into tshistory
+
+## [0.12.0] - 2021-09-21
+
+### Fixed
+- rest blueprint import following upstream change
+
+## [0.11.2] - 2020-12-11
+
+### Added
+- deadendstostring function for better error messages
+- argument label rendering in formula editor
+
+### Changed
+- removed font-awesome dependency (using unicode symbols instead)
+- improved error messages for specification parsing
+- better elm-css usage
+
+### Fixed
+- optarg rendering branch in formula editor
+- rendering of no-argument operators
+- spec error rendering
+- failing tests
+
+### Removed
+- unused resources
+- bogus murmur dependency
+- setup.cfg (pure python 3 builds only)
+
+## [0.11.1] - 2020-07-30
+
+### Changed
+- info page no longer uses supervision status to infer formula presence
+- reduced debounce lag for insertion dates slider
+- updated dash and components versions
+
+### Fixed
+- formula detection now properly fetches formula instead of relying on metadata
+
+## [0.11.0] - 2020-07-02
+
+### Added
+- comprehensive time series info page showing metadata, formulas, history, and plots
+- catalog/search page with advanced filtering capabilities
+  - filter by name (space-separated terms)
+  - filter by series kind (primary/formula)
+  - filter by source
+  - filter by formula contents
+  - filter by metadata keys/values
+- complete rewrite of formula editor with elm-based graphical interface
+  - formula parsing and validation
+  - ace editor integration
+  - live preview with plot
+  - save/load functionality
+- metadata editing capabilities in info page
+- slider for viewing different series versions
+- debouncing for search filters and plot updates
+- handler option to tsh view command
+- links between related views (info, editor, history)
+
+### Changed
+- upgraded to elm 0.19.1
+- formula editor now required dependency (no longer optional)
+- improved error handling and display across all views
+- better catalog handling with lazy rendering
+- metadata display separated into standard and user sections
+- formula components shown as tree structure
+- adapted to werkzeug 1.0 changes
+
+### Fixed
+- negative number parsing in formulas
+- formula json loading on get api
+- metadata value decoding for list types
+- base url handling with intermediate segments
+- pandas 1 compatibility
+
+### Removed
+- legacy formula editor from 0.9.0 (replaced with elm-based version)
+- unnecessary debug logging
+
+## [0.10.0] - 2020-02-04
+
+### Added
+- security callbacks for delete/rename operations (forbidden by default)
+- series catalog with source uri information
+- series selector module with filters for kind and source
+- hamburger menu for filter activation
+- allsources parameter exposure
+- placeholder in keyword input for better user guidance
+
+### Changed
+- improved catalog handling with better type system
+- refactored keyword selectors into unified series selector
+- simplified component entry points with pre-built api objects
+- better error handling and decoding
+- improved ui layout with visual effects
+- adapted to new catalog format from tshistory
+- server responses now return empty 204 instead of names
+
+### Fixed
+- number parsing from "now" timestamps
+- pre-selected series rendering after catalog refactoring
+- command renamed to cli for consistency
+
+### Removed
+- keyword single selector (redundant functionality)
+- need for checkurlprefix
+- dead dropdown method in history
+
+## [0.9.0] - 2019-10-28
+
+### Added
+- serverless formula editor
+- formula operators documentation route
+- editor link in tsview when available
+- bool type support
+- pygmentize syntax highlighting
+- flags variable in makefile
+
+### Changed
+- upgraded to plotly 4.1
+- higher default height for tsview
+- adapted to new tshistory_rest api handling
+- sorted operators in formula editor
+- improved slist presentation
+- history/editor links on same line
+- renamed tsview.dashboard to tsview.history
+- made readme available to pypi
+
+### Fixed
+- timestamp handling
+- performance issues by removing dropdown in history dashboard
+
+### Removed
+- textarea in favor of pygmentized display
+
+## [0.8.0] - 2019-09-18
+
+### Added
+- error message handling and display across plot, delete, and rename views
+- --optimize flag for production builds
+- clearer http error messages
+
+### Changed
+- upgraded to latest plotly (minimum 3.10)
+- switched to faster scattergl rendering for performance
+- tsviewlog adapted to tshistory changes (per-series revisions)
+- series_names now filters only primary series
+- task.sequence rewritten to fail with error messages
+
+### Fixed
+- error catalog handling in plot view
+
+### Removed
+- unused modules and tests
+
+## [0.7.0] - 2019-08-07
+
+### Added
+- elm-based series selection for plotly rendering
+- lrucache implementation for caching series
+- plotly web component for pure elm rendering
+- permalink and history urls support
+- documentation for history view
+
+### Changed
+- improved history slider functionality
+- plotly version management improvements
+- removed width/height forcing for adaptive viewport
+- series selection with absolute positioning and z-index
+- deactivate selector when series provided via url
+
+### Fixed
+- dash utility set_read_only method inhibited
+- absent value handling in input rendering
+- api path handling in elm
+- plotly showlegend parameter
+- correct homeurl and elm urlprefix
+
+### Removed
+- redundant javascript code
+- server-side cruft
+
+## [0.6.0] - 2019-07-16
+
+### Added
+- elm-based ui components for delete and rename operations
+- keywordmultiselector and keywordsingleselector components
+- tshistory rest api endpoint exposure
+- fuzzy search for series with keyword matching
+- autofocus on search input
+- makefile for easier elm compilation
+- tsview_port environment variable support
+- initial series catalog loading
+
+### Changed
+- upgraded to dash 1.0
+- improved dashboard appearance with tachyons css
+- search algorithm improvements with keyword length weighting
+- case insensitive search
+- adapted to tshistory schema changes
+- use transactions in web history
+
+### Fixed
+- more robust host computation in cli
+- database directory masked in .hgignore
+
+## [0.5.0] - 2019-01-11
+
+### Changed
+- history now only shows changing values
+- improved package description
+- fixed python version requirements
+
+### Removed
+- diff mode (normal mode now provides all functionality)
+
+## [0.4.1] - 2018-11-16
+
+### Added
+- default tsio.TimeSerie argument for tshclass in history
+
+### Changed
+- pinned dash version in dependencies
+
+## [0.4.0] - 2018-10-05
+
+### Added
+- transaction support for database operations
+
+### Changed
+- diff-mode switch is now properly an input element
+
+### Fixed
+- handle empty series/diff cases due to from/to restrictions
+
+## [0.3.0] - 2018-07-12
+
+### Added
+- diff mode option for history display
+- ability to inject alternative serie_names function
+- ability to inject custom TimeSerie class for derived objects
+- debug mode for historic view cli
+- series name display in history view
+
+### Changed
+- upgraded to plotly 3.x from 2.x
+- jquery upgrade to recent version
+- select2 minor upgrade
+- history now shows actual diffs with adapted graph display
+- history colors are more accessible
+- insertion dates now plotted in chronological order
+- use bootstrap css defaults
+- adapted to tshistory api changes (get_history returns dict)
+
+### Fixed
+- template and static paths
+- issue with tz-aware timestamp vs pandas
+- slider naming (silder -> slider)
+- error protection for asynchronous loading
+
+## [0.2.1] - 2018-05-02
+
+### Added
+- flask_caching to dependencies
+- permalink functionality
+- /tshistory endpoint to navigate series history with zoom and point history
+- explicit blueprint namespacing for better coexistence
+  - templates -> tsview_templates
+  - base.html -> tsbase.html
+
+### Fixed
+- series names list construction timing
+- removed debug print statements
+
+## [0.1.0] - 2017-11-09
+
+### Added
+- initial working implementation
+- series selector and scatter plots for selected series
+- tsviewlog route to display history log (minus diffs)
+- tsh view command integration via entry points
+- flask blueprint for easy integration with other flask apps
+- basic test for the plot functionality
+- README documentation
