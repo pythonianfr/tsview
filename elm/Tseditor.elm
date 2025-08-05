@@ -19,6 +19,14 @@ import EdiTable exposing
     , FloatOrString
     , dressSeries
     , patchCurrent
+    , cartesianData
+    , cartesianDataRec
+    , CType(..)
+    , Stuff(..)
+    , parseInput
+    , parseString
+    , patchEntry
+    , pasteRectangle
     )
 import Horizon exposing
     ( HorizonModel
@@ -492,10 +500,6 @@ type alias BaseSupervisionString =
     , override : Bool
     }
 
-type Stuff
-    = DateRow String
-    | Header ( String, CType )
-    | Cell Entry
 
 
 filterEntry: Dict ( Int, Int ) Stuff ->  Dict ( Int, Int ) Entry
@@ -660,10 +664,6 @@ asCType t =
         I.Formula -> Formula
 
 
-type CType
-    = Primary
-    | Formula
-    | Auto
 
 
 applyType: String -> CType
@@ -1849,7 +1849,7 @@ update msg model =
             let parsed = parsePasted payload.text (isStr model.meta)
                 coordPatch = cartesianDataRec parsed [] 0 0 0 Dict.empty
                 corner = getPos payload.index
-                merged = pasteRectangle model model.coordData coordPatch corner
+                merged = pasteRectangle model.canwrite model.coordData coordPatch corner
             in
             U.nocmd <| applyDiff { model
                                      | rawPasted = payload.text
@@ -2949,22 +2949,6 @@ getRelevantData model =
             (modelWithComponents, [ componentsCmd ])
 
 
-parseInput : String -> Edited
-parseInput value =
-    if value == ""
-        then Deletion
-        else
-            case String.toFloat <| String.replace "," "." value of
-                Just val ->
-                    Edition ( MFloat val )
-                Nothing ->
-                    Error value
-
-parseString : String -> Edited
-parseString value =
-    if value == ""
-        then Deletion
-        else Edition ( MString value )
 
 
 parseStuff: String -> Bool -> (Maybe String, Edited)
@@ -2987,46 +2971,6 @@ parseStuff raw isString =
         in ( cleanedRaw, edition )
 
 
-cartesianDataRec:  List ( List a ) ->  List a -> Int -> Int -> Int -> Dict ( Int, Int ) a -> Dict ( Int, Int ) a
-cartesianDataRec mergedData currentRow minCol i j myDict =
-    if j == minCol
-    then
-        case mergedData of
-            [] -> myDict
-            row :: rows ->
-                case row of
-                    [] -> myDict
-                    cell :: cells ->
-                        cartesianDataRec
-                        rows
-                        cells
-                        minCol
-                        i
-                        ( j + 1 )
-                        ( Dict.insert ( i, j ) cell myDict )
-
-    else
-        case currentRow of
-            [] -> cartesianDataRec
-                  mergedData
-                  []
-                  minCol
-                  ( i + 1 )
-                  minCol
-                  myDict
-            cell :: cells ->
-                cartesianDataRec
-                mergedData
-                cells
-                minCol
-                i
-                ( j + 1 )
-                ( Dict.insert ( i, j ) cell myDict )
-
-
-cartesianData: List ( List a )-> Dict ( Int, Int ) a
-cartesianData mergedData =
-    cartesianDataRec mergedData [] -1 -1 -1 Dict.empty
 
 
 mergeData: List Component -> List ( List Stuff )
@@ -3086,46 +3030,8 @@ currentDiff model coordData =
 
 
 
-pasteRectangle: Model -> Dict ( Int, Int ) Stuff -> Dict ( Int, Int ) String -> ( Int, Int ) -> Dict ( Int, Int ) Stuff
-pasteRectangle model base patch ( cornerRow, cornerCol ) =
-    let translatedPatch = Dict.fromList
-                            <| List.map
-                                (\ (( i, j ), v ) ->
-                                    (( i + cornerRow, j + cornerCol ), v ))
-                                ( Dict.toList patch )
-    in
-        Dict.merge
-            ( \_ _ dict -> dict )
-            ( \ position stuffBase sPatch dict ->
-                case stuffBase of
-                    DateRow _ -> dict
-                    Header _ -> dict
-                    Cell e ->
-                        if model.canwrite && e.editable
-                            then
-                                Dict.insert
-                                    position
-                                    ( patchEntry stuffBase sPatch )
-                                    dict
-                            else dict
-            )
-            ( \_ _ dict -> dict )
-            base
-            translatedPatch
-            base
 
 
-patchEntry: Stuff -> String ->Stuff
-patchEntry stuff s =
-    case stuff of
-        DateRow date -> DateRow date
-        Header h -> Header h
-        Cell entry -> Cell { entry | raw = Just s
-                                    , edition =
-                                        case entry.value of
-                                            MFloat _-> parseInput s
-                                            MString _-> parseString s
-                            }
 
 relevantComponents: Model -> List Component
 relevantComponents model =
