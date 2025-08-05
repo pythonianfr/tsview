@@ -102,20 +102,37 @@ patchCurrent base patch name  =
                           case sc of
                               MFloat mf ->
                                   case mf of
-                                      Nothing -> Dict.insert d ba (default r)
+                                      Nothing ->
+                                           Dict.insert
+                                            d
+                                            (Complex
+                                                { b | raw = Nothing
+                                                    , edition = Deletion
+                                                }
+                                            )
+                                            r
                                       Just v ->
                                           Dict.insert
                                             d
                                             (Complex
                                                 { b | raw = Just ( String.fromFloat v )
-                                                            , edition = Edition ( MFloat v)
+                                                    , edition = Edition ( MFloat v)
                                                 }
                                             )
                                             r
                               MString ms ->
                                   case ms of
-                                      Nothing -> Dict.insert d ba (default r)
-                                      Just v ->  Dict.insert
+                                      Nothing ->
+                                           Dict.insert
+                                            d
+                                            (Complex
+                                                { b | raw = Nothing
+                                                    , edition = Deletion
+                                                }
+                                            )
+                                            r
+                                      Just v ->
+                                          Dict.insert
                                                     d
                                                     (Complex
                                                         { b | raw = Just v
