@@ -2,6 +2,7 @@ module EdiTable exposing
     (..)
 
 import Dict exposing (Dict)
+import Set exposing (Set)
 
 
 type Payload
@@ -306,3 +307,132 @@ pasteRectangle canwrite base patch ( cornerRow, cornerCol ) =
             base
             translatedPatch
             base
+
+
+type CompStatus
+    = CompEmpty
+    | CompLoaded
+    | CompError
+
+
+type alias OverSeries =
+    { initialTs: Dict String Payload
+    , zoomTs: Maybe (Dict String Payload)
+    }
+
+
+type alias OverComponent =
+    { name: String
+    , cType: CType
+    , data: OverSeries
+    , tzaware: Bool
+    , status: CompStatus
+    }
+
+type alias Component =
+    { name: String
+    , cType: CType
+    , data: OverSeries
+    , tzaware: Bool
+    , status: CompStatus
+    }
+
+
+
+toRaw: ( ScalarType (Maybe Float) (Maybe String) ) -> String
+toRaw scal =
+    case scal of
+        MString s -> Maybe.withDefault "" s
+        MFloat f -> Maybe.withDefault
+                        ""
+                        <| Maybe.map
+                            String.fromFloat
+                            f
+
+
+zSeries : OverSeries -> Dict String Payload
+zSeries overSeries =
+    case overSeries.zoomTs of
+        Nothing -> overSeries.initialTs
+        Just zoomTs -> zoomTs
+
+
+onlyActiveKeys : Dict String a -> List String
+onlyActiveKeys series =
+    Dict.keys series
+
+
+getEntry: String ->  ( String , OverSeries ) -> Entry
+getEntry date ( name, series ) =
+    let defaultEntry =
+            { raw = Nothing
+            , value = MFloat Nothing
+            , edition = NoEdition
+            , editable = False
+            , override = False
+            , indexRow = date
+            , indexCol = name
+            , fromBatch = False
+            }
+        ts = zSeries series
+        mPayload = Dict.get date ts
+    in
+        case mPayload of
+            Nothing -> defaultEntry
+            Just payload
+                -> case payload of
+                    Scalar scal ->
+                        { defaultEntry
+                            | value = scal
+                            , raw = Just ( toRaw scal )
+                        }
+                    Complex entry ->
+                        { defaultEntry
+                                | value = entry.value
+                                , edition = entry.edition
+                                , raw = Just ( toRaw entry.value )
+                                , override = entry.override
+                                , editable = True
+                            }
+
+
+getStuff: String ->  ( String , OverSeries ) -> Stuff
+getStuff date ( name, series ) =
+    Cell ( getEntry date ( name, series ))
+
+
+builRowBasic: List OverComponent -> String -> List Stuff
+builRowBasic components date =
+    [ DateRow date ]
+    ++ ( List.map
+             ( getStuff date )
+             <| List.map
+             (\ c -> ( c.name , c.data ) )
+             components
+       )
+
+
+mergeData: List OverComponent -> List ( List Stuff )
+mergeData components =
+    let dates =
+            List.sort
+                <| Set.toList
+                    <| List.foldl
+                            Set.union
+                            Set.empty
+                            <| List.map
+                                (\ c ->  Set.fromList
+                                            <| onlyActiveKeys
+                                                <| zSeries c.data
+                                )
+                                components
+        columns =
+            List.map
+                ( \ c -> ( c.name, c.cType ) )
+                components
+    in
+    [[ Header ( "Dates", Primary ) ] ++ List.map ( \ s -> Header s ) columns ]
+    ++ ( List.map
+             ( builRowBasic components )
+             dates
+       )

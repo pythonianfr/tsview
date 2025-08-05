@@ -25,8 +25,14 @@ import EdiTable exposing
     , Stuff(..)
     , parseInput
     , parseString
-    , patchEntry
     , pasteRectangle
+    , CompStatus(..)
+    , OverSeries
+    , OverComponent
+    , toRaw
+    , zSeries
+    , onlyActiveKeys
+    , mergeData
     )
 import Horizon exposing
     ( HorizonModel
@@ -221,8 +227,8 @@ type alias Model =
     -- show-values for formula
     , expand : Bool
     , loadedComponents: Bool
-    , directComponents : List Component
-    , terminalComponents : List Component
+    , directComponents : List OverComponent
+    , terminalComponents : List OverComponent
     , coordData: Dict ( Int, Int ) Stuff
     , diff : Dict ( Int, Int ) Entry
     }
@@ -288,13 +294,6 @@ type alias OverSeries
     = { initialTs: Dict String Payload
       , zoomTs: Maybe (Dict String Payload)
       }
-
-
-zSeries : OverSeries -> Dict String Payload
-zSeries overSeries =
-    case overSeries.zoomTs of
-        Nothing -> overSeries.initialTs
-        Just zoomTs -> zoomTs
 
 
 emptySeries: OverSeries
@@ -548,15 +547,6 @@ baseToEntryString base =
      }
 
 
-toRaw: ( ScalarType (Maybe Float) (Maybe String) ) -> String
-toRaw scal =
-    case scal of
-        MString s -> Maybe.withDefault "" s
-        MFloat f -> Maybe.withDefault
-                        ""
-                        <| Maybe.map
-                            String.fromFloat
-                            f
 
 toString: ( ScalarType Float String ) -> String
 toString scal =
@@ -601,13 +591,13 @@ isStr meta =
         _ -> False
 
 
-likeComp: Model -> List Component
+likeComp: Model -> List OverComponent
 likeComp model =
     case model.mode of
         QueryMode ->
             []
         _ ->
-            [ Component
+            [ OverComponent
                   model.name
                   ( asCType model.seriestype )
                   model.series
@@ -619,19 +609,8 @@ likeComp model =
 
 
 -- would need source & last insertion date field
-type alias Component =
-    { name: String
-    , cType: CType
-    , data: OverSeries
-    , tzaware: Bool
-    , status: CompStatus
-    }
 
 
-type CompStatus
-    = CompEmpty
-    | CompLoaded
-    | CompError
 
 
 type alias QueryItem =
@@ -643,7 +622,7 @@ type alias QueryItem =
     }
 
 
-toComp: QueryItem -> Component
+toComp: QueryItem -> OverComponent
 toComp queryItem =
     { name= queryItem.name
     , cType = if queryItem.kind == "primary" then Primary else Formula
@@ -831,10 +810,10 @@ decodeValues raw =
                 Err errString -> Err ( errFloat, errString )
 
 
-componentsDecoder: JD.Decoder (List Component)
+componentsDecoder: JD.Decoder (List OverComponent)
 componentsDecoder =
     JD.list <|
-        JD.map5 Component
+        JD.map5 OverComponent
             ( JD.field "name" JD.string )
             ( JD.map applyType ( JD.field "type" JD.string ))
             ( JD.succeed emptySeries )
@@ -989,7 +968,7 @@ getDataComponents model expand =
     (updatedModel, Cmd.batch (List.reverse commands))
 
 
-getRelevantComponent : Model -> Bool -> String -> Component ->  Cmd Msg
+getRelevantComponent : Model -> Bool -> String -> OverComponent ->  Cmd Msg
 getRelevantComponent model expand requestId component  =
     case component.cType of
         Auto ->
@@ -2225,7 +2204,7 @@ update msg model =
             U.nocmd { model | statusCopy = newStatus }
 
 
-multiStatus: List Component -> PlotStatus
+multiStatus: List OverComponent -> PlotStatus
 multiStatus components =
     let status =
             List.map .status components
@@ -2361,9 +2340,6 @@ onlyActiveStrings series =
         )
         series
 
-onlyActiveKeys : Dict String a -> List String
-onlyActiveKeys series =
-    Dict.keys series
 
 
 extractPrevious: Dict String Payload -> Dict String ( Maybe Float )
@@ -2422,7 +2398,7 @@ cleanDiff model =
       }
 
 
-insertComponentData: List Component -> String -> CompStatus -> Maybe OverSeries -> List Component
+insertComponentData: List OverComponent -> String -> CompStatus -> Maybe OverSeries -> List OverComponent
 insertComponentData components name status data =
     List.map
         (\ comp -> if comp.name == name
@@ -2436,7 +2412,7 @@ insertComponentData components name status data =
         )
         components
 
-cleanComponents: List Component -> List Component
+cleanComponents: List OverComponent -> List OverComponent
 cleanComponents components =
     List.map
         (\ comp -> { comp
@@ -2971,45 +2947,6 @@ parseStuff raw isString =
         in ( cleanedRaw, edition )
 
 
-
-
-mergeData: List Component -> List ( List Stuff )
-mergeData components =
-    let dates =
-            List.sort
-                <| Set.toList
-                    <| List.foldl
-                            Set.union
-                            Set.empty
-                            <| List.map
-                                (\ c ->  Set.fromList
-                                            <| onlyActiveKeys
-                                                <| zSeries c.data
-                                )
-                                components
-        columns =
-            List.map
-                ( \ c -> ( c.name, c.cType ) )
-                components
-    in
-    [[ Header ( "Dates", Primary ) ] ++ List.map ( \ s -> Header s ) columns ]
-    ++ ( List.map
-             ( builRowBasic components )
-             dates
-       )
-
-
-builRowBasic: List Component -> String -> List Stuff
-builRowBasic components date =
-    [ DateRow date ]
-    ++ ( List.map
-             ( getStuff date )
-             <| List.map
-             (\ c -> ( c.name , c.data ) )
-             components
-       )
-
-
 applyDiff: Model -> Model
 applyDiff model =
     setupFill { model | diff = currentDiff model ( filterEntry model.coordData ) }
@@ -3028,12 +2965,7 @@ currentDiff model coordData =
         coordData
 
 
-
-
-
-
-
-relevantComponents: Model -> List Component
+relevantComponents: Model -> List OverComponent
 relevantComponents model =
     if model.expand
         then model.terminalComponents
@@ -3053,7 +2985,7 @@ patchEditedData model =
                         allSeries
 
 
-saveComponent: String -> String -> Dict ( Int, Int ) Entry ->  Bool ->  Component -> Cmd Msg
+saveComponent: String -> String -> Dict ( Int, Int ) Entry ->  Bool ->  OverComponent -> Cmd Msg
 saveComponent baseUrl tzone series isString component =
     let name = component.name
         tzaware = component.tzaware
@@ -3333,7 +3265,7 @@ infoExpand model =
     "(" ++ left ++ "/" ++ right ++ ")"
 
 
-loadedComponents: List Component -> Int
+loadedComponents: List OverComponent -> Int
 loadedComponents components =
     List.count
         (\ c -> case c.status of
@@ -4165,43 +4097,6 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             ]
 
 
-getStuff: String ->  ( String , OverSeries ) -> Stuff
-getStuff date ( name, series ) =
-    Cell ( getEntry date ( name, series ))
-
-
-getEntry: String ->  ( String , OverSeries ) -> Entry
-getEntry date ( name, series ) =
-    let defaultEntry =
-            { raw = Nothing
-            , value = MFloat Nothing
-            , edition = NoEdition
-            , editable = False
-            , override = False
-            , indexRow = date
-            , indexCol = name
-            , fromBatch = False
-            }
-        ts = zSeries series
-        mPayload = Dict.get date ts
-    in
-        case mPayload of
-            Nothing -> defaultEntry
-            Just payload
-                -> case payload of
-                    Scalar scal ->
-                        { defaultEntry
-                            | value = scal
-                            , raw = Just ( toRaw scal )
-                        }
-                    Complex entry ->
-                        { defaultEntry
-                                | value = entry.value
-                                , edition = entry.edition
-                                , raw = Just ( toRaw entry.value )
-                                , override = entry.override
-                                , editable = True
-                            }
 
 
 datesValue: Model -> List String
@@ -4232,7 +4127,7 @@ datesComponents model =
         )
 
 
-datesComponent: Model -> Component -> Set String
+datesComponent: Model -> OverComponent -> Set String
 datesComponent model comp =
     let
         allDates = onlyActiveKeys (zSeries comp.data)
@@ -4856,7 +4751,7 @@ showEdition diff =
         defaultTraceOptions
 
 
-traceComp : String -> Component -> Trace
+traceComp : String -> OverComponent -> Trace
 traceComp lineMarker component =
     let dates = onlyActiveKeys (zSeries component.data)
         values = Dict.values  ( onlyActiveValues (zSeries component.data))
