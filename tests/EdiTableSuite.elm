@@ -1,5 +1,6 @@
 module EdiTableSuite exposing
     ( testPatchCurrent
+    , testMergeData
     )
 
 import Dict exposing (Dict)
@@ -128,3 +129,92 @@ testPatchCurrent =
                         _ -> Expect.fail "Jan 06 should be new Complex entry with deletion marker"
                 ]
                 ()
+
+
+-- Test data for mergeData
+createTestComponents : List Component
+createTestComponents =
+    let
+        -- Component 1: Primary type with float values
+        comp1Data = Dict.fromList
+            [ ("2024-01-01T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-01T00:00:00", indexCol = "temperature", raw = Just "20.5", value = MFloat (Just 20.5) })
+            , ("2024-01-02T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-02T00:00:00", indexCol = "temperature", raw = Just "22.1", value = MFloat (Just 22.1) })
+            , ("2024-01-03T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-03T00:00:00", indexCol = "temperature", raw = Just "19.8", value = MFloat (Just 19.8) })
+            ]
+        -- Component 2: Formula type with some overlapping dates
+        comp2Data = Dict.fromList
+            [ ("2024-01-02T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-02T00:00:00", indexCol = "humidity", raw = Just "65.0", value = MFloat (Just 65.0) })
+            , ("2024-01-03T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-03T00:00:00", indexCol = "humidity", raw = Just "70.2", value = MFloat (Just 70.2) })
+            , ("2024-01-04T00:00:00"
+               , Complex { baseEntry | indexRow = "2024-01-04T00:00:00", indexCol = "humidity", raw = Just "68.5", value = MFloat (Just 68.5) })
+            ]
+        -- Component 3: Auto type with string values and different dates
+        comp3Data = Dict.fromList
+            [ ("2024-01-01T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-01T00:00:00", indexCol = "weather", raw = Just "sunny", value = MString (Just "sunny") })
+            , ("2024-01-04T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-04T00:00:00", indexCol = "weather", raw = Just "cloudy", value = MString (Just "cloudy") })
+            , ("2024-01-05T00:00:00"
+              , Complex { baseEntry | indexRow = "2024-01-05T00:00:00", indexCol = "weather", raw = Just "rainy", value = MString (Just "rainy") })
+            ]
+    in
+    [ { name = "temperature"
+      , cType = Primary
+      , data = comp1Data
+      , tzaware = False
+      , status = CompLoaded
+      }
+    , { name = "humidity"
+      , cType = Formula
+      , data = comp2Data
+      , tzaware = False
+      , status = CompLoaded
+      }
+    , { name = "weather"
+      , cType = Auto
+      , data = comp3Data
+      , tzaware = True
+      , status = CompLoaded
+      }
+    ]
+
+
+-- Helper to convert Stuff to String representation
+stuffToString : Stuff -> String
+stuffToString stuff =
+    case stuff of
+        DateRow date -> date
+        Header (name, cType) ->
+            let typeStr = case cType of
+                    Primary -> "Primary"
+                    Formula -> "Formula"
+                    Auto -> "Auto"
+            in name ++ " (" ++ typeStr ++ ")"
+        Cell entry -> Maybe.withDefault "" entry.raw
+
+
+testMergeData : Test
+testMergeData =
+    test "mergeData creates correct grid structure as list of list of strings" <|
+        \_ ->
+            let
+                components = createTestComponents
+                result = mergeData components
+                -- Convert result to list of list of strings
+                stringResult = List.map (List.map stuffToString) result
+                -- Expected result as list of list of strings
+                expectedResult =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Auto)" ]  -- Header row
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny" ]        -- Row 1: has temp and weather
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "" ]           -- Row 2: has temp and humidity
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "" ]         -- Row 3: has temp and humidity
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy" ]       -- Row 4: has humidity and weather
+                    , [ "2024-01-05T00:00:00", "", "", "rainy" ]            -- Row 5: has only weather
+                    ]
+            in
+            Expect.equal expectedResult stringResult
