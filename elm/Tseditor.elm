@@ -2981,9 +2981,15 @@ getRelevantData model =
             (updatedModel, [ pointsCmd, insertDatesCmd ])
         Existing I.Formula ->
             let
-                (modelWithPoints, pointsCmd) = getPoints model
+                (model0, pointsCmd ) = getPoints model
+                (model1, compCmd1 ) = getDataComponents model0 False
+                (model2, compCmd2 ) = getDataComponents model1 True
             in
-            (modelWithPoints, [ pointsCmd ])
+            (model2, [ pointsCmd
+                     , compCmd1
+                     , compCmd2
+                     ]
+            )
         Creation _ -> (model, [ Cmd.none ])
         QueryMode ->
             let
