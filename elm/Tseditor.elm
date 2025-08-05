@@ -30,6 +30,7 @@ import EdiTable exposing
     , OverSeries
     , OverComponent
     , toRaw
+    , zComponent
     , zSeries
     , onlyActiveKeys
     , mergeData
@@ -3726,7 +3727,7 @@ buildCoord model =
                 allSeries =
                     likeComp model ++ relevantComponents model
                 dataAsRows =
-                    mergeData allSeries
+                    mergeData (List.map zComponent allSeries)
             in
             setupFill
                 { model | coordData = ( cartesianData dataAsRows) }

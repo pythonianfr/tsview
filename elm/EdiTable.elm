@@ -332,7 +332,7 @@ type alias OverComponent =
 type alias Component =
     { name: String
     , cType: CType
-    , data: OverSeries
+    , data: Dict String Payload
     , tzaware: Bool
     , status: CompStatus
     }
@@ -356,13 +356,26 @@ zSeries overSeries =
         Nothing -> overSeries.initialTs
         Just zoomTs -> zoomTs
 
+zComponent: OverComponent -> Component
+zComponent over =
+    let emptyComp = { name = over.name
+                    , cType = over.cType
+                    , tzaware = over.tzaware
+                    , status = over.status
+                    , data = Dict.empty
+                    }
+    in
+    case over.data.zoomTs of
+        Nothing -> { emptyComp | data = over.data.initialTs }
+        Just zoomTs -> { emptyComp | data = zoomTs }
+
 
 onlyActiveKeys : Dict String a -> List String
 onlyActiveKeys series =
     Dict.keys series
 
 
-getEntry: String ->  ( String , OverSeries ) -> Entry
+getEntry: String ->  ( String , Dict String Payload ) -> Entry
 getEntry date ( name, series ) =
     let defaultEntry =
             { raw = Nothing
@@ -374,8 +387,7 @@ getEntry date ( name, series ) =
             , indexCol = name
             , fromBatch = False
             }
-        ts = zSeries series
-        mPayload = Dict.get date ts
+        mPayload = Dict.get date series
     in
         case mPayload of
             Nothing -> defaultEntry
@@ -396,23 +408,23 @@ getEntry date ( name, series ) =
                             }
 
 
-getStuff: String ->  ( String , OverSeries ) -> Stuff
+getStuff: String ->  ( String , Dict String Payload ) -> Stuff
 getStuff date ( name, series ) =
     Cell ( getEntry date ( name, series ))
 
 
-builRowBasic: List OverComponent -> String -> List Stuff
+builRowBasic: List Component -> String -> List Stuff
 builRowBasic components date =
     [ DateRow date ]
     ++ ( List.map
              ( getStuff date )
              <| List.map
-             (\ c -> ( c.name , c.data ) )
-             components
+                (\ c -> ( c.name , c.data ) )
+                components
        )
 
 
-mergeData: List OverComponent -> List ( List Stuff )
+mergeData: List Component -> List ( List Stuff )
 mergeData components =
     let dates =
             List.sort
@@ -423,7 +435,7 @@ mergeData components =
                             <| List.map
                                 (\ c ->  Set.fromList
                                             <| onlyActiveKeys
-                                                <| zSeries c.data
+                                                <| c.data
                                 )
                                 components
         columns =
