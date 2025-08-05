@@ -170,7 +170,7 @@ type alias Model =
     , versionControl: Int
     -- data
     , insertion_dates : Array String
-    , series : Series
+    , series : OverSeries
     , statistics: StatInfos
     , roundStat: Int
     , statVisibility: Bool
@@ -266,27 +266,34 @@ type Msg
     | NewDragMode Bool
 
 
+type Payload
+    = Scalar FloatOrString
+    | Complex Entry
+
+type alias FloatOrString = ( ScalarType ( Maybe Float ) ( Maybe String ))
+
 type ScalarType f s
     = MFloat f
     | MString s
 
-type alias SeriesNaked = Dict String ( ScalarType ( Maybe Float ) ( Maybe String ) )
-type alias SeriesToEdit = Dict String Entry
-
-type Series
-    = Naked { initialTs: SeriesNaked
-            , zoomTs: Maybe SeriesNaked
-            }
-    | ToEdit { initialTs: SeriesToEdit
-             , zoomTs: Maybe SeriesToEdit
-             }
+type alias OverSeries
+    = { initialTs: Dict String Payload
+      , zoomTs: Maybe (Dict String Payload)
+      }
 
 
-emptySeries: Series
+zSeries : OverSeries -> Dict String Payload
+zSeries overSeries =
+    case overSeries.zoomTs of
+        Nothing -> overSeries.initialTs
+        Just zoomTs -> zoomTs
+
+
+emptySeries: OverSeries
 emptySeries =
-    Naked { initialTs = Dict.empty
-          , zoomTs = Nothing
-          }
+    { initialTs = Dict.empty
+    , zoomTs = Nothing
+    }
 
 
 type alias Box =
@@ -520,8 +527,9 @@ type alias Entry =
     }
 
 
-baseToEntry: BaseSupervision -> Entry
+baseToEntry: BaseSupervision -> Payload
 baseToEntry base =
+    Complex
     { raw = Maybe.map String.fromFloat base.value
     , value =  MFloat base.value
     , edition = NoEdition
@@ -532,8 +540,9 @@ baseToEntry base =
     , fromBatch = False
     }
 
-baseToEntryString: BaseSupervisionString -> Entry
+baseToEntryString: BaseSupervisionString -> Payload
 baseToEntryString base =
+    Complex
      { raw = base.value
      , value = MString base.value
      , edition = NoEdition
@@ -544,21 +553,6 @@ baseToEntryString base =
      , fromBatch = False
      }
 
-mapToFloat : SeriesNaked -> Dict String ( Maybe Float )
-mapToFloat =
-    Dict.map
-        (\_ v -> case v of
-                    MFloat f -> f
-                    MString _ -> Nothing
-        )
-
-mapToString : SeriesNaked -> Dict String ( Maybe String )
-mapToString =
-    Dict.map
-        (\_ v -> case v of
-                    MFloat _ -> Nothing
-                    MString s -> s
-        )
 
 toRaw: ( ScalarType (Maybe Float) (Maybe String) ) -> String
 toRaw scal =
@@ -603,14 +597,19 @@ asEdited scal =
                 Just s -> Edition ( MString s )
 
 
-dressSeries: SeriesNaked -> String -> SeriesToEdit
+dressSeries: Dict String Payload -> String -> Dict String Payload
 dressSeries series name =
     Dict.map
-        (\ k v  -> { value = v
+        (\ k v  ->
+            case v of
+                Complex e -> Complex e
+                Scalar s ->
+                    Complex
+                    { value = s
                    , override = False
-                   , edition = asEdited v
+                   , edition = asEdited s
                    , editable = True
-                   , raw = case v of
+                   , raw = case s of
                             MFloat mf -> Maybe.map String.fromFloat mf
                             MString ms -> ms
                    , indexCol = name
@@ -668,7 +667,7 @@ type Edited
 type alias Component =
     { name: String
     , cType: CType
-    , data: Series
+    , data: OverSeries
     , tzaware: Bool
     , status: CompStatus
     }
@@ -829,23 +828,39 @@ entryDecoderString =
         (JD.field "markers" JD.bool)
 
 
-decodeToEdit : JD.Decoder (Dict String Entry)
+decodeToEdit : JD.Decoder ( Dict String Payload )
 decodeToEdit =
-    ( JD.dict ( JD.map baseToEntry entryDecoder ))
+    JD.dict
+        ( JD.map
+            baseToEntry
+            entryDecoder
+        )
 
-decodeToEditString : JD.Decoder (Dict String Entry)
+decodeToEditString : JD.Decoder ( Dict String Payload )
 decodeToEditString =
-    ( JD.dict ( JD.map baseToEntryString entryDecoderString ))
+    JD.dict
+        ( JD.map
+            baseToEntryString
+            entryDecoderString
+        )
 
-decodeNaked : JD.Decoder SeriesNaked
+decodeNaked : JD.Decoder ( Dict String Payload )
 decodeNaked =
-        (JD.dict (JD.map MFloat (JD.nullable JD.float)))
+        JD.dict
+            (JD.map
+                (\ f -> Scalar ( MFloat f ))
+                (JD.nullable JD.float)
+            )
 
-decodeNakedString : JD.Decoder SeriesNaked
+decodeNakedString : JD.Decoder ( Dict String Payload )
 decodeNakedString =
-        (JD.dict (JD.map MString (JD.nullable JD.string)))
+        JD.dict
+            (JD.map
+                (\ f -> Scalar ( MString f ))
+                (JD.nullable JD.string)
+            )
 
-decodeSupervised: String ->  Result ( JD.Error, JD.Error ) SeriesToEdit
+decodeSupervised: String ->  Result ( JD.Error, JD.Error ) ( Dict String Payload )
 decodeSupervised raw =
     case JD.decodeString decodeToEdit raw of
         Ok ts -> Ok ts
@@ -855,7 +870,7 @@ decodeSupervised raw =
                 Err errString -> Err ( errFloat, errString )
 
 
-decodeValues: String ->  Result ( JD.Error, JD.Error ) SeriesNaked
+decodeValues: String ->  Result ( JD.Error, JD.Error ) ( Dict String Payload )
 decodeValues raw =
     case JD.decodeString decodeNaked raw of
         Ok ts -> Ok ts
@@ -1204,12 +1219,14 @@ update msg model =
                 Ok indexedval ->
                     let
                         zoomTs = applyZoom model indexedval
-                        series = ToEdit { initialTs = indexedval, zoomTs = zoomTs }
+                        series = { initialTs = indexedval
+                                 , zoomTs = zoomTs
+                                 }
                         statistics =
                             getStatistics
                                 model.statistics
                                 model.allowInferFreq
-                                ( onlyActiveValues series )
+                                (onlyActiveValues (zSeries series))
                     in
                         applyFocus
                             ( buildCoord
@@ -1218,7 +1235,7 @@ update msg model =
                                     , statistics = statistics
                                     , horizon = updateHorizonFromData
                                                     model.horizon
-                                                    (Dict.keys indexedval)
+                                                    (Dict.keys  indexedval)
                                 }
                             )
                         ( Just ( 0, 0 ) )
@@ -1244,19 +1261,22 @@ update msg model =
                 Ok val ->
                     let zoomTs =
                             applyZoom model val
+                        series = { initialTs = val
+                                 , zoomTs = zoomTs
+                                 }
                     in
                     ( ( buildCoord
                             { model
-                                | series = Naked { initialTs = val
-                                                 , zoomTs = zoomTs
-                                                 }
+                                | series = { initialTs = val
+                                            , zoomTs = zoomTs
+                                            }
                                 , horizon = updateHorizonFromData
                                             model.horizon
                                             (Dict.keys val)
                                 , statistics = getStatistics
                                                model.statistics
                                                model.allowInferFreq
-                                               ( mapToFloat val )
+                                               (onlyActiveValues (zSeries series))
                             }
                       )
                     , if not model.loadedComponents
@@ -1332,7 +1352,7 @@ update msg model =
                                     )
                                     name
                                     CompLoaded
-                                    ( Just ( ToEdit { initialTs = indexedval, zoomTs = zoomTs }))
+                                    ( Just { initialTs = indexedval, zoomTs = zoomTs })
                                 newModel =
                                     if expand
                                     then { model | terminalComponents = newCD}
@@ -1369,7 +1389,7 @@ update msg model =
                                     )
                                     name
                                     CompLoaded
-                                    ( Just ( Naked { initialTs = val, zoomTs = zoomTs }))
+                                    ( Just { initialTs = val, zoomTs = zoomTs })
                                 newModel =
                                     if expand
                                     then { model | terminalComponents = newCD}
@@ -1417,7 +1437,7 @@ update msg model =
                                 <| applyDiff
                                     <| buildCoord
                                         { model | series =
-                                              ToEdit { initialTs = dressSeries val model.name
+                                                    { initialTs = dressSeries val model.name
                                                      , zoomTs = Nothing
                                                      }
                                         , mode = Creation Edit
@@ -1427,8 +1447,8 @@ update msg model =
                                  <| applyDiff
                                      <| buildCoord
                                          { model | series =
-                                               ToEdit { initialTs = patchCurrent
-                                                                    ( getEditionTs model.series )
+                                                    { initialTs = patchCurrent
+                                                                    (zSeries model.series)
                                                                     val
                                                                     model.name
                                                       , zoomTs = Nothing
@@ -1479,13 +1499,7 @@ update msg model =
                     <| cleanDiff
                         <| { model
                                | horizon = newModelHorizon
-                               , series = case model.series of
-                                              Naked series -> Naked { initialTs = series.initialTs
-                                                                    , zoomTs = Nothing
-                                                                    }
-                                              ToEdit series -> ToEdit { initialTs = series.initialTs
-                                                                      , zoomTs = Nothing
-                                                                      }
+                               , series = resetZoom model.series
                                , directComponents = cleanComponents model.directComponents
                                , terminalComponents = cleanComponents model.terminalComponents
                            }
@@ -1639,7 +1653,8 @@ update msg model =
                                 , statistics = getStatistics
                                                model.statistics
                                                True
-                                               ( onlyActiveValues model.series )
+                                               <| onlyActiveValues
+                                                    <| zSeries model.series
                             }
 
         ShowDiff ->
@@ -1711,7 +1726,7 @@ update msg model =
                     let
                         patched =
                             Dict.union
-                                ( getEditionTs model.series )
+                                ( zSeries model.series )
                                 val
 
                         newmodel =
@@ -2179,7 +2194,7 @@ update msg model =
                                                     , statistics = getStatistics
                                                                     model.statistics
                                                                     model.allowInferFreq
-                                                                    ( onlyActiveValues  newSeries )
+                                                                    ( onlyActiveValues (zSeries newSeries))
                                         }
                             Just (minDate, maxDate)
                                 -> let newSeries =  newZoom
@@ -2216,7 +2231,9 @@ update msg model =
                                             , statistics = getStatistics
                                                                 model.statistics
                                                                 model.allowInferFreq
-                                                                ( onlyActiveValues  newSeries )
+                                                                <| onlyActiveValues
+                                                                    <| zSeries
+                                                                       newSeries
                                     }
 
                  in
@@ -2317,25 +2334,17 @@ flipForce model =
     { model | forceDraw = not model.forceDraw }
 
 
-newZoom: String -> String -> Bool -> Series ->Series
+newZoom: String -> String -> Bool -> OverSeries -> OverSeries
 newZoom minDate maxDate pan series =
-    case series of
-        Naked ts -> Naked { initialTs = ts.initialTs
-                          , zoomTs = Just <| newZoomT
-                                                minDate
-                                                maxDate
-                                                ts.initialTs
-                                                ts.zoomTs
-                                                pan
-                          }
-        ToEdit ts -> ToEdit { initialTs = ts.initialTs
-                            , zoomTs = Just <| newZoomT
-                                                minDate
-                                                maxDate
-                                                ts.initialTs
-                                                ts.zoomTs
-                                                pan
-                            }
+    { initialTs = series.initialTs
+    , zoomTs = Just <| newZoomT
+                        minDate
+                        maxDate
+                        series.initialTs
+                        series.zoomTs
+                        pan
+    }
+
 
 
 newZoomT: String -> String -> Dict String e -> Maybe ( Dict String e ) ->  Bool -> Dict String e
@@ -2351,114 +2360,96 @@ newZoomT minDate maxDate initial zoom pan =
             )
 
 
-applyZoom: Model -> Dict String a -> Maybe (Dict String a)
+applyZoom: Model -> Dict String Payload -> Maybe (Dict String Payload)
 applyZoom model series =
     case model.horizon.zoomBounds of
         Nothing -> Nothing
         Just ( min, max ) ->
-            Just
-                <| Dict.filter ( \k _ -> ( k >= min ) && ( k <= max )) series
+                Just
+                    <| Dict.filter
+                        (\ k _ -> ( k >= min ) && ( k <= max ))
+                        series
 
 
-onlyValues: SeriesToEdit -> Dict String ( Maybe Float )
-onlyValues series =
-    Dict.map
-        ( \ k v -> case v.value of
-                    MFloat f -> f
-                    MString _ -> Nothing
-        )
-        series
-
-onlyStrings: SeriesToEdit -> Dict String ( Maybe String )
-onlyStrings series =
-    Dict.map
-        ( \ k v -> case v.value of
-                    MFloat _ -> Nothing
-                    MString s -> s
-        )
-        series
-
-resetZoom: Series -> Series
+resetZoom: OverSeries -> OverSeries
 resetZoom series =
-    case series of
-        Naked ts -> Naked { initialTs = ts.initialTs
-                          , zoomTs = Nothing
-                          }
-        ToEdit ts -> ToEdit { initialTs = ts.initialTs
-                            , zoomTs = Nothing
-                            }
+    { initialTs = series.initialTs
+    , zoomTs = Nothing
+    }
 
-onlyActiveValues : Series -> Dict String ( Maybe Float )
+
+onlyActiveValues : Dict a Payload -> Dict a ( Maybe Float )
 onlyActiveValues series =
-    case series of
-        Naked ts ->
-            case ts.zoomTs of
-                Nothing -> mapToFloat ts.initialTs
-                Just zoom -> mapToFloat zoom
-        ToEdit ts ->
-            case ts.zoomTs of
-                Nothing -> onlyValues ts.initialTs
-                Just zoom -> onlyValues zoom
+    Dict.map
+        ( \ _ p ->
+            case p of
+                Scalar s ->
+                    case s of
+                        MFloat f -> f
+                        MString _ -> Nothing
+                Complex e ->
+                    case e.value of
+                        MFloat f -> f
+                        MString _ -> Nothing
+        )
+        series
 
-onlyActiveStrings : Series -> Dict String ( Maybe String )
+onlyActiveStrings : Dict a Payload -> Dict a ( Maybe String )
 onlyActiveStrings series =
-    case series of
-        Naked ts ->
-            case ts.zoomTs of
-                Nothing -> mapToString ts.initialTs
-                Just zoom -> mapToString zoom
-        ToEdit ts ->
-            case ts.zoomTs of
-                Nothing -> onlyStrings ts.initialTs
-                Just zoom -> onlyStrings zoom
+    Dict.map
+        ( \ _ p ->
+            case p of
+                Scalar s ->
+                    case s of
+                        MFloat _ -> Nothing
+                        MString st -> st
+                Complex e ->
+                    case e.value of
+                        MFloat _ -> Nothing
+                        MString s -> s
+        )
+        series
 
-onlyActiveKeys : Series -> List String
+onlyActiveKeys : Dict String a -> List String
 onlyActiveKeys series =
-    case series of
-        Naked ts ->
-            case ts.zoomTs of
-                Nothing -> Dict.keys ts.initialTs
-                Just zoom -> Dict.keys zoom
-        ToEdit ts ->
-            case ts.zoomTs of
-                Nothing -> Dict.keys ts.initialTs
-                Just zoom -> Dict.keys zoom
+    Dict.keys series
 
 
-previouslyEdited: Series -> Dict String ( Maybe Float )
-previouslyEdited series =
-    case series of
-        Naked _ -> Dict.empty
-        ToEdit ts ->
-            case ts.zoomTs of
-                Nothing -> extractPrevious ts.initialTs
-                Just zoom -> extractPrevious zoom
-
-
-extractPrevious: SeriesToEdit -> Dict String ( Maybe Float )
+extractPrevious: Dict String Payload -> Dict String ( Maybe Float )
 extractPrevious ts =
     Dict.map
-        (\ _ e -> case e.value of
-                    MFloat f -> f
-                    MString _ -> Nothing
+        (\ _ p ->
+            case p of
+                Scalar s -> Nothing
+                Complex e ->
+                    case e.value of
+                        MFloat f -> f
+                        MString _ -> Nothing
         )
         <| Dict.filter
-                (\ _ e -> e.override)
+                (\ _ p ->
+                    case p of
+                        Complex e
+                            -> e.override
+                        Scalar _ -> False
+                )
                 ts
 
 
 cleanBatch: Model -> Model
 cleanBatch model =
-    case model.series of
-        Naked _ -> model
-        ToEdit forEdit ->
-            { model | series = ToEdit
-                  { initialTs = Dict.filter
-                                    (\ _ e -> not e.fromBatch)
-                                    forEdit.initialTs
-                  , zoomTs = Nothing
-                  }
-            }
+    { model | series =
+              { initialTs = Dict.filter
+                                ( \ _ p ->
+                                    case p of
+                                        Scalar _ -> False
+                                        Complex e
+                                            ->  not e.fromBatch
+                                )
+                                model.series.initialTs
+              , zoomTs = Nothing
+              }
+    }
 
 
 cleanDiff: Model -> Model
@@ -2480,7 +2471,7 @@ cleanDiff model =
       }
 
 
-insertComponentData: List Component -> String -> CompStatus -> Maybe Series -> List Component
+insertComponentData: List Component -> String -> CompStatus -> Maybe OverSeries -> List Component
 insertComponentData components name status data =
     List.map
         (\ comp -> if comp.name == name
@@ -2504,15 +2495,6 @@ cleanComponents components =
         )
         components
 
-getEditionTs: Series -> SeriesToEdit
-getEditionTs series =
-    case series of
-        Naked ts -> Dict.empty
-        ToEdit ts ->
-            case ts.zoomTs of
-                Nothing -> ts.initialTs
-                Just zoom -> zoom
-
 
 getLastNaive: List String -> String
 getLastNaive dates =
@@ -2527,10 +2509,10 @@ getLastNaive dates =
                    Just naive -> String.replace "T" " " naive
 
 
-packDates: Series -> String
+packDates: OverSeries -> String
 packDates series =
     String.join("\n")
-        ( onlyActiveKeys series )
+        ( onlyActiveKeys <| zSeries series )
 
 myFloat mf =
     case mf of
@@ -2538,12 +2520,13 @@ myFloat mf =
         Just f -> String.fromFloat f
 
 
-packValues: Series -> String
+packValues: OverSeries -> String
 packValues series =
     String.join("\n")
         <| List.map
             myFloat
-            ( Dict.values ( onlyActiveValues series ))
+            <| Dict.values
+                ( onlyActiveValues <| zSeries series )
 
 
 getCurrentValue: Entry -> Maybe ( ScalarType Float String )
@@ -3098,7 +3081,10 @@ mergeData components =
                             Set.union
                             Set.empty
                             <| List.map
-                                (\ c ->  Set.fromList ( onlyActiveKeys c.data ) )
+                                (\ c ->  Set.fromList
+                                            <| onlyActiveKeys
+                                                <| zSeries c.data
+                                )
                                 components
         columns =
             List.map
@@ -3141,8 +3127,10 @@ currentDiff model coordData =
         coordData
 
 
-patchCurrent : SeriesToEdit -> SeriesNaked -> String -> SeriesToEdit
+patchCurrent : Dict String Payload -> Dict String Payload -> String -> Dict String Payload
 patchCurrent base patch name  =
+    -- base is supposed to be Complex
+    -- patch is supposed to be Scalar
     let baseEntryF =
             { raw = Nothing
             , value = MFloat Nothing
@@ -3155,56 +3143,89 @@ patchCurrent base patch name  =
             }
         baseEntryS =
             { baseEntryF | value = MString Nothing }
-    in
-    Dict.merge
-        ( \_ _ r -> r )
-        ( \ d b p r ->
-              case p of
-                  MFloat mf ->
-                      case mf of
-                          Nothing -> Dict.insert d b r
-                          Just v ->
-                              Dict.insert d { b | raw = Just ( String.fromFloat v )
-                                                , edition = Edition ( MFloat v)
-                                            } r
-                  MString ms ->
-                      case ms of
-                          Nothing -> Dict.insert d b r
-                          Just v ->  Dict.insert d { b | raw = Just v
-                                                       , edition = Edition ( MString v )
-                                                   } r
-        )
-        ( \ d p r -> case p of
+        default r = dressSeries r name
+        leftOnly: String -> Payload -> Dict String Payload -> Dict String Payload
+        leftOnly _ _ r = default r
+        both: String -> Payload -> Payload -> Dict String Payload -> Dict String Payload
+        both d ba pa r =
+             case ba of
+                Scalar _ -> dressSeries r name
+                Complex b ->
+                  case pa of
+                      Complex _ -> dressSeries r name
+                      Scalar sc ->
+                          case sc of
+                              MFloat mf ->
+                                  case mf of
+                                      Nothing -> Dict.insert d ba (default r)
+                                      Just v ->
+                                          Dict.insert
+                                            d
+                                            (Complex
+                                                { b | raw = Just ( String.fromFloat v )
+                                                            , edition = Edition ( MFloat v)
+                                                }
+                                            )
+                                            r
+                              MString ms ->
+                                  case ms of
+                                      Nothing -> Dict.insert d ba (default r)
+                                      Just v ->  Dict.insert
+                                                    d
+                                                    (Complex
+                                                        { b | raw = Just v
+                                                        , edition = Edition ( MString v )
+                                                        }
+                                                    )
+                                                    r
+        rightOnly : String -> Payload -> Dict String Payload -> Dict String Payload
+        rightOnly d pa r =
+            case pa of
+                Complex _ -> default r
+                Scalar p ->
+                    case p of
                         MFloat mf ->
                             case mf of
                                 Nothing -> Dict.insert
                                                 d
-                                                { baseEntryF | indexCol = d }
+                                                ( Complex
+                                                    { baseEntryF | indexCol = d }
+                                                )
                                                 r
                                 Just v -> Dict.insert
                                             d
-                                            { baseEntryF | indexCol = d
-                                            , raw = Just ( String.fromFloat v )
-                                            , edition = Edition ( MFloat v)
-                                            }
+                                            (Complex
+                                                { baseEntryF | indexCol = d
+                                                , raw = Just ( String.fromFloat v )
+                                                , edition = Edition ( MFloat v)
+                                                }
+                                            )
                                             r
                         MString ms ->
                             case ms of
                                 Nothing -> Dict.insert
                                                 d
-                                                { baseEntryS
-                                                | indexCol = d
-                                                }
+                                                ( Complex
+                                                    { baseEntryS
+                                                    | indexCol = d
+                                                    }
+                                                )
                                                 r
                                 Just v -> Dict.insert
                                             d
-                                            { baseEntryS
-                                            | indexCol = d
-                                            , raw = Just v
-                                            , edition = Edition ( MString v )
-                                            }
+                                            ( Complex
+                                                { baseEntryS
+                                                | indexCol = d
+                                                , raw = Just v
+                                                , edition = Edition ( MString v )
+                                                }
+                                            )
                                             r
-        )
+    in
+    Dict.merge
+        leftOnly
+        both
+        rightOnly
         base
         patch
         base
@@ -4383,12 +4404,12 @@ contextualInput ( iRow, iCol ) statusClass value valueCropped editable =
             ]
 
 
-getStuff: String ->  ( String , Series ) -> Stuff
+getStuff: String ->  ( String , OverSeries ) -> Stuff
 getStuff date ( name, series ) =
     Cell ( getEntry date ( name, series ))
 
 
-getEntry: String ->  ( String , Series ) -> Entry
+getEntry: String ->  ( String , OverSeries ) -> Entry
 getEntry date ( name, series ) =
     let defaultEntry =
             { raw = Nothing
@@ -4400,50 +4421,24 @@ getEntry date ( name, series ) =
             , indexCol = name
             , fromBatch = False
             }
+        ts = zSeries series
+        mPayload = Dict.get date ts
     in
-    case series of
-        Naked ts ->
-            case ts.zoomTs of
-                Just zoomTs ->
-                    case Dict.get date zoomTs of
-                        Just value ->
-                            { defaultEntry
-                                | value = value
-                                , raw = Just ( toRaw value )
-                            }
-                        Nothing ->
-                            defaultEntry
-                Nothing ->
-                    case Dict.get date ts.initialTs of
-                        Just value ->
-                            { defaultEntry
-                                | value = value
-                                , raw = Just ( toRaw value )
-                            }
-                        Nothing ->
-                            defaultEntry
-        ToEdit ts ->
-            case ts.zoomTs of
-                Just zoomTs ->
-                        let
-                            entry = Maybe.withDefault emptyEntry ( Dict.get date zoomTs )
-                        in
-                            { defaultEntry
+        case mPayload of
+            Nothing -> defaultEntry
+            Just payload
+                -> case payload of
+                    Scalar scal ->
+                        { defaultEntry
+                            | value = scal
+                            , raw = Just ( toRaw scal )
+                        }
+                    Complex entry ->
+                        { defaultEntry
                                 | value = entry.value
                                 , edition = entry.edition
                                 , raw = Just ( toRaw entry.value )
                                 , override = entry.override
-                                , editable = True
-                            }
-                Nothing ->
-                        let
-                            entry = Maybe.withDefault emptyEntry ( Dict.get date ts.initialTs )
-                        in
-                            { defaultEntry
-                                | value = entry.value
-                                , edition = entry.edition
-                                , override = entry.override
-                                , raw = Just ( toRaw entry.value )
                                 , editable = True
                             }
 
@@ -4461,7 +4456,8 @@ datesFormula: Model -> Set String
 datesFormula model =
     Set.fromList
         <| Dict.keys
-            ( onlyActiveValues model.series )
+            <| onlyActiveValues
+                <| zSeries model.series
 
 
 datesComponents: Model -> Set String
@@ -4478,7 +4474,7 @@ datesComponents model =
 datesComponent: Model -> Component -> Set String
 datesComponent model comp =
     let
-        allDates = onlyActiveKeys comp.data
+        allDates = onlyActiveKeys (zSeries comp.data)
     in
         Set.fromList allDates
 
@@ -4724,7 +4720,7 @@ fillButton position fillUnder =
 
 isEmpty: Model -> Bool
 isEmpty model =
-    List.length ( onlyActiveKeys model.series ) == 0
+    List.length ( onlyActiveKeys (zSeries model.series) ) == 0
 
 displayCoord: ( Int, Int ) -> String
 displayCoord (i, j) =
@@ -4843,11 +4839,9 @@ debugView model =
                 , H.text ( "Raw pasted : " ++ splitRaw model.rawPasted )
                 , ( Markdown.toHtmlWith option [] model.rawPasted )
                 , H.br [] []
-                , H.text ("Last Date: " ++ ( getLastNaive <| case model.series of
-                                                                Naked series -> Dict.keys series.initialTs
-                                                                ToEdit series -> Dict.keys series.initialTs
-                                            )
-                          )
+                , H.text ("Last Date: "
+                         ++ ( getLastNaive <| Dict.keys (zSeries model.series))
+                         )
                 , H.br [] []
                 , H.text (", Mouse position: " ++ case model.mousePosition of
                                 Nothing -> "Nothing"
@@ -4966,10 +4960,10 @@ plotNode model =
 
 plotSingle: Model -> String -> String -> Axis -> Axis -> H.Html Msg
 plotSingle model dragMode lineMarker xAxis yAxis =
-    let dates = onlyActiveKeys model.series
-        values = Dict.values ( onlyActiveValues model.series )
+    let dates = onlyActiveKeys (zSeries model.series)
+        values = Dict.values ( onlyActiveValues (zSeries model.series) )
         diff = Dict.values ( currentDiff model ( filterEntry model.coordData ))
-        previous = previouslyEdited  model.series
+        previous = extractPrevious <| zSeries model.series
         editionTrace =
             case model.mode of
                 Existing I.Formula -> []
@@ -5014,8 +5008,8 @@ plotSingle model dragMode lineMarker xAxis yAxis =
 
 plotString: Model -> H.Html Msg
 plotString model =
-    let dates = onlyActiveKeys model.series
-        values = Dict.values ( onlyActiveStrings model.series )
+    let dates = onlyActiveKeys (zSeries model.series)
+        values = Dict.values ( onlyActiveStrings (zSeries model.series) )
         pseudoTs = List.map
                     (\ v -> case v of
                                 Nothing -> Just 0
@@ -5103,8 +5097,8 @@ showEdition diff =
 
 traceComp : String -> Component -> Trace
 traceComp lineMarker component =
-    let dates = onlyActiveKeys component.data
-        values = Dict.values  ( onlyActiveValues component.data )
+    let dates = onlyActiveKeys (zSeries component.data)
+        values = Dict.values  ( onlyActiveValues (zSeries component.data))
     in
         scatterplot
             component.name
