@@ -87,34 +87,36 @@ createTestComponents : List Component
 createTestComponents =
     let
         -- Component 1: Primary type with float values
-        -- First define as Scalar payloads
         comp1ScalarData = Dict.fromList
             [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 20.5)))
             , ("2024-01-02T00:00:00", Scalar (MFloat (Just 22.1)))
             , ("2024-01-03T00:00:00", Scalar (MFloat (Just 19.8)))
             ]
-        -- Transform to Complex using dressSeries
         comp1Data = dressSeries comp1ScalarData "temperature"
 
         -- Component 2: Formula type with some overlapping dates
-        -- First define as Scalar payloads
         comp2ScalarData = Dict.fromList
             [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 65.0)))
             , ("2024-01-03T00:00:00", Scalar (MFloat (Just 70.2)))
             , ("2024-01-04T00:00:00", Scalar (MFloat (Just 68.5)))
             ]
-        -- Transform to Complex using dressSeries
         comp2Data = dressSeries comp2ScalarData "humidity"
 
-        -- Component 3: Auto type with string values and different dates
-        -- First define as Scalar payloads
+        -- Component 3: Primary type with string values and different dates
         comp3ScalarData = Dict.fromList
             [ ("2024-01-01T00:00:00", Scalar (MString (Just "sunny")))
             , ("2024-01-04T00:00:00", Scalar (MString (Just "cloudy")))
             , ("2024-01-05T00:00:00", Scalar (MString (Just "rainy")))
             ]
-        -- Transform to Complex using dressSeries
         comp3Data = dressSeries comp3ScalarData "weather"
+
+        -- Component 4: Auto type with float values
+        comp4ScalarData = Dict.fromList
+            [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 1.5)))
+            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 2.8)))
+            , ("2024-01-05T00:00:00", Scalar (MFloat (Just 3.2)))
+            ]
+        comp4Data = dressSeries comp4ScalarData "pressure"
     in
     [ { name = "temperature"
       , cType = Primary
@@ -129,9 +131,15 @@ createTestComponents =
       , status = CompLoaded
       }
     , { name = "weather"
-      , cType = Auto
+      , cType = Primary
       , data = comp3Data
-      , tzaware = True
+      , tzaware = False
+      , status = CompLoaded
+      }
+    , { name = "pressure"
+      , cType = Auto
+      , data = comp4Data
+      , tzaware = False
       , status = CompLoaded
       }
     ]
@@ -163,12 +171,12 @@ testMergeData =
                 stringResult = List.map (List.map stuffToString) result
                 -- Expected result as list of list of strings
                 expectedResult =
-                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Auto)" ]  -- Header row
-                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny" ]        -- Row 1: has temp and weather
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "" ]           -- Row 2: has temp and humidity
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "" ]         -- Row 3: has temp and humidity
-                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy" ]       -- Row 4: has humidity and weather
-                    , [ "2024-01-05T00:00:00", "", "", "rainy" ]            -- Row 5: has only weather
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]  -- Header row
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]        -- Row 1: has temp and weather
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]        -- Row 2: has temp, humidity, and pressure
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]      -- Row 3: has temp, humidity, and pressure
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]       -- Row 4: has humidity and weather
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]         -- Row 5: has weather and pressure
                     ]
             in
             Expect.all
@@ -198,32 +206,38 @@ testCartesianData =
                     [ ((-1, -1), "Dates (Primary)")           -- Header row
                     , ((-1, 0), "temperature (Primary)")
                     , ((-1, 1), "humidity (Formula)")
-                    , ((-1, 2), "weather (Auto)")
+                    , ((-1, 2), "weather (Primary)")
+                    , ((-1, 3), "pressure (Auto)")
 
                     , ((0, -1), "2024-01-01T00:00:00")       -- Row 1: 2024-01-01
                     , ((0, 0), "20.5")
                     , ((0, 1), "")
                     , ((0, 2), "sunny")
+                    , ((0, 3), "")
 
                     , ((1, -1), "2024-01-02T00:00:00")       -- Row 2: 2024-01-02
                     , ((1, 0), "22.1")
                     , ((1, 1), "65")
                     , ((1, 2), "")
+                    , ((1, 3), "1.5")
 
                     , ((2, -1), "2024-01-03T00:00:00")       -- Row 3: 2024-01-03
                     , ((2, 0), "19.8")
                     , ((2, 1), "70.2")
                     , ((2, 2), "")
+                    , ((2, 3), "2.8")
 
                     , ((3, -1), "2024-01-04T00:00:00")       -- Row 4: 2024-01-04
                     , ((3, 0), "")
                     , ((3, 1), "68.5")
                     , ((3, 2), "cloudy")
+                    , ((3, 3), "")
 
                     , ((4, -1), "2024-01-05T00:00:00")       -- Row 5: 2024-01-05
                     , ((4, 0), "")
                     , ((4, 1), "")
                     , ((4, 2), "rainy")
+                    , ((4, 3), "3.2")
                     ]
 
                 allKeys = Dict.keys cartesianResult |> List.sort
@@ -232,16 +246,16 @@ testCartesianData =
                 expectedCoordinatesDict = Dict.fromList (List.map (\((row, col), value) -> ((row, col), value)) expectedCoordinates)
                 gridFromDict = dictToGrid expectedCoordinatesDict
                 expectedGridFromDict =
-                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Auto)" ]
-                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "" ]
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "" ]
-                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy" ]
-                    , [ "2024-01-05T00:00:00", "", "", "rainy" ]
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
             in
             Expect.all
-                [ \_ -> Expect.equal 24 (Dict.size cartesianResult)
+                [ \_ -> Expect.equal 30 (Dict.size cartesianResult)  -- Now 6 rows x 5 columns = 30 cells
                 , \_ -> Expect.equal (List.map Tuple.first expectedCoordinates) allKeys
                 , \_ -> Expect.equal expectedCoordinates coordinateValuePairs
                 , \_ -> Expect.equal expectedGridFromDict gridFromDict
@@ -358,33 +372,55 @@ testPasteRectangle =
                     [ ((-1, -1), "Dates (Primary)")
                     , ((-1, 0), "temperature (Primary)")
                     , ((-1, 1), "humidity (Formula)")
-                    , ((-1, 2), "weather (Auto)")
+                    , ((-1, 2), "weather (Primary)")
+                    , ((-1, 3), "pressure (Auto)")
 
                     , ((0, -1), "2024-01-01T00:00:00")
                     , ((0, 0), "20.5")
                     , ((0, 1), "")
                     , ((0, 2), "sunny")
+                    , ((0, 3), "")
 
                     , ((1, -1), "2024-01-02T00:00:00")
                     , ((1, 0), "22.1")
                     , ((1, 1), "1")                          -- Patch (0,0) -> corner (1,1)
-                    , ((1, 2), "")                           -- no paste -> problem
+                    , ((1, 2), "")
+                    , ((1, 3), "1.5")
 
                     , ((2, -1), "2024-01-03T00:00:00")
                     , ((2, 0), "19.8")
                     , ((2, 1), "3")                          -- Patch (1,0) -> corner (2,1)
-                    , ((2, 2), "")                          -- no paste -> problem
+                    , ((2, 2), "")
+                    , ((2, 3), "2.8")
 
                     , ((3, -1), "2024-01-04T00:00:00")
                     , ((3, 0), "")
                     , ((3, 1), "68.5")
                     , ((3, 2), "cloudy")
+                    , ((3, 3), "")
 
                     , ((4, -1), "2024-01-05T00:00:00")
                     , ((4, 0), "")
                     , ((4, 1), "")
                     , ((4, 2), "rainy")
+                    , ((4, 3), "3.2")
+                    ]
+
+                expectedResultDict = Dict.fromList (List.map (\((row, col), value) -> ((row, col), value)) expectedResult)
+                gridFromExpectedResult = dictToGrid expectedResultDict
+
+                expectedGridFromPasteResult =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "1", "", "1.5" ]        -- Note: patch "1" applied at (1,1)
+                    , [ "2024-01-03T00:00:00", "19.8", "3", "", "2.8" ]        -- Note: patch "3" applied at (2,1)
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
 
             in
-            Expect.equal expectedResult resultCoordinateValuePairs
+            Expect.all
+                [ \_ -> Expect.equal expectedResult resultCoordinateValuePairs
+                , \_ -> Expect.equal expectedGridFromPasteResult gridFromExpectedResult  -- Test dictToGrid on paste results
+                ]
+                ()
