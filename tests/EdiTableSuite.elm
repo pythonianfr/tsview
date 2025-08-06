@@ -72,8 +72,8 @@ testPatchCurrent =
 
                 expectedEntries =
                     [ ("2024-01-01T00:00:00", { raw = Just "100", value = MFloat (Just 100.0), edition = Edition (MFloat 100.0), editable = True, override = False, indexRow = "2024-01-01T00:00:00", indexCol = "test-series", fromBatch = False })
-                    , ("2024-01-02T00:00:00", { raw = Just "250", value = MFloat (Just 200.0), edition = Edition (MFloat 250.0), editable = True, override = False, indexRow = "2024-01-02T00:00:00", indexCol = "test-series", fromBatch = False })
-                    , ("2024-01-03T00:00:00", { raw = Nothing, value = MFloat (Just 300.0), edition = Deletion, editable = True, override = False, indexRow = "2024-01-03T00:00:00", indexCol = "test-series", fromBatch = False })
+                    , ("2024-01-02T00:00:00", { raw = Just "250", value = MFloat (Just 200.0), edition = Edition (MFloat 250.0), editable = True, override = False, indexRow = "2024-01-02T00:00:00", indexCol = "test-series", fromBatch = True })
+                    , ("2024-01-03T00:00:00", { raw = Nothing, value = MFloat (Just 300.0), edition = Deletion, editable = True, override = False, indexRow = "2024-01-03T00:00:00", indexCol = "test-series", fromBatch = True })
                     , ("2024-01-04T00:00:00", { raw = Just "400", value = MFloat Nothing, edition = Edition (MFloat 400.0), editable = True, override = False, indexRow = "", indexCol = "2024-01-04T00:00:00", fromBatch = True })
                     , ("2024-01-05T00:00:00", { raw = Just "500", value = MFloat (Just 500.0), edition = Edition (MFloat 500.0), editable = True, override = False, indexRow = "2024-01-05T00:00:00", indexCol = "test-series", fromBatch = False })
                     , ("2024-01-06T00:00:00", { raw = Nothing, value = MFloat Nothing, edition = Deletion, editable = True, override = False, indexRow = "", indexCol = "2024-01-06T00:00:00", fromBatch = True })

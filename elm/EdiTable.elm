@@ -109,6 +109,7 @@ patchCurrent base patch name  =
                                             (Complex
                                                 { b | raw = Nothing
                                                     , edition = Deletion
+                                                    , fromBatch = True
                                                 }
                                             )
                                             r
@@ -118,6 +119,8 @@ patchCurrent base patch name  =
                                             (Complex
                                                 { b | raw = Just ( String.fromFloat v )
                                                     , edition = Edition ( MFloat v)
+                                                    , fromBatch = True
+
                                                 }
                                             )
                                             r
@@ -129,6 +132,7 @@ patchCurrent base patch name  =
                                             (Complex
                                                 { b | raw = Nothing
                                                     , edition = Deletion
+                                                    , fromBatch = True
                                                 }
                                             )
                                             r
@@ -138,6 +142,7 @@ patchCurrent base patch name  =
                                                     (Complex
                                                         { b | raw = Just v
                                                         , edition = Edition ( MString v )
+                                                        , fromBatch = True
                                                         }
                                                     )
                                                     r
