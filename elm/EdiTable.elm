@@ -448,3 +448,40 @@ mergeData components =
              ( builRowBasic components )
              dates
        )
+
+
+tab : String
+tab = "\t"
+
+
+splitByTab : String -> List String
+splitByTab s =
+    String.split tab s
+
+
+separatorReturn : String -> Maybe String
+separatorReturn raw =
+    if String.contains "\r\n" raw then Just "\r\n" -- windows
+    else if String.contains "\n" raw then Just "\n" -- unix
+    else Nothing
+
+
+parsePasted : String -> Bool -> List ( List String )
+parsePasted raw isString =
+    let
+        removedSpace =
+            if isString
+            then
+                raw
+            else
+                String.replace " " "" raw
+        sepR =
+            separatorReturn raw
+    in
+    case sepR of
+        Nothing ->
+            [ splitByTab removedSpace ]
+        Just s ->
+            List.map
+                splitByTab
+                <| String.split s removedSpace

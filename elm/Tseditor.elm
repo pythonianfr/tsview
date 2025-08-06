@@ -34,6 +34,7 @@ import EdiTable exposing
     , zSeries
     , onlyActiveKeys
     , mergeData
+    , parsePasted
     )
 import Horizon exposing
     ( HorizonModel
@@ -695,31 +696,6 @@ queryItemDecode =
         (JD.field "source" JD.string)
         (JD.field "kind" JD.string)
 
-separatorReturn raw =
-    if String.contains "\r\n" raw then Just "\r\n" -- windows
-    else if String.contains "\n" raw then Just "\n" -- unix
-    else Nothing
-
-
-parsePasted : String -> Bool -> List ( List String )
-parsePasted raw isString =
-    let
-        removedSpace =
-            if isString
-            then
-                raw
-            else
-                String.replace " " "" raw
-        sepR =
-            separatorReturn raw
-    in
-    case sepR of
-        Nothing ->
-            [ splitByTab removedSpace ]
-        Just s ->
-            List.map
-                splitByTab
-                <| String.split s removedSpace
 
 
 -- the index is of the form e/2/3
@@ -735,12 +711,6 @@ getPos s =
         _ -> ( 0, 0 )
 
 
-splitByTab: String -> List String
-splitByTab s =
-    String.split tab s
-
-
-tab = "\t"
 return = "\n"
 
 

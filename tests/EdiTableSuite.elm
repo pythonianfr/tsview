@@ -2,6 +2,7 @@ module EdiTableSuite exposing
     ( testPatchCurrent
     , testMergeData
     , testCartesianData
+    , testParsePasted
     )
 
 import Dict exposing (Dict)
@@ -276,5 +277,81 @@ testCartesianData =
                 [ \_ -> Expect.equal 24 (Dict.size cartesianResult)
                 , \_ -> Expect.equal (List.map Tuple.first expectedCoordinates) allKeys
                 , \_ -> Expect.equal expectedCoordinates coordinateValuePairs
+                ]
+                ()
+
+
+testParsePasted : Test
+testParsePasted =
+    test "parsePasted converts spreadsheet paste data to list of list of strings" <|
+        \_ ->
+            let
+                pastedData = "12.5\t34.7\n89.1\t56.2"
+                -- Test with isString = False (numerical data, spaces should be removed)
+                result = parsePasted pastedData False
+                expectedResult =
+                    [ [ "12.5", "34.7" ]    -- First row
+                    , [ "89.1", "56.2" ]    -- Second row
+                    ]
+
+                -- Test with different line endings (Windows format)
+                windowsData = "12.5\t34.7\r\n89.1\t56.2"
+                windowsResult = parsePasted windowsData False
+
+                -- Test with isString = True (string data, spaces should be preserved)
+                stringData = "Hello World\tGood Morning\nTest Data\tMore Text"
+                stringResult = parsePasted stringData True
+                expectedStringResult =
+                    [ [ "Hello World", "Good Morning" ]
+                    , [ "Test Data", "More Text" ]
+                    ]
+
+                -- Test single row (no line breaks)
+                singleRowData = "45.8\t67.3"
+                singleRowResult = parsePasted singleRowData False
+                expectedSingleRow = [ [ "45.8", "67.3" ] ]
+
+                -- Test with spaces in numerical data (should be removed)
+                spacedData = "1 2.5\t3 4.7\n8 9.1\t5 6.2"
+                spacedResult = parsePasted spacedData False
+                expectedSpacedResult =
+                    [ [ "12.5", "34.7" ]
+                    , [ "89.1", "56.2" ]
+                    ]
+
+                -- Setting starting corner at (0, 0) instead of (-1, -1)
+                cartesianResult = cartesianDataRec result [] 0 0 0 Dict.empty
+
+                expectedCartesian =
+                    [ ((0, 0), "12.5")
+                    , ((0, 1), "34.7")
+                    , ((1, 0), "89.1")
+                    , ((1, 1), "56.2")
+                    ]
+
+                -- Convert cartesian result to sorted list for comparison
+                cartesianList =
+                    cartesianResult
+                    |> Dict.toList
+                    |> List.sortBy (\((r, c), _) -> (r, c))
+
+            in
+            Expect.all
+                [ \_ -> Expect.equal expectedResult result
+
+                , -- Test Windows line endings
+                  \_ -> Expect.equal expectedResult windowsResult
+
+                , -- Test string data (spaces preserved)
+                  \_ -> Expect.equal expectedStringResult stringResult
+
+                , -- Test single row
+                  \_ -> Expect.equal expectedSingleRow singleRowResult
+
+                , -- Test space removal for numerical data
+                  \_ -> Expect.equal expectedSpacedResult spacedResult
+
+                , -- Test complete cartesian mapping
+                  \_ -> Expect.equal expectedCartesian cartesianList
                 ]
                 ()
