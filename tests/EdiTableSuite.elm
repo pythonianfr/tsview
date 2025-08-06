@@ -227,11 +227,24 @@ testCartesianData =
                     ]
 
                 allKeys = Dict.keys cartesianResult |> List.sort
+
+                -- Test the reverse operation: convert expectedCoordinates back to grid using dictToGrid
+                expectedCoordinatesDict = Dict.fromList (List.map (\((row, col), value) -> ((row, col), value)) expectedCoordinates)
+                gridFromDict = dictToGrid expectedCoordinatesDict
+                expectedGridFromDict =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "" ]
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "" ]
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy" ]
+                    ]
             in
             Expect.all
                 [ \_ -> Expect.equal 24 (Dict.size cartesianResult)
                 , \_ -> Expect.equal (List.map Tuple.first expectedCoordinates) allKeys
                 , \_ -> Expect.equal expectedCoordinates coordinateValuePairs
+                , \_ -> Expect.equal expectedGridFromDict gridFromDict
                 ]
                 ()
 

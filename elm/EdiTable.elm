@@ -241,6 +241,34 @@ cartesianData mergedData =
     cartesianDataRec mergedData [] -1 -1 -1 Dict.empty
 
 
+getBounds:  Dict ( Int, Int ) a -> ( ( Int, Int ),  ( Int, Int ))
+getBounds cartDict =
+    let coords = Dict.keys cartDict
+        rows = List.map Tuple.first coords
+        cols = List.map Tuple.second coords
+        minRow = Maybe.withDefault -1 <| List.minimum rows
+        maxRow = Maybe.withDefault -1 <| List.maximum rows
+        minCol = Maybe.withDefault -1 <| List.minimum cols
+        maxCol = Maybe.withDefault -1 <| List.maximum cols
+    in
+    ( ( minRow, maxRow ), ( minCol, maxCol ))
+
+
+dictToGrid: Dict ( Int, Int ) a -> List (List a)
+dictToGrid coordDict =
+    let
+        (( minRow, maxRow ), ( minCol, maxCol )) = getBounds coordDict
+
+        buildRow: Int -> List a
+        buildRow rowIdx =
+            List.range minCol maxCol
+            |> List.filterMap (\colIdx -> Dict.get (rowIdx, colIdx) coordDict)
+
+    in
+    List.range minRow maxRow
+    |> List.map buildRow
+
+
 type CType
     = Primary
     | Formula
