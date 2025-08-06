@@ -341,86 +341,99 @@ testParsePasted =
 
 testPasteRectangle : Test
 testPasteRectangle =
-    test "pasteRectangle merges patch data into base grid at specified corner" <|
+    test "pasteRectangle merges patch data into base grid at different corners and data types" <|
         \_ ->
             let
-                -- Create base data (similar to testCartesianData result)
+                -- Create base data as List (List Stuff)
                 components = createTestComponents
-                mergeResult = mergeData components
-                baseDict = cartesianData mergeResult
+                baseGrid = mergeData components
 
-                -- Create patch data (similar to testParsePasted result)
-                pastedData = "1\t2\n3\t4"
-                parsedData = parsePasted pastedData False
-                patchDict = cartesianDataRec parsedData [] 0 0 0 Dict.empty
-
-                -- Apply pasteRectangle operation
-                canwrite = True
-                corner = (1, 1)
-                result = pasteRectangle canwrite baseDict patchDict corner
-
-                -- Convert result to sorted list of (coordinate, string_value) pairs for testing
-                resultCoordinateValuePairs =
-                    result
-                    |> Dict.toList
-                    |> List.map (\((row, col), stuff) -> ((row, col), stuffToString stuff))
-                    |> List.sortBy (\((r, c), _) -> (r, c))
-
-                -- Expected result: base data + patch data applied at corner (1,1)
-                -- Original base coordinates remain, patch coordinates get translated
-                expectedResult =
-                    [ ((-1, -1), "Dates (Primary)")
-                    , ((-1, 0), "temperature (Primary)")
-                    , ((-1, 1), "humidity (Formula)")
-                    , ((-1, 2), "weather (Primary)")
-                    , ((-1, 3), "pressure (Auto)")
-
-                    , ((0, -1), "2024-01-01T00:00:00")
-                    , ((0, 0), "20.5")
-                    , ((0, 1), "")
-                    , ((0, 2), "sunny")
-                    , ((0, 3), "")
-
-                    , ((1, -1), "2024-01-02T00:00:00")
-                    , ((1, 0), "22.1")
-                    , ((1, 1), "1")                          -- Patch (0,0) -> corner (1,1)
-                    , ((1, 2), "")
-                    , ((1, 3), "1.5")
-
-                    , ((2, -1), "2024-01-03T00:00:00")
-                    , ((2, 0), "19.8")
-                    , ((2, 1), "3")                          -- Patch (1,0) -> corner (2,1)
-                    , ((2, 2), "")
-                    , ((2, 3), "2.8")
-
-                    , ((3, -1), "2024-01-04T00:00:00")
-                    , ((3, 0), "")
-                    , ((3, 1), "68.5")
-                    , ((3, 2), "cloudy")
-                    , ((3, 3), "")
-
-                    , ((4, -1), "2024-01-05T00:00:00")
-                    , ((4, 0), "")
-                    , ((4, 1), "")
-                    , ((4, 2), "rainy")
-                    , ((4, 3), "3.2")
-                    ]
-
-                expectedResultDict = Dict.fromList (List.map (\((row, col), value) -> ((row, col), value)) expectedResult)
-                gridFromExpectedResult = dictToGrid expectedResultDict
-
-                expectedGridFromPasteResult =
+                -- Test Case 1: Numeric data at corner (1,1)
+                pastedData1 = "1\t2\n3\t4"
+                parsedData1 = parsePasted pastedData1 False
+                patchDict1 = cartesianDataRec parsedData1 [] 0 0 0 Dict.empty
+                baseDict = cartesianData baseGrid
+                result1 = pasteRectangle True baseDict patchDict1 (1, 1)
+                grid1 = dictToGrid result1 |> List.map (List.map stuffToString)
+                expected1 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "1", "", "1.5" ]        -- Note: patch "1" applied at (1,1)
-                    , [ "2024-01-03T00:00:00", "19.8", "3", "", "2.8" ]        -- Note: patch "3" applied at (2,1)
+                    , [ "2024-01-02T00:00:00", "22.1", "1", "", "1.5" ]        -- pb formula / pb empty string
+                    , [ "2024-01-03T00:00:00", "19.8", "3", "", "2.8" ]        -- pb formula / pb empty string
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
+                    ]
+
+                -- Test Case 2: Numeric data at corner (1,0)
+                result2 = pasteRectangle True baseDict patchDict1 (1, 0)
+                grid2 = dictToGrid result2 |> List.map (List.map stuffToString)
+                expected2 =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "1", "2", "", "1.5" ]           -- Ok/pb formula
+                    , [ "2024-01-03T00:00:00", "3", "4", "", "2.8" ]           -- Ok/pb formula
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
+                    ]
+
+                -- Test Case 3: Numeric data at corner (1,-1)
+                result3 = pasteRectangle True baseDict patchDict1 (1, -1)
+                grid3 = dictToGrid result3 |> List.map (List.map stuffToString)
+                expected3 =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "2", "65", "", "1.5" ]          -- Ok/Ok
+                    , [ "2024-01-03T00:00:00", "4", "70.2", "", "2.8" ]        -- Ok/Ok
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
+                    ]
+
+                -- Test Case 4: String data at corner (1,1)
+                pastedData4 = "a\tb\nc\td"
+                parsedData4 = parsePasted pastedData4 True
+                patchDict4 = cartesianDataRec parsedData4 [] 0 0 0 Dict.empty
+                result4 = pasteRectangle True baseDict patchDict4 (1, 1)
+                grid4 = dictToGrid result4 |> List.map (List.map stuffToString)
+                expected4 =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "a", "", "1.5" ]        -- pb string and formula / pb empty
+                    , [ "2024-01-03T00:00:00", "19.8", "c", "", "2.8" ]        -- pb string and formula / pb empty
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
+                    ]
+
+                -- Test Case 5: String data at corner (1,0)
+                result5 = pasteRectangle True baseDict patchDict4 (1, 0)
+                grid5 = dictToGrid result5 |> List.map (List.map stuffToString)
+                expected5 =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "a", "b", "", "1.5" ]            -- pb string / pb string and formula
+                    , [ "2024-01-03T00:00:00", "c", "d", "", "2.8" ]            -- pb string / spb string and formula
+                    , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
+                    , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
+                    ]
+
+                -- Test Case 6: String data at corner (1,-1)
+                result6 = pasteRectangle True baseDict patchDict4 (1, -1)
+                grid6 = dictToGrid result6 |> List.map (List.map stuffToString)
+                expected6 =
+                    [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
+                    , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
+                    , [ "2024-01-02T00:00:00", "b", "65", "", "1.5" ]            -- Ok/pb string
+                    , [ "2024-01-03T00:00:00", "d", "70.2", "", "2.8" ]          -- Ok/pb string
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
 
             in
             Expect.all
-                [ \_ -> Expect.equal expectedResult resultCoordinateValuePairs
-                , \_ -> Expect.equal expectedGridFromPasteResult gridFromExpectedResult  -- Test dictToGrid on paste results
+                [ \_ -> Expect.equal expected1 grid1
+                , \_ -> Expect.equal expected2 grid2
+                , \_ -> Expect.equal expected3 grid3
+                , \_ -> Expect.equal expected4 grid4
+                , \_ -> Expect.equal expected5 grid5
+                , \_ -> Expect.equal expected6 grid6
                 ]
                 ()
