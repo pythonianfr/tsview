@@ -3,6 +3,7 @@ module EdiTableSuite exposing
     , testMergeData
     , testCartesianData
     , testParsePasted
+    , testPasteRectangle
     )
 
 import Dict exposing (Dict)
@@ -355,3 +356,68 @@ testParsePasted =
                   \_ -> Expect.equal expectedCartesian cartesianList
                 ]
                 ()
+
+
+testPasteRectangle : Test
+testPasteRectangle =
+    test "pasteRectangle merges patch data into base grid at specified corner" <|
+        \_ ->
+            let
+                -- Create base data (similar to testCartesianData result)
+                components = createTestComponents
+                mergeResult = mergeData components
+                baseDict = cartesianData mergeResult
+
+                -- Create patch data (similar to testParsePasted result)
+                pastedData = "1\t2\n3\t4"
+                parsedData = parsePasted pastedData False
+                patchDict = cartesianDataRec parsedData [] 0 0 0 Dict.empty
+
+                -- Apply pasteRectangle operation
+                canwrite = True
+                corner = (1, 1)
+                result = pasteRectangle canwrite baseDict patchDict corner
+
+                -- Convert result to sorted list of (coordinate, string_value) pairs for testing
+                resultCoordinateValuePairs =
+                    result
+                    |> Dict.toList
+                    |> List.map (\((row, col), stuff) -> ((row, col), stuffToString stuff))
+                    |> List.sortBy (\((r, c), _) -> (r, c))
+
+                -- Expected result: base data + patch data applied at corner (1,1)
+                -- Original base coordinates remain, patch coordinates get translated
+                expectedResult =
+                    [ ((-1, -1), "Dates (Primary)")
+                    , ((-1, 0), "temperature (Primary)")
+                    , ((-1, 1), "humidity (Formula)")
+                    , ((-1, 2), "weather (Auto)")
+
+                    , ((0, -1), "2024-01-01T00:00:00")
+                    , ((0, 0), "20.5")
+                    , ((0, 1), "")
+                    , ((0, 2), "sunny")
+
+                    , ((1, -1), "2024-01-02T00:00:00")
+                    , ((1, 0), "22.1")
+                    , ((1, 1), "1")                          -- Patch (0,0) -> corner (1,1)
+                    , ((1, 2), "")                           -- no paste -> problem
+
+                    , ((2, -1), "2024-01-03T00:00:00")
+                    , ((2, 0), "19.8")
+                    , ((2, 1), "3")                          -- Patch (1,0) -> corner (2,1)
+                    , ((2, 2), "")                          -- no paste -> problem
+
+                    , ((3, -1), "2024-01-04T00:00:00")
+                    , ((3, 0), "")
+                    , ((3, 1), "68.5")
+                    , ((3, 2), "cloudy")
+
+                    , ((4, -1), "2024-01-05T00:00:00")
+                    , ((4, 0), "")
+                    , ((4, 1), "")
+                    , ((4, 2), "rainy")
+                    ]
+
+            in
+            Expect.equal expectedResult resultCoordinateValuePairs

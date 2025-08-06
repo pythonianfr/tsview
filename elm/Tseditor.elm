@@ -30,6 +30,7 @@ import EdiTable exposing
     , OverSeries
     , OverComponent
     , toRaw
+    , tab
     , zComponent
     , zSeries
     , onlyActiveKeys
