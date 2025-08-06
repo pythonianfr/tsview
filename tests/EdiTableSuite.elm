@@ -27,16 +27,18 @@ baseEntry =
 
 createBaseData : Dict String Payload
 createBaseData =
-    Dict.fromList
-        [ ("2024-01-01T00:00:00"
-          , Complex { baseEntry | indexRow = "2024-01-01T00:00:00", raw = Just "100.0", value = MFloat (Just 100.0)})
-        , ("2024-01-02T00:00:00"
-          , Complex { baseEntry | indexRow = "2024-01-02T00:00:00", raw = Just "200.0", value = MFloat (Just 200.0)})
-        , ("2024-01-03T00:00:00"
-          , Complex { baseEntry | indexRow = "2024-01-03T00:00:00", raw = Just "300.0", value = MFloat (Just 300.0)})
-        , ("2024-01-05T00:00:00"
-          , Complex { baseEntry | indexRow = "2024-01-05T00:00:00", raw = Just "500.0", value = MFloat (Just 500.0)})
-        ]
+    let
+        -- First define as Scalar payloads
+        baseScalarData = Dict.fromList
+            [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 100.0)))
+            , ("2024-01-02T00:00:00", Scalar (MFloat (Just 200.0)))
+            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 300.0)))
+            , ("2024-01-05T00:00:00", Scalar (MFloat (Just 500.0)))
+            ]
+        -- Transform to Complex using dressSeries
+        baseComplexData = dressSeries baseScalarData "test-series"
+    in
+    baseComplexData
 
 createPatchData : Dict String Payload
 createPatchData =
@@ -56,82 +58,28 @@ testPatchCurrent =
                 patch = createPatchData
                 seriesName = "test-series"
                 result = patchCurrent base patch seriesName
-                -- Check that result contains expected keys
-                expectedKeys = [ "2024-01-01T00:00:00"
-                               , "2024-01-02T00:00:00"
-                               , "2024-01-03T00:00:00"
-                               , "2024-01-04T00:00:00"
-                               , "2024-01-05T00:00:00"
-                               , "2024-01-06T00:00:00"
-                               ]
-                actualKeys = Dict.keys result |> List.sort
-                -- Check specific entries
-                jan01Entry = Dict.get "2024-01-01T00:00:00" result
-                jan02Entry = Dict.get "2024-01-02T00:00:00" result
-                jan03Entry = Dict.get "2024-01-03T00:00:00" result
-                jan04Entry = Dict.get "2024-01-04T00:00:00" result
-                jan05Entry = Dict.get "2024-01-05T00:00:00" result
-                jan06Entry = Dict.get "2024-01-06T00:00:00" result
+
+                -- Extract all result entries as explicit Elm records for visibility
+                resultEntries =
+                    result
+                    |> Dict.toList
+                    |> List.sortBy Tuple.first
+                    |> List.map (\(key, payload) ->
+                        case payload of
+                            Complex entry -> (key, entry)
+                            Scalar _ -> (key, baseEntry) -- fallback, shouldn't happen
+                    )
+
+                expectedEntries =
+                    [ ("2024-01-01T00:00:00", { raw = Just "100", value = MFloat (Just 100.0), edition = Edition (MFloat 100.0), editable = True, override = False, indexRow = "2024-01-01T00:00:00", indexCol = "test-series", fromBatch = False })
+                    , ("2024-01-02T00:00:00", { raw = Just "250", value = MFloat (Just 200.0), edition = Edition (MFloat 250.0), editable = True, override = False, indexRow = "2024-01-02T00:00:00", indexCol = "test-series", fromBatch = False })
+                    , ("2024-01-03T00:00:00", { raw = Nothing, value = MFloat (Just 300.0), edition = Deletion, editable = True, override = False, indexRow = "2024-01-03T00:00:00", indexCol = "test-series", fromBatch = False })
+                    , ("2024-01-04T00:00:00", { raw = Just "400", value = MFloat Nothing, edition = Edition (MFloat 400.0), editable = True, override = False, indexRow = "", indexCol = "2024-01-04T00:00:00", fromBatch = True })
+                    , ("2024-01-05T00:00:00", { raw = Just "500", value = MFloat (Just 500.0), edition = Edition (MFloat 500.0), editable = True, override = False, indexRow = "2024-01-05T00:00:00", indexCol = "test-series", fromBatch = False })
+                    , ("2024-01-06T00:00:00", { raw = Nothing, value = MFloat Nothing, edition = Deletion, editable = True, override = False, indexRow = "", indexCol = "2024-01-06T00:00:00", fromBatch = True })
+                    ]
             in
-            Expect.all
-                [ \_ -> Expect.equal (List.sort expectedKeys) actualKeys
-
-                -- Jan 01: should remain unchanged (base only)
-                , \_ ->
-                    case jan01Entry of
-                        Just (Complex entry) ->
-                            Expect.all
-                                [ \_ -> Expect.equal "100.0" (Maybe.withDefault "" entry.raw)
-                                , \_ ->Expect.equal (MFloat (Just 100.0)) entry.value
-                                ] ()
-                        _ -> Expect.fail "Jan 01 should be Complex entry with original value"
-
-                -- Jan 02: should be updated with patch value
-                , \_ ->
-                    case jan02Entry of
-                        Just (Complex entry) ->
-                            Expect.all
-                                [ \_ -> Expect.equal "250" (Maybe.withDefault "" entry.raw)
-                                , \_ ->Expect.equal (Edition (MFloat 250.0)) entry.edition
-                                ] ()
-                        _ -> Expect.fail "Jan 02 should be Complex entry with updated value"
-
-                -- Jan 03: should be marked for deletion (patch had Nothing)
-                , \_ ->
-                    case jan03Entry of
-                        Just (Complex entry) ->
-                            Expect.equal Deletion entry.edition
-                        _ -> Expect.fail "Jan 03 should remain as Complex entry"
-
-                -- Jan 04: should be new entry from patch
-                , \_ ->
-                    case jan04Entry of
-                        Just (Complex entry) ->
-                            Expect.all
-                                [ \_ -> Expect.equal "400" (Maybe.withDefault "" entry.raw)
-                                , \_ ->Expect.equal (Edition (MFloat 400.0)) entry.edition
-                                , \_ ->Expect.equal True entry.fromBatch
-                                ] ()
-                        _ -> Expect.fail "Jan 04 should be new Complex entry"
-
-                -- Jan 05: should remain unchanged (base only)
-                , \_ ->
-                    case jan05Entry of
-                        Just (Complex entry) ->
-                            Expect.equal "500.0" (Maybe.withDefault "" entry.raw)
-                        _ -> Expect.fail "Jan 05 should remain unchanged"
-
-                -- Jan 06: should be new entry with deletion marker (patch had Nothing)
-                , \_ ->
-                    case jan06Entry of
-                        Just (Complex entry) ->
-                            Expect.all
-                                [ \_ -> Expect.equal Deletion entry.edition
-                                , \_ ->Expect.equal True entry.fromBatch
-                                ] ()
-                        _ -> Expect.fail "Jan 06 should be new Complex entry with deletion marker"
-                ]
-                ()
+            Expect.equal expectedEntries resultEntries
 
 
 -- Test data for mergeData
@@ -139,32 +87,34 @@ createTestComponents : List Component
 createTestComponents =
     let
         -- Component 1: Primary type with float values
-        comp1Data = Dict.fromList
-            [ ("2024-01-01T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-01T00:00:00", indexCol = "temperature", raw = Just "20.5", value = MFloat (Just 20.5) })
-            , ("2024-01-02T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-02T00:00:00", indexCol = "temperature", raw = Just "22.1", value = MFloat (Just 22.1) })
-            , ("2024-01-03T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-03T00:00:00", indexCol = "temperature", raw = Just "19.8", value = MFloat (Just 19.8) })
+        -- First define as Scalar payloads
+        comp1ScalarData = Dict.fromList
+            [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 20.5)))
+            , ("2024-01-02T00:00:00", Scalar (MFloat (Just 22.1)))
+            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 19.8)))
             ]
+        -- Transform to Complex using dressSeries
+        comp1Data = dressSeries comp1ScalarData "temperature"
+
         -- Component 2: Formula type with some overlapping dates
-        comp2Data = Dict.fromList
-            [ ("2024-01-02T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-02T00:00:00", indexCol = "humidity", raw = Just "65.0", value = MFloat (Just 65.0) })
-            , ("2024-01-03T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-03T00:00:00", indexCol = "humidity", raw = Just "70.2", value = MFloat (Just 70.2) })
-            , ("2024-01-04T00:00:00"
-               , Complex { baseEntry | indexRow = "2024-01-04T00:00:00", indexCol = "humidity", raw = Just "68.5", value = MFloat (Just 68.5) })
+        -- First define as Scalar payloads
+        comp2ScalarData = Dict.fromList
+            [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 65.0)))
+            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 70.2)))
+            , ("2024-01-04T00:00:00", Scalar (MFloat (Just 68.5)))
             ]
+        -- Transform to Complex using dressSeries
+        comp2Data = dressSeries comp2ScalarData "humidity"
+
         -- Component 3: Auto type with string values and different dates
-        comp3Data = Dict.fromList
-            [ ("2024-01-01T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-01T00:00:00", indexCol = "weather", raw = Just "sunny", value = MString (Just "sunny") })
-            , ("2024-01-04T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-04T00:00:00", indexCol = "weather", raw = Just "cloudy", value = MString (Just "cloudy") })
-            , ("2024-01-05T00:00:00"
-              , Complex { baseEntry | indexRow = "2024-01-05T00:00:00", indexCol = "weather", raw = Just "rainy", value = MString (Just "rainy") })
+        -- First define as Scalar payloads
+        comp3ScalarData = Dict.fromList
+            [ ("2024-01-01T00:00:00", Scalar (MString (Just "sunny")))
+            , ("2024-01-04T00:00:00", Scalar (MString (Just "cloudy")))
+            , ("2024-01-05T00:00:00", Scalar (MString (Just "rainy")))
             ]
+        -- Transform to Complex using dressSeries
+        comp3Data = dressSeries comp3ScalarData "weather"
     in
     [ { name = "temperature"
       , cType = Primary
@@ -208,6 +158,7 @@ testMergeData =
             let
                 components = createTestComponents
                 result = mergeData components
+
                 -- Convert result to list of list of strings
                 stringResult = List.map (List.map stuffToString) result
                 -- Expected result as list of list of strings
@@ -220,7 +171,10 @@ testMergeData =
                     , [ "2024-01-05T00:00:00", "", "", "rainy" ]            -- Row 5: has only weather
                     ]
             in
-            Expect.equal expectedResult stringResult
+            Expect.all
+                [ \_ -> Expect.equal expectedResult stringResult
+                ]
+                ()
 
 
 testCartesianData : Test
