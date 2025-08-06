@@ -1,6 +1,7 @@
 module EdiTableSuite exposing
     ( testPatchCurrent
     , testMergeData
+    , testCartesianData
     )
 
 import Dict exposing (Dict)
@@ -218,3 +219,62 @@ testMergeData =
                     ]
             in
             Expect.equal expectedResult stringResult
+
+
+testCartesianData : Test
+testCartesianData =
+    test "cartesianData converts mergeData output to coordinate-based dictionary" <|
+        \_ ->
+            let
+                components = createTestComponents
+                mergeResult = mergeData components
+                cartesianResult = cartesianData mergeResult
+
+                -- Convert the cartesian result to a list of (coordinate, string_value) pairs for testing
+                coordinateValuePairs =
+                    cartesianResult
+                    |> Dict.toList
+                    |> List.map (\((row, col), stuff) -> ((row, col), stuffToString stuff))
+                    |> List.sortBy (\((r, c), _) -> (r, c))  -- Sort by coordinates for predictable testing
+
+                -- Expected coordinates and their string values (cartesianData starts at (-1, -1))
+                expectedCoordinates =
+                    [ ((-1, -1), "Dates (Primary)")           -- Header row
+                    , ((-1, 0), "temperature (Primary)")
+                    , ((-1, 1), "humidity (Formula)")
+                    , ((-1, 2), "weather (Auto)")
+
+                    , ((0, -1), "2024-01-01T00:00:00")       -- Row 1: 2024-01-01
+                    , ((0, 0), "20.5")
+                    , ((0, 1), "")
+                    , ((0, 2), "sunny")
+
+                    , ((1, -1), "2024-01-02T00:00:00")       -- Row 2: 2024-01-02
+                    , ((1, 0), "22.1")
+                    , ((1, 1), "65")
+                    , ((1, 2), "")
+
+                    , ((2, -1), "2024-01-03T00:00:00")       -- Row 3: 2024-01-03
+                    , ((2, 0), "19.8")
+                    , ((2, 1), "70.2")
+                    , ((2, 2), "")
+
+                    , ((3, -1), "2024-01-04T00:00:00")       -- Row 4: 2024-01-04
+                    , ((3, 0), "")
+                    , ((3, 1), "68.5")
+                    , ((3, 2), "cloudy")
+
+                    , ((4, -1), "2024-01-05T00:00:00")       -- Row 5: 2024-01-05
+                    , ((4, 0), "")
+                    , ((4, 1), "")
+                    , ((4, 2), "rainy")
+                    ]
+
+                allKeys = Dict.keys cartesianResult |> List.sort
+            in
+            Expect.all
+                [ \_ -> Expect.equal 24 (Dict.size cartesianResult)
+                , \_ -> Expect.equal (List.map Tuple.first expectedCoordinates) allKeys
+                , \_ -> Expect.equal expectedCoordinates coordinateValuePairs
+                ]
+                ()
