@@ -11,6 +11,10 @@ import EdiTable exposing (..)
 import Expect
 import Test exposing ( Test, test )
 
+-- Primary components must be defined as BaseSupervision/BaseSupervisionString,
+-- then transformed to Complex before storage in Component record.
+-- Formula and Auto series are stored as Scalar in Component record.
+
 
 -- Test data setup
 baseEntry : Entry
@@ -27,18 +31,12 @@ baseEntry =
 
 createBaseData : Dict String Payload
 createBaseData =
-    let
-        -- First define as Scalar payloads
-        baseScalarData = Dict.fromList
-            [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 100.0)))
-            , ("2024-01-02T00:00:00", Scalar (MFloat (Just 200.0)))
-            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 300.0)))
-            , ("2024-01-05T00:00:00", Scalar (MFloat (Just 500.0)))
-            ]
-        -- Transform to Complex using dressSeries
-        baseComplexData = dressSeries baseScalarData "test-series"
-    in
-    baseComplexData
+    Dict.fromList
+        [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 100.0)))
+        , ("2024-01-02T00:00:00", Scalar (MFloat (Just 200.0)))
+        , ("2024-01-03T00:00:00", Scalar (MFloat (Just 300.0)))
+        , ("2024-01-05T00:00:00", Scalar (MFloat (Just 500.0)))
+        ]
 
 createPatchData : Dict String Payload
 createPatchData =
@@ -55,7 +53,7 @@ testPatchCurrent =
         \_ ->
             let
                 base = createBaseData
-                patch = createPatchData
+                patch = dressSeries createPatchData "test-series"
                 seriesName = "test-series"
                 result = patchCurrent base patch seriesName
 
@@ -71,12 +69,10 @@ testPatchCurrent =
                     )
 
                 expectedEntries =
-                    [ ("2024-01-01T00:00:00", { raw = Just "100", value = MFloat (Just 100.0), edition = Edition (MFloat 100.0), editable = True, override = False, indexRow = "2024-01-01T00:00:00", indexCol = "test-series", fromBatch = False })
-                    , ("2024-01-02T00:00:00", { raw = Just "250", value = MFloat (Just 200.0), edition = Edition (MFloat 250.0), editable = True, override = False, indexRow = "2024-01-02T00:00:00", indexCol = "test-series", fromBatch = True })
-                    , ("2024-01-03T00:00:00", { raw = Nothing, value = MFloat (Just 300.0), edition = Deletion, editable = True, override = False, indexRow = "2024-01-03T00:00:00", indexCol = "test-series", fromBatch = True })
-                    , ("2024-01-04T00:00:00", { raw = Just "400", value = MFloat Nothing, edition = Edition (MFloat 400.0), editable = True, override = False, indexRow = "", indexCol = "2024-01-04T00:00:00", fromBatch = True })
-                    , ("2024-01-05T00:00:00", { raw = Just "500", value = MFloat (Just 500.0), edition = Edition (MFloat 500.0), editable = True, override = False, indexRow = "2024-01-05T00:00:00", indexCol = "test-series", fromBatch = False })
-                    , ("2024-01-06T00:00:00", { raw = Nothing, value = MFloat Nothing, edition = Deletion, editable = True, override = False, indexRow = "", indexCol = "2024-01-06T00:00:00", fromBatch = True })
+                    [("2024-01-01T00:00:00",{ editable = True, edition = Edition (MFloat 100), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-01T00:00:00", override = False, raw = Just "100", value = MFloat (Just 100) })
+                    ,("2024-01-02T00:00:00",{ editable = True, edition = Edition (MFloat 200), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-02T00:00:00", override = False, raw = Just "200", value = MFloat (Just 200) })
+                    ,("2024-01-03T00:00:00",{ editable = True, edition = Edition (MFloat 300), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-03T00:00:00", override = False, raw = Just "300", value = MFloat (Just 300) })
+                    ,("2024-01-05T00:00:00",{ editable = True, edition = Edition (MFloat 500), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-05T00:00:00", override = False, raw = Just "500", value = MFloat (Just 500) })
                     ]
             in
             Expect.equal expectedEntries resultEntries
@@ -86,37 +82,35 @@ testPatchCurrent =
 createTestComponents : List Component
 createTestComponents =
     let
-        -- Component 1: Primary type with float values
-        comp1ScalarData = Dict.fromList
-            [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 20.5)))
-            , ("2024-01-02T00:00:00", Scalar (MFloat (Just 22.1)))
-            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 19.8)))
+        -- Component 1: Primary type with float values - use BaseSupervision with override=False, then transform to Complex
+        comp1BaseData = Dict.fromList
+            [ ("2024-01-01T00:00:00", { value = Just 20.5, override = False })
+            , ("2024-01-02T00:00:00", { value = Just 22.1, override = False })
+            , ("2024-01-03T00:00:00", { value = Just 19.8, override = False })
             ]
-        comp1Data = dressSeries comp1ScalarData "temperature"
+        comp1Data = Dict.map (\_ baseSupervision -> baseToEntry baseSupervision) comp1BaseData
 
-        -- Component 2: Formula type with some overlapping dates
-        comp2ScalarData = Dict.fromList
+        -- Component 2: Formula type with some overlapping dates as Scalar
+        comp2Data = Dict.fromList
             [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 65.0)))
             , ("2024-01-03T00:00:00", Scalar (MFloat (Just 70.2)))
             , ("2024-01-04T00:00:00", Scalar (MFloat (Just 68.5)))
             ]
-        comp2Data = dressSeries comp2ScalarData "humidity"
 
-        -- Component 3: Primary type with string values and different dates
-        comp3ScalarData = Dict.fromList
-            [ ("2024-01-01T00:00:00", Scalar (MString (Just "sunny")))
-            , ("2024-01-04T00:00:00", Scalar (MString (Just "cloudy")))
-            , ("2024-01-05T00:00:00", Scalar (MString (Just "rainy")))
+        -- Component 3: Primary type with string values - use BaseSupervisionString with override=False, then transform to Complex
+        comp3BaseData = Dict.fromList
+            [ ("2024-01-01T00:00:00", { value = Just "sunny", override = False })
+            , ("2024-01-04T00:00:00", { value = Just "cloudy", override = False })
+            , ("2024-01-05T00:00:00", { value = Just "rainy", override = False })
             ]
-        comp3Data = dressSeries comp3ScalarData "weather"
+        comp3Data = Dict.map (\_ baseSupervisionString -> baseToEntryString baseSupervisionString) comp3BaseData
 
-        -- Component 4: Auto type with float values
-        comp4ScalarData = Dict.fromList
+        -- Component 4: Auto type with float values as Scalar
+        comp4Data = Dict.fromList
             [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 1.5)))
             , ("2024-01-03T00:00:00", Scalar (MFloat (Just 2.8)))
             , ("2024-01-05T00:00:00", Scalar (MFloat (Just 3.2)))
             ]
-        comp4Data = dressSeries comp4ScalarData "pressure"
     in
     [ { name = "temperature"
       , cType = Primary
@@ -156,7 +150,21 @@ stuffToString stuff =
                     Formula -> "Formula"
                     Auto -> "Auto"
             in name ++ " (" ++ typeStr ++ ")"
-        Cell entry -> Maybe.withDefault "" entry.raw
+        Cell entry ->
+            case entry.edition of
+                NoEdition ->
+                    -- Use the original value when no edition
+                    case entry.value of
+                        MFloat mf -> Maybe.withDefault "" (Maybe.map String.fromFloat mf)
+                        MString ms -> Maybe.withDefault "" ms
+                Edition scalarType ->
+                    -- Use the explicit edited value with edition marker
+                    let editedValue = case scalarType of
+                            MFloat f -> String.fromFloat f
+                            MString s -> s
+                    in "*" ++ editedValue ++ "*"  -- Mark editions with asterisks
+                Deletion -> "~DEL~"  -- Clear deletion marker
+                Error errorMsg -> "[ERROR: " ++ errorMsg ++ "]"  -- Show error messages explicitly
 
 
 testMergeData : Test
@@ -358,8 +366,8 @@ testPasteRectangle =
                 expected1 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "1", "", "1.5" ]        -- pb formula / pb empty string
-                    , [ "2024-01-03T00:00:00", "19.8", "3", "", "2.8" ]        -- pb formula / pb empty string
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -370,8 +378,8 @@ testPasteRectangle =
                 expected2 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "1", "2", "", "1.5" ]           -- Ok/pb formula
-                    , [ "2024-01-03T00:00:00", "3", "4", "", "2.8" ]           -- Ok/pb formula
+                    , [ "2024-01-02T00:00:00", "*1*", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "*3*", "70.2", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -382,8 +390,8 @@ testPasteRectangle =
                 expected3 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "2", "65", "", "1.5" ]          -- Ok/Ok
-                    , [ "2024-01-03T00:00:00", "4", "70.2", "", "2.8" ]        -- Ok/Ok
+                    , [ "2024-01-02T00:00:00", "*2*", "65", "", "1.5" ]           -- Ok/pb formula
+                    , [ "2024-01-03T00:00:00", "*4*", "70.2", "", "2.8" ]           -- Ok/pb formula
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -397,8 +405,8 @@ testPasteRectangle =
                 expected4 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "a", "", "1.5" ]        -- pb string and formula / pb empty
-                    , [ "2024-01-03T00:00:00", "19.8", "c", "", "2.8" ]        -- pb string and formula / pb empty
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -409,8 +417,8 @@ testPasteRectangle =
                 expected5 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "a", "b", "", "1.5" ]            -- pb string / pb string and formula
-                    , [ "2024-01-03T00:00:00", "c", "d", "", "2.8" ]            -- pb string / spb string and formula
+                    , [ "2024-01-02T00:00:00", "[ERROR: a]", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "[ERROR: c]", "70.2", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -421,8 +429,8 @@ testPasteRectangle =
                 expected6 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "b", "65", "", "1.5" ]            -- Ok/pb string
-                    , [ "2024-01-03T00:00:00", "d", "70.2", "", "2.8" ]          -- Ok/pb string
+                    , [ "2024-01-02T00:00:00", "[ERROR: b]", "65", "", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "[ERROR: d]", "70.2", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]

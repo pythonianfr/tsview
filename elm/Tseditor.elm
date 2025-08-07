@@ -37,6 +37,10 @@ import EdiTable exposing
     , mergeData
     , parsePasted
     , getBounds
+    , BaseSupervision
+    , BaseSupervisionString
+    , baseToEntry
+    , baseToEntryString
     )
 import Horizon exposing
     ( HorizonModel
@@ -493,15 +497,6 @@ getCopyClass statusCopy copyType =
                     else classCheck
 
 
-type alias BaseSupervision =
-    { value : Maybe Float
-    , override : Bool
-    }
-
-type alias BaseSupervisionString =
-    { value : Maybe String
-    , override : Bool
-    }
 
 
 
@@ -524,31 +519,6 @@ filterEntry coordData =
 
 
 
-baseToEntry: BaseSupervision -> Payload
-baseToEntry base =
-    Complex
-    { raw = Maybe.map String.fromFloat base.value
-    , value =  MFloat base.value
-    , edition = NoEdition
-    , editable = True
-    , override = base.override
-    , indexRow = ""
-    , indexCol = ""
-    , fromBatch = False
-    }
-
-baseToEntryString: BaseSupervisionString -> Payload
-baseToEntryString base =
-    Complex
-     { raw = base.value
-     , value = MString base.value
-     , edition = NoEdition
-     , editable = True
-     , override = base.override
-     , indexRow = ""
-     , indexCol = ""
-     , fromBatch = False
-     }
 
 
 
