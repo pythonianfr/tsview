@@ -41,6 +41,19 @@ import EdiTable exposing
     , BaseSupervisionString
     , baseToEntry
     , baseToEntryString
+    , fillAllNas
+    , fillNas
+    , getNbNas
+    , filterEntry
+    , applyValue
+    , getValueFromIndex
+    , isVoid
+    , findNbNas
+    , emptyEntry
+    , toString
+    , getCurrentValue
+    , findLastValidByCol
+    , findLastValidRec
     )
 import Horizon exposing
     ( HorizonModel

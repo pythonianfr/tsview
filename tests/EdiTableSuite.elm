@@ -4,6 +4,7 @@ module EdiTableSuite exposing
     , testCartesianData
     , testParsePasted
     , testPasteRectangle
+    , testFillNasFunctions
     )
 
 import Dict exposing (Dict)
@@ -456,5 +457,121 @@ testPasteRectangle =
                 , \_ -> Expect.equal expected4 grid4
                 , \_ -> Expect.equal expected5 grid5
                 , \_ -> Expect.equal expected6 grid6
+                ]
+                ()
+
+
+testFillNasFunctions : Test
+testFillNasFunctions =
+    test "fillNas, getNbNas, fillAllNas, and findLastValidByCol work together to fill missing values" <|
+        \_ ->
+            let
+                -- Create test components with missing values
+                testComponents =
+                    [ { name = "temperature"
+                      , cType = Primary
+                      , data = Dict.fromList
+                          [ ("2024-01-01T00:00:00", baseToEntry { value = Just 10.0, override = False })
+                          , ("2024-01-04T00:00:00", baseToEntry { value = Just 40.0, override = False })
+                          -- Missing values at 2024-01-02 and 2024-01-03
+                          ]
+                      , tzaware = False
+                      , status = CompLoaded
+                      , editable = True
+                      }
+                    , { name = "status"
+                      , cType = Primary
+                      , data = Dict.fromList
+                          [ ("2024-01-01T00:00:00", baseToEntryString { value = Just "active", override = False })
+                          -- Missing values at 2024-01-02, 2024-01-03, 2024-01-04
+                          ]
+                      , tzaware = False
+                      , status = CompLoaded
+                      , editable = True
+                      }
+                    , { name = "complete"
+                      , cType = Primary
+                      , data = Dict.fromList
+                          [ ("2024-01-01T00:00:00", baseToEntry { value = Just 100.0, override = False })
+                          , ("2024-01-02T00:00:00", baseToEntry { value = Just 200.0, override = False })
+                          , ("2024-01-03T00:00:00", baseToEntry { value = Just 300.0, override = False })
+                          , ("2024-01-04T00:00:00", baseToEntry { value = Just 400.0, override = False })
+                          ]
+                      , tzaware = False
+                      , status = CompLoaded
+                      , editable = True
+                      }
+                    ]
+
+                -- Generate test grid using mergeData
+                testGrid = mergeData testComponents
+                testCoordGrid = cartesianData testGrid
+
+                -- Show initial state before any operation
+                initialGrid = dictToGrid testCoordGrid |> List.map (List.map stuffToString)
+                expectedInitialState =
+                    [ ["Dates (Primary)", "temperature (Primary)", "status (Primary)", "complete (Primary)"]
+                    , ["2024-01-01T00:00:00", "10", "active", "100"]
+                    , ["2024-01-02T00:00:00", "", "", "200"]
+                    , ["2024-01-03T00:00:00", "", "", "300"]
+                    , ["2024-01-04T00:00:00", "40", "", "400"]
+                    ]
+
+                -- Test findLastValidByCol: find positions where values transition from valid to missing
+                entryGrid = filterEntry testCoordGrid
+                validPositionsCol0 = findLastValidByCol entryGrid 0  -- temperature column
+                validPositionsCol1 = findLastValidByCol entryGrid 1  -- status column
+                validPositionsCol2 = findLastValidByCol entryGrid 2  -- complete column
+                expectedValidCol0 = [(0, 0)]  -- after row 0 (10.0), rows 1,2 are missing, then row 3 has value
+                expectedValidCol1 = [(0, 1)]  -- after row 0 ("active"), all subsequent rows are missing
+                expectedValidCol2 = []  -- complete column has no missing values, so no transition points
+
+                -- Test getNbNas: count missing values after position (0,0) in temperature column
+                nbNasResult = getNbNas entryGrid (0, 0)
+                expectedNbNas = 2  -- positions (1,0) and (2,0) are void
+
+                -- Test fillNas: fill missing values starting from position (0,0) with value 10
+                fillResult = fillNas testCoordGrid (MFloat 10.0) (0, 0)
+                fillGrid = dictToGrid fillResult |> List.map (List.map stuffToString)
+                expectedFillResult =
+                    [ ["Dates (Primary)", "temperature (Primary)", "status (Primary)", "complete (Primary)"]
+                    , ["2024-01-01T00:00:00", "10", "active", "100"]
+                    , ["2024-01-02T00:00:00", "*10*", "", "200"]
+                    , ["2024-01-03T00:00:00", "*10*", "", "300"]
+                    , ["2024-01-04T00:00:00", "40", "", "400"]
+                    ]
+
+                -- Test fillAllNas: fill all missing values using found valid positions
+                fillAllResult = fillAllNas testCoordGrid validPositionsCol0
+                fillAllGrid = dictToGrid fillAllResult |> List.map (List.map stuffToString)
+                expectedFillAllResult =
+                    [ ["Dates (Primary)", "temperature (Primary)", "status (Primary)", "complete (Primary)"]
+                    , ["2024-01-01T00:00:00", "10", "active", "100"]
+                    , ["2024-01-02T00:00:00", "*10*", "", "200"]
+                    , ["2024-01-03T00:00:00", "*10*", "", "300"]
+                    , ["2024-01-04T00:00:00", "40", "", "400"]
+                    ]
+
+                -- Test string fillNas with status column position (0,1)
+                stringFillResult = fillNas testCoordGrid (MString "active") (0, 1)
+                stringFillGrid = dictToGrid stringFillResult |> List.map (List.map stuffToString)
+                expectedStringFillResult =
+                    [ ["Dates (Primary)", "temperature (Primary)", "status (Primary)", "complete (Primary)"]
+                    , ["2024-01-01T00:00:00", "10", "active", "100"]
+                    , ["2024-01-02T00:00:00", "", "*active*", "200"]
+                    , ["2024-01-03T00:00:00", "", "*active*", "300"]
+                    , ["2024-01-04T00:00:00", "40", "*active*", "400"]
+                    ]
+
+            in
+            Expect.all
+                [ \_ -> Expect.equal expectedInitialState initialGrid
+                , \_ -> Expect.equal expectedValidCol0 validPositionsCol0
+                , \_ -> Expect.equal expectedValidCol1 validPositionsCol1
+                , \_ -> Expect.equal expectedValidCol2 validPositionsCol2
+                , \_ -> Expect.equal expectedNbNas nbNasResult
+                , \_ -> Expect.equal expectedFillResult fillGrid
+                , \_ -> Expect.equal expectedFillAllResult fillAllGrid
+                , \_ -> Expect.equal expectedStringFillResult stringFillGrid
                 ]
                 ()
