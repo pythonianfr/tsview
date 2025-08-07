@@ -90,15 +90,17 @@ patchCurrent base patch name  =
         baseEntryS =
             { baseEntryF | value = MString Nothing }
         default r = dressSeries r name
+
         leftOnly: String -> Payload -> Dict String Payload -> Dict String Payload
         leftOnly _ _ r = default r
+
         both: String -> Payload -> Payload -> Dict String Payload -> Dict String Payload
         both d ba pa r =
              case ba of
-                Scalar _ -> dressSeries r name
+                Scalar _ -> default r
                 Complex b ->
                   case pa of
-                      Complex _ -> dressSeries r name
+                      Complex _ -> default r
                       Scalar sc ->
                           case sc of
                               MFloat mf ->
@@ -146,6 +148,7 @@ patchCurrent base patch name  =
                                                         }
                                                     )
                                                     r
+
         rightOnly : String -> Payload -> Dict String Payload -> Dict String Payload
         rightOnly d pa r =
             case pa of
@@ -157,15 +160,18 @@ patchCurrent base patch name  =
                                 Nothing -> Dict.insert
                                                 d
                                                 ( Complex
-                                                    { baseEntryF | indexCol = d }
+                                                    { baseEntryF
+                                                        | indexRow = d
+                                                    }
                                                 )
                                                 r
                                 Just v -> Dict.insert
                                             d
                                             (Complex
-                                                { baseEntryF | indexCol = d
-                                                , raw = Just ( String.fromFloat v )
-                                                , edition = Edition ( MFloat v)
+                                                { baseEntryF
+                                                    | indexRow = d
+                                                    , raw = Just ( String.fromFloat v )
+                                                    , edition = Edition ( MFloat v)
                                                 }
                                             )
                                             r
@@ -175,7 +181,7 @@ patchCurrent base patch name  =
                                                 d
                                                 ( Complex
                                                     { baseEntryS
-                                                    | indexCol = d
+                                                    | indexRow = d
                                                     }
                                                 )
                                                 r
@@ -183,7 +189,7 @@ patchCurrent base patch name  =
                                             d
                                             ( Complex
                                                 { baseEntryS
-                                                | indexCol = d
+                                                | indexRow = d
                                                 , raw = Just v
                                                 , edition = Edition ( MString v )
                                                 }

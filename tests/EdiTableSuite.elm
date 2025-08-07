@@ -31,12 +31,16 @@ baseEntry =
 
 createBaseData : Dict String Payload
 createBaseData =
-    Dict.fromList
-        [ ("2024-01-01T00:00:00", Scalar (MFloat (Just 100.0)))
-        , ("2024-01-02T00:00:00", Scalar (MFloat (Just 200.0)))
-        , ("2024-01-03T00:00:00", Scalar (MFloat (Just 300.0)))
-        , ("2024-01-05T00:00:00", Scalar (MFloat (Just 500.0)))
-        ]
+    let
+        -- Primary component data should use BaseSupervision with override=False, then transform to Complex
+        baseSupervisionData = Dict.fromList
+            [ ("2024-01-01T00:00:00", { value = Just 100.0, override = False })
+            , ("2024-01-02T00:00:00", { value = Just 200.0, override = False })
+            , ("2024-01-03T00:00:00", { value = Just 300.0, override = False })
+            , ("2024-01-05T00:00:00", { value = Just 500.0, override = False })
+            ]
+    in
+    Dict.map (\_ bS -> baseToEntry bS) baseSupervisionData
 
 createPatchData : Dict String Payload
 createPatchData =
@@ -53,7 +57,7 @@ testPatchCurrent =
         \_ ->
             let
                 base = createBaseData
-                patch = dressSeries createPatchData "test-series"
+                patch = createPatchData
                 seriesName = "test-series"
                 result = patchCurrent base patch seriesName
 
@@ -68,11 +72,17 @@ testPatchCurrent =
                             Scalar _ -> (key, baseEntry) -- fallback, shouldn't happen
                     )
 
+                -- the inconsistencies in the indexCol and indexRow come from the face
+                -- that we don't pass through mergeData which is the place that ensure
+                -- the completion of these fields.
+                -- in here, only the path "rightOnly" in patchCurrent will be completed
                 expectedEntries =
-                    [("2024-01-01T00:00:00",{ editable = True, edition = Edition (MFloat 100), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-01T00:00:00", override = False, raw = Just "100", value = MFloat (Just 100) })
-                    ,("2024-01-02T00:00:00",{ editable = True, edition = Edition (MFloat 200), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-02T00:00:00", override = False, raw = Just "200", value = MFloat (Just 200) })
-                    ,("2024-01-03T00:00:00",{ editable = True, edition = Edition (MFloat 300), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-03T00:00:00", override = False, raw = Just "300", value = MFloat (Just 300) })
-                    ,("2024-01-05T00:00:00",{ editable = True, edition = Edition (MFloat 500), fromBatch = False, indexCol = "test-series", indexRow = "2024-01-05T00:00:00", override = False, raw = Just "500", value = MFloat (Just 500) })
+                    [("2024-01-01T00:00:00",{ editable = True, edition = NoEdition, fromBatch = False, indexCol = "", indexRow = "", override = False, raw = Just "100", value = MFloat (Just 100) })
+                    ,("2024-01-02T00:00:00",{ editable = True, edition = Edition (MFloat 250), fromBatch = True, indexCol = "", indexRow = "", override = False, raw = Just "250", value = MFloat (Just 200) })
+                    ,("2024-01-03T00:00:00",{ editable = True, edition = Deletion, fromBatch = True, indexCol = "", indexRow = "", override = False, raw = Nothing, value = MFloat (Just 300) })
+                    ,("2024-01-04T00:00:00",{ editable = True, edition = Edition (MFloat 400), fromBatch = True, indexCol = "test-series", indexRow = "2024-01-04T00:00:00", override = False, raw = Just "400", value = MFloat Nothing })
+                    ,("2024-01-05T00:00:00",{ editable = True, edition = NoEdition, fromBatch = False, indexCol = "", indexRow = "", override = False, raw = Just "500", value = MFloat (Just 500) })
+                    ,("2024-01-06T00:00:00",{ editable = True, edition = Deletion, fromBatch = True, indexCol = "test-series", indexRow = "2024-01-06T00:00:00", override = False, raw = Nothing, value = MFloat Nothing })
                     ]
             in
             Expect.equal expectedEntries resultEntries
