@@ -96,20 +96,19 @@ createTestComponents =
         comp1BaseData = Dict.fromList
             [ ("2024-01-01T00:00:00", { value = Just 20.5, override = False })
             , ("2024-01-02T00:00:00", { value = Just 22.1, override = False })
-            , ("2024-01-03T00:00:00", { value = Just 19.8, override = False })
             ]
         comp1Data = Dict.map (\_ baseSupervision -> baseToEntry baseSupervision) comp1BaseData
 
         -- Component 2: Formula type with some overlapping dates as Scalar
         comp2Data = Dict.fromList
             [ ("2024-01-02T00:00:00", Scalar (MFloat (Just 65.0)))
-            , ("2024-01-03T00:00:00", Scalar (MFloat (Just 70.2)))
             , ("2024-01-04T00:00:00", Scalar (MFloat (Just 68.5)))
             ]
 
         -- Component 3: Primary type with string values - use BaseSupervisionString with override=False, then transform to Complex
         comp3BaseData = Dict.fromList
             [ ("2024-01-01T00:00:00", { value = Just "sunny", override = False })
+            , ("2024-01-02T00:00:00", { value = Just "partly cloudy", override = False })
             , ("2024-01-04T00:00:00", { value = Just "cloudy", override = False })
             , ("2024-01-05T00:00:00", { value = Just "rainy", override = False })
             ]
@@ -191,8 +190,8 @@ testMergeData =
                 expectedResult =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]  -- Header row
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]        -- Row 1: has temp and weather
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]        -- Row 2: has temp, humidity, and pressure
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]      -- Row 3: has temp, humidity, and pressure
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "partly cloudy", "1.5" ]        -- Row 2: has temp, humidity, weather, and pressure
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]      -- Row 3: has only pressure
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]       -- Row 4: has humidity and weather
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]         -- Row 5: has weather and pressure
                     ]
@@ -236,12 +235,12 @@ testCartesianData =
                     , ((1, -1), "2024-01-02T00:00:00")       -- Row 2: 2024-01-02
                     , ((1, 0), "22.1")
                     , ((1, 1), "65")
-                    , ((1, 2), "")
+                    , ((1, 2), "partly cloudy")
                     , ((1, 3), "1.5")
 
                     , ((2, -1), "2024-01-03T00:00:00")       -- Row 3: 2024-01-03
-                    , ((2, 0), "19.8")
-                    , ((2, 1), "70.2")
+                    , ((2, 0), "")
+                    , ((2, 1), "")
                     , ((2, 2), "")
                     , ((2, 3), "2.8")
 
@@ -266,8 +265,8 @@ testCartesianData =
                 expectedGridFromDict =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "partly cloudy", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -376,8 +375,8 @@ testPasteRectangle =
                 expected1 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "*2*", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -388,8 +387,8 @@ testPasteRectangle =
                 expected2 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "*1*", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "*3*", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "*1*", "65", "partly cloudy", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -400,8 +399,8 @@ testPasteRectangle =
                 expected3 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "*2*", "65", "", "1.5" ]           -- Ok/pb formula
-                    , [ "2024-01-03T00:00:00", "*4*", "70.2", "", "2.8" ]           -- Ok/pb formula
+                    , [ "2024-01-02T00:00:00", "*2*", "65", "partly cloudy", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -415,8 +414,8 @@ testPasteRectangle =
                 expected4 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "22.1", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "19.8", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "22.1", "65", "*b*", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -427,8 +426,8 @@ testPasteRectangle =
                 expected5 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "[ERROR: a]", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "[ERROR: c]", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "[ERROR: a]", "65", "partly cloudy", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -439,8 +438,8 @@ testPasteRectangle =
                 expected6 =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
-                    , [ "2024-01-02T00:00:00", "[ERROR: b]", "65", "", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "[ERROR: d]", "70.2", "", "2.8" ]
+                    , [ "2024-01-02T00:00:00", "[ERROR: b]", "65", "partly cloudy", "1.5" ]
+                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
