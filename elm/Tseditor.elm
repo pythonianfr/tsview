@@ -577,6 +577,7 @@ likeComp model =
                   model.series
                   ( isTzaware model.meta )
                   CompLoaded
+                  ( asCType model.seriestype == Primary )
             ]
 
 
@@ -605,6 +606,7 @@ toComp queryItem =
                     Nothing -> True
                     Just imeta -> isTzaware imeta
     , status = CompEmpty
+    , editable = queryItem.kind == "primary"
     }
 
 
@@ -756,12 +758,13 @@ decodeValues raw =
 componentsDecoder: JD.Decoder (List OverComponent)
 componentsDecoder =
     JD.list <|
-        JD.map5 OverComponent
+        JD.map6 OverComponent
             ( JD.field "name" JD.string )
             ( JD.map applyType ( JD.field "type" JD.string ))
             ( JD.succeed emptySeries )
             ( JD.field "tzaware" JD.bool )
             ( JD.succeed CompEmpty )
+            ( JD.map (\t -> t == Primary) ( JD.map applyType ( JD.field "type" JD.string )) )
 
 
 localDecoder : JD.Decoder LocalStorage

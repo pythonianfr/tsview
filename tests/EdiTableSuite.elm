@@ -126,24 +126,28 @@ createTestComponents =
       , data = comp1Data
       , tzaware = False
       , status = CompLoaded
+      , editable = True
       }
     , { name = "humidity"
       , cType = Formula
       , data = comp2Data
       , tzaware = False
       , status = CompLoaded
+      , editable = False
       }
     , { name = "weather"
       , cType = Primary
       , data = comp3Data
       , tzaware = False
       , status = CompLoaded
+      , editable = True
       }
     , { name = "pressure"
       , cType = Auto
       , data = comp4Data
       , tzaware = False
       , status = CompLoaded
+      , editable = False
       }
     ]
 
@@ -376,7 +380,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "22.1", "65", "*2*", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "", "", "*4*", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -388,7 +392,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "*1*", "65", "partly cloudy", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "*3*", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -400,7 +404,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "*2*", "65", "partly cloudy", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "*4*", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -415,7 +419,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "22.1", "65", "*b*", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "", "", "[ERROR: d]", "2.8" ] -- bug
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -427,7 +431,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "[ERROR: a]", "65", "partly cloudy", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "[ERROR: c]", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -439,7 +443,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "[ERROR: b]", "65", "partly cloudy", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "", "2.8" ]
+                    , [ "2024-01-03T00:00:00", "[ERROR: d]", "", "", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]

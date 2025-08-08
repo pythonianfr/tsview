@@ -404,6 +404,7 @@ type alias OverComponent =
     , data: OverSeries
     , tzaware: Bool
     , status: CompStatus
+    , editable: Bool
     }
 
 type alias Component =
@@ -412,6 +413,7 @@ type alias Component =
     , data: Dict String Payload
     , tzaware: Bool
     , status: CompStatus
+    , editable: Bool
     }
 
 
@@ -439,6 +441,7 @@ zComponent over =
                     , cType = over.cType
                     , tzaware = over.tzaware
                     , status = over.status
+                    , editable = over.editable
                     , data = Dict.empty
                     }
     in
@@ -452,13 +455,13 @@ onlyActiveKeys series =
     Dict.keys series
 
 
-getEntry: String ->  ( String , Dict String Payload ) -> Entry
-getEntry date ( name, series ) =
+getEntry: String ->  ( String , Dict String Payload, Bool ) -> Entry
+getEntry date ( name, series, editable ) =
     let defaultEntry =
             { raw = Nothing
             , value = MFloat Nothing
             , edition = NoEdition
-            , editable = False
+            , editable = editable
             , override = False
             , indexRow = date
             , indexCol = name
@@ -481,13 +484,12 @@ getEntry date ( name, series ) =
                                 , edition = entry.edition
                                 , raw = Just ( toRaw entry.value )
                                 , override = entry.override
-                                , editable = True
                             }
 
 
-getStuff: String ->  ( String , Dict String Payload ) -> Stuff
-getStuff date ( name, series ) =
-    Cell ( getEntry date ( name, series ))
+getStuff: String ->  ( String , Dict String Payload, Bool ) -> Stuff
+getStuff date ( name, series, editable ) =
+    Cell ( getEntry date ( name, series, editable))
 
 
 builRowBasic: List Component -> String -> List Stuff
@@ -496,7 +498,7 @@ builRowBasic components date =
     ++ ( List.map
              ( getStuff date )
              <| List.map
-                (\ c -> ( c.name , c.data ) )
+                (\ c -> ( c.name , c.data, c.editable) )
                 components
        )
 
