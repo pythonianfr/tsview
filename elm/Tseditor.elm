@@ -513,21 +513,6 @@ getCopyClass statusCopy copyType =
 
 
 
-filterEntry: Dict ( Int, Int ) Stuff ->  Dict ( Int, Int ) Entry
-filterEntry coordData =
-    Dict.map
-        (\ _ stuff -> case stuff of
-                       Cell entry -> entry
-                       DateRow _ -> emptyEntry
-                       Header _ -> emptyEntry
-        )
-        <| Dict.filter
-            (\  _ stuff -> case stuff of
-                            Cell _ -> True
-                            DateRow _ -> False
-                            Header _ -> False
-            )
-            coordData
 
 
 
@@ -535,24 +520,7 @@ filterEntry coordData =
 
 
 
-toString: ( ScalarType Float String ) -> String
-toString scal =
-    case scal of
-        MString s -> s
-        MFloat f -> String.fromFloat f
 
-
-emptyEntry : Entry
-emptyEntry  =
-    { raw = Nothing
-    , value = MFloat Nothing
-    , edition = NoEdition
-    , editable = False
-    , override = False
-    , indexRow = ""
-    , indexCol = ""
-    , fromBatch = False
-    }
 
 
 
@@ -2300,7 +2268,6 @@ onlyActiveStrings series =
         series
 
 
-
 extractPrevious: Dict String Payload -> Dict String ( Maybe Float )
 extractPrevious ts =
     Dict.map
@@ -2415,23 +2382,6 @@ packValues series =
                 ( onlyActiveValues <| zSeries series )
 
 
-getCurrentValue: Entry -> Maybe ( ScalarType Float String )
-getCurrentValue entry =
-    case entry.edition of
-        Edition edition -> Just edition
-        Deletion -> Nothing
-        NoEdition ->
-            case entry.value of
-                MFloat mf ->
-                    case mf of
-                        Nothing -> Nothing
-                        Just f -> Just (MFloat f)
-                MString ms ->
-                    case ms of
-                        Nothing -> Nothing
-                        Just s -> Just (MString s)
-        Error _ -> Nothing
-
 
 applyOnFilter: Dict comparable b -> ( comparable -> Bool ) -> ( b -> b ) -> Dict comparable b
 applyOnFilter dict filter action =
@@ -2544,54 +2494,7 @@ setupFill model =
     }
 
 
-findLastValidByCol: Dict (Int, Int) Entry -> Int -> List (Int, Int)
-findLastValidByCol coordData iCol =
-    let column =
-            Dict.filter (\ ( _, j ) v -> j == iCol ) coordData
-        editable =
-            case List.head ( Dict.values column ) of
-                Nothing -> False
-                Just e -> e.editable
-    in
-    if not editable
-    then []
-    else
-        findLastValidRec
-        ( Dict.toList column )
-        False
-        []
-
-
 setupFirstSelected model = model
-
-findLastValidRec: List ( (Int, Int ),  Entry ) -> Bool -> List ( Int, Int ) -> List ( Int, Int )
-findLastValidRec entries previousIsValue found =
-    case entries of
-        [] -> found
-        ((iRow, iCol ), val ) :: xs ->
-            if previousIsValue
-            then
-                if getCurrentValue val == Nothing
-                then  List.concat [ [ ( iRow - 1
-                                      , iCol
-                                      )
-                                    ]
-                                  , ( findLastValidRec xs False found )
-                                  ]
-                else ( findLastValidRec xs True found )
-            else
-                if getCurrentValue val == Nothing
-                then ( findLastValidRec xs False found )
-                else ( findLastValidRec xs True found )
-
-
-fillNas: Dict ( Int, Int ) Stuff -> ( ScalarType Float String ) -> ( Int, Int ) ->  Dict ( Int, Int ) Stuff
-fillNas coordData lastValue positionLastValue =
-    let
-        nbNas = getNbNas ( filterEntry coordData ) positionLastValue
-    in
-        Dict.map ( applyValue positionLastValue lastValue nbNas ) coordData
-
 
 fillSelection: Model -> Model
 fillSelection model =
@@ -2617,67 +2520,6 @@ fillSelected model select value =
                     model.coordData
     in
         { model | coordData = edited }
-
-
-
-applyValue: ( Int, Int ) -> ( ScalarType Float String )  -> Int -> ( Int, Int ) -> Stuff -> Stuff
-applyValue ( rowLastValue, colLastValue) lastValue  nbNas (iRow, iCol) stuff =
-    case stuff of
-        DateRow d -> DateRow d
-        Header h -> Header h
-        Cell entry ->
-            if iRow > rowLastValue && iRow <= rowLastValue + nbNas && iCol == colLastValue
-                then Cell { entry
-                              | edition = Edition lastValue
-                              , raw = Just ( toString lastValue )
-                          }
-                else Cell entry
-
-
-getNbNas: Dict ( Int, Int ) Entry -> ( Int,  Int ) -> Int
-getNbNas coordData position =
-    let ( iRow, iCol ) = position
-        values = List.map
-                    isVoid
-                    <| Dict.values
-                        <| Dict.filter
-                            (\ (i, j) _ -> j == iCol && i > iRow )
-                            coordData
-    in
-    findNbNas values 0
-
-
-isVoid: Entry -> Bool
-isVoid entry =
-   getCurrentValue entry == Nothing
-
-
-findNbNas: List Bool -> Int -> Int
-findNbNas values nb =
-    case values of
-        [] -> nb
-        x :: xs ->
-            case x of
-                True -> findNbNas xs ( nb + 1 )
-                False -> nb
-
-
-fillAllNas : Dict ( Int, Int ) Stuff -> List ( Int, Int ) -> Dict ( Int, Int ) Stuff
-fillAllNas coordData idxNas =
-    case idxNas of
-        [] -> coordData
-        x :: xs ->
-            let
-                lastValue = getValueFromIndex coordData x
-            in
-                ( fillAllNas
-                    ( fillNas
-                        coordData
-                        lastValue
-                        x
-                    )
-                    xs
-                )
 
 
 cellsToString: Dict ( Int, Int ) Stuff -> Maybe Box -> String
@@ -2711,17 +2553,6 @@ extractValue coordData iRow iCol =
         Just ( Header ( name, _ )) -> name
 
 
-getValueFromIndex: Dict ( Int, Int ) Stuff -> ( Int, Int ) -> ScalarType Float String
-getValueFromIndex coordData position =
-    let
-        stuff = Dict.get position coordData
-    in
-    case stuff of
-        Nothing -> MFloat 0
-        Just ( DateRow _ )  -> MFloat 0
-        Just ( Header _ )  -> MFloat 0
-        Just ( Cell entry ) ->
-            Maybe.withDefault ( MFloat 0 ) ( getCurrentValue entry )
 
 
 bounded: ( ( Int, Int ), ( Int, Int ) ) -> ( Int, Int ) -> ( Int, Int )
@@ -3643,7 +3474,6 @@ addPatch model =
             ]
 
 
-
 forCurrentDiff: Model -> H.Html Msg
 forCurrentDiff model =
     if not model.showDiff &&  not ( isSingle model )
@@ -3658,8 +3488,6 @@ forCurrentDiff model =
                   )
             , buildDiffTable model
             ]
-
-
 
 
 buildCoord: Model -> Model
