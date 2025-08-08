@@ -983,21 +983,16 @@ update msg model =
                     , commands
                     )
                 ModuleHorizon.FromLocalStorage _ ->
-                    let
-                        ( modelWithRequests, fetchCmd ) = fetchseries resetModel False
-                    in
-                    ( modelWithRequests
-                    , Cmd.batch [ commands, fetchCmd ]
+                    ( model
+                    , commands
                     )
                 ModuleHorizon.Fetch _ ->
                     let
-                        cancelCmd = if Set.isEmpty model.activeRequests
-                                   then Cmd.none
-                                   else Cmd.batch
-                                            (List.map
-                                                Http.cancel
-                                                (Set.toList model.activeRequests)
-                                            )
+                        cancelCmd = Cmd.batch
+                                        (List.map
+                                            Http.cancel
+                                            (Set.toList model.activeRequests)
+                                        )
                         resetModelEmpty = { resetModel | activeRequests = Set.empty
                                                        , versionControl = versionControl + 1
                                           }
@@ -1658,20 +1653,30 @@ secondAxisNames model dType =
                     ( model.registry.groups )
 
 
-emptyRegistry: List String -> List String -> Registry
-emptyRegistry onSecondAxisS onSecondAxisG =
+emptyRegistry: List String -> List String -> List String -> List String -> Registry
+emptyRegistry series groups onSecondAxisS onSecondAxisG =
     { series = Dict.fromList
-                <| List.map
-                    (\ name -> ( name
-                               , { emptyInfo | secondAxis = True })
-                               )
-                    onSecondAxisS
+                <| List.concat
+                    [ List.map
+                        (\ name -> ( name
+                                   , { emptyInfo | secondAxis = True })
+                        )
+                        onSecondAxisS
+                    , List.map
+                        (\ name -> ( name, emptyInfo ))
+                        series
+                    ]
     , groups = Dict.fromList
-                <| List.map
-                    (\ name -> ( name
-                               , { emptyInfo | secondAxis = True })
-                               )
-                    onSecondAxisG
+                <| List.concat
+                    [ List.map
+                        (\ name -> ( name
+                                   , { emptyInfo | secondAxis = True })
+                                   )
+                        onSecondAxisG
+                    , List.map
+                         (\ name -> ( name, emptyInfo ))
+                        groups
+                    ]
     }
 
 
@@ -1741,7 +1746,7 @@ main =
                                     else NoMode
                     , loaded = { series = Dict.empty
                                , groups = Dict.empty }
-                    , registry = emptyRegistry axis2S axis2G
+                    , registry = emptyRegistry series groups axis2S axis2G
                     , highlighted = Nothing
                     , errors = []
                     , panActive = False
@@ -1751,8 +1756,8 @@ main =
                     , query = flags.query
                     }
 
-                ( modelWithSeries, seriesCmd ) = fetchseries model False
-                ( modelWithGroups, groupsCmd ) = fetchgroups modelWithSeries False
+                ( modelWithSeries, _ ) = fetchseries model False
+                ( modelWithGroups, _ ) = fetchgroups modelWithSeries False
             in ( modelWithGroups
                , Cmd.batch ([ Catalog.get
                                 model.baseurl
@@ -1764,8 +1769,6 @@ main =
                                 model.baseurl
                                 "group" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedGroups h))
-                            , seriesCmd
-                            , groupsCmd
                             ] ++ ( List.map
                                     ( fetchbasket model False )
                                     baskets
