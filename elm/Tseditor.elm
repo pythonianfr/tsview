@@ -12,48 +12,43 @@ import Browser.Navigation
 import Dict exposing (Dict)
 import Date
 import EdiTable exposing
-    (Payload(..)
-    , Entry
-    , Edited(..)
-    , ScalarType(..)
-    , FloatOrString
-    , dressSeries
-    , patchCurrent
-    , cartesianData
-    , cartesianDataRec
-    , CType(..)
-    , Stuff(..)
-    , parseInput
-    , parseString
-    , pasteRectangle
-    , CompStatus(..)
-    , OverSeries
-    , OverComponent
-    , toRaw
-    , tab
-    , zComponent
-    , zSeries
-    , onlyActiveKeys
-    , mergeData
-    , parsePasted
-    , getBounds
-    , BaseSupervision
+    ( BaseSupervision
     , BaseSupervisionString
+    , CScalarType(..)
+    , CType(..)
+    , CompStatus(..)
+    , Edited(..)
+    , Entry
+    , FloatOrString
+    , OverComponent
+    , OverSeries
+    , Payload(..)
+    , ScalarType(..)
+    , Stuff(..)
     , baseToEntry
     , baseToEntryString
+    , cartesianData
+    , cartesianDataRec
+    , dressSeries
+    , emptyEntry
     , fillAllNas
     , fillNas
-    , getNbNas
     , filterEntry
-    , applyValue
-    , getValueFromIndex
-    , isVoid
-    , findNbNas
-    , emptyEntry
-    , toString
-    , getCurrentValue
     , findLastValidByCol
-    , findLastValidRec
+    , getBounds
+    , getValueFromIndex
+    , mergeData
+    , onlyActiveKeys
+    , parseInput
+    , parseString
+    , parsePasted
+    , pasteRectangle
+    , patchCurrent
+    , tab
+    , toRaw
+    , toString
+    , zComponent
+    , zSeries
     )
 import Horizon exposing
     ( HorizonModel
@@ -61,14 +56,14 @@ import Horizon exposing
     , ZoomFromPlotly
     , extendHorizonFromData
     , extractDates
-    , initHorizon
-    , getFromToDates
+    , extractZoomDates
     , getFetchBounds
+    , getFromToDates
+    , initHorizon
     , loadFromLocalStorage
+    , setStatusPlot
     , updateHorizon
     , updateHorizonFromData
-    , extractZoomDates
-    , setStatusPlot
     )
 import Horizon as ModuleHorizon
 import Http
@@ -78,20 +73,17 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Info as I
 import Json.Decode as JD
-import Json.Decode.Pipeline exposing (required, hardcoded)
 import Json.Encode as JE
 import List.Extra as List
 import Markdown
-import Maybe.Extra as Maybe
 import Metadata as M
-import OrderedDict as OD
 import Plotter exposing
     ( Axis
     , Trace
+    , defaultConfigOptions
     , defaultDateAxis
     , defaultLayoutOptions
     , defaultTraceOptions
-    , defaultConfigOptions
     , getdata
     , scatterplot
     , serializedPlotArgs
@@ -103,11 +95,11 @@ import StatInfos as ModuleStatInfos
 import StatInfos exposing
     ( Msg(..)
     , StatInfos
-    , TypeStat
     , StatusFreq
+    , TypeStat
     , emptyStat
-    , getStatistics
     , formatNumber
+    , getStatistics
     , updateFirstLast
     , viewStatTable
     )
@@ -508,21 +500,6 @@ getCopyClass statusCopy copyType =
         CopyValues -> if statusCopy.values
                     then classClip
                     else classCheck
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 nameSeries : Dict ( Int, Int ) Entry -> String -> Dict ( Int, Int ) Entry
