@@ -559,14 +559,8 @@ likeComp model =
                   ( isTzaware model.meta )
                   CompLoaded
                   ( asCType model.seriestype == Primary )
+                  ( if isStr model.meta then ScalString else ScalFloat )
             ]
-
-
-
-
--- would need source & last insertion date field
-
-
 
 
 type alias QueryItem =
@@ -588,6 +582,11 @@ toComp queryItem =
                     Just imeta -> isTzaware imeta
     , status = CompEmpty
     , editable = queryItem.kind == "primary"
+    , scalarType = case queryItem.imeta of
+                    Nothing -> ScalFloat
+                    Just imeta -> if isStr imeta
+                                    then ScalString
+                                    else ScalFloat
     }
 
 
@@ -716,7 +715,7 @@ decodeNakedString =
                 (JD.nullable JD.string)
             )
 
-decodeSupervised: String ->  Result ( JD.Error, JD.Error ) ( Dict String Payload )
+decodeSupervised: String ->  Result (JD.Error, JD.Error) (Dict String Payload)
 decodeSupervised raw =
     case JD.decodeString decodeToEdit raw of
         Ok ts -> Ok ts
@@ -726,7 +725,7 @@ decodeSupervised raw =
                 Err errString -> Err ( errFloat, errString )
 
 
-decodeValues: String ->  Result ( JD.Error, JD.Error ) ( Dict String Payload )
+decodeValues: String ->  Result (JD.Error, JD.Error) (Dict String Payload)
 decodeValues raw =
     case JD.decodeString decodeNaked raw of
         Ok ts -> Ok ts
@@ -739,13 +738,14 @@ decodeValues raw =
 componentsDecoder: JD.Decoder (List OverComponent)
 componentsDecoder =
     JD.list <|
-        JD.map6 OverComponent
+        JD.map7 OverComponent
             ( JD.field "name" JD.string )
             ( JD.map applyType ( JD.field "type" JD.string ))
             ( JD.succeed emptySeries )
             ( JD.field "tzaware" JD.bool )
             ( JD.succeed CompEmpty )
-            ( JD.map (\t -> t == Primary) ( JD.map applyType ( JD.field "type" JD.string )) )
+            ( JD.map (\t -> t == Primary) ( JD.map applyType ( JD.field "type" JD.string )))
+            ( JD.succeed ScalFloat) -- the formula components are always float (for now)
 
 
 localDecoder : JD.Decoder LocalStorage

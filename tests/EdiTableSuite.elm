@@ -128,6 +128,7 @@ createTestComponents =
       , tzaware = False
       , status = CompLoaded
       , editable = True
+      , scalarType = ScalFloat
       }
     , { name = "humidity"
       , cType = Formula
@@ -135,6 +136,7 @@ createTestComponents =
       , tzaware = False
       , status = CompLoaded
       , editable = False
+      , scalarType = ScalFloat
       }
     , { name = "weather"
       , cType = Primary
@@ -142,6 +144,8 @@ createTestComponents =
       , tzaware = False
       , status = CompLoaded
       , editable = True
+      , scalarType = ScalString
+
       }
     , { name = "pressure"
       , cType = Auto
@@ -149,6 +153,7 @@ createTestComponents =
       , tzaware = False
       , status = CompLoaded
       , editable = False
+      , scalarType = ScalFloat
       }
     ]
 
@@ -420,7 +425,7 @@ testPasteRectangle =
                     [ [ "Dates (Primary)", "temperature (Primary)", "humidity (Formula)", "weather (Primary)", "pressure (Auto)" ]
                     , [ "2024-01-01T00:00:00", "20.5", "", "sunny", "" ]
                     , [ "2024-01-02T00:00:00", "22.1", "65", "*b*", "1.5" ]
-                    , [ "2024-01-03T00:00:00", "", "", "[ERROR: d]", "2.8" ] -- bug
+                    , [ "2024-01-03T00:00:00", "", "", "*d*", "2.8" ]
                     , [ "2024-01-04T00:00:00", "", "68.5", "cloudy", "" ]
                     , [ "2024-01-05T00:00:00", "", "", "rainy", "3.2" ]
                     ]
@@ -478,6 +483,7 @@ testFillNasFunctions =
                       , tzaware = False
                       , status = CompLoaded
                       , editable = True
+                      , scalarType = ScalFloat
                       }
                     , { name = "status"
                       , cType = Primary
@@ -488,6 +494,7 @@ testFillNasFunctions =
                       , tzaware = False
                       , status = CompLoaded
                       , editable = True
+                      , scalarType = ScalString
                       }
                     , { name = "complete"
                       , cType = Primary
@@ -500,6 +507,7 @@ testFillNasFunctions =
                       , tzaware = False
                       , status = CompLoaded
                       , editable = True
+                      , scalarType = ScalFloat
                       }
                     ]
 

@@ -18,6 +18,11 @@ type ScalarType f s
     | MString s
 
 
+type CScalarType
+    = ScalString
+    | ScalFloat
+
+
 type alias Entry =
     { raw : Maybe String
     , value : ( ScalarType ( Maybe Float ) ( Maybe String ) )
@@ -405,6 +410,7 @@ type alias OverComponent =
     , tzaware: Bool
     , status: CompStatus
     , editable: Bool
+    , scalarType: CScalarType
     }
 
 type alias Component =
@@ -414,6 +420,7 @@ type alias Component =
     , tzaware: Bool
     , status: CompStatus
     , editable: Bool
+    , scalarType: CScalarType
     }
 
 
@@ -443,6 +450,7 @@ zComponent over =
                     , status = over.status
                     , editable = over.editable
                     , data = Dict.empty
+                    , scalarType = over.scalarType
                     }
     in
     case over.data.zoomTs of
@@ -455,19 +463,21 @@ onlyActiveKeys series =
     Dict.keys series
 
 
-getEntry: String ->  ( String , Dict String Payload, Bool ) -> Entry
-getEntry date ( name, series, editable ) =
+getEntry: String ->  Component -> Entry
+getEntry date component =
     let defaultEntry =
             { raw = Nothing
-            , value = MFloat Nothing
+            , value = case component.scalarType of
+                        ScalFloat -> MFloat Nothing
+                        ScalString -> MString Nothing
             , edition = NoEdition
-            , editable = editable
+            , editable = component.editable
             , override = False
             , indexRow = date
-            , indexCol = name
+            , indexCol = component.name
             , fromBatch = False
             }
-        mPayload = Dict.get date series
+        mPayload = Dict.get date component.data
     in
         case mPayload of
             Nothing -> defaultEntry
@@ -487,19 +497,17 @@ getEntry date ( name, series, editable ) =
                             }
 
 
-getStuff: String ->  ( String , Dict String Payload, Bool ) -> Stuff
-getStuff date ( name, series, editable ) =
-    Cell ( getEntry date ( name, series, editable))
+getStuff: String ->  Component -> Stuff
+getStuff date component =
+    Cell ( getEntry date component)
 
 
 builRowBasic: List Component -> String -> List Stuff
 builRowBasic components date =
     [ DateRow date ]
     ++ ( List.map
-             ( getStuff date )
-             <| List.map
-                (\ c -> ( c.name , c.data, c.editable) )
-                components
+            ( getStuff date )
+            components
        )
 
 
