@@ -1,8 +1,19 @@
 port module Plot exposing (main)
 
 import Browser
-
+import Bytes.Encode as Encode
 import Dict exposing (Dict)
+import EdiTable exposing
+    ( CScalarType(..)
+    , CType(..)
+    , CompStatus(..)
+    , Component
+    , Payload(..)
+    , ScalarType(..)
+    , Stuff(..)
+    , mergeData
+    )
+import File.Download as Download
 import Html
 import Html as H
 import Html.Attributes as HA
@@ -51,6 +62,7 @@ import Task exposing (Task)
 import Time exposing (Month(..))
 import Url.Builder as UB
 import Util as U
+
 
 port zoomPlot : ( ZoomFromPlotly -> msg ) -> Sub msg
 
@@ -184,6 +196,7 @@ type Msg
     | Legends ( List ( String, Bool ))
     | ShowLegend Bool
     | ToggleAxis DataType DataInfos String
+    | DownloadCsv
 
 
 
@@ -715,6 +728,17 @@ update msg model =
                                         , series = model.registry.series
                                         }
                             }
+
+        DownloadCsv ->
+            let
+                csvData = buildCsvData model
+                csvString = csvData
+                    |> List.map (String.join ",")
+                    |> String.join "\n"
+                csvBytes = Encode.encode (Encode.string csvString)
+            in
+            ( model, Download.bytes "plot_data.csv" "text/csv" csvBytes )
+
         FilterSeries x ->
             let
                 search =
@@ -1241,7 +1265,10 @@ view model =
                     []
                 , H.div
                     [ HA.class "under-the-plot" ]
-                    [ seriesTable model ]
+                    [ seriesTable model
+                    , H.br [] []
+                    , downloadCsvButton model
+                    ]
                 ]
             ]]
 
@@ -1451,6 +1478,64 @@ seriesTable model =
                     ( Dict.toList model.registry.groups )
                 )
             )
+
+
+downloadCsvButton : Model -> H.Html Msg
+downloadCsvButton model =
+    let
+        allSeriesLoaded =
+            ( Dict.values model.registry.series
+                |> List.all (\info -> info.status == Success))
+            && not (Dict.isEmpty model.registry.series)
+    in
+    H.button
+        [ HA.class "btn btn-primary"
+        , HA.disabled (not allSeriesLoaded)
+        , HE.onClick DownloadCsv
+        ]
+        [ H.text "Download as csv" ]
+
+
+cleanDateFormat : String -> String
+cleanDateFormat dateString =
+    dateString
+        |> String.replace "T" " "
+        |> String.split "+"
+        |> List.head
+        |> Maybe.withDefault dateString
+
+
+buildCsvData : Model -> List (List String)
+buildCsvData model =
+    let
+        -- Convert loaded series to Components
+        components =
+            Dict.toList model.loaded.series
+                |> List.map (\(name, series) ->
+                    { name = name
+                    , cType = Primary           --not used
+                    , data =
+                        Dict.map
+                            (\_ mV -> Scalar (MFloat mV))
+                            series
+                    , tzaware = False           --not used
+                    , status = CompLoaded       --not used
+                    , editable = False          --not used
+                    , scalarType = ScalFloat    --not used
+                    }
+                )
+    in
+    mergeData components
+        |> List.map (List.map (\stuff ->
+            case stuff of
+                DateRow date -> cleanDateFormat date
+                Header (name, _) -> name
+                Cell entry ->
+                    case entry.raw of
+                        Just raw -> raw
+                        Nothing -> ""
+        ))
+
 
 rowGeneric: Model -> DataType -> ( String,  DataInfos ) -> H.Html Msg
 rowGeneric model dtype ( name, info ) =
