@@ -6,4 +6,4 @@ create table tsview.horizon (
     rank int not null unique deferrable initially deferred
 );
 
-create index on tsview.horizon(id);
+create index if not exists tsview_horizon_id_idx on tsview.horizon(id);

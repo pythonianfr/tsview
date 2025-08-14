@@ -16,6 +16,20 @@ class Migrator(_Migrator):
     _package = 'tsview'
 
 
+@version('tsview', '0.22.0')
+def migrate_fix_tsview_indexes(engine, namespace, interactive):
+    """Fix tsview-specific indexes to use explicit names"""
+    from tshistory.migrate import do_fix_indexes
+
+    # Define tsview-specific indexes
+    tsview_indexes = {
+        ('horizon', ('id',)): ('tsview_horizon_id_idx', 'btree')
+    }
+
+    # Fix indexes using the common mechanism
+    do_fix_indexes(engine, 'tsview', interactive, tsview_indexes)
+
+
 @version('tsview', '0.20.0')
 def create_schema(engine, namespace, interactive):
     initialize_horizon(engine.url)
