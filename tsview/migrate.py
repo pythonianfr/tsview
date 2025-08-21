@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from sqlhelp.pgapi import pgdb as create_engine
 
 from tshistory.migrate import (
+    do_fix_indexes,
     Migrator as _Migrator,
     version
 )
+from tshistory.sqlparser import parse_indexes
 
 from tsview import __version__
 from tsview.schema import tsview_schema
@@ -19,14 +23,11 @@ class Migrator(_Migrator):
 @version('tsview', '0.22.0')
 def migrate_fix_tsview_indexes(engine, namespace, interactive):
     """Fix tsview-specific indexes to use explicit names"""
-    from tshistory.migrate import do_fix_indexes
-
-    # Define tsview-specific indexes
-    tsview_indexes = {
-        ('horizon', ('id',)): ('tsview_horizon_id_idx', 'btree')
-    }
-
-    # Fix indexes using the common mechanism
+    tsview_path = Path(__file__).parent
+    tsview_indexes = parse_indexes(
+        [tsview_path / 'schema.sql'],
+        'tsview'
+    )
     do_fix_indexes(engine, 'tsview', interactive, tsview_indexes)
 
 
