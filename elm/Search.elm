@@ -137,6 +137,18 @@ remove list item =
 -- filters
 
 query model =
+    case model.searchmode of
+        Basic ->
+            basicmodequery model
+        Expert ->
+            case model.basket of
+                Just bask ->
+                    Lisp.serialize <| serialize bask.node
+                Nothing ->
+                    "(by.everything)"
+
+
+basicmodequery model =
     let
         quote = String.fromChar '"'
 
@@ -195,7 +207,7 @@ query model =
 
         expr =
             case List.length together of
-                0 -> "(by.everything))"
+                0 -> "(by.everything)"
                 1 -> String.join " " together
                 _ -> "(by.and " ++ (String.join " " together) ++ ")"
 
@@ -203,21 +215,15 @@ query model =
 
 
 doquery model =
-    let
-        cmd =
-            case model.mode of
-                Series ->
-                    Cmd.map GotItemsDesc <|
-                        F.find model.baseurl "series" F.ReceivedSeries
-                            (query model) model.selectedsources model.limit
-                Groups ->
-                    Cmd.map GotItemsDesc <|
-                        F.find model.baseurl "group" F.ReceivedGroups
-                            (query model) model.selectedsources model.limit
-    in
-    ( model
-    , cmd
-    )
+    case model.mode of
+        Series ->
+            Cmd.map GotItemsDesc <|
+                F.find model.baseurl "series" F.ReceivedSeries
+                    (query model) model.selectedsources model.limit
+        Groups ->
+            Cmd.map GotItemsDesc <|
+                F.find model.baseurl "group" F.ReceivedGroups
+                    (query model) model.selectedsources model.limit
 
 
 -- debouncing
@@ -235,11 +241,6 @@ updatedformulafilterbouncer =
     , setDebouncer = \deb model -> { model | formulafilterdeb = deb }
     }
 
--- expert
-
-tryfilter model q =
-    Cmd.map GotItemsDesc <|
-        F.find model.baseurl "series" F.ReceivedSeries q model.selectedsources model.limit
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -285,14 +286,18 @@ update msg model =
                 filter = if value /= "" then Just value else Nothing
                 newmodel = { model | filterbyname = filter }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         FormulaFilter value ->
             let
                 filter = if value /= "" then Just value else Nothing
                 newmodel = { model | filterbyformula = filter }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         KindUpdated kind ->
             let
@@ -308,7 +313,9 @@ update msg model =
                 newmodel =
                     { model | selectedkinds = List.sort newkinds }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         SourceUpdated source ->
             let
@@ -325,7 +332,9 @@ update msg model =
                 newmodel =
                     { model | selectedsources = newsources }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         EditLimit editing ->
             let
@@ -334,7 +343,9 @@ update msg model =
             in
             case model.editlimit of
                 False -> U.nocmd newmodel
-                True -> doquery newmodel
+                True -> ( newmodel
+                        , doquery newmodel
+                        )
 
         EditedLimit limit ->
             case limit of
@@ -366,7 +377,9 @@ update msg model =
                 newmodel =
                     { model | filterbymeta = newdict }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         NewKey inputid key ->
             let
@@ -386,7 +399,9 @@ update msg model =
                 newmodel =
                     { model | filterbymeta = newdict }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         AddMetaItem inputid ->
             let
@@ -399,7 +414,9 @@ update msg model =
                 newmodel =
                     { model | filterbymeta = newdict }
            in
-           doquery newmodel
+           ( newmodel
+           , doquery newmodel
+           )
 
         MetaItemToDelete inputid ->
             let
@@ -408,7 +425,9 @@ update msg model =
 
                 newmodel =  { model | filterbymeta = newdict }
             in
-            doquery newmodel
+            ( newmodel
+            , doquery newmodel
+            )
 
         Tzaware value ->
             let
@@ -419,7 +438,9 @@ update msg model =
                         _ -> Nothing
 
             in
-            doquery { model | tzaware = aware }
+            ( { model | tzaware = aware }
+            , doquery { model | tzaware = aware }
+            )
 
         -- Debouncing
 
@@ -432,11 +453,18 @@ update msg model =
         -- Mode
 
         ToggleMode ->
-             doquery { model | mode =
-                           case model.mode of
-                               Series -> Groups
-                               Groups -> Series
-                     }
+            let
+                newmodel =
+                    { model
+                        | mode =
+                            case model.mode of
+                                Series -> Groups
+                                Groups -> Series
+                    }
+            in
+            ( newmodel
+            , doquery newmodel
+            )
 
         -- search mode
 
@@ -470,7 +498,7 @@ update msg model =
                           , editorWidget = wid
                           , searchmode = newsearchmode
                       }
-                    , Cmd.batch [ tryfilter model basicquery
+                    , Cmd.batch [ doquery { model | basket = Just newbasket, searchmode = newsearchmode }
                                 , Cmd.map WidgetMsg cmd
                                 ]
                     )
@@ -478,11 +506,11 @@ update msg model =
                     case newsearchmode of
                         Basic ->
                             ( { model | searchmode = newsearchmode }
-                            , tryfilter model (query model)
+                            , doquery { model | searchmode = newsearchmode }
                             )
                         Expert ->
                             ( { model | searchmode = newsearchmode }
-                            , tryfilter model ( Lisp.serialize <| serialize bask.node )
+                            , doquery { model | searchmode = newsearchmode }
                             )
 
         -- Expert mode
@@ -498,7 +526,7 @@ update msg model =
                             { code = code, node = parsed }
                     in
                     ( { model | basket = Just basketormula }
-                    , tryfilter model ( Lisp.serialize <| serialize basketormula.node )
+                    , doquery { model | basket = Just basketormula }
                     )
                 Err err ->
                     U.nocmd model
@@ -1017,7 +1045,7 @@ init { baseurl, queryspec } =
         [ Cmd.map WidgetMsg widgetCmd
         , getsources model.baseurl
         , U.getinfo model GotInfo
-        , tryfilter model (query model)
+        , doquery model
         ]
     )
 
