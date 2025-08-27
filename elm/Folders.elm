@@ -7,7 +7,6 @@ import Browser.Events exposing
 import Debouncer.Messages as Debouncer exposing
     ( Debouncer
     , fromSeconds
-    , provideInput
     , settleWhenQuietFor
     , toDebouncer
     )
@@ -17,34 +16,21 @@ import Json.Encode as JE
 import Html exposing
     ( Html
     , Attribute
-    , br
-    , button
     , div
-    , h2
     , input
-    , li
     , p
-    , text
-    , ul
     )
 import Html.Attributes exposing
     ( class
-    , disabled
-    , placeholder
     , title
-    , type_
-    , value
     )
 import Html.Events exposing
-    ( onClick
-    , onInput )
+    ( onClick )
 import Http
 import Set exposing (Set)
 import Task
 import Tree exposing
-    ( Tree
-    , tree
-    )
+    ( Tree )
 import Url.Builder as UB
 
 import FoldersUtil exposing
@@ -69,7 +55,6 @@ import FoldersUtil exposing
     , renamePaths
     , reprPath
     , selectFromQuery
-    , setOpenState
     , viewTree
     )
 
@@ -113,12 +98,8 @@ type ControlKey
     | Other String
 
 
-
 type alias Model =
     { baseUrl: String
-    , treeAttribute: Maybe String
-    , treeAttributeInput: String
-    , treeAttributeConfirmation: Bool
     , paths: List String
     , tree: Tree Payload
     , restriction: Int
@@ -138,18 +119,12 @@ type alias Model =
 
 type Msg
     = GotPaths ( Result Http.Error String )
-    | GotTreeAttribute ( Result Http.Error String )
-    | GotSetTreeAttribute ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
     | GotUpdatePath Path Path String ( Result Http.Error String )
     | TowardDeletion Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
     | GotRename String String ( Result Http.Error String )
     | ProcessTransaction ( String, String )
-    | TreeAttributeInput String
-    | SubmitTreeAttribute
-    | ConfirmTreeAttribute
-    | CancelTreeAttribute
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -169,7 +144,6 @@ forbidden =
     , "("
     , ")"
     ]
-
 
 
 initTree: List String -> Tree Payload
@@ -199,41 +173,6 @@ update msg model =
         GotPaths ( Err err ) ->
             U.nocmd model
 
-        GotTreeAttribute (Ok raw) ->
-            case JD.decodeString JD.string raw of
-                ( Ok treeAttribute ) ->
-                    U.nocmd { model | treeAttribute = Just treeAttribute }
-                ( Err err ) ->
-                    U.nocmd { model | errors = model.errors
-                                               ++ [JD.errorToString err]
-                            }
-        GotTreeAttribute ( Err err ) ->
-            U.nocmd model
-
-        GotSetTreeAttribute (Ok _) ->
-            ( model
-            , getTreeAttribute model.baseUrl
-            )
-
-        GotSetTreeAttribute (Err _) ->
-            U.nocmd model
-
-        TreeAttributeInput input ->
-            U.nocmd { model | treeAttributeInput = input }
-
-        SubmitTreeAttribute ->
-            if String.trim model.treeAttributeInput == "" then
-                U.nocmd model
-            else
-                U.nocmd { model | treeAttributeConfirmation = True }
-
-        ConfirmTreeAttribute ->
-            ( { model | treeAttributeConfirmation = False }
-            , setTreeAttribute model.baseUrl model.treeAttributeInput
-            )
-
-        CancelTreeAttribute ->
-            U.nocmd { model | treeAttributeConfirmation = False }
 
         GotSeries path (Ok raw) ->
             let
@@ -313,7 +252,7 @@ update msg model =
             )
 
         TowardDeletion source destination name ( Ok raw ) ->
-            let treeAttribute = Maybe.withDefault "" model.treeAttribute
+            let treeAttribute = "placeholder-for-treeAttribute"
             in
             case JD.decodeString Metadata.decodemeta raw of
                 Ok meta ->
@@ -363,7 +302,7 @@ update msg model =
                         <| List.map
                             ( updateSinglePath
                                 model.baseUrl
-                                model.treeAttribute
+                                ( Just "placeholder-for-treeAttribute" )
                                 ( pathFromString source )
                                 ( pathFromString destination )
                             )
@@ -742,37 +681,6 @@ getPaths baseUrl =
         }
 
 
-getTreeAttribute: String -> Cmd Msg
-getTreeAttribute baseUrl =
-    Http.get
-        { url =
-            UB.crossOrigin
-                baseUrl
-                ["api", "series", "tree-attribute"]
-                [ ]
-        , expect =  Http.expectString GotTreeAttribute
-        }
-
-
-setTreeAttribute: String -> String -> Cmd Msg
-setTreeAttribute baseUrl attribute =
-    Http.request
-        { method = "PUT"
-        , url =
-            UB.crossOrigin
-                baseUrl
-                ["api", "series", "tree-attribute"]
-                []
-        , body = Http.jsonBody
-                    <| JE.object
-                        [ ( "attribute", JE.string attribute ) ]
-        , expect = Http.expectString GotSetTreeAttribute
-        , headers = [ ]
-        , tracker = Nothing
-        , timeout = Nothing
-        }
-
-
 reOpen: Set String -> List ( Cmd Msg )
 reOpen openState =
     List.map
@@ -788,7 +696,6 @@ reOpen openState =
                     )
         )
         ( Set.toList openState )
-
 
 
 replaceMetadata: String -> String -> Metadata.Metadata -> Path -> Path -> Cmd Msg
@@ -974,141 +881,29 @@ renameTreePath baseUrl oldBranch newBranch =
 
 view: Model -> Html Msg
 view model =
-    case model.treeAttribute of
-        Nothing -> 
-            viewTreeAttributeSetup model
-        Just _ ->
-            div
-            [ class "menu-folders"
-            , onClick (FromTree (SubMenu False Root))
-            ]
-            [ Html.h1
-                [ class "page-title" ]
-                [ Html.text "Series Tree" ]
-            ,  Html.div
-                [ class "horizon"
-                , title "Selected horizon used in Quickview and Series Editor"
-                ]
-                [ Html.text "Selected horizon : "
-                , selectHorizon model.horizon Horizon ]
-                , viewTree
-                    model.baseUrl
-                    model.tree
-                    model.overDrag
-                    FromTree
-                    model.restriction
-                    model.focus
-                    model.currentCut
-                , viewMoving model.currentTransactions
-                ]
-
-
-viewTreeAttributeSetup: Model -> Html Msg
-viewTreeAttributeSetup model =
     div
-        [ class "menu-folders tree-attribute-setup" ]
-        [ div
-            [ class "card" ]
-            ( if model.treeAttributeConfirmation then
-                viewTreeAttributeConfirmation model
-              else
-                viewTreeAttributeForm model
-            )
+        [ class "menu-folders"
+        , onClick (FromTree (SubMenu False Root))
         ]
-
-
-viewTreeAttributeForm: Model -> List (Html Msg)
-viewTreeAttributeForm model =
-    [ h2 [] [ text "Setup Tree Attribute" ]
-    , viewTreeAttributeInstructions
-    , div
-        [ class "tree-attribute-form" ]
-        [ div
-            [ class "form-group" ]
-            [ input
-                [ type_ "text"
-                , placeholder "Enter attribute name (e.g., 'path', 'folder')"
-                , value model.treeAttributeInput
-                , onInput TreeAttributeInput
-                , class "tree-attribute-input"
-                ]
-                []
+        [ Html.h1
+            [ class "page-title" ]
+            [ Html.text "Series Tree" ]
+        ,  Html.div
+            [ class "horizon"
+            , title "Selected horizon used in Quickview and Series Editor"
             ]
-        , button
-            [ onClick SubmitTreeAttribute
-            , class "tree-attribute-submit"
-            , disabled ( model.treeAttributeInput == "" )
+            [ Html.text "Selected horizon : "
+            , selectHorizon model.horizon Horizon ]
+            , viewTree
+                model.baseUrl
+                model.tree
+                model.overDrag
+                FromTree
+                model.restriction
+                model.focus
+                model.currentCut
+            , viewMoving model.currentTransactions
             ]
-            [ text "Submit" ]
-        ]
-    ]
-
-
-viewTreeAttributeConfirmation: Model -> List (Html Msg)
-viewTreeAttributeConfirmation model =
-    [ h2 [] [ text "Confirm Tree Attribute" ]
-    , viewTreeAttributeConfirmationInstructions model
-    , div
-        [ class "tree-attribute-form" ]
-        [ div
-            [ class "confirmation-buttons" ]
-            [ button
-                [ onClick CancelTreeAttribute
-                , class "tree-attribute-cancel"
-                ]
-                [ text "Cancel" ]
-            , button
-                [ onClick ConfirmTreeAttribute
-                , class "tree-attribute-confirm"
-                ]
-                [ text "Confirm" ]
-            ]
-        ]
-    ]
-
-
-viewTreeAttributeInstructions: Html Msg
-viewTreeAttributeInstructions =
-    p
-    []
-    [ text
-        "Choose the attribute name that will be used to organize series in a folder-like structure."
-    , text " This input will determine the name of the key used in the metadata to describe the path of the series."
-    , text " The actual path can be changed with the following view, but can also be accessed and edited directly "
-    , text "through the metadata via the python API or the /tsinfo page."
-    , br [] []
-    , text "e.g.:"
-    , ul
-        []
-        [ li [] [ text "folder"]
-        , li [] [ text "path"]
-        , li [] [ text "tree"]
-        , li [] [ text "etc ..."]
-        ]
-    ]
-
-
-viewTreeAttributeConfirmationInstructions: Model -> Html Msg
-viewTreeAttributeConfirmationInstructions model =
-    div []
-        [ p []
-            [ text "Are you sure you want to set the tree attribute to: "
-            , Html.strong [] [ text ("\"" ++ model.treeAttributeInput ++ "\"") ]
-            , text "?"
-            ]
-        , p [] [ text "This will determine the assigned key in the metadata."
-                , br [] []
-                , text "this will appear in the metadata like: "
-                ,  br [] []
-                , ul [] [ li [] [
-                    text <| model.treeAttributeInput
-                            ++ " -> path.to.folder "
-                    ]]
-                , br [] []
-                , text "(The dots separate the tree levels.)"
-                , br [] []
-                , text "This cannot be easly changed." ]
-        ]
 
 
 viewMoving : Dict (String, String) ( List String )-> Html Msg
@@ -1148,9 +943,6 @@ initModel baseUrl =
             toDebouncer
     in
     { baseUrl = baseUrl
-    , treeAttribute = Nothing
-    , treeAttributeInput = ""
-    , treeAttributeConfirmation = False
     , paths = []
     , tree = emptyTree
     , restriction = 150
@@ -1173,7 +965,6 @@ initModel baseUrl =
     }
 
 
-
 sub: Model -> Sub Msg
 sub model = Sub.batch
             [ cutSignal CopyFromBrowser
@@ -1183,16 +974,17 @@ sub model = Sub.batch
                     (\ s-> Horizon (ModuleHorizon.FromLocalStorage s))
             ]
 
+
 type alias Input =
     { baseurl : String }
+
 
 init: Input -> ( Model, ( Cmd Msg ))
 init input =
     ( initModel input.baseurl
-    , Cmd.batch [ getPaths input.baseurl
-                , getTreeAttribute input.baseurl
-                ]
+    , getPaths input.baseurl
    )
+
 
 main = Browser.element
         { init = init
