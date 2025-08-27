@@ -862,6 +862,9 @@ view model =
                   FormulaHistory ->
                       div [] [ head ]
 
+                  Dependents ->
+                      div [] [ head ]
+
             , I.viewerrors model
             ]
             )

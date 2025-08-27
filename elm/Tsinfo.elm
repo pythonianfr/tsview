@@ -141,6 +141,8 @@ type alias Model =
     , clipboardclass : String
     -- horizon
     , horizon : HorizonModel
+    -- dependents
+    , dependents : Maybe (List String)
     -- history mode
     , wipe: Bool
     , integrity: Int
@@ -238,6 +240,8 @@ type Msg
     | NewDataFromHover String
     | LogsNumber String
     | SeeLogs
+    -- dependents
+    | GotDependents (Result Http.Error String)
 
 
 convertMsg : HorizonModule.Msg -> Msg
@@ -333,6 +337,19 @@ getdepth model =
         , url = UB.crossOrigin model.baseurl
               [ "api", "series", "formula_depth" ]
               [ UB.string "name" model.name ]
+        }
+
+
+getdependents : Model -> Cmd Msg
+getdependents model =
+    Http.get
+        { expect = Http.expectString GotDependents
+        , url = UB.crossOrigin model.baseurl
+              [ "api", "series", "formula_depends" ]
+              [ UB.string "name" model.name
+              , UB.string "direct" "true"
+              , UB.string "reverse" "true"
+              ]
         }
 
 
@@ -511,7 +528,16 @@ update msg model =
     case msg of
 
         Tab tab ->
-            U.nocmd { model | activetab = tab }
+            let
+                cmd = 
+                    case tab of
+                        Dependents ->
+                            case model.dependents of
+                                Nothing -> getdependents model
+                                Just _ -> Cmd.none
+                        _ -> Cmd.none
+            in
+            ( { model | activetab = tab }, cmd )
 
         GotSysMeta (Ok result) ->
             case D.decodeString M.decodemeta result of
@@ -1268,6 +1294,18 @@ update msg model =
             , I.getlog model.baseurl model.name model.logsNumber "series" GotLog
             )
 
+        -- dependents
+
+        GotDependents (Ok rawdeps) ->
+            case D.decodeString (D.list D.string) rawdeps of
+                Ok deps ->
+                    U.nocmd { model | dependents = Just deps }
+                Err err ->
+                    doerr "gotdependents decode" <| D.errorToString err
+
+        GotDependents (Err error) ->
+            doerr "gotdependents http" <| U.unwraperror error
+
 
 lastDates: List String -> Int -> List String
 lastDates dates max =
@@ -1316,6 +1354,32 @@ viewcachepolicy model =
                          , "schedule_rule"
                          ]
         ]
+
+viewdependents : Model -> H.Html Msg
+viewdependents model =
+    let
+        renderdependent name =
+            H.li []
+                [ H.a
+                    [ HA.href <| UB.crossOrigin model.baseurl
+                        [ "tsinfo" ]
+                        [ UB.string "name" name ]
+                    ]
+                    [ H.text name ]
+                ]
+    in
+    H.div []
+        [ H.h2 [] [ H.text "Dependents" ]
+        , case model.dependents of
+            Nothing ->
+                H.div [] []
+            Just [] ->
+                H.div [ HA.class "alert alert-info" ]
+                    [ H.text "No series depend on this one." ]
+            Just deps ->
+                H.ul [] <| List.map renderdependent deps
+        ]
+
 
 viewcache : Model -> H.Html Msg
 viewcache model =
@@ -1661,13 +1725,13 @@ view model =
         tablist =
             case model.seriestype of
                 I.Primary ->
-                    [ Plot, Metadata, Logs ]
+                    [ Plot, Metadata, Dependents, Logs ]
                 I.Formula ->
                     case List.length model.oldformulas of
                         0 ->
-                            [ Plot, Metadata, FormulaCache ]
+                            [ Plot, Metadata, Dependents, FormulaCache ]
                         _ ->
-                            [ Plot, Metadata, FormulaCache, FormulaHistory ]
+                            [ Plot, Metadata, Dependents, FormulaCache, FormulaHistory ]
 
         tabs =
             tablist
@@ -1745,6 +1809,9 @@ view model =
 
                   FormulaHistory ->
                       H.div [] [ head, tabcontents [ I.viewoldformulas model ] ]
+
+                  Dependents ->
+                      H.div [] [ head, tabcontents [ viewdependents model ] ]
 
             , I.viewerrors model
             ]
@@ -1850,6 +1917,7 @@ init input =
                     input.max
                     input.debug
                     Loading
+      , dependents = Nothing
       , wipe = False
       , integrity = 0
       , historyPlots = Dict.empty
