@@ -718,11 +718,9 @@ linkInfo baseUrl sn =
 
 buildQuery: String -> String
 buildQuery branch =
-    "(by.at-path "
-    ++ """ " """
+    "(by.at-path \""
     ++ branch
-    ++ """ " """
-    ++ ")"
+    ++ "\" #:children #f )"
 
 
 linkQuery: String -> String -> String ->Path -> Html msg
