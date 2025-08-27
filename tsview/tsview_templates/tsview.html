@@ -23,6 +23,7 @@
             </div>
         </div>
         <script src="./tsview_static/plot_elm.js"></script>
+        {% include "unescape.html" %}
         <script>
          var app = Elm.Plot.init({
              node: document.getElementById("app"),
@@ -36,7 +37,7 @@
                  min: "{{ min }}",
                  max: "{{ max }}",
                  debug: "{{ debug }}",
-                 query: "{{ query }}",
+                 query: htmlDecode("{{ query }}"),
              }
          });
           app.ports.saveToLocalStorage.subscribe(function (dataInCache) {

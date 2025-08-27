@@ -467,20 +467,8 @@ update msg model =
                         searchSeries = model.searchSeries
                         updatedSearchSeries =
                             { searchSeries | selected = names }
-                        previousRegistry = model.registry
-                        newRegistry = Dict.fromList
-                                        <| List.map
-                                             (\ n -> ( n, emptyInfo ))
-                                             names
-                        updatedRegistry = { previousRegistry
-                                                | series =
-                                                    Dict.union
-                                                    previousRegistry.series
-                                                    newRegistry
-                                          }
                         newModel = { model
-                                   | registry = updatedRegistry
-                                   , searchSeries = updatedSearchSeries
+                                   | searchSeries = updatedSearchSeries
                                    , selecting = ModeSeries
                                   }
                         ( modelWithRequests, fetchCmd ) = fetchseries newModel False
