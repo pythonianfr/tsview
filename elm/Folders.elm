@@ -120,8 +120,7 @@ type alias Model =
 type Msg
     = GotPaths ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
-    | GotUpdatePath Path Path String ( Result Http.Error String )
-    | TowardDeletion Path Path String ( Result Http.Error String )
+    | GotAssignedPath Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
     | GotRename String String ( Result Http.Error String )
     | ProcessTransaction ( String, String )
@@ -215,7 +214,7 @@ update msg model =
                         model.tree
                 }
 
-        GotUpdatePath source destination name (Ok _) ->
+        GotAssignedPath source destination name _ ->
             let newModel = removeFromQueue source destination name model
             in
             ( newModel
@@ -233,47 +232,6 @@ update msg model =
                             ]
             )
 
-        GotUpdatePath source destination name (Err _ ) ->
-           let newModel = removeFromQueue source destination name model
-            in
-            ( newModel
-            , if Dict.member
-                    ( reprPath source, reprPath destination )
-                    newModel.currentTransactions
-              then Cmd.none
-              else
-                 Cmd.batch [ Task.perform
-                                identity
-                                ( Task.succeed ( FromTree ( Open source True False )))
-                            , Task.perform
-                                identity
-                                ( Task.succeed ( FromTree ( Open destination True False )))
-                            ]
-            )
-
-        TowardDeletion source destination name ( Ok raw ) ->
-            let treeAttribute = "placeholder-for-treeAttribute"
-            in
-            case JD.decodeString Metadata.decodemeta raw of
-                Ok meta ->
-                    let newMeta =
-                            Dict.remove treeAttribute meta
-                    in
-                        ( model
-                        , replaceMetadata
-                            model.baseUrl
-                            name
-                            newMeta
-                            source
-                            destination
-                        )
-                ( Err err ) ->
-                    U.nocmd { model | errors = model.errors
-                                               ++ [JD.errorToString err]
-                            }
-
-        TowardDeletion source destination name ( Err raw ) ->
-            U.nocmd ( removeFromQueue source destination name model )
 
         GotDelete path (Ok _) ->
             ( model
@@ -302,7 +260,6 @@ update msg model =
                         <| List.map
                             ( updateSinglePath
                                 model.baseUrl
-                                ( Just "placeholder-for-treeAttribute" )
                                 ( pathFromString source )
                                 ( pathFromString destination )
                             )
@@ -698,80 +655,44 @@ reOpen openState =
         ( Set.toList openState )
 
 
-replaceMetadata: String -> String -> Metadata.Metadata -> Path -> Path -> Cmd Msg
-replaceMetadata baseUrl name meta source destination =
+updateSinglePath : String -> Path -> Path -> String -> Cmd Msg
+updateSinglePath baseUrl source destination name =
+    case destination of
+        Root -> Cmd.none -- should not occur
+        Branch dest ->
+            case source of
+                Root -> Cmd.none -- should not occur
+                Branch _ ->
+                    assignPath baseUrl source destination ( Just dest ) name
+                Unclassified ->
+                    assignPath baseUrl source destination ( Just dest ) name
+        Unclassified ->
+            case source of
+                Root -> Cmd.none -- should not occur
+                Unclassified -> Cmd.none -- no actual move
+                Branch _ -> assignPath baseUrl source destination Nothing name
+
+
+assignPath: String -> Path -> Path -> Maybe String -> String -> Cmd Msg
+assignPath baseUrl source destination mDestination name =
     Http.request
-        { method = "PUT"
+        { method = "PATCH"
         , url =
             UB.crossOrigin
                 baseUrl
-                ["api", "series", "metadata"]
-                []
-        , body = Http.jsonBody
-                    <| JE.object
-                        [( "name", JE.string name )
-                        ,( "metadata", JE.string
-                                        <| Metadata.encodemeta meta )
-                        ]
-        , expect = Http.expectString
-                    ( GotUpdatePath source destination name )
-        , headers = [ ]
+                ["api", "series", "tree-path"]
+                ([ UB.string "name" name
+                 ] ++ case mDestination of
+                        Nothing -> []
+                        Just dest ->
+                            [ UB.string "path" dest ]
+                )
+        , body = Http.emptyBody
+        , expect = Http.expectString (GotAssignedPath source destination name )
+        , headers = []
         , tracker = Nothing
         , timeout = Nothing
         }
-
-
-updateSinglePath : String -> Maybe String -> Path -> Path -> String -> Cmd Msg
-updateSinglePath baseUrl treeAttribute source destination name =
-    case treeAttribute of
-        Nothing -> Cmd.none
-        Just treeA ->
-            case destination of
-                Branch dest ->
-                    -- the metadata dict must be send as string
-                    let newMetadata
-                            = JE.string
-                                <| JE.encode 0 -- value to string
-                                    <| JE.object
-                                        [( treeA, JE.string dest )]
-                    in
-                    Http.request
-                        { method = "PATCH"
-                        , url =
-                            UB.crossOrigin
-                                baseUrl
-                                ["api", "series", "metadata"]
-                                []
-                        , body = Http.jsonBody
-                                    <| JE.object
-                                        [( "name", JE.string name )
-                                        ,( "metadata", newMetadata)
-                                        ]
-                        , expect = Http.expectString
-                                    ( GotUpdatePath source destination name )
-                        , headers = [ ]
-                        , tracker = Nothing
-                        , timeout = Nothing
-                        }
-                Unclassified ->
-                    -- deletion of path attribute in the metadata
-                    Http.request
-                    { method = "GET"
-                    , url =
-                        UB.crossOrigin
-                            baseUrl
-                            ["api", "series", "metadata"]
-                            [ UB.string "name" name ]
-                    , body = Http.emptyBody
-                    , expect = Http.expectString
-                                ( TowardDeletion source Unclassified name )
-                    , headers = [ ]
-                    , tracker = Nothing
-                    , timeout = Nothing
-                    }
-                Root ->
-                    -- should not occur
-                    Cmd.none
 
 
 removeFromQueue: Path -> Path -> String -> Model -> Model
