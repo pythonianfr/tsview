@@ -1,4 +1,4 @@
-FLAGS ?=# --optimize
+FLAGS ?= --optimize
 NODE_PATH ?= /usr/lib/node_modules
 
 ACE_TAR ?= v1.4.11.tar.gz
