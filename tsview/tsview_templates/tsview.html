@@ -40,7 +40,9 @@
                  query: htmlDecode("{{ query }}"),
              }
          });
-          app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
+         </script>
+         <script>
+         app.ports.saveToLocalStorage.subscribe(function (dataInCache) {
              localStorage.setItem("horizon", JSON.stringify(dataInCache))
          });
          incache = localStorage.getItem("horizon")

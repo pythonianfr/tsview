@@ -995,7 +995,7 @@ update msg model =
                     , commands
                     )
                 ModuleHorizon.FromLocalStorage _ ->
-                    ( model
+                    ( { model | horizon = newModelHorizon }
                     , commands
                     )
                 ModuleHorizon.Fetch _ ->
