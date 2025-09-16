@@ -25,6 +25,7 @@ import Html.Events exposing
     , onFocus
     , onInput
     )
+import List.Extra as List
 import Set exposing (Set)
 import Tree
 import Tree exposing
@@ -955,3 +956,35 @@ muteOpen menu openState =
             muteOpen
                 nextStep
                 openState
+
+
+splitByBatch: Int -> List String -> Dict Int (List String)
+splitByBatch size stuffs =
+    splitByBatchRec size stuffs 0 Dict.empty
+
+
+splitByBatchRec : Int -> List String -> Int -> Dict Int (List String) -> Dict Int (List String)
+splitByBatchRec size stuffs idxBatch result =
+    case stuffs of
+        [] -> result
+        x :: xs ->
+            case Dict.get idxBatch result of
+                Nothing -> splitByBatchRec
+                            size
+                            xs
+                            idxBatch
+                            ( Dict.insert idxBatch [x] result )
+                Just currentBatch ->
+                    if List.length currentBatch == size
+                        then
+                            splitByBatchRec
+                                size
+                                xs
+                                ( idxBatch + 1 )
+                                ( Dict.insert ( idxBatch + 1 )  [ x ] result )
+                        else
+                             splitByBatchRec
+                                size
+                                xs
+                                idxBatch
+                                ( Dict.insert idxBatch ( currentBatch ++ [x] ) result )

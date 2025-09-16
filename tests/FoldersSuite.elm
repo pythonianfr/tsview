@@ -36,6 +36,7 @@ import FoldersUtil exposing
     , renamePaths
     , root
     , setOpenState
+    , splitByBatch
     , unclassifiedPayload
     )
 
@@ -641,3 +642,49 @@ suiteReplacePath =
                      , "a1.b0"
                      ]
             )
+
+
+suiteSplitByBatch : T.Test
+suiteSplitByBatch =
+    T.concat
+    [ T.test "splitByBatch with empty list"
+        (\_ -> Expect.equal
+                (splitByBatch 3 [])
+                Dict.empty
+        )
+    , T.test "splitByBatch with single element"
+        (\_ -> Expect.equal
+                (splitByBatch 3 ["a"])
+                (Dict.singleton 0 ["a"])
+        )
+    , T.test "splitByBatch with exact batch size"
+        (\_ -> Expect.equal
+                (splitByBatch 3 ["a", "b", "c"])
+                (Dict.singleton 0 ["a", "b", "c"])
+        )
+    , T.test "splitByBatch with two complete batches"
+        (\_ -> Expect.equal
+                (splitByBatch 2 ["a", "b", "c", "d"])
+                (Dict.fromList [(0, ["a", "b"]), (1, ["c", "d"])])
+        )
+    , T.test "splitByBatch with incomplete final batch"
+        (\_ -> Expect.equal
+                (splitByBatch 3 ["a", "b", "c", "d", "e"])
+                (Dict.fromList [(0, ["a", "b", "c"]), (1, ["d", "e"])])
+        )
+    , T.test "splitByBatch with batch size 1"
+        (\_ -> Expect.equal
+                (splitByBatch 1 ["a", "b", "c"])
+                (Dict.fromList [(0, ["a"]), (1, ["b"]), (2, ["c"])])
+        )
+    , T.test "splitByBatch with large batch size"
+        (\_ -> Expect.equal
+                (splitByBatch 10 ["a", "b", "c"])
+                (Dict.singleton 0 ["a", "b", "c"])
+        )
+    , T.test "splitByBatch with many elements"
+        (\_ -> Expect.equal
+                (splitByBatch 3 ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"])
+                (Dict.fromList [(0, ["a", "b", "c"]), (1, ["d", "e", "f"]), (2, ["g", "h", "i"]), (3, ["j"])])
+        )
+    ]
