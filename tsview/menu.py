@@ -37,6 +37,12 @@ def definition(**extra_urls):
                     'id': 'timeseries-catalog'
                 },
                 {
+                    'label': 'Folders',
+                    'icone': 'bi bi-folder-plus',
+                    'target': '/folders',
+                    'id': 'timeseries-folders'
+                },
+                {
                     'label': 'Quick View',
                     'icone': 'bi bi-lightning-charge',
                     'target': '/tsview',
