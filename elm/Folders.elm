@@ -55,6 +55,7 @@ import FoldersUtil exposing
     , renamePaths
     , reprPath
     , selectFromQuery
+    , splitByBatch
     , viewTree
     )
 
@@ -111,7 +112,7 @@ type alias Model =
     , creationName: String
     , renameName: String
     , openState: Set String
-    , currentTransactions : Dict (String, String) ( List String )
+    , currentTransactions : Dict (String, String) ( Dict Int ( List String ))
     , queryDebouncer: Debouncer Msg
     , horizon : HorizonModel
     }
@@ -120,10 +121,10 @@ type alias Model =
 type Msg
     = GotPaths ( Result Http.Error String )
     | GotSeries Path ( Result Http.Error String )
-    | GotAssignedPath Path Path String ( Result Http.Error String )
+    | GotAssignedPath Int Path Path String ( Result Http.Error String )
     | GotDelete Path ( Result Http.Error String )
     | GotRename String String ( Result Http.Error String )
-    | ProcessTransaction ( String, String )
+    | ProcessTransaction Int ( Path, Path )
     | FromTree MsgTree
     | CopyFromBrowser Bool
     | PasteFromBrowser Bool
@@ -214,24 +215,25 @@ update msg model =
                         model.tree
                 }
 
-        GotAssignedPath source destination name _ ->
-            let newModel = removeFromQueue source destination name model
+        GotAssignedPath idBatch source destination name _ ->
+            let newModel = removeFromQueue idBatch source destination name model
+                currentTransaction = Maybe.withDefault
+                                        Dict.empty
+                                        <| Dict.get
+                                            (reprPath source, reprPath destination)
+                                            newModel.currentTransactions
             in
-            ( newModel
-            , if Dict.member
-                    ( reprPath source, reprPath destination )
-                    newModel.currentTransactions
-              then Cmd.none
-              else
-                 Cmd.batch [ Task.perform
-                                identity
-                                ( Task.succeed ( FromTree ( Open source True False )))
-                            , Task.perform
-                                identity
-                                ( Task.succeed ( FromTree ( Open destination True False )))
-                            ]
-            )
-
+                case Dict.get idBatch currentTransaction of
+                    Nothing -> ( newModel
+                               , Task.perform
+                                    identity
+                                    (Task.succeed
+                                        <| ProcessTransaction
+                                            ( idBatch + 1 )
+                                            ( source, destination)
+                                    )
+                              )
+                    Just _ -> U.nocmd newModel
 
         GotDelete path (Ok _) ->
             ( model
@@ -247,24 +249,42 @@ update msg model =
 
         GotRename oldBranch newBranch (Err _) -> U.nocmd model
 
-        ProcessTransaction ( source, destination )
-            -> let series = Dict.get
-                                ( source, destination )
+        ProcessTransaction idBatch ( source, destination )
+            -> let batchs = Dict.get
+                                ( reprPath source, reprPath destination )
                                 model.currentTransactions
                in
-               case series of
-                Nothing -> U.nocmd model
-                Just listSeries ->
-                    ( model
-                    , Cmd.batch
-                        <| List.map
-                            ( updateSinglePath
-                                model.baseUrl
-                                ( pathFromString source )
-                                ( pathFromString destination )
+               case batchs of
+                Nothing -> U.nocmd model -- should not occurred
+                Just dictBatch ->
+                    case Dict.get idBatch dictBatch of
+                        Nothing -> -- end of transaction
+                            let transaction = Dict.remove
+                                                ( reprPath source, reprPath destination )
+                                                model.currentTransactions
+                            in
+                            ( { model | currentTransactions = transaction }
+                            , Cmd.batch
+                                [ Task.perform
+                                    identity
+                                    ( Task.succeed ( FromTree ( Open source True False )))
+                                , Task.perform
+                                    identity
+                                    ( Task.succeed ( FromTree ( Open destination True False )))
+                                ]
                             )
-                            listSeries
-                    )
+                        Just listSeries ->
+                            ( model
+                            , Cmd.batch
+                                <| List.map
+                                    ( updateSinglePath
+                                        model.baseUrl
+                                        idBatch
+                                        source
+                                        destination
+                                    )
+                                    listSeries
+                            )
 
         CopyFromBrowser _ ->
              case model.focus of
@@ -369,9 +389,10 @@ update msg model =
                                             destination
                                             series
                                             model.tree
-                                transaction = Dict.insert
-                                                ( reprPath source, reprPath destination )
-                                                ( Set.toList series )
+                                transaction = buildTransaction
+                                                source
+                                                destination
+                                                series
                                                 model.currentTransactions
                             in
                             ( { model | tree = newTree
@@ -380,9 +401,10 @@ update msg model =
                                 }
                             , Task.perform
                                 identity
-                                ( Task.succeed
+                                <| Task.succeed
                                     <| ProcessTransaction
-                                        ( reprPath source, reprPath destination ))
+                                        0
+                                        ( source, destination )
                             )
 
                 Select path name ->
@@ -473,16 +495,18 @@ update msg model =
                                             model.tree
                                     , currentCut = NoCut
                                     , currentTransactions =
-                                            Dict.insert
-                                                ( reprPath from, reprPath path )
-                                                ( Set.toList series )
-                                                model.currentTransactions
+                                        buildTransaction
+                                            from
+                                            path
+                                            series
+                                            model.currentTransactions
                              }
                             , Task.perform
                                 identity
-                                ( Task.succeed
+                                <| Task.succeed
                                     <| ProcessTransaction
-                                        ( reprPath from, reprPath path ))
+                                        0
+                                        ( from, path )
                             )
 
                 ButtonReset path ->
@@ -655,26 +679,26 @@ reOpen openState =
         ( Set.toList openState )
 
 
-updateSinglePath : String -> Path -> Path -> String -> Cmd Msg
-updateSinglePath baseUrl source destination name =
+updateSinglePath : String -> Int -> Path -> Path -> String -> Cmd Msg
+updateSinglePath baseUrl idBatch source destination name =
     case destination of
         Root -> Cmd.none -- should not occur
         Branch dest ->
             case source of
                 Root -> Cmd.none -- should not occur
                 Branch _ ->
-                    assignPath baseUrl source destination ( Just dest ) name
+                    assignPath baseUrl idBatch source destination ( Just dest ) name
                 Unclassified ->
-                    assignPath baseUrl source destination ( Just dest ) name
+                    assignPath baseUrl idBatch source destination ( Just dest ) name
         Unclassified ->
             case source of
                 Root -> Cmd.none -- should not occur
                 Unclassified -> Cmd.none -- no actual move
-                Branch _ -> assignPath baseUrl source destination Nothing name
+                Branch _ -> assignPath baseUrl idBatch source destination Nothing name
 
 
-assignPath: String -> Path -> Path -> Maybe String -> String -> Cmd Msg
-assignPath baseUrl source destination mDestination name =
+assignPath: String -> Int -> Path -> Path -> Maybe String -> String -> Cmd Msg
+assignPath baseUrl idBatch source destination mDestination name =
     Http.request
         { method = "PATCH"
         , url =
@@ -688,40 +712,53 @@ assignPath baseUrl source destination mDestination name =
                             [ UB.string "path" dest ]
                 )
         , body = Http.emptyBody
-        , expect = Http.expectString (GotAssignedPath source destination name )
+        , expect = Http.expectString (GotAssignedPath idBatch source destination name )
         , headers = []
         , tracker = Nothing
         , timeout = Nothing
         }
 
 
-removeFromQueue: Path -> Path -> String -> Model -> Model
-removeFromQueue source destination name model =
+removeFromQueue: Int -> Path -> Path -> String -> Model -> Model
+removeFromQueue idBatch source destination name model =
     let s = reprPath source
         d = reprPath destination
     in
     case Dict.get (s, d) model.currentTransactions of
         Nothing -> model
-        Just seriesList ->
-            let newQueue =
-                    ( Set.toList
-                            ( Set.remove
-                                name
-                                ( Set.fromList seriesList )
+        Just batchs ->
+            case Dict.get idBatch batchs of
+                Nothing -> model
+                Just seriesList ->
+                    let newQueue =
+                            ( Set.toList
+                                    ( Set.remove
+                                        name
+                                        ( Set.fromList seriesList )
+                                    )
                             )
-                    )
-                updatedTransactions =
-                    if List.length newQueue > 0
-                    then Dict.insert
-                            (s, d)
-                            newQueue
-                            model.currentTransactions
-                    else
-                        Dict.remove
-                            (s, d)
-                            model.currentTransactions
-            in
-            { model | currentTransactions = updatedTransactions }
+                        updatedTransactions =
+                            if List.length newQueue > 0
+                            then Dict.insert
+                                    (s, d)
+                                    ( Dict.insert idBatch newQueue batchs )
+                                    model.currentTransactions
+                            else
+                                Dict.insert
+                                    (s, d)
+                                    ( Dict.remove idBatch batchs )
+                                    model.currentTransactions
+                    in
+                    { model | currentTransactions = updatedTransactions }
+
+
+buildTransaction: Path -> Path -> Set String -> Dict (String, String) ( Dict Int ( List String ))
+                    -> Dict (String, String) ( Dict Int ( List String ))
+buildTransaction source destination series current =
+     Dict.insert
+        ( reprPath source, reprPath destination )
+        ( splitByBatch 100 ( Set.toList series ) )
+        current
 
 
 getSeries: String -> Path -> Cmd Msg
@@ -827,11 +864,18 @@ view model =
             ]
 
 
-viewMoving : Dict (String, String) ( List String )-> Html Msg
+viewMoving : Dict (String, String) (Dict Int ( List String ))-> Html Msg
 viewMoving transactions =
-    let remaining = List.concat
-                    ( Dict.values transactions )
-        nbR = List.length remaining
+    let countSeries dictBatch =
+                    List.length
+                        <| List.concat
+                            <| Dict.values
+                                dictBatch
+        nbR = List.sum
+                <| List.map
+                       countSeries
+                       <| Dict.values
+                            transactions
     in
         if nbR == 0
         then Html.text ""
