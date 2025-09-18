@@ -43,6 +43,8 @@
             "j-maas/elm-ordered-containers": "1.0.0",
             "jorgengranseth/elm-string-format": "1.0.1",
             "justinmimbs/date": "4.1.0",
+            "justinmimbs/time-extra": "1.2.0",
+            "justinmimbs/timezone-data": "11.1.0",
             "jweir/elm-iso8601": "7.0.1",
             "jzxhuang/http-extras": "2.1.0",
             "klazuka/elm-json-tree-view": "2.1.0",
@@ -74,7 +76,6 @@
             "ianmackenzie/elm-units": "2.10.0",
             "ianmackenzie/elm-units-interval": "3.2.0",
             "ianmackenzie/elm-units-prefixed": "2.8.0",
-            "justinmimbs/time-extra": "1.2.0",
             "rtfeldman/elm-hex": "1.0.0",
             "ryan-haskell/date-format": "1.0.0"
         }
