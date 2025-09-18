@@ -45,6 +45,7 @@ type TypeStat =
     Numeric ( Maybe Float )
     | Count Int
     | Date ( Maybe String )
+    | DateNonLocalized ( Maybe String )
     | InferFreq StatusFreq
 
 
@@ -57,8 +58,8 @@ type Msg =
 
 
 emptyStat =
-    { first = Date Nothing
-    , last = Date Nothing
+    { first = DateNonLocalized Nothing
+    , last = DateNonLocalized Nothing
     , start = Date Nothing
     , end = Date Nothing
     , min = Numeric Nothing
@@ -77,11 +78,11 @@ maxPoints = 1000
 
 updateFirstLast: StatInfos -> M.Metadata -> StatInfos
 updateFirstLast statInfos meta =
-    let first = Date <| case Dict.get "left" meta of
+    let first = DateNonLocalized <| case Dict.get "left" meta of
                             Just ( M.MString val )
                                 -> Just val
                             _ -> Nothing
-        last = Date <| case Dict.get "right" meta of
+        last = DateNonLocalized <| case Dict.get "right" meta of
                             Just ( M.MString val )
                                 -> Just val
                             _ -> Nothing
@@ -169,6 +170,7 @@ rowStat round convertMsg name mTitle statistic  =
                                         ( String.fromInt nb )
                                 ]
                     Date date -> displayDate date
+                    DateNonLocalized date -> displayDate date
                     InferFreq infer -> case infer of
                                         Blocked -> [ H.button
                                                     [ HA.class "badge badge-primary h4"
@@ -268,6 +270,7 @@ displayDate date =
                     (String.split "T" dat)
                 )
                 []
+
 
 intercal: a -> List a -> List a ->  List a
 intercal toAdd parts result =
