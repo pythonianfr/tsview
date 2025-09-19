@@ -925,7 +925,7 @@ viewHistoryGraph model =
                             lastIdate
                             currentIdate
         listTraces = List.map
-                        ( buildTrace partialOption)
+                        ( buildTrace partialOption model.horizon.timeZone)
                         (Dict.toList model.historyPlots)
         historyArgs = serializedPlotArgs
                         "plot-history"
@@ -961,10 +961,10 @@ buildOptions default lastIdate currentIdate idate =
     }
 
 
-buildTrace:  (String -> TraceOptions) -> ( String , Dict String ( Maybe Float )) -> Trace
-buildTrace partialOption ( idate, series )  =
+buildTrace:  (String -> TraceOptions) -> String -> ( String , Dict String ( Maybe Float )) -> Trace
+buildTrace partialOption tzone ( idate, series )  =
     { type_ = "scatter"
-    , name = cleandate idate
+    , name = cleandate <| localize tzone True idate
     , x = Dict.keys series
     , y = Dict.values series
     , mode = "lines"
