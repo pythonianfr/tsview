@@ -1,21 +1,28 @@
 module TimeUtil exposing
-    ( utcToLocal
-    , toLocal
-    , getTimezoneOffset
-    , formatOffset
-    , formatDateTimeWithOffset
-    , monthToString
+    ( localize
+    , utcToLocal
     )
 
 import Dict
 import Time
-import Time.Extra as Time
 import TimeZone
 import Iso8601
 import Result
 
 
 -- date conversion
+
+localize: String -> Bool -> String -> String
+localize zone tzaware isoString =
+    if not tzaware
+    then isoString
+    else
+        if String.toLower zone == "utc"
+            then case Iso8601.toTime isoString of
+                    Ok utcPosix -> formatAsUtcIso utcPosix
+                    Err _ -> "iso8601-error"
+            else  utcToLocal zone isoString
+
 
 utcToLocal : String -> String -> String
 utcToLocal zone isoString =
@@ -111,3 +118,20 @@ monthToString month =
       Time.Oct -> "10"
       Time.Nov -> "11"
       Time.Dec -> "12"
+
+formatAsUtcIso : Time.Posix -> String
+formatAsUtcIso posix =
+  let
+      year = Time.toYear Time.utc posix
+      month = Time.toMonth Time.utc posix
+      day = Time.toDay Time.utc posix
+      hour = Time.toHour Time.utc posix
+      minute = Time.toMinute Time.utc posix
+      second = Time.toSecond Time.utc posix
+  in
+  String.fromInt year ++ "-"
+  ++ monthToString month ++ "-"
+  ++ String.padLeft 2 '0' (String.fromInt day) ++ "T"
+  ++ String.padLeft 2 '0' (String.fromInt hour) ++ ":"
+  ++ String.padLeft 2 '0' (String.fromInt minute) ++ ":"
+  ++ String.padLeft 2 '0' (String.fromInt second) ++ "+00:00"

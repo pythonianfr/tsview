@@ -4528,6 +4528,8 @@ tableStat model =
                         then  [ viewStatTable
                                     model.statistics
                                     model.roundStat
+                                    model.horizon.timeZone
+                                    model.tzaware
                                     convertStat
                               ]
                         else []

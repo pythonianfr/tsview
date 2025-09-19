@@ -22,6 +22,7 @@ import Metadata as M
 import Statistics
 import Round
 
+import TimeUtil exposing ( localize )
 
 type alias StatInfos =
     { first: TypeStat
@@ -128,9 +129,9 @@ justValues series =
             (Dict.toList series)
 
 
-viewStatTable: StatInfos -> Int ->  ( Msg -> msg )  -> H.Html msg
-viewStatTable statInfos round convertMsg =
-    let partialRow = ( rowStat round convertMsg )
+viewStatTable: StatInfos -> Int -> String -> Bool -> ( Msg -> msg ) -> H.Html msg
+viewStatTable statInfos round tzone tzaware convertMsg =
+    let partialRow = ( rowStat round tzone tzaware convertMsg )
     in
     H.table
         [ HA.class "stat-table"]
@@ -153,8 +154,8 @@ viewStatTable statInfos round convertMsg =
         , partialRow "Freq" Nothing statInfos.inferFreq
         ]
 
-rowStat : Int ->  ( Msg -> msg )  -> String -> Maybe String -> TypeStat -> H.Html msg
-rowStat round convertMsg name mTitle statistic  =
+rowStat : Int -> String -> Bool -> ( Msg -> msg ) -> String -> Maybe String -> TypeStat -> H.Html msg
+rowStat round tzone tzaware convertMsg name mTitle statistic  =
     let content = case statistic of
                     Numeric num ->
                         case num of
@@ -170,7 +171,10 @@ rowStat round convertMsg name mTitle statistic  =
                                         ( String.fromInt nb )
                                 ]
                     Date date -> displayDate date
-                    DateNonLocalized date -> displayDate date
+                    DateNonLocalized date -> displayDate
+                                                <| Maybe.map
+                                                    (localize tzone tzaware)
+                                                    date
                     InferFreq infer -> case infer of
                                         Blocked -> [ H.button
                                                     [ HA.class "badge badge-primary h4"

@@ -529,7 +529,7 @@ update msg model =
 
         Tab tab ->
             let
-                cmd = 
+                cmd =
                     case tab of
                         Dependents ->
                             case model.dependents of
@@ -1587,6 +1587,8 @@ viewplot model ts =
                     [ viewStatTable
                         model.statistics
                         model.roundStat
+                        model.horizon.timeZone
+                        model.tzaware
                         convertStat
                     ]
                 ]
@@ -1650,6 +1652,8 @@ viewplot model ts =
                     [ viewStatTable
                         model.statistics
                         model.roundStat
+                        model.horizon.timeZone
+                        model.tzaware
                         convertStat
                     ]
                 ]

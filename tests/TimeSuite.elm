@@ -89,3 +89,24 @@ suiteUtcToLocal =
                 "2024-11-01T02:00:00+0100"
         )
     ]
+
+
+suiteLocalize : T.Test
+suiteLocalize =
+    T.concat
+    [ T.test "localize with tzaware=False returns original string"
+        (\_ -> Expect.equal
+                (TimeUtil.localize "Europe/Paris" False "2024-01-15T14:30:00")
+                "2024-01-15T14:30:00"
+        )
+    , T.test "localize with tzaware=True and UTC timezone"
+        (\_ -> Expect.equal
+                (TimeUtil.localize "utc" True "2024-01-15T14:30:00Z")
+                "2024-01-15T14:30:00+00:00"
+        )
+    , T.test "localize with tzaware=True and non-UTC timezone"
+        (\_ -> Expect.equal
+                (TimeUtil.localize "Europe/Paris" True "2024-01-15T14:30:00Z")
+                "2024-01-15T15:30:00+0100"
+        )
+    ]
