@@ -70,6 +70,7 @@ import Plotter exposing
 import Metadata as M
 import Url.Builder as UB
 import Util as U
+import TimeUtil exposing (localize)
 
 
 type SeriesType
@@ -326,7 +327,7 @@ tzawareseries model =
 
 type alias PartialModel a =
     { a | name: String
-        , canwrite: Bool 
+        , canwrite: Bool
         , horizon: HorizonModel
         , baseurl: String
         , meta: Dict String M.MetaVal
@@ -819,8 +820,8 @@ viewDatesRange insertionDates dateIndex debouncerMsg dateMsg =
             ]
 
 
-viewWidgetIdates: Bool -> Array String -> Int -> (Bool -> Direction -> msg) -> H.Html msg
-viewWidgetIdates history idates index msg =
+viewWidgetIdates: Bool -> Array String -> String -> Int -> (Bool -> Direction -> msg) -> H.Html msg
+viewWidgetIdates history idates tzone index msg =
     let
         idate =
             Maybe.withDefault ""
@@ -845,12 +846,12 @@ viewWidgetIdates history idates index msg =
                     else []
                   )
             )
-            [ H.text (formatIDate previous Left pactive)]
+            [ H.text (formatIDate previous tzone Left pactive)]
         , H.div
             [ HA.class "idate-history"
             , HA.title "current revdate"
             ]
-            [ H.text ( formatIDate idate Center True)]
+            [ H.text ( formatIDate idate tzone Center True)]
         , H.div
             ([ HA.class "idate-adjacent button"
              , HA.title "next date"
@@ -860,7 +861,7 @@ viewWidgetIdates history idates index msg =
                     else []
                   )
             )
-            [ H.text ( formatIDate next Right nactive ) ]
+            [ H.text ( formatIDate next tzone Right nactive ) ]
         ]
 
 
@@ -871,14 +872,17 @@ maybeDate idates idx =
         Nothing -> ( "", False )
 
 
-formatIDate: String -> Position -> Bool -> String
-formatIDate date position actif =
+formatIDate: String -> String -> Position -> Bool -> String
+formatIDate date tzone position actif =
     if not actif
     then ""
     else
-        let fdate =
+        let localizedDate = if String.length(date) > 0
+                                then localize tzone True date
+                                else ""
+            fdate =
                 String.replace "T" " "
-                    ( String.left 16 date)
+                    ( String.left 16 localizedDate)
         in case position of
                Center -> fdate
                Left -> "<< " ++ fdate

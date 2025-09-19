@@ -1600,6 +1600,7 @@ viewplot model ts =
             , I.viewWidgetIdates
                 model.historyMode
                 model.lastIdates
+                model.horizon.timeZone
                 model.historyDateIndex
                 IterIDate
             , I.viewHistoryGraph model
@@ -1635,6 +1636,7 @@ viewplot model ts =
             , I.viewWidgetIdates
                 model.historyMode
                 model.insertion_dates
+                model.horizon.timeZone
                 model.date_index
                 IterIDate
             , H.div
@@ -1707,6 +1709,7 @@ viewstrseries model ts =
         , I.viewWidgetIdates
               model.historyMode
               model.insertion_dates
+              model.horizon.timeZone
               model.date_index
               IterIDate
         , plotString model ts

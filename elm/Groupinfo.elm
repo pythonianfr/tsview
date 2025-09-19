@@ -700,6 +700,7 @@ viewplot model =
             , I.viewWidgetIdates
                 False
                 model.insertion_dates
+                model.horizon.timeZone
                 model.date_index
                 IterDate
             , I.viewgraph
