@@ -680,8 +680,10 @@ viewplot model =
 
         defaultLayout =
             { defaultLayoutOptions |
-                xaxis = { defaultDateAxis | range = extractDates
-                                            model.horizon.zoomBounds
+                xaxis = { defaultDateAxis
+                            | range = extractDates
+                                        <| getFromToDates
+                                            model.horizon
                         }
                 , yaxis = { defaultValueAxis |
                                 range = extractValues
