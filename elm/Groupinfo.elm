@@ -849,6 +849,9 @@ view model =
                   Metadata ->
                       div [] [ head, tabcontents [ I.viewusermeta model metaEvents False ] ]
 
+                  Folder ->
+                      div [] [ head, tabcontents [ ] ]
+
                   Logs ->
                       div []
                           [ head

@@ -2,6 +2,7 @@ module Info exposing
     ( delete
     , DataType(..)
     , formuladecoder
+    , getfolder
     , getformula
     , getidates
     , getlog
@@ -28,6 +29,7 @@ module Info exposing
     , viewDatesRange
     , viewdeletion
     , viewerrors
+    , viewfolder
     , viewformula
     , viewgraph
     , viewHoverGraph
@@ -318,6 +320,18 @@ viewerrors model =
         , H.div [ ] <| List.map (\x -> H.p [ ] [ H.text x ]) model.errors
         ]
     else H.span [ ] [ ]
+
+
+getfolder urlprefix name callback =
+    Http.get
+        { expect =  Http.expectString callback
+        , url =
+            UB.crossOrigin urlprefix
+                [ "api", "series", "tree-path" ]
+                [ UB.string "name" name
+                , UB.string "type" "seriesname"
+                ]
+        }
 
 
 tzawareseries: { a | meta: Dict String M.MetaVal } -> Bool
@@ -633,6 +647,13 @@ editusermeta model events showtitle =
                   [ H.text "add entry"]
             ]
         ]
+
+
+viewfolder model events =
+    case model.path of
+        Nothing -> H.text "No path"
+        Just path -> H.text path
+
 
 -- formula
 

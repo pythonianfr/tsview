@@ -113,6 +113,8 @@ type alias Model =
     , statistics: StatInfos
     , allowInferFreq: Bool
     , roundStat: Int
+    -- folder
+    , path: Maybe String
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -171,6 +173,7 @@ type alias RenameEvents =
 type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
+    | GotFolder (Result Http.Error String)
     | GotSource (Result Http.Error String)
     | GotMetaHistory (Result Http.Error String)
     | GotFormulaHistory (Result Http.Error String)
@@ -208,6 +211,8 @@ type Msg
     | AddMetaItem
     | SaveMeta
     | MetaSaved (Result Http.Error String)
+    -- folder edition
+    | FolderEdit
     -- deletion
     | AskDeletion
     | CancelDeletion
@@ -611,6 +616,15 @@ update msg model =
         GotMetaHistory (Err err) ->
             doerr "gotmetahistory http"  <| U.unwraperror err
 
+        GotFolder (Ok result) ->
+            case D.decodeString (D.nullable D.string) result of
+                Ok path -> U.nocmd { model | path = path}
+                Err err ->
+                    doerr "gotfolder decode" <| D.errorToString err
+
+        GotFolder (Err err) ->
+            doerr "gotfolder http"  <| U.unwraperror err
+
         GotFormulaHistory (Ok rawhist) ->
             case D.decodeString I.oldformulasdecoder rawhist of
                 Ok hist ->
@@ -951,6 +965,10 @@ update msg model =
 
         MetaSaved (Err err) ->
             doerr "metasaved http" <| U.unwraperror err
+
+        -- folders
+
+        FolderEdit -> U.nocmd model
 
         -- deletion
 
@@ -1734,13 +1752,13 @@ view model =
         tablist =
             case model.seriestype of
                 I.Primary ->
-                    [ Plot, Metadata, Dependents, Logs ]
+                    [ Plot, Metadata, Folder, Dependents, Logs ]
                 I.Formula ->
                     case List.length model.oldformulas of
                         0 ->
-                            [ Plot, Metadata, Dependents, FormulaCache ]
+                            [ Plot, Metadata, Folder, Dependents, FormulaCache ]
                         _ ->
-                            [ Plot, Metadata, Dependents, FormulaCache, FormulaHistory ]
+                            [ Plot, Metadata, Folder, Dependents, FormulaCache, FormulaHistory ]
 
         tabs =
             tablist
@@ -1774,6 +1792,10 @@ view model =
             SaveMeta
             AddMetaItem
 
+        folderEvents =
+            FolderEdit
+
+
         viewtabs =
             [ case model.activetab of
                   Plot ->
@@ -1800,7 +1822,12 @@ view model =
                           [ head
                           , tabcontents [ I.viewusermeta model metaEvents False ]
                           ]
-
+                  Folder ->
+                      H.div
+                          []
+                          [ head
+                          , tabcontents [ I.viewfolder model folderEvents ]
+                          ]
                   Logs ->
                       H.div []
                           [ head
@@ -1890,6 +1917,7 @@ init input =
       , meta = Dict.empty
       , usermeta = Dict.empty
       , metahistory = []
+      , path = Nothing
       , seriestype = I.Primary
       , timeseries = SeriesFloat Dict.empty
       , statistics = emptyStat
@@ -1946,6 +1974,7 @@ init input =
         , M.getusermetadata input.baseurl input.name GotUserMeta "series"
         , I.getoldmetadata input.baseurl input.name GotMetaHistory "series"
         , I.getoldformulas input.baseurl input.name GotFormulaHistory "series"
+        , I.getfolder input.baseurl input.name GotFolder
         , getsource input.baseurl input.name
         , I.getwriteperms input.baseurl GetPermissions
         , getcachepolicy input.baseurl input.name

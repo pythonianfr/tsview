@@ -21,6 +21,7 @@ type Tabs
     = Plot
     | Logs
     | Metadata
+    | Folder
     | FormulaCache
     | FormulaHistory
     | Dependents
@@ -42,6 +43,11 @@ type alias DeleteEvents msg =
     { confirmdeletion : msg
     , canceldeletion : msg
     , askdeletion : msg
+    }
+
+
+type alias FolderEvent msg =
+    { folderedit: String -> msg
     }
 
 
@@ -80,6 +86,7 @@ strtab tablelayout =
     case tablelayout of
         Plot -> "Plot"
         Metadata -> "Metadata"
+        Folder -> "Folder"
         Logs -> "Logs"
         FormulaCache -> "Cache"
         FormulaHistory -> "Old versions"
