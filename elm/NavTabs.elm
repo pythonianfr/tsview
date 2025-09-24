@@ -6,6 +6,7 @@ module NavTabs exposing
      , viewdatespicker
      , DeleteEvents
      , MetaEvents
+     , FolderEvents
     )
 import Array exposing (Array)
 import Html as H
@@ -46,8 +47,9 @@ type alias DeleteEvents msg =
     }
 
 
-type alias FolderEvent msg =
+type alias FolderEvents msg =
     { folderedit: String -> msg
+    , foldersave: msg
     }
 
 

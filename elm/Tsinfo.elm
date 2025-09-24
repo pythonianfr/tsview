@@ -17,6 +17,7 @@ import NavTabs exposing
     , strseries
     , DeleteEvents
     , MetaEvents
+    , FolderEvents
     )
 import Horizon exposing
     ( HorizonModel
@@ -115,6 +116,7 @@ type alias Model =
     , roundStat: Int
     -- folder
     , path: Maybe String
+    , editionpath: String
     -- formula
     , formula_depth : Int
     , formula_maxdepth : Int
@@ -174,6 +176,7 @@ type Msg
     = GotSysMeta (Result Http.Error String)
     | GotUserMeta (Result Http.Error String)
     | GotFolder (Result Http.Error String)
+    | GotSavedFolder (Result Http.Error String)
     | GotSource (Result Http.Error String)
     | GotMetaHistory (Result Http.Error String)
     | GotFormulaHistory (Result Http.Error String)
@@ -212,7 +215,8 @@ type Msg
     | SaveMeta
     | MetaSaved (Result Http.Error String)
     -- folder edition
-    | FolderEdit
+    | FolderEdit String
+    | FolderSave
     -- deletion
     | AskDeletion
     | CancelDeletion
@@ -618,12 +622,33 @@ update msg model =
 
         GotFolder (Ok result) ->
             case D.decodeString (D.nullable D.string) result of
-                Ok path -> U.nocmd { model | path = path}
+                Ok path -> U.nocmd { model | path = path
+                                           , editionpath = case path of
+                                                            Nothing -> ""
+                                                            Just p -> p
+                                   }
                 Err err ->
                     doerr "gotfolder decode" <| D.errorToString err
 
         GotFolder (Err err) ->
             doerr "gotfolder http"  <| U.unwraperror err
+
+        GotSavedFolder (Ok _) -> ( model
+                                 , I.getfolder
+                                    model.baseurl
+                                    model.name
+                                    GotFolder
+                                 )
+
+        GotSavedFolder (Err err) ->
+            ( U.adderror
+                ( setStatus model Failure )
+                ("savefolder http" ++ " -> " ++ ( U.unwraperror err ))
+            , I.getfolder
+                model.baseurl
+                model.name
+                GotFolder
+            )
 
         GotFormulaHistory (Ok rawhist) ->
             case D.decodeString I.oldformulasdecoder rawhist of
@@ -968,7 +993,15 @@ update msg model =
 
         -- folders
 
-        FolderEdit -> U.nocmd model
+        FolderEdit current -> U.nocmd { model | editionpath = current }
+
+        FolderSave -> ( model
+                      , I.savefolder
+                            model.baseurl
+                            model.name
+                            model.editionpath
+                            GotSavedFolder
+                      )
 
         -- deletion
 
@@ -1793,7 +1826,9 @@ view model =
             AddMetaItem
 
         folderEvents =
+            FolderEvents
             FolderEdit
+            FolderSave
 
 
         viewtabs =
@@ -1918,6 +1953,7 @@ init input =
       , usermeta = Dict.empty
       , metahistory = []
       , path = Nothing
+      , editionpath = ""
       , seriestype = I.Primary
       , timeseries = SeriesFloat Dict.empty
       , statistics = emptyStat

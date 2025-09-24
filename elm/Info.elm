@@ -20,6 +20,7 @@ module Info exposing
     , OldMetadata
     , oldmetasdecoder
     , rename
+    , savefolder
     , savemeta
     , showformula
     , SeriesType(..)
@@ -331,6 +332,23 @@ getfolder urlprefix name callback =
                 [ UB.string "name" name
                 , UB.string "type" "seriesname"
                 ]
+        }
+
+
+savefolder urlprefix name path callback =
+    Http.request
+        { method = "PATCH"
+        , url = UB.crossOrigin
+                    urlprefix
+                    [ "api", "series", "tree-path" ]
+                    [ UB.string "name" name
+                    , UB.string "path" path
+                    ]
+        , body = Http.emptyBody
+        , expect = Http.expectString callback
+        , tracker = Nothing
+        , timeout = Nothing
+        , headers = []
         }
 
 
@@ -650,9 +668,35 @@ editusermeta model events showtitle =
 
 
 viewfolder model events =
-    case model.path of
-        Nothing -> H.text "No path"
-        Just path -> H.text path
+    H.div
+        []
+        ( [ H.input
+            [ HA.placeholder  "No folder"
+            , HE.onInput events.folderedit
+            , HA.value model.editionpath
+            , HA.title
+                "A series can be associated with a folder (which does not need to exist beforehand). e.g: <folder1>.<folder2>.<folder3>"
+            ]
+            []
+        , H.button
+            [ HA.attribute "type" "button"
+            , HA.class "btn btn-primary"
+            , HE.onClick ( events.foldersave )
+            ]
+            [ H.text "edit" ]
+        ]
+        )
+
+
+explainfolder =
+    [ H.text "A series can be associated with a folder (which does not need to exist beforehand)."
+    , H.br [] []
+    , H.text "It can be set at any depth, with the different levels separated by periods."
+    , H.br [] []
+    , H.text "e.g: <folder1>.<folder2>.<folder3>"
+    , H.br [] []
+    ]
+
 
 
 -- formula
