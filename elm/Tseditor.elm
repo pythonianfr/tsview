@@ -194,6 +194,7 @@ type alias Model =
     , name : String
     , canwrite : Bool
     , query : String
+    , basket : String
     , mode : EditionMode
     , meta : M.Metadata
     , exist: Bool
@@ -255,6 +256,7 @@ type Msg
     | GotComponentData Int CType String Bool (Result Http.Error String)
     | GotGenerated PreviewType (Result Http.Error String)
     | GotQuery (Result Http.Error String)
+    | GotBasket (Result Http.Error String)
     | GotMetadata (Result Http.Error String) -- first command fired
     | GotSource (Result Http.Error String)
     | GotCatalog (Result Http.Error String)
@@ -328,6 +330,7 @@ type EditionMode
     = Creation CreationMode
     | Existing I.SeriesType
     | QueryMode
+    | BasketMode
 
 
 type CreationMode
@@ -527,6 +530,8 @@ likeComp: Model -> List OverComponent
 likeComp model =
     case model.mode of
         QueryMode ->
+            []
+        BasketMode ->
             []
         _ ->
             [ OverComponent
@@ -800,6 +805,7 @@ getPoints model =
             (updatedModel, cmd)
         Creation _ -> (model, Cmd.none)
         QueryMode -> (model, Cmd.none)
+        BasketMode -> (model, Cmd.none)
 
 
 getSeries:  Model -> (Result Http.Error String -> Msg) -> String -> Method -> String -> Maybe String -> Cmd Msg
@@ -853,6 +859,16 @@ getQuery baseUrl queryStr =
         , url = UB.crossOrigin baseUrl
               [ "api", "series", "find" ]
               [ UB.string "query" queryStr ]
+        }
+
+
+getBasket : String -> String -> Cmd Msg
+getBasket baseUrl name =
+    Http.get
+        { expect = Http.expectString GotBasket
+        , url = UB.crossOrigin baseUrl
+              [ "api", "series", "basket" ]
+              [ UB.string "name" name ]
         }
 
 
@@ -1169,6 +1185,21 @@ update msg model =
         GotQuery (Err _) ->
             U.nocmd model
 
+        GotBasket (Ok rawdata) ->
+            case JD.decodeString ( JD.list ( JD.map toComp queryItemDecode ) ) rawdata of
+                Ok names ->
+                    let
+                        newmodel = { model | directComponents = names
+                                           , horizon = setStatusPlot model.horizon Loading
+                                   }
+                        (modelWithData, cmd) = getDataComponents newmodel False
+                    in ( modelWithData, cmd )
+                Err err ->
+                    U.nocmd { model | errors = model.errors ++ [JD.errorToString err]}
+
+        GotBasket (Err _) ->
+            U.nocmd model
+
         GotComponentData versionControl cType name expand (Ok rawdata) ->
             if versionControl /= model.versionControl
             then U.nocmd model
@@ -1351,6 +1382,12 @@ update msg model =
                 ModuleHorizon.FromLocalStorage _ ->
                     case model.mode of
                         QueryMode ->
+                            ( resetModel
+                            , Cmd.batch [ moreCommands
+                                        , commandStart resetModel
+                                        ]
+                            )
+                        BasketMode ->
                             ( resetModel
                             , Cmd.batch [ moreCommands
                                         , commandStart resetModel
@@ -1635,6 +1672,14 @@ update msg model =
                                             [ UB.string "name" model.name ]
                               )
                 QueryMode ->
+                    let
+                        cleanModel = cleanDiff model
+                        (modelWithData, dataCommands) = getRelevantData cleanModel
+                    in
+                    ( modelWithData
+                    , Cmd.batch dataCommands
+                    )
+                BasketMode ->
                     let
                         cleanModel = cleanDiff model
                         (modelWithData, dataCommands) = getRelevantData cleanModel
@@ -2690,6 +2735,11 @@ getRelevantData model =
                 (modelWithComponents, componentsCmd) = getDataComponents model False
             in
             (modelWithComponents, [ componentsCmd ])
+        BasketMode ->
+            let
+                (modelWithComponents, componentsCmd) = getDataComponents model False
+            in
+            (modelWithComponents, [ componentsCmd ])
 
 
 
@@ -2880,6 +2930,13 @@ underThePlot model =
                      , buttonViewNames model
 
                      ]
+                BasketMode ->
+                    [ roundForm model
+                     , buttonShowDiff model
+                     , buttonFillAll model
+                     , buttonViewNames model
+
+                     ]
                 _ -> [ roundForm model
                      , buttonShowDiff model
                      , buttonFillAll model
@@ -2896,6 +2953,7 @@ permaLink model =
                         ["tseditor"]
                         <| case model.mode of
                             QueryMode -> queryLink model
+                            BasketMode -> basketLink model
                             _ ->
                                 ( queryNav model model.name )
                   )
@@ -3081,6 +3139,7 @@ viewRelevantTable model =
         Existing I.Primary -> viewValueTable model
         Existing I.Formula -> viewValueTable model
         QueryMode ->  viewValueTable model
+        BasketMode ->  viewValueTable model
         Creation Form ->
             H.table
                 [ HA.class "creation-form"
@@ -3723,6 +3782,8 @@ insideHeader model name cType iCol =
             case model.mode of
                 QueryMode ->
                     buildLink model iCol name cType
+                BasketMode ->
+                    buildLink model iCol name cType
                 _ ->
                     [ H.p
                           [ HA.class <| getCopyClass model.statusCopy CopyValues
@@ -3892,6 +3953,20 @@ queryLink: Model -> List UB.QueryParameter
 queryLink model =
     let bounds = getFromToDates model.horizon
         base = UB.string "query" model.query
+    in
+    case bounds of
+        Nothing -> [ base ]
+        Just ( min, max ) ->
+            [ base
+            , UB.string "startdate" min
+            , UB.string "enddate" max
+            ]
+
+
+basketLink: Model -> List UB.QueryParameter
+basketLink model =
+    let bounds = getFromToDates model.horizon
+        base = UB.string "basket" model.basket
     in
     case bounds of
         Nothing -> [ base ]
@@ -4216,6 +4291,8 @@ debugView model =
                         )
                 , H.br [] []
                 , H.text ( "Query : " ++ model.query )
+                , H.br [] []
+                , H.text ( "Basket : " ++ model.basket )
                 , H.div
                     []
                     <| List.map
@@ -4360,6 +4437,7 @@ plotNode model =
     in
     case model.mode
         of QueryMode -> plotQuery model dragMode lineMarker newXaxis newYaxis
+           BasketMode -> plotQuery model dragMode lineMarker newXaxis newYaxis
            _ ->
                case (isStr model.meta) of
                    True -> plotString model
@@ -4595,12 +4673,14 @@ commandStart model =
                                 , getOffsets model
                                 ]
         QueryMode -> getQuery model.baseurl model.query
+        BasketMode -> getBasket model.baseurl model.basket
 
 
 type alias Input =
     { baseurl : String
     , name : String
     , query: String
+    , basket: String
     , min: String
     , max: String
     , debug: String
@@ -4615,11 +4695,14 @@ init input =
             , name = input.name
             , canwrite = True
             , query = input.query
+            , basket = input.basket
             , mode = if input.name /= ""
                      then Existing I.Primary
                      else
                          if input.query /= ""
                          then QueryMode
+                         else if input.basket /= ""
+                         then BasketMode
                          else Creation Form
             , meta = Dict.empty
             , exist = False

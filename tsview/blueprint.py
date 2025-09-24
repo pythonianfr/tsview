@@ -772,6 +772,7 @@ def tsview(tsa):
 
         name = request.args.get('name', '')
         query = request.args.get('query', '')
+        basket = request.args.get('basket', '')
         min = request.args.get('startdate', '')
         max = request.args.get('enddate', '')
         debug = request.args.get('debug', '')
@@ -782,6 +783,7 @@ def tsview(tsa):
             homeurl=homeurl(),
             name=name,
             query=query,
+            basket=basket,
             min=min,
             max=max,
             debug=debug,
