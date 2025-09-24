@@ -38,7 +38,7 @@ def definition(**extra_urls):
                 },
                 {
                     'label': 'Folders',
-                    'icone': 'bi bi-folder-plus',
+                    'icone': 'bi bi-folder',
                     'target': '/folders',
                     'id': 'timeseries-folders'
                 },
