@@ -242,6 +242,10 @@ label.option {
     margin-left: 1em;
 }
 
+.baskets .list-group-item:hover {
+    background-color: #d9d9d9;
+}
+
 /* quickview  */
 
 .quickview .main-content {

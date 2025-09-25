@@ -588,9 +588,12 @@ viewbasketlist model =
                     List.filter (\it -> String.contains model.filter it) model.baskets
 
         viewbasketitem item =
-            H.li [ HA.class "list-group-item p-1 clickable" ]
+            H.li
+                [ HA.class "list-group-item p-1 clickable"
+                , HE.onClick <| SelectedBasket (Just item)
+                ]
                 [ H.span
-                      [ HE.onClick <| SelectedBasket (Just item) ]
+                      [ ]
                       [ H.text item ]
                 ]
 
