@@ -161,18 +161,15 @@ update msg model =
         GotBasketNames (Ok rawbaskets) ->
             case JD.decodeString (JD.list JD.string) rawbaskets of
                 Ok baskets ->
-                    let
-                        name =
-                            Maybe.or (model.name) (List.head baskets)
-                    in
                     ( { model
                           | baskets = baskets
-                          , name = name
+                          , mode = BasketList
                       }
-                    , Maybe.unwrap
-                        (U.sendCmd SelectedBasket Nothing)
-                        (getbasket model)
-                        name
+                    , Task.perform
+                        identity
+                        (Task.succeed
+                            <| SelectedBasket model.name
+                        )
                     )
 
                 Err err ->
