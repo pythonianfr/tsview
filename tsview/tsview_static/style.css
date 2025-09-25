@@ -246,6 +246,10 @@ label.option {
     background-color: #d9d9d9;
 }
 
+.baskets .interactive {
+    cursor: pointer;
+}
+
 /* quickview  */
 
 .quickview .main-content {

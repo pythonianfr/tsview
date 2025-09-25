@@ -563,7 +563,7 @@ viewedition model =
         , HEX.viewIf model.renaming (saveLine RenameBasket)
         ]
     , H.div
-        [ HA.class "mt-4" ]
+        [ HA.class "mt-4 interactive"]
         [ H.h5
             [ HE.onClick DoExpand ]
             [ H.text (U.fromCharCode triangleCode),  H.text " Basket Editor" ]
