@@ -424,10 +424,26 @@ viewseries model =
     in
     H.div []
         [ H.text <| "This basket yields " ++ (String.fromInt nbseries) ++ " series."
+        , quickView model.baseurl model.name
         , H.ul
             [ HA.class "list-group list-group-flush" ]
             items
         ]
+
+
+quickView: String -> Maybe String -> H.Html Msg
+quickView baseurl mName =
+    let name = Maybe.withDefault "" mName
+    in
+        H.a
+            [ HA.class "permalink-quickview"
+            , HA.href
+                <| UB.crossOrigin
+                    baseurl
+                    ["tsview"]
+                    [UB.string  "basket" name]
+            ]
+            [ H.text "Plot all series" ]
 
 
 viewerrors model =

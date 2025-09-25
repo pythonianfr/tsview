@@ -236,6 +236,12 @@ label.option {
     margin-right: .2rem;
 }
 
+/* baskets  */
+
+.baskets .permalink-quickview {
+    margin-left: 1em;
+}
+
 /* quickview  */
 
 .quickview .main-content {
