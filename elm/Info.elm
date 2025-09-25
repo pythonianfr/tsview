@@ -750,6 +750,26 @@ viewintegrationnames model datatype index arg baseview =
         _ -> baseview arg
 
 
+viewbasket : {a| baseurl: String} -> Int -> Lisp.Expr -> (Lisp.Expr -> List (H.Html msg))
+                -> List (H.Html msg)
+viewbasket model index args baseview =
+    -- decorate the name in ( by.basket "<name>" )
+    let name = getstring args
+    in
+    [ H.a [ HA.class "s"
+          , HA.href
+            <| UB.crossOrigin
+                model.baseurl
+                [ "queryeditor" ]
+                [ UB.string "name" name ]
+          ]
+          [ H.span
+                [ HA.class "s" ]
+                [ H.text <| Lisp.quote ++ name ++ Lisp.quote ]
+          ]
+    ]
+
+
 viewformula model toggleevent =
     let
         depthslider formula =
@@ -806,6 +826,7 @@ showformula model formula =
                             [ ( "series", viewname model (SeriesType Primary))
                             , ( "group", viewname model (GroupType GroupPrimary))
                             , ( "integration", viewintegrationnames model (SeriesType Primary))
+                            , ( "by.basket", viewbasket model )
                             ]
     in H.span [] <| viewparsed <| Lisp.parse formula
 
