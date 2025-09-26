@@ -30,6 +30,8 @@ type FilterNode
     | ByMetakey String
     | ByMetaITem String Value
     | ByInternalMetaitem String Value
+    | ByAtPath String Bool
+    | ByWithoutPath
     | Eq String Value
     | Lt String Value
     | Gt String Value
@@ -79,6 +81,25 @@ twoargs opname args op =
                                         String a2str -> Ok <| op a1str (Str a2str)
                                         Int a2int -> Ok <| op a1str (Number <| toFloat a2int)
                                         Float a2float -> Ok <| op a1str (Number a2float)
+                                        _ -> Err <| "bad arguments for " ++ opname
+                                _ -> Err <| "bad arguments for " ++ opname
+                        _ -> Err <| "bad arguments for " ++ opname
+                _ -> Err <| "bad arguments for " ++ opname
+        _ -> Err <| "bad arguments for " ++ opname
+
+
+strandbool: String -> List Lisp.Expr -> (String -> Bool -> FilterNode) -> Result String FilterNode
+strandbool opname args op =
+    case args of
+        (arg1::arg2::_) ->
+            case arg1 of
+                Atom atom ->
+                    case atom of
+                        String a1str ->
+                            case arg2 of
+                                Atom atom2 ->
+                                    case atom2 of
+                                        Bool a2bool -> Ok <| op a1str a2bool
                                         _ -> Err <| "bad arguments for " ++ opname
                                 _ -> Err <| "bad arguments for " ++ opname
                         _ -> Err <| "bad arguments for " ++ opname
@@ -144,6 +165,10 @@ parse expr =
                                     twoargs "metaitem" args ByMetaITem
                                 "by.internal-metaitem" ->
                                     twoargs "internal-metaitem" args ByInternalMetaitem
+                                "by.at-path" ->
+                                    strandbool "at-path" args ByAtPath
+                                "by.without-path" ->
+                                    Ok ByWithoutPath
                                 "by.cache" ->
                                     Ok ByCache
                                 "by.cachepolicy" ->
@@ -239,6 +264,15 @@ serialize node =
                                , Atom <| String key
                                , Atom <| Float num
                                ]
+
+        ByAtPath path children ->
+            Expression [ Atom <| Symbol "by.at-path"
+                       , Atom <| String path
+                       , Atom <| Bool children
+                       ]
+
+        ByWithoutPath ->
+            Expression [ Atom <| Symbol "by.without-path" ]
 
         Eq key val ->
             case val of

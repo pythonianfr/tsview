@@ -242,6 +242,27 @@ testSerialize =
                   (serialize Everything)
                   (Expression [ Atom <| Symbol "by.everything" ])
 
+        run25 =
+            \_ -> Expect.equal
+                  (serialize <| ByAtPath "path" True)
+                  (Expression [ Atom <| Symbol "by.at-path"
+                              , Atom <| String "path"
+                              , Atom <| Bool True
+                              ])
+
+        run26 =
+            \_ -> Expect.equal
+                  (serialize <| ByAtPath "path" False)
+                  (Expression [ Atom <| Symbol "by.at-path"
+                              , Atom <| String "path"
+                              , Atom <| Bool False
+                              ])
+
+        run27 =
+            \_ -> Expect.equal
+                  (serialize ByWithoutPath)
+                  (Expression [ Atom <| Symbol "by.without-path" ])
+
     in
     Test.concat
         [ test "tzaware" run1
@@ -266,7 +287,10 @@ testSerialize =
         , test "internalmetaitem str str" run21
         , test "internalmetaitem str int" run22
         , test "internalmetaitem str float" run23
-        , test "everythinf" run24
+        , test "everything" run24
+        , test "at-path true" run25
+        , test "at-path false" run26
+        , test "without-path" run27
         ]
 
 
