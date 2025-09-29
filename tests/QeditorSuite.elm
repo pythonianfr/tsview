@@ -244,7 +244,7 @@ testSerialize =
 
         run25 =
             \_ -> Expect.equal
-                  (serialize <| ByAtPath "path" True)
+                  (serialize <| ByAtPath2 "path" True)
                   (Expression [ Atom <| Symbol "by.at-path"
                               , Atom <| String "path"
                               , Atom <| Bool True
@@ -252,10 +252,9 @@ testSerialize =
 
         run26 =
             \_ -> Expect.equal
-                  (serialize <| ByAtPath "path" False)
+                  (serialize <| ByAtPath1 "path")
                   (Expression [ Atom <| Symbol "by.at-path"
                               , Atom <| String "path"
-                              , Atom <| Bool False
                               ])
 
         run27 =
