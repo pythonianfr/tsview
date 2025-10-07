@@ -137,7 +137,6 @@ type Msg
 forbidden : List String
 forbidden =
     [ "."
-    , "-"
     , "+"
     , "/"
     , "-"
