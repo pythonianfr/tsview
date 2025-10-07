@@ -755,10 +755,13 @@ removeFromQueue idBatch source destination name model =
 buildTransaction: Path -> Path -> Set String -> Dict (String, String) ( Dict Int ( List String ))
                     -> Dict (String, String) ( Dict Int ( List String ))
 buildTransaction source destination series current =
-     Dict.insert
-        ( reprPath source, reprPath destination )
-        ( splitByBatch 100 ( Set.toList series ) )
-        current
+    if source == destination
+    then Dict.empty
+    else
+        Dict.insert
+            ( reprPath source, reprPath destination )
+            ( splitByBatch 100 ( Set.toList series ) )
+            current
 
 
 getSeries: String -> Path -> Cmd Msg
