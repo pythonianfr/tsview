@@ -397,6 +397,7 @@ update msg model =
                             in
                             ( { model | tree = newTree
                                        , overDrag = Nothing
+                                       , currentCut = NoCut
                                        , currentTransactions = transaction
                                 }
                             , Task.perform
