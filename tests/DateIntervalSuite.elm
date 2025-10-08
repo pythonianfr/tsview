@@ -73,7 +73,7 @@ medianValueSuite =
                In this example, the median is 17 days.
                """ <|
               \_ -> E.equal
-              ( Just "17 days" )
+              ( Just ( "17 days", "11%" ) )
               ( D.medianValue
                     [ "2024-01-16"
                     , "2024-02-05"

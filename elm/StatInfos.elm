@@ -97,6 +97,15 @@ getStatistics previous allowInfer series =
     let dates = List.sort ( Dict.keys series )
         values = List.sort <| justValues series
         length = List.length values
+        inferFreq = if  not ( length < maxPoints || allowInfer )
+                    then Blocked
+                    else
+                    let resultMedian =  medianValue ( Dict.keys series)
+                    in
+                        case resultMedian of
+                            Nothing -> Authorised Nothing
+                            Just (median, quality) ->
+                                Authorised <| Just median
     in
         { previous
             |start = Date <| List.head dates
@@ -112,9 +121,7 @@ getStatistics previous allowInfer series =
             , p25 = Numeric <| Statistics.quantile 0.25 values
             , median = Numeric <| Stat.median values
             , p75 = Numeric <| Statistics.quantile 0.75 values
-            , inferFreq = InferFreq <| if ( length < maxPoints || allowInfer )
-                            then (Authorised ( medianValue ( Dict.keys series)) )
-                            else Blocked
+            , inferFreq = InferFreq inferFreq
         }
 
 

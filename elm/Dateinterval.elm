@@ -39,38 +39,58 @@ dateDiff listStringDates =
             |> Maybe.combine
 
 
-medianValue : List String -> Maybe String
+convertToTimeComponents : Float -> String
+convertToTimeComponents median =
+    let
+        medianInt = Basics.round median
+        totalSeconds = medianInt // 1000
+        totalMinutes = totalSeconds // 60
+        totalHours = totalMinutes // 60
+        days = totalHours // 24
+        hours = Basics.modBy 24 totalHours
+        minutes = Basics.modBy 60 totalMinutes
+        seconds = Basics.modBy 60 totalSeconds
+        milliseconds = Basics.modBy 1000 medianInt
+        converted =
+            [ (days, String.fromInt days ++ if days <= 1 then " day" else " days")
+            , (hours, String.fromInt hours ++ if hours <= 1 then " hour" else " hours")
+            , (minutes, String.fromInt minutes ++ if minutes <= 1 then " minute" else " minutes")
+            , (seconds, String.fromInt seconds ++ if seconds <= 1 then " second" else " seconds")
+            , (milliseconds, String.fromInt milliseconds ++ if milliseconds <= 1 then " millisecond" else " milliseconds")
+            ]
+                |> List.filter (\(time, _) -> time /= 0)
+                |> List.map (\(_, strTime) -> strTime)
+    in if median == 0 then "0" else String.join " " converted
+
+
+formatPercent: Float -> String
+formatPercent ratio =
+    ( String.fromInt <| Basics.round ( ratio * 100 ) )
+    ++ "%"
+
+
+medianValue : List String -> Maybe ( String, String )
 medianValue listStringDates =
     let
-        convertToTimeComponents : Float -> String
-        convertToTimeComponents median =
-            let
-                medianInt = Basics.round median
-                totalSeconds = medianInt // 1000
-                totalMinutes = totalSeconds // 60
-                totalHours = totalMinutes // 60
-                days = totalHours // 24
-                hours = Basics.modBy 24 totalHours
-                minutes = Basics.modBy 60 totalMinutes
-                seconds = Basics.modBy 60 totalSeconds
-                milliseconds = Basics.modBy 1000 medianInt
-                converted =
-                    [ (days, String.fromInt days ++ if days <= 1 then " day" else " days")
-                    , (hours, String.fromInt hours ++ if hours <= 1 then " hour" else " hours")
-                    , (minutes, String.fromInt minutes ++ if minutes <= 1 then " minute" else " minutes")
-                    , (seconds, String.fromInt seconds ++ if seconds <= 1 then " second" else " seconds")
-                    , (milliseconds, String.fromInt milliseconds ++ if milliseconds <= 1 then " millisecond" else " milliseconds")
-                    ]
-                        |> List.filter (\(time, _) -> time /= 0)
-                        |> List.map (\(_, strTime) -> strTime)
-            in if median == 0 then "0" else String.join " " converted
+        mDiffs = dateDiff listStringDates
     in
-    listStringDates
-        |> dateDiff
-        |> Maybe.andThen (\times ->
-            times
-                |> List.sort
-                |> List.map Basics.toFloat
-                |> List.median
-                |> Maybe.map convertToTimeComponents
-                )
+        case mDiffs of
+            Nothing -> Nothing
+            Just diffs ->
+                let
+                     diffsF = List.map Basics.toFloat diffs
+                     mMedian = diffsF
+                                |> List.sort
+                                |> List.median
+                in
+                     case mMedian of
+                         Nothing -> Nothing
+                         Just median ->
+                            let
+                                equals = List.length (List.filter ((==) median) diffsF)
+                            in
+                                Just
+                                    ( convertToTimeComponents median
+                                    , formatPercent
+                                        <| toFloat equals / (toFloat ( List.length diffs ))
+                                    )
