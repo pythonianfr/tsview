@@ -52,7 +52,7 @@ type TypeStat =
 
 type StatusFreq =
     Blocked
-    | Authorised ( Maybe String )
+    | Authorised ( Maybe ( String, String ))
 
 type Msg =
     AllowInferFreq
@@ -75,7 +75,7 @@ emptyStat =
     , inferFreq = InferFreq ( Authorised Nothing )
     }
 
-maxPoints = 1000
+maxPoints = 5000
 
 updateFirstLast: StatInfos -> M.Metadata -> StatInfos
 updateFirstLast statInfos meta =
@@ -105,7 +105,7 @@ getStatistics previous allowInfer series =
                         case resultMedian of
                             Nothing -> Authorised Nothing
                             Just (median, quality) ->
-                                Authorised <| Just median
+                                Authorised <| Just (median, quality)
     in
         { previous
             |start = Date <| List.head dates
@@ -193,7 +193,16 @@ rowStat round tzone tzaware convertMsg name mTitle statistic  =
                                         Authorised freq ->
                                             case freq of
                                                 Nothing -> []
-                                                Just f -> [ H.text f ]
+                                                Just (median, quality)
+                                                    -> [ H.text
+                                                            <| median
+                                                               ++
+                                                               " ("
+                                                               ++
+                                                               quality
+                                                               ++
+                                                               ")"
+                                                       ]
     in
         H.tr
              ( case mTitle of

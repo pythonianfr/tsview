@@ -54,9 +54,9 @@ convertToTimeComponents median =
         converted =
             [ (days, String.fromInt days ++ if days <= 1 then " day" else " days")
             , (hours, String.fromInt hours ++ if hours <= 1 then " hour" else " hours")
-            , (minutes, String.fromInt minutes ++ if minutes <= 1 then " minute" else " minutes")
-            , (seconds, String.fromInt seconds ++ if seconds <= 1 then " second" else " seconds")
-            , (milliseconds, String.fromInt milliseconds ++ if milliseconds <= 1 then " millisecond" else " milliseconds")
+            , (minutes, String.fromInt minutes ++ " min")
+            , (seconds, String.fromInt seconds ++ " s")
+            , (milliseconds, String.fromInt milliseconds ++ " ms")
             ]
                 |> List.filter (\(time, _) -> time /= 0)
                 |> List.map (\(_, strTime) -> strTime)
@@ -65,7 +65,7 @@ convertToTimeComponents median =
 
 formatPercent: Float -> String
 formatPercent ratio =
-    ( String.fromInt <| Basics.round ( ratio * 100 ) )
+    ( String.fromInt <| Basics.floor ( ratio * 100 ) )
     ++ "%"
 
 
