@@ -38,6 +38,7 @@ import FoldersUtil exposing
     , Drag(..)
     , MsgTree(..)
     , Path(..)
+    , TypingType(..)
     , LoadingStatus(..)
     , Payload
     , SeriesAttribute
@@ -131,12 +132,6 @@ type Msg
     | Typing Char
     | DebounceQuery (Debouncer.Msg Msg)
     | Horizon ModuleHorizon.Msg
-
-
-type TypingType
-    = Creating String
-    | Renaming String
-    | NoTyping
 
 
 forbidden : List String
@@ -876,6 +871,7 @@ view model =
                 model.restriction
                 model.focus
                 model.currentCut
+                model.currentTyping
             , viewMoving model.currentTransactions
             ]
 

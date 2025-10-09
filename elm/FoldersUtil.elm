@@ -152,6 +152,11 @@ type Cut
     = NoCut
     | Cut Path ( Set String )
 
+type TypingType
+    = Creating String
+    | Renaming String
+    | NoTyping
+
 
 htmlNone = Html.text ""
 
@@ -313,8 +318,10 @@ restrictList restriction mylist  =
                 mylist
 
 
-toListItems : String -> Maybe Path -> ( MsgTree -> msg ) -> Int -> Maybe Path -> Cut -> Payload -> List (Html msg) -> Html msg
-toListItems baseUrl overDrag convertMsg restriction focus cut payload children =
+toListItems : String -> Maybe Path -> ( MsgTree -> msg )
+              -> Int -> Maybe Path -> Cut -> TypingType
+              -> Payload -> List (Html msg) -> Html msg
+toListItems baseUrl overDrag convertMsg restriction focus cut typing payload children =
     let open = payload.open
         dropable = case payload.path of
                     Root -> False
@@ -343,7 +350,7 @@ toListItems baseUrl overDrag convertMsg restriction focus cut payload children =
                                         else ""
                         ]
                 )
-                ([ viewFolder baseUrl payload open convertMsg
+                ([ viewFolder baseUrl payload open typing convertMsg
                  ]
                  ++
                     (if open
@@ -413,8 +420,8 @@ viewSelector payload cut convertMsg =
         ]
 
 
-viewFolder: String -> Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
-viewFolder baseUrl payload open convertMsg =
+viewFolder: String -> Payload -> Bool -> TypingType -> ( MsgTree -> msg ) -> Html msg
+viewFolder baseUrl payload open typing convertMsg =
     let mutable = case payload.path of
                     Root -> False
                     Branch _ -> True
@@ -439,7 +446,7 @@ viewFolder baseUrl payload open convertMsg =
                  ( if payload.path == Unclassified
                     then []
                     else
-                    [ folderActionButton payload mutable convertMsg ]
+                    [ folderActionButton payload mutable typing convertMsg ]
                  )
                ++
                 [ loadingStatus payload ]
@@ -474,8 +481,14 @@ loadingStatus payload =
                 SuccessFolder -> htmlNone
 
 
-folderActionButton: Payload -> Bool -> ( MsgTree -> msg ) -> Html msg
-folderActionButton payload mutable convertMsg =
+folderActionButton: Payload -> Bool -> TypingType -> ( MsgTree -> msg ) -> Html msg
+folderActionButton payload mutable typing convertMsg =
+    let
+        ( creating, renaming, current ) = case typing of
+                                            Creating name -> (True, False, name)
+                                            Renaming name -> (False, True, name)
+                                            NoTyping -> ( False , False, "")
+    in
     Html.button
         [ class "folder-action"
         , title "Create/Rename/Delete"
@@ -508,6 +521,7 @@ folderActionButton payload mutable convertMsg =
                         []
                         [ Html.button
                             [ class "validate-new-name"
+                            , disabled ( not creating )
                             , onClick <| convertMsg
                                 ( Create payload.path )
                             ]
@@ -534,6 +548,7 @@ folderActionButton payload mutable convertMsg =
                                 []
                                 [Html.button
                                     [ class "validate-new-name"
+                                    , disabled ( not renaming )
                                     , onClick <| convertMsg
                                         ( Rename payload.path )
                                     ]
@@ -751,13 +766,14 @@ classOver payload overDrag =
             else ""
 
 
-viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg) -> Int -> Maybe Path -> Cut -> Html msg
-viewTree baseUrl tree overDrag convertMsg restriction focus cut =
+viewTree: String -> Tree Payload -> Maybe Path -> ( MsgTree -> msg)
+          -> Int -> Maybe Path -> Cut -> TypingType -> Html msg
+viewTree baseUrl tree overDrag convertMsg restriction focus cut typing =
     Html.ul
         [class "folders-list"]
         [ restructure
             identity
-            ( toListItems baseUrl overDrag convertMsg restriction focus cut )
+            ( toListItems baseUrl overDrag convertMsg restriction focus cut typing )
             tree
         ]
 
