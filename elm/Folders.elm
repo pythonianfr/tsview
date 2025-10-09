@@ -109,8 +109,7 @@ type alias Model =
     , errors: List String
     , currentCut: Cut
     , focus : Maybe Path
-    , creationName: String
-    , renameName: String
+    , currentTyping: TypingType
     , openState: Set String
     , currentTransactions : Dict (String, String) ( Dict Int ( List String ))
     , queryDebouncer: Debouncer Msg
@@ -132,6 +131,12 @@ type Msg
     | Typing Char
     | DebounceQuery (Debouncer.Msg Msg)
     | Horizon ModuleHorizon.Msg
+
+
+type TypingType
+    = Creating String
+    | Renaming String
+    | NoTyping
 
 
 forbidden : List String
@@ -310,10 +315,13 @@ update msg model =
                 Other _ -> U.nocmd model
                 Escape ->
                     case model.focus of
-                        Nothing -> U.nocmd { model | tree = closeAllMenus model.tree }
+                        Nothing -> U.nocmd { model | tree = closeAllMenus model.tree
+                                                   , currentTyping = NoTyping
+                                           }
                         Just focus ->
                             ( { model | focus = Nothing
                                       , tree = closeAllMenus model.tree
+                                      , currentTyping = NoTyping
                               },
                             Task.perform
                                 identity
@@ -555,84 +563,89 @@ update msg model =
 
                 CreationName creationName ->
                     U.nocmd
-                        { model | creationName =
-                                    List.foldl
+                        { model | currentTyping =
+                                    Creating
+                                    <| List.foldl
                                         (\ b -> String.replace
                                                 b
                                                 ""
                                         )
                                         creationName
                                         forbidden
-
                         }
 
                 Create path ->
-                    if model.creationName == ""
-                    then U.nocmd model
-                    else
-                    let prefix = case path of
-                                    Root -> ""
-                                    Branch p -> p ++ "."
-                                    Unclassified -> "not possible"
-                        newPath =  prefix ++  model.creationName
-                        newPaths = model.paths
-                                   ++
-                                   [ newPath ]
-                    in
-                    ({ model | tree = initTree newPaths
-                             , paths = newPaths
-                             , creationName = ""
-                      }
-                      , Cmd.batch
-                        ([ Task.perform
-                            identity
-                            ( Task.succeed ( FromTree ( Open path True False )))
-                         ] ++ ( reOpen ( getOpenState model.tree ))
-                        )
+                    case model.currentTyping of
+                        NoTyping -> U.nocmd model
+                        Renaming _ -> U.nocmd model
+                        Creating name ->
+                            let prefix = case path of
+                                            Root -> ""
+                                            Branch p -> p ++ "."
+                                            Unclassified -> "not possible"
+                                newPath =  prefix ++  name
+                                newPaths = model.paths
+                                           ++
+                                           [ newPath ]
+                            in
+                                ({ model | tree = initTree newPaths
+                                         , paths = newPaths
+                                         , currentTyping = NoTyping
+                                  }
+                                  , Cmd.batch
+                                    ([ Task.perform
+                                        identity
+                                        ( Task.succeed ( FromTree ( Open path True False )))
+                                     ] ++ ( reOpen ( getOpenState model.tree ))
+                                    )
 
-                    )
+                                )
 
                 RenameName renameName ->
                     U.nocmd
-                        { model | renameName =
-                                    String.replace
+                        { model | currentTyping =
+                                    Renaming
+                                    <| String.replace
                                         "."
                                         ""
                                         renameName
                         }
 
                 Rename path ->
-                    if model.renameName == ""
-                    then U.nocmd model
-                    else
-                    case path of
-                        Root -> U.nocmd model
-                        Unclassified -> U.nocmd model
-                        Branch oldBranch ->
-                            let splited = String.split "." oldBranch
-                                newBranch =
-                                     case List.reverse splited of
-                                        [ ] -> "" --at the root. Should not occur
-                                        x :: xs ->
-                                            String.join
-                                                "."
-                                                <| List.reverse
-                                                    <| [ model.renameName ] ++ xs
-                                newPaths =
-                                    renamePaths oldBranch newBranch model.paths
-                            in
-                                ( { model | tree = initTree newPaths }
-                                , Cmd.batch
-                                    <| [ renameTreePath model.baseUrl oldBranch newBranch ]
-                                    ++ ( reOpen
-                                        <|Set.fromList
-                                            <| renamePaths
-                                                oldBranch
-                                                newBranch
-                                                <| Set.toList
-                                                    ( getOpenState model.tree )
+                    case model.currentTyping of
+                        NoTyping -> U.nocmd model
+                        Creating _ -> U.nocmd model
+                        Renaming name ->
+                            case path of
+                                Root -> U.nocmd model
+                                Unclassified -> U.nocmd model
+                                Branch oldBranch ->
+                                    let splited = String.split "." oldBranch
+                                        newBranch =
+                                             case List.reverse splited of
+                                                [ ] -> "" --at the root. Should not occur
+                                                x :: xs ->
+                                                    String.join
+                                                        "."
+                                                        <| List.reverse
+                                                            <| [ name ] ++ xs
+                                        newPaths =
+                                            renamePaths oldBranch newBranch model.paths
+                                    in
+                                        ( { model | tree = initTree newPaths
+                                                  , currentTyping = NoTyping
+                                          }
+                                        , Cmd.batch
+                                            <| [ renameTreePath model.baseUrl oldBranch newBranch ]
+                                            ++ ( reOpen
+                                                <|Set.fromList
+                                                    <| renamePaths
+                                                        oldBranch
+                                                        newBranch
+                                                        <| Set.toList
+                                                            ( getOpenState model.tree )
+                                                )
                                         )
-                                )
 
                 SubMenu open path ->
                     U.nocmd { model | tree =
@@ -919,10 +932,9 @@ initModel baseUrl =
     , errors = []
     , currentCut = NoCut
     , focus = Nothing
-    , creationName = ""
-    , renameName = ""
     , openState = Set.empty
     , currentTransactions = Dict.empty
+    , currentTyping = NoTyping
     , queryDebouncer = debouncerConfig
     , horizon = initHorizon
                     baseUrl
