@@ -1238,6 +1238,7 @@ view model =
                 [ H.h1 [ HA.class "page-title" ] [ H.text "Quick view" ]
                 , horizonview model.horizon convertMsg "action-center" True
                 , permalink model
+                , editionlink model
                 ]
             , H.div
                 [ ]
@@ -1709,6 +1710,33 @@ permalink model =
               )
     ]
     [ H.text "permalink" ]
+
+
+editionlink: Model -> H.Html Msg
+editionlink model =
+    let
+        names = List.map
+                    (\name -> "(by.name  \"" ++ name ++ "\" ) " )
+                    ( Dict.keys model.loaded.series )
+        query = "(by.or "
+                ++
+                List.foldl (\ a b -> a++b ) " " names
+                ++
+                ")"
+        queryParams = [ UB.string "query" query ]
+        addParams = case getFromToDates model.horizon of
+                        Nothing -> []
+                        Just ( min, max ) -> [ UB.string "startdate" min
+                                             , UB.string "enddate" max]
+    in
+    H.a
+    [ HA.class "permalink"
+    , HA.href ( UB.relative
+                ["tseditor"]
+                ( queryParams ++ addParams )
+              )
+    ]
+    [ H.text "edition" ]
 
 
 secondAxisNames: Model -> DataType ->List String
