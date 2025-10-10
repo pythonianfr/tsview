@@ -1,5 +1,7 @@
 module TimeUtil exposing
-    ( localize
+    ( formatAsUtcIso
+    , localize
+    , toLocal
     , utcToLocal
     )
 

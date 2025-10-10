@@ -44,6 +44,7 @@ import Plotter exposing
 import Horizon as ModuleHorizon
 import Horizon exposing
     ( HorizonModel
+    , Msg(..)
     , PlotStatus(..)
     , ZoomFromPlotly
     , initHorizon
@@ -61,7 +62,8 @@ import Process
 import SeriesSelector
 import Set exposing (Set)
 import Task exposing (Task)
-import Time exposing (Month(..))
+import Time exposing (Month(..), Zone)
+import TimeUtil
 import Url.Builder as UB
 import Util as U
 
@@ -93,6 +95,8 @@ type alias Model =
     , showLegend : Bool
     , activeRequests : Set String
     , query : String
+    , now : String
+    , browserTz: Zone
     }
 
 type Selecting =
@@ -202,7 +206,9 @@ type Msg
     | ShowLegend Bool
     | ToggleAxis DataType DataInfos String
     | DownloadCsv
-
+    | RefreshNow
+    | GotTime Time.Posix
+    | GotTimezone Zone
 
 
 convertMsg : ModuleHorizon.Msg -> Msg
@@ -732,8 +738,14 @@ update msg model =
                     |> List.map (String.join ",")
                     |> String.join "\n"
                 csvBytes = Encode.encode (Encode.string csvString)
+                fDate = TimeUtil.toLocal model.browserTz model.now
+                suffix = String.slice
+                            0
+                            16
+                            ( String.replace ":" "-" fDate )
+                fileName = "plot_data" ++ suffix ++ ".csv"
             in
-            ( model, Download.bytes "plot_data.csv" "text/csv" csvBytes )
+            ( model, Download.bytes fileName "text/csv" csvBytes )
 
         FilterSeries x ->
             let
@@ -1046,6 +1058,17 @@ update msg model =
 
         ShowLegend show ->
             U.nocmd { model | showLegend = show }
+
+        --date
+        RefreshNow ->
+            ( model
+            , Task.perform GotTime Time.now
+            )
+        GotTime date ->
+            U.nocmd { model | now =  TimeUtil.formatAsUtcIso date }
+        GotTimezone tzone ->
+            U.nocmd { model | browserTz =  tzone }
+
 
 
 
@@ -1490,6 +1513,7 @@ downloadCsvButton model =
     H.button
         [ HA.class "btn btn-primary"
         , HA.disabled (not allSeriesLoaded)
+        , HE.onMouseEnter RefreshNow
         , HE.onClick DownloadCsv
         ]
         [ H.text "Download as csv" ]
@@ -1800,6 +1824,11 @@ getBasketCatalog baseurl =
               [ ]
         }
 
+getTz: Cmd Msg
+getTz =
+    Task.perform GotTimezone Time.here
+
+
 initSearch selected = (SeriesSelector.new [] "" [] selected [] [])
 
 sub: Model -> Sub Msg
@@ -1884,6 +1913,8 @@ main =
                     , showLegend = True
                     , activeRequests = Set.empty
                     , query = flags.query
+                    , now = ""
+                    , browserTz = Time.utc
                     }
 
                 ( modelWithSeries, _ ) = fetchseries model False
@@ -1896,6 +1927,7 @@ main =
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
                             , getBasketCatalog
                                 model.baseurl
+                            , getTz
                             , Catalog.get
                                 model.baseurl
                                 "group" 1
