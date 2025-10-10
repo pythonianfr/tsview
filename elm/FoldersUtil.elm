@@ -136,10 +136,10 @@ type MsgTree
     | PrepareDelete Path
     | ConfirmDelete Path
     | CancelDelete Path
-    | CreationName String
-    | Create Path
-    | RenameName String
-    | Rename Path
+    | CreationName Path String
+    | Create
+    | RenameName Path String
+    | Rename
     | SubMenu Bool Path
     | NoAction
 
@@ -153,8 +153,8 @@ type Cut
     | Cut Path ( Set String )
 
 type TypingType
-    = Creating String
-    | Renaming String
+    = Creating Path String
+    | Renaming Path String
     | NoTyping
 
 
@@ -484,10 +484,12 @@ loadingStatus payload =
 folderActionButton: Payload -> Bool -> TypingType -> ( MsgTree -> msg ) -> Html msg
 folderActionButton payload mutable typing convertMsg =
     let
-        ( creating, renaming, current ) = case typing of
-                                            Creating name -> (True, False, name)
-                                            Renaming name -> (False, True, name)
-                                            NoTyping -> ( False , False, "")
+        path = payload.path
+        ( creating, renaming, current )
+            = case typing of
+                Creating _ name -> (True, False, name)
+                Renaming _ name -> (False, True, name)
+                NoTyping -> ( False , False, "")
     in
     Html.button
         [ class "folder-action"
@@ -513,7 +515,7 @@ folderActionButton payload mutable typing convertMsg =
                             , placeholder "name"
                             , onInput
                                 (\ s ->  convertMsg
-                                            ( CreationName s )
+                                            ( CreationName path s )
                                 )
                             ]
                             []
@@ -523,7 +525,7 @@ folderActionButton payload mutable typing convertMsg =
                             [ class "validate-new-name"
                             , disabled ( not creating )
                             , onClick <| convertMsg
-                                ( Create payload.path )
+                                            Create
                             ]
                             [ Html.text "Ok" ]
                         ]
@@ -540,7 +542,7 @@ folderActionButton payload mutable typing convertMsg =
                             , placeholder "name"
                             , onInput
                                 (\ s ->  convertMsg
-                                            ( RenameName s )
+                                            ( RenameName path s )
                                 )
                             ]
                             []
@@ -550,14 +552,14 @@ folderActionButton payload mutable typing convertMsg =
                                     [ class "validate-new-name"
                                     , disabled ( not renaming )
                                     , onClick <| convertMsg
-                                        ( Rename payload.path )
+                                                    Rename
                                     ]
                                     [ Html.text "Ok" ]
                                 ]
                             ]
                         , Html.li
                             [ onClick <| convertMsg
-                                            ( PrepareDelete payload.path )
+                                            ( PrepareDelete path )
                             ]
                             [ Html.p [] [Html.text "Delete"]
                             , Html.p [] [ ]
@@ -569,12 +571,12 @@ folderActionButton payload mutable typing convertMsg =
                                     ]
                                     [ Html.li
                                         [ onClick <| convertMsg
-                                                    ( ConfirmDelete payload.path )
+                                                    ( ConfirmDelete path )
                                         ]
                                         [ Html.text "Yes" ]
                                     , Html.li
                                         [ onClick <| convertMsg
-                                                    ( CancelDelete payload.path )
+                                                    ( CancelDelete path )
                                         ]
                                         [ Html.text "No" ]
                                     ]

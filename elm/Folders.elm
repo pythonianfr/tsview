@@ -93,10 +93,12 @@ keyToType:  String -> ControlKey
 keyToType keyValue =
     case keyValue of
         "Escape" -> Escape
+        "Enter" -> Enter
         _ -> Other keyValue
 
 type ControlKey
     = Escape
+    | Enter
     | Other String
 
 
@@ -321,6 +323,21 @@ update msg model =
                             Task.perform
                                 identity
                                 ( Task.succeed ( FromTree ( ButtonReset focus ))))
+                Enter ->
+                    case model.currentTyping of
+                        NoTyping -> U.nocmd model
+                        Creating _ _ ->
+                            ( model,
+                             Task.perform
+                                identity
+                                ( Task.succeed ( FromTree Create ))
+                            )
+                        Renaming _ _ ->
+                            ( model,
+                             Task.perform
+                                identity
+                                ( Task.succeed ( FromTree Rename ))
+                            )
 
         Typing _ -> U.nocmd model
 
@@ -556,10 +573,11 @@ update msg model =
                 CancelDelete path ->
                     U.nocmd { model | tree = closeAllMenus model.tree }
 
-                CreationName creationName ->
+                CreationName path creationName ->
                     U.nocmd
                         { model | currentTyping =
                                     Creating
+                                    path
                                     <| List.foldl
                                         (\ b -> String.replace
                                                 b
@@ -569,11 +587,11 @@ update msg model =
                                         forbidden
                         }
 
-                Create path ->
+                Create ->
                     case model.currentTyping of
                         NoTyping -> U.nocmd model
-                        Renaming _ -> U.nocmd model
-                        Creating name ->
+                        Renaming _ _ -> U.nocmd model
+                        Creating path name ->
                             let prefix = case path of
                                             Root -> ""
                                             Branch p -> p ++ "."
@@ -596,21 +614,22 @@ update msg model =
 
                                 )
 
-                RenameName renameName ->
+                RenameName path renameName ->
                     U.nocmd
                         { model | currentTyping =
                                     Renaming
+                                    path
                                     <| String.replace
                                         "."
                                         ""
                                         renameName
                         }
 
-                Rename path ->
+                Rename ->
                     case model.currentTyping of
                         NoTyping -> U.nocmd model
-                        Creating _ -> U.nocmd model
-                        Renaming name ->
+                        Creating _ _ -> U.nocmd model
+                        Renaming path name ->
                             case path of
                                 Root -> U.nocmd model
                                 Unclassified -> U.nocmd model
