@@ -58,7 +58,8 @@ view model =
                        []
         , Men.viewMenu model.menu Menu ]
 
-sub model =  Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
+sub model =
+    Men.loadMenuData (\ str -> Menu (Men.LoadMenuData str))
 
 main = Browser.element
         { init = init

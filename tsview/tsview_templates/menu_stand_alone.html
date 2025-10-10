@@ -3,6 +3,12 @@
      localStorage.setItem("menuData", JSON.stringify(data));
  });
 
+  menuapp.ports.triggerResize.subscribe(function() {
+    window.dispatchEvent(new Event('resize'));
+    console.log('resize')
+    }
+  )
+
  incache = localStorage.getItem("menuData")
  if (incache === null) {
      incache = '{"menuIsOpen": false}'

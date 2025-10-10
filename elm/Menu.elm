@@ -26,7 +26,7 @@ import Icons exposing (Icon, buildSvg)
 
 port saveMenuData : MenuData -> Cmd msg
 port loadMenuData : (String -> msg) -> Sub msg
-
+port triggerResize : () -> Cmd msg
 
 type alias MenuData =
     { menuIsOpen: Bool }
@@ -143,7 +143,11 @@ updateModel msg model =
 buildCmd: Msg -> Model -> Cmd msg
 buildCmd msg model =
     case msg of
-        ToggleMenu -> saveMenuData (MenuData (not model.menuModeText))
+        ToggleMenu ->
+            Cmd.batch
+                [ saveMenuData (MenuData (not model.menuModeText))
+                , triggerResize ()
+                ]
         _ -> Cmd.none
 
 -- view
