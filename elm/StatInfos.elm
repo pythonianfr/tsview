@@ -35,6 +35,7 @@ type alias StatInfos =
     , count: TypeStat
     , nas: TypeStat
     , mean: TypeStat
+    , std: TypeStat
     , p25: TypeStat
     , median: TypeStat
     , p75: TypeStat
@@ -58,6 +59,7 @@ type Msg =
     AllowInferFreq
 
 
+emptyStat: StatInfos
 emptyStat =
     { first = DateNonLocalized Nothing
     , last = DateNonLocalized Nothing
@@ -69,6 +71,7 @@ emptyStat =
     , count = Count 0
     , nas = Count 0
     , mean = Numeric Nothing
+    , std = Numeric Nothing
     , p25 = Numeric Nothing
     , median = Numeric Nothing
     , p75 = Numeric Nothing
@@ -118,6 +121,7 @@ getStatistics previous allowInfer series =
                         then Numeric Nothing
                         else Numeric ( Just ( List.sum values ))
             , mean = Numeric <| Stat.mean values
+            , std = Numeric <| Stat.stdDeviation values
             , p25 = Numeric <| Statistics.quantile 0.25 values
             , median = Numeric <| Stat.median values
             , p75 = Numeric <| Statistics.quantile 0.75 values
@@ -155,6 +159,7 @@ viewStatTable statInfos round tzone tzaware convertMsg =
         , partialRow "Count" Nothing statInfos.count
         , partialRow "NaNs" Nothing statInfos.nas
         , partialRow "Mean" Nothing statInfos.mean
+        , partialRow "Std" Nothing statInfos.std
         , partialRow "P25" Nothing statInfos.p25
         , partialRow "P50" Nothing statInfos.median
         , partialRow "P75" Nothing statInfos.p75
