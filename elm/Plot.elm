@@ -1,6 +1,8 @@
 port module Plot exposing (main)
 
 import Browser
+import Browser.Dom as Dom
+import Browser.Events
 import Bytes.Encode as Encode
 import Dict exposing (Dict)
 import EdiTable exposing
@@ -72,6 +74,8 @@ port legendStatus: (List (String, Bool) -> msg) -> Sub msg
 
 type alias Model =
     { baseurl : String
+    , viewportHeight : Float
+    , plotHeight: Float
     , catalog: Catalog.Model -- is not used, actually
     , haseditor : Bool
     , searchSeries : SeriesSelector.Model
@@ -169,7 +173,8 @@ basketItemDecode =
 
 
 type Msg
-    = GotCatalog Catalog.Msg
+    = GotViewport Dom.Viewport
+    | GotCatalog Catalog.Msg
     | GotSeriesData Int ( Maybe String ) String (Result Http.Error String)
     | GotGroupData Int String (Result Http.Error String)
     | GotBasketCatalog (Result Http.Error String)
@@ -204,6 +209,7 @@ convertMsg : ModuleHorizon.Msg -> Msg
 convertMsg msg =
     Horizon msg
 
+plotHeightRatio = 0.6
 
 findmissing: Model -> List String
 findmissing model =
@@ -369,6 +375,8 @@ update msg model =
                 List.filter (U.fragmentsmatcher xm) xs |> List.take 20
     in
     case msg of
+        GotViewport viewport ->
+            U.nocmd { model | viewportHeight = viewport.viewport.height}
         GotCatalog catmsg ->
             case catmsg of
             Catalog.ReceivedSeries _ ->
@@ -1341,7 +1349,9 @@ buildPlotArgs model =
                         { defaultValueAxis | overlaying = Just "y"
                                            , side = Just "right"
                         }
-                , height = Just 600
+                , height = Just
+                            <| Basics.round ( model.viewportHeight
+                                            * model.plotHeight )
                 , dragMode = Just ( if model.panActive
                                      then "pan"
                                      else "zoom" )
@@ -1800,7 +1810,24 @@ sub model =
     , zoomPlot FromZoom
     , panActive NewDragMode
     , legendStatus Legends
+    , viewportResize
     ]
+
+viewportResize : Sub Msg
+viewportResize =
+    Browser.Events.onResize
+        (\w h -> GotViewport
+                    { viewport =
+                        { width = toFloat w
+                        , height = Basics.toFloat h
+                        , x = 0
+                        , y = 0
+                        }
+                    , scene =
+                        { width = toFloat w
+                        , height = toFloat h }
+                    }
+        )
 
 main : Program
        { baseurl : String
@@ -1830,6 +1857,8 @@ main =
                 axis2G = flags.axis2G
                 model =
                     { baseurl = flags.baseurl
+                    , viewportHeight = 0
+                    , plotHeight = plotHeightRatio
                     , horizon = initHorizon
                                     flags.baseurl
                                     flags.min
@@ -1860,7 +1889,8 @@ main =
                 ( modelWithSeries, _ ) = fetchseries model False
                 ( modelWithGroups, _ ) = fetchgroups modelWithSeries False
             in ( modelWithGroups
-               , Cmd.batch ([ Catalog.get
+               , Cmd.batch ([ Task.perform GotViewport Dom.getViewport
+                            , Catalog.get
                                 model.baseurl
                                 "series" 1
                                 (\ h -> GotCatalog (Catalog.ReceivedSeries h))
