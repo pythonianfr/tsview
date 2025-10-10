@@ -424,7 +424,9 @@ viewseries model =
     in
     H.div []
         [ H.text <| "This basket yields " ++ (String.fromInt nbseries) ++ " series."
-        , quickView model.baseurl model.name
+        , case model.editorExpanded of
+            False -> quickView model.baseurl model.name
+            True -> H.text ""
         , H.ul
             [ HA.class "list-group list-group-flush" ]
             items
