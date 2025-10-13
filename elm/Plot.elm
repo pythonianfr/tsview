@@ -1286,7 +1286,6 @@ view model =
                 , H.div
                     [ HA.class "under-the-plot" ]
                     [ seriesTable model
-                    , H.br [] []
                     , downloadCsvButton model
                     ]
                 ]
@@ -1511,7 +1510,7 @@ downloadCsvButton model =
             && not (Dict.isEmpty model.registry.series)
     in
     H.button
-        [ HA.class "btn btn-primary"
+        [ HA.class "btn btn-primary download-csv"
         , HA.disabled (not allSeriesLoaded)
         , HE.onMouseEnter RefreshNow
         , HE.onClick DownloadCsv

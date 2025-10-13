@@ -292,6 +292,7 @@ label.option {
 .quickview .data-table {
     font-size: 80%;
     margin-left: 25px;
+    float: left;
 }
 
 .quickview .data-table tr:hover{
@@ -384,6 +385,11 @@ label.option {
 
 .quickview .data-status.failure
     {color: red;}
+
+.quickview .download-csv {
+    float: right;
+    margin-right: 60px;
+}
 
 .js-plotly-plot div {
     overflow: visible !important;
