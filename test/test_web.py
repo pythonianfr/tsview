@@ -276,7 +276,7 @@ def test_query_spec_types(client):
         ['>=',
          [['return', 'query'], ['key', 'str'], ['value', 'Union[str, Number, bool]']]],
         ['by.and', [['return', 'query'], ['items', 'Packed[query]']]],
-        ['by.at-path', [['return', 'query'], ['path', 'str'], ['children', 'bool']]],
+        ['by.at-path', [['return', 'query'], ['path', 'str'], ['children', 'Default[bool=False]']]],
         ['by.cache', [['return', 'query']]],
         ['by.cachepolicy', [['return', 'query'], ['query', 'CachePolicy']]],
         ['by.everything', [['return', 'query']]],
