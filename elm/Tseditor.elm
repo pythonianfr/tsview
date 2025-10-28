@@ -547,7 +547,7 @@ likeComp model =
 
 type alias QueryItem =
     { name : String
-    , imeta : Maybe M.Metadata
+    , imeta : M.Metadata
     , meta : Maybe M.Metadata
     , source : String
     , kind : String
@@ -559,16 +559,12 @@ toComp queryItem =
     { name= queryItem.name
     , cType = if queryItem.kind == "primary" then Primary else Formula
     , data = emptySeries
-    , tzaware = case queryItem.imeta of
-                    Nothing -> True
-                    Just imeta -> isTzaware imeta
+    , tzaware = isTzaware queryItem.imeta
     , status = CompEmpty
     , editable = queryItem.kind == "primary"
-    , scalarType = case queryItem.imeta of
-                    Nothing -> ScalFloat
-                    Just imeta -> if isStr imeta
-                                    then ScalString
-                                    else ScalFloat
+    , scalarType = if isStr queryItem.imeta
+                    then ScalString
+                    else ScalFloat
     }
 
 
@@ -627,7 +623,7 @@ queryItemDecode : JD.Decoder QueryItem
 queryItemDecode =
     JD.map5 QueryItem
         (JD.field "name" JD.string)
-        (JD.field "imeta" (JD.succeed Nothing))
+        (JD.field "imeta" M.decodemeta )
         (JD.field "meta" (JD.succeed Nothing))
         (JD.field "source" JD.string)
         (JD.field "kind" JD.string)
@@ -858,7 +854,9 @@ getQuery baseUrl queryStr =
         { expect = Http.expectString GotQuery
         , url = UB.crossOrigin baseUrl
               [ "api", "series", "find" ]
-              [ UB.string "query" queryStr ]
+              [ UB.string "query" queryStr
+              , UB.string "meta" "True"
+              ]
         }
 
 
@@ -868,7 +866,9 @@ getBasket baseUrl name =
         { expect = Http.expectString GotBasket
         , url = UB.crossOrigin baseUrl
               [ "api", "series", "basket" ]
-              [ UB.string "name" name ]
+              [ UB.string "name" name
+              , UB.string "meta" "True"
+              ]
         }
 
 
@@ -4317,6 +4317,9 @@ debugView model =
                                                     ++ " : "
                                                     ++
                                                     printComptStatus c.status
+                                                    ++
+                                                    " tz-status : "
+                                                    ++ if c.tzaware then"aware" else "naive"
                                                 )
                                             ]
                                 )
