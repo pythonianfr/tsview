@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+## [0.23.0] - 2025-11-05
+
+### Added
+- folders: comprehensive file-browser-like folder system for organizing series
+  - tree structure with drag and drop support
+  - multi-series selection, cut, copy, paste
+  - folder creation, rename, deletion with confirmation
+  - series filtering within folders
+  - unclassified series management
+  - batch operations with horizon selector
+  - links to tsinfo, quickview, tseditor per folder
+- ui/tsinfo: dependents tab showing series that depend on current one
+- ui/tsinfo: folder path display and editing
+- quickview: download as csv button with datetime suffix
+- q-editor: by.at-path and by.without-path operators implementation
+- q-editor: links from basket to quickview
+- q-editor: clickable basket list with cursor indicators
+- stat-info: quality indicator for inferred frequency
+- stat: standard deviation calculation
+- time localization for date display according to horizon settings
+
+### Changed
+- tseditor: refined model of series with improved data handling
+- tseditor: better handling of editable cells in outer-merge situations
+- tseditor: scalar type forcing for empty strings
+- tseditor: extraction and testing of merge and patch functions
+- tsinfo: formula operators now link to basket editor (by.basket)
+- tsinfo: localized insertion dates in history and time-travel
+- quickview: plot height now fraction of viewport
+- quickview: improved layout with download button under plot
+- folders: extensive UX improvements with better styling, error handling, loading states
+- menu: display changes trigger resize event
+
+### Fixed
+- tseditor: saving data for naive series in basket/query mode
+- tseditor: fillNas handling for missing values
+- tseditor: menu fold/unfold behavior
+- quickview: instanciation by query
+- quickview: browser stored horizon loading
+- q-editor: page instanciation via permalink
+- folders: consistency between cut and drop actions
+- folders: various edge cases and error handling
+
+## [0.22.0] - 2025-08-29
+
 ### Added
 - ui/groups: horizon widget for group pages
 - ui/horizon: canadian timezone support
