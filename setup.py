@@ -70,11 +70,11 @@ setup(name='tsview',
       zip_safe=False,
       install_requires=[
           'flask < 3.2',
-          'sqlhelp',
+          'sqlhelp >= 0.4.0',
           'werkzeug == 3.1.3',
-          'tshistory >= 0.19.4',
+          'tshistory >= 0.22.1',
           'plotly < 6.0',
-          'tshistory_formula >= 0.15'
+          'tshistory_formula >= 0.18.1'
       ],
       package_data={'tsview': [
           'schema.sql',
