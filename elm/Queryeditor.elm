@@ -85,6 +85,7 @@ type Msg
     | CancelRemove
     | ConfirmRemove
     | RemovedBasket (Result Http.Error ())
+    | RenamedBasket (Result Http.Error ())
     | NewName String
     | Filter String
     | GotItemsDesc F.Msg
@@ -120,6 +121,20 @@ removebasket model name = Http.request
     , tracker = Nothing
     , url = UB.crossOrigin model.baseurl [ "api",  "series", "basket" ] [ ]
     , expect = Http.expectWhatever <| RemovedBasket
+    }
+
+renamebasket : Model -> String -> String -> Cmd Msg
+renamebasket model oldname newname = Http.request
+    { method = "PATCH"
+    , body = Http.jsonBody <| JE.object
+             [ ("oldname", JE.string oldname )
+             , ("newname", JE.string newname )
+             ]
+    , headers = [ ]
+    , timeout = Nothing
+    , tracker = Nothing
+    , url = UB.crossOrigin model.baseurl [ "api",  "series", "basket" ] [ ]
+    , expect = Http.expectWhatever <| RenamedBasket
     }
 
 savebasket : Model -> String -> BasketFormula -> Cmd Msg
@@ -310,11 +325,21 @@ update msg model =
 
         RenameBasket ->
             ( model
-            , Cmd.batch
-                   [ Maybe.unwrap Cmd.none (savebasket model model.newname) model.basket
-                   , Maybe.unwrap Cmd.none (removebasket model) model.name
-                   ]
+            , case model.name of
+                Nothing -> Cmd.none
+                Just oldname -> renamebasket model oldname model.newname
             )
+
+        RenamedBasket (Ok _) ->
+            ( { model
+                | name = Just model.newname
+                , renaming = False
+              }
+            , getbaskets model
+            )
+
+        RenamedBasket (Err err) ->
+            doerr "renamebasket http" <| U.unwraperror err
 
         NewName name ->
             U.nocmd { model | newname = name }
