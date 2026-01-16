@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [0.23.1] - 2026-01-16
+
+### Changed
+- q-editor: use proper rename_basket api
 
 ## [0.23.0] - 2025-11-05
 
